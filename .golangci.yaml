@@ -1,0 +1,85 @@
+# GolangCI-Lint
+# this workspace is using golangci-lint for linting, so you need to install it.
+## MacOS Installation (HomeBrew)
+# $ brew install golangci-lint
+# See more: https://golangci-lint.run/usage/install/
+## VSCode Integrations (for User Settings)
+# 1. Open VSCode Settings (JSON)
+# 2. in configs, add field `go.lintTool` and value `golangci-lint` ("go.lintTool":"golangci-lint")
+# See more: https://golangci-lint.run/usage/integrations/
+
+# See more: https://golangci-lint.run/usage/configuration/#run-configuration
+run:
+  # Timeout for analysis, e.g. 30s, 5m.
+  # Default: 1m
+  timeout: 10m
+  # Include test files or not.
+  # Default: true
+  tests: false
+  # Allow multiple parallel golangci-lint instances running.
+  # If false (default) - golangci-lint acquires file lock on start.
+  allow-parallel-runners: false
+
+# See more: https://golangci-lint.run/usage/linters/
+linters:
+  disable-all: true
+  enable:
+    ### Metalinter
+    - staticcheck # bugs, metalinter - https://staticcheck.io
+    - govet # bugs, metalinter
+    # - gocritic # style, metalinter - https://github.com/go-critic/go-critic
+    # - revive # style, metalinter - https://github.com/mgechev/revive
+    ### Default Linters
+    - gosimple # style
+    - ineffassign # unused
+    - typecheck # bugs
+    - unused # unused
+    - errcheck # bugs, error
+    ### If some linters are not needed or annoying, you can disable them here.
+    - bodyclose # performance, bugs - checks whether HTTP response body is closed successfully
+    - misspell # style, comment - Finds commonly misspelled English words in comments. https://github.com/client9/misspell
+    - durationcheck # bugs - check for two durations multiplied together
+    - gofumpt # format - Gofumpt checks whether code was gofumpt-ed.
+    - goimports # format, import - In addition to fixing imports, goimports also formats your code in the same style as gofmt.
+    - whitespace # style - Tool for detection of leading and trailing whitespace.
+    - nosprintfhostport # style - Checks for misuse of Sprintf to construct a host with port in a URL.
+    - usestdlibvars # style - detect the possibility to use variables/constants from the Go standard library
+    - noctx # performance, bugs - finds sending http request without context.Context
+    - goconst # style - Finds repeated strings that could be replaced by a constant
+    - errorlint # bugs, error - find code that will cause problems with the error wrapping scheme introduced in Go 1.13.
+    - unconvert # style - unnecessary type conversions
+    - prealloc # performance - Find slice declarations that could potentially be pre-allocated, https://github.com/alexkohler/prealloc
+    - gosec # bugs - Inspects source code for security problems
+    - wrapcheck # style, error - Checks that errors returned from external packages are wrapped, we should wrap the error from external library
+    ### Annoying Linters
+    # - dupl # style - code clone detection
+
+issues:
+  # Maximum issues count per one linter.
+  max-issues-per-linter: 50
+  # Maximum count of issues with the same text.
+  max-same-issues: 5
+  # Fix found issues (if it's supported by the linter).
+  fix: true
+
+linters-settings:
+  misspell:
+    locale: US
+    ignore-words: []
+  wrapcheck:
+    ignoreSigs:
+      - .Errorf(
+      - errors.New(
+      - errors.Unwrap(
+      - .Wrap(
+      - .Wrapf(
+      - .WithMessage(
+      - .WithMessagef(
+      - .WithStack(
+    ignoreSigRegexps:
+      - \.New.*Error\(
+    ignorePackageGlobs:
+      - "github.com/gofiber/fiber/*"
+  goconst:
+    ignore-tests: true
+    min-occurrences: 5

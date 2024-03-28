@@ -1,0 +1,74 @@
+# Eg. foo_test.ignore.go, credentials.ignore.json, config.ignore.yml
+*.ignore.*
+# Eg. ignore.foo_test.go, ignore.credentials.json, ignore.config.yml
+ignore.*
+
+**/cmd.local/**
+**/cmd.local.**/**
+
+**/tmps/**
+.env
+.DS_Store
+**/config.yml
+**/config.yaml
+**/config.*.yml
+**/config.*.yaml
+!**/config.example.*
+**/credentials.json
+/dev-scripts
+.idea
+.env
+**/node_modules
+
+*.output
+
+# redis data
+*.rdb
+
+*.fiber.gz
+
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+!.vscode/*.code-snippets
+
+.goreload
+
+
+node_modules
+.pnp
+.pnp.js
+
+# Local env files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Testing
+coverage
+
+# Turbo
+.turbo
+
+# Vercel
+.vercel
+
+# Build Outputs
+.next/
+out/
+build
+dist
+
+
+# Debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Misc
+.DS_Store
+*.pem
