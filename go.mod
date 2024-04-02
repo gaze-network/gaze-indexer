@@ -3,6 +3,7 @@ module github.com/gaze-network/indexer-network
 go 1.22
 
 require (
+	github.com/Cleverse/go-utilities/errors v0.0.0-20240119201306-d71eb577ef11
 	github.com/Cleverse/go-utilities/utils v0.0.0-20240119201306-d71eb577ef11
 	github.com/btcsuite/btcd v0.24.0
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.1.0

@@ -1,3 +1,5 @@
+github.com/Cleverse/go-utilities/errors v0.0.0-20240119201306-d71eb577ef11 h1:A/W+WtBYeIxV73kaOoUrz1ANq64bCFZp0vPWOx2p5AU=
+github.com/Cleverse/go-utilities/errors v0.0.0-20240119201306-d71eb577ef11/go.mod h1:1QK+h746G1DwellQ6KK2rBCJusZqIDTZ9QFVGnUX9+Q=
 github.com/Cleverse/go-utilities/utils v0.0.0-20240119201306-d71eb577ef11 h1:Xpbu03JdzqWEXcL6xr43Wxjnwh/Txt16WXJ7IlzvoxA=
 github.com/Cleverse/go-utilities/utils v0.0.0-20240119201306-d71eb577ef11/go.mod h1:ft8CEDBt0csuZ+yM/bKf7ZlV6lWvWY/TFXzp7+Ze9Jw=
 github.com/aead/siphash v1.0.1/go.mod h1:Nywa3cDsYNNK3gaciGTWPwHt0wlpNV15vwmswBAUSII=
