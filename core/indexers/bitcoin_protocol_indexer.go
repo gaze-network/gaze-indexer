@@ -8,7 +8,7 @@ import (
 	"github.com/gaze-network/indexer-network/core/types"
 )
 
-// BitcoinProtocolProcessor is processor for Bitcoin Protocol Indexer. E.g. OrdinalsProcessor, RunesProcessor, AtomicalsProcessor
+// BitcoinProtocolProcessor is indexer processor for Bitcoin Protocol Indexer. E.g. OrdinalsProcessor, RunesProcessor, AtomicalsProcessor
 type BitcoinProtocolProcessor interface {
 	// Process processes the input data and indexes it.
 	Process(ctx context.Context, input types.Block) error
@@ -17,7 +17,7 @@ type BitcoinProtocolProcessor interface {
 	CurrentBlock() (types.BlockHeader, error)
 }
 
-// BitcoinProtocolIndexer is the indexer for processing Bitcoin Meta-protocols that rely on Bitcoin Data.
+// BitcoinProtocolIndexer is the indexer for processing & sync Bitcoin Meta-protocols that rely on Bitcoin Data.
 type BitcoinProtocolIndexer struct {
 	Processor    BitcoinProtocolProcessor
 	currentBlock types.BlockHeader

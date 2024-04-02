@@ -12,7 +12,7 @@ import (
 	"github.com/gaze-network/indexer-network/core/types"
 )
 
-// BitcoinProcessor is processor for Bitcoin Indexer.
+// BitcoinProcessor is indexer processor for Bitcoin Indexer.
 type BitcoinProcessor interface {
 	// Process processes the input data and indexes it.
 	Process(ctx context.Context, input *wire.MsgBlock) error
@@ -21,7 +21,7 @@ type BitcoinProcessor interface {
 	CurrentBlock() (types.BlockHeader, error)
 }
 
-// BitcoinIndexer is the indexer for processing Bitcoin data.
+// BitcoinIndexer is the indexer for sync Bitcoin data to the database.
 type BitcoinIndexer struct {
 	Processor    BitcoinProcessor
 	btcclient    *rpcclient.Client
