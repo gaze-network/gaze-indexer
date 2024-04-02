@@ -28,52 +28,61 @@ type BitcoinIndexer struct {
 	currentBlock types.BlockHeader
 }
 
-func (b *BitcoinIndexer) Run(ctx context.Context) error {
-	cur, err := b.Processor.CurrentBlock()
+func (b *BitcoinIndexer) Run(ctx context.Context) (err error) {
+	// set to -1 to start from genesis block
+	b.currentBlock, err = b.Processor.CurrentBlock()
 	if err != nil {
 		if errors.Is(err, errs.NotFound) {
-			b.currentBlock.Height = -1 // set to -1 to start from genesis block
-		} else {
-			return errors.Wrap(err, "can't init state, failed to get indexer current block")
+			b.currentBlock.Height = -1
 		}
-	} else {
-		b.currentBlock = cur
+		return errors.Wrap(err, "can't init state, failed to get indexer current block")
 	}
 
 	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
-
 	for {
 		select {
 		case <-ctx.Done():
 			return nil
 		case <-ticker.C:
-			// TODO: supports chain reorganization (get latest block from network to compare with the current block, if less than current block, then re-index)
-			// b.btcclient.GetBlockCount()
-			incomingBlockHeight := b.currentBlock.Height + 1
+			blockHeight := b.currentBlock.Height + 1
+			if blockHeight < 0 {
+				blockHeight = 0
+			}
 
-			incomingHash, err := b.btcclient.GetBlockHash(incomingBlockHeight)
+			latestBlockHeight, err := b.btcclient.GetBlockCount()
+			if err != nil {
+				return errors.Wrap(err, "failed to get block count")
+			}
+
+			if blockHeight > latestBlockHeight {
+				continue
+			}
+
+			// TODO: supports chain reorganization (get latest block from network to compare with the current block, if less than current block, then re-index)
+
+			blockHash, err := b.btcclient.GetBlockHash(blockHeight)
 			if err != nil {
 				return errors.Wrap(err, "failed to get block hash")
 			}
 
-			if incomingBlockHeight <= b.currentBlock.Height && !incomingHash.IsEqual(b.currentBlock.Hash) {
+			if blockHeight <= b.currentBlock.Height && !blockHash.IsEqual(b.currentBlock.Hash) {
 				// TODO: Chain reorganization detected, need to re-index
 				log.Println("Chain reorganization detected, need to re-index")
 			}
 
-			incomingBlock, err := b.btcclient.GetBlock(incomingHash)
+			block, err := b.btcclient.GetBlock(blockHash)
 			if err != nil {
 				return errors.Wrap(err, "failed to get block")
 			}
 
-			if err := b.Processor.Process(ctx, incomingBlock); err != nil {
+			if err := b.Processor.Process(ctx, block); err != nil {
 				return errors.WithStack(err)
 			}
 
-			b.currentBlock.Height = incomingBlockHeight
-			b.currentBlock.Hash = incomingHash
-			b.currentBlock.BlockHeader = incomingBlock.Header
+			b.currentBlock.Hash = blockHash
+			b.currentBlock.Height = blockHeight
+			b.currentBlock.BlockHeader = block.Header
 		}
 	}
 }
