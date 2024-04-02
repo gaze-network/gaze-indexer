@@ -1,4 +1,4 @@
-package workers
+package indexers
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 	"github.com/gaze-network/indexer-network/core/types"
 )
 
-// BitcoinProtocolProcessor is processor for Bitcoin Protocol Indexer. E.g. BRC20-Processor, RunesProcessor
+// BitcoinProtocolProcessor is processor for Bitcoin Protocol Indexer. E.g. OrdinalsProcessor, RunesProcessor, AtomicalsProcessor
 type BitcoinProtocolProcessor interface {
 	// Process processes the input data and indexes it.
 	Process(ctx context.Context, input types.Block) error
