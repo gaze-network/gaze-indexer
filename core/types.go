@@ -2,6 +2,6 @@ package core
 
 import "context"
 
-type Worker interface {
+type IndexerWorker interface {
 	Run(ctx context.Context) error
 }
