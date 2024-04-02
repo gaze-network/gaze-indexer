@@ -46,16 +46,11 @@ func (b *BitcoinIndexer) Run(ctx context.Context) (err error) {
 			return nil
 		case <-ticker.C:
 			// Prepare range of blocks to sync
-			latestBlockHeight, err := b.btcclient.GetBlockCount()
+			startHeight, endHeight, skip, err := b.prepareRange(b.currentBlock.Height)
 			if err != nil {
-				return errors.Wrap(err, "failed to get block count")
+				return errors.Wrap(err, "failed to prepare range")
 			}
-			endHeight := latestBlockHeight
-			startHeight := b.currentBlock.Height + 1
-			if startHeight < 0 {
-				startHeight = 0
-			}
-			if startHeight > latestBlockHeight {
+			if skip {
 				continue
 			}
 
@@ -93,4 +88,24 @@ func (b *BitcoinIndexer) Run(ctx context.Context) (err error) {
 			b.currentBlock.BlockHeader = block.Header
 		}
 	}
+}
+
+// Prepare range of blocks to sync
+func (b *BitcoinIndexer) prepareRange(currentBlockHeight int64) (start, end int64, skip bool, err error) {
+	latestBlockHeight, err := b.btcclient.GetBlockCount()
+	if err != nil {
+		return -1, -1, false, errors.Wrap(err, "failed to get block count")
+	}
+
+	endHeight := latestBlockHeight
+	startHeight := currentBlockHeight + 1
+	if startHeight < 0 {
+		startHeight = 0
+	}
+
+	if startHeight > latestBlockHeight {
+		return -1, -1, true, nil
+	}
+
+	return startHeight, endHeight, false, nil
 }
