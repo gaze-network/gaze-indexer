@@ -45,28 +45,36 @@ func (b *BitcoinIndexer) Run(ctx context.Context) (err error) {
 		case <-ctx.Done():
 			return nil
 		case <-ticker.C:
-			blockHeight := b.currentBlock.Height + 1
-			if blockHeight < 0 {
-				blockHeight = 0
-			}
-
+			// Prepare range of blocks to sync
 			latestBlockHeight, err := b.btcclient.GetBlockCount()
 			if err != nil {
 				return errors.Wrap(err, "failed to get block count")
 			}
-
-			if blockHeight > latestBlockHeight {
+			endHeight := latestBlockHeight
+			startHeight := b.currentBlock.Height + 1
+			if startHeight < 0 {
+				startHeight = 0
+			}
+			if startHeight > latestBlockHeight {
 				continue
 			}
 
-			// TODO: supports chain reorganization (get latest block from network to compare with the current block, if less than current block, then re-index)
+			log.Printf("Syncing blocks from %d to %d\n", startHeight, endHeight)
 
-			blockHash, err := b.btcclient.GetBlockHash(blockHeight)
+			// TODO: supports chain reorganization
+
+			/*
+				Concurrent block processing (fetch + process)
+				1. Fetch blocks concurrently
+				2. Process blocks sequentially
+			*/
+
+			blockHash, err := b.btcclient.GetBlockHash(endHeight)
 			if err != nil {
 				return errors.Wrap(err, "failed to get block hash")
 			}
 
-			if blockHeight <= b.currentBlock.Height && !blockHash.IsEqual(b.currentBlock.Hash) {
+			if endHeight <= b.currentBlock.Height && !blockHash.IsEqual(b.currentBlock.Hash) {
 				// TODO: Chain reorganization detected, need to re-index
 				log.Println("Chain reorganization detected, need to re-index")
 			}
@@ -81,7 +89,7 @@ func (b *BitcoinIndexer) Run(ctx context.Context) (err error) {
 			}
 
 			b.currentBlock.Hash = blockHash
-			b.currentBlock.Height = blockHeight
+			b.currentBlock.Height = endHeight
 			b.currentBlock.BlockHeader = block.Header
 		}
 	}
