@@ -1,9 +1,15 @@
 package types
 
+import (
+	"github.com/btcsuite/btcd/chaincfg/chainhash"
+	"github.com/btcsuite/btcd/wire"
+)
+
 type UTXO struct {
 	TxHash   string
 	Index    uint64
 	PkScript []byte
+	Amount   float64
 }
 
 type TxIn struct {
@@ -26,6 +32,7 @@ type Block struct {
 }
 
 type BlockHeader struct {
-	Hash   string
-	Height uint64
+	Hash   *chainhash.Hash
+	Height int64
+	wire.BlockHeader
 }

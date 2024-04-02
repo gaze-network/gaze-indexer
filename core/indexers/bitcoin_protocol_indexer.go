@@ -8,7 +8,8 @@ import (
 	"github.com/gaze-network/indexer-network/core/types"
 )
 
-type BitcoinRelyerIndexer interface {
+// BitcoinProtocolProcessor is processor for Bitcoin Protocol Indexer. E.g. BRC20-Processor, RunesProcessor
+type BitcoinProtocolProcessor interface {
 	// Process processes the input data and indexes it.
 	Process(ctx context.Context, input types.Block) error
 
@@ -16,13 +17,14 @@ type BitcoinRelyerIndexer interface {
 	CurrentBlock() (types.BlockHeader, error)
 }
 
-type BitcoinWorker struct {
-	Indexer      BitcoinRelyerIndexer
+// BitcoinProtocolIndexer is the indexer for processing Bitcoin Meta-protocols that rely on Bitcoin Data.
+type BitcoinProtocolIndexer struct {
+	Processor    BitcoinProtocolProcessor
 	currentBlock types.BlockHeader
 }
 
-func (b *BitcoinWorker) Run(ctx context.Context) error {
-	cur, err := b.Indexer.CurrentBlock()
+func (b *BitcoinProtocolIndexer) Run(ctx context.Context) error {
+	cur, err := b.Processor.CurrentBlock()
 	if err != nil {
 		return errors.Wrap(err, "can't init state, failed to get indexer current block")
 	}
@@ -45,7 +47,7 @@ func (b *BitcoinWorker) Run(ctx context.Context) error {
 				_ = block
 			}
 
-			if err := b.Indexer.Process(ctx, block); err != nil {
+			if err := b.Processor.Process(ctx, block); err != nil {
 				return errors.WithStack(err)
 			}
 		}
