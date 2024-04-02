@@ -14,6 +14,7 @@ import (
 func TestString(t *testing.T) {
 	test := func(rune *Rune, encoded string) {
 		t.Run(encoded, func(t *testing.T) {
+			t.Parallel()
 			actualEncoded := rune.String()
 			assert.Equal(t, encoded, actualEncoded)
 
@@ -69,6 +70,7 @@ func TestNewRuneFromBase26Error(t *testing.T) {
 func TestFirstRuneHeight(t *testing.T) {
 	test := func(network common.Network, expected uint64) {
 		t.Run(network.String(), func(t *testing.T) {
+			t.Parallel()
 			actual := FirstRuneHeight(network)
 			assert.Equal(t, expected, actual)
 		})
@@ -81,6 +83,7 @@ func TestFirstRuneHeight(t *testing.T) {
 func TestMinimumRuneAtHeightMainnet(t *testing.T) {
 	test := func(height uint64, encoded string) {
 		t.Run(fmt.Sprintf("%d", height), func(t *testing.T) {
+			t.Parallel()
 			rune, err := NewRuneFromBase26(encoded)
 			assert.NoError(t, err)
 			actual := MinimumRuneAtHeight(common.NetworkMainnet, height)
@@ -164,6 +167,7 @@ func TestMinimumRuneAtHeightMainnet(t *testing.T) {
 func TestMinimumRuneAtHeightTestnet(t *testing.T) {
 	test := func(height uint64, runeStr string) {
 		t.Run(fmt.Sprintf("%d", height), func(t *testing.T) {
+			t.Parallel()
 			rune, err := NewRuneFromBase26(runeStr)
 			assert.NoError(t, err)
 			actual := MinimumRuneAtHeight(common.NetworkTestnet, height)
@@ -181,6 +185,7 @@ func TestMinimumRuneAtHeightTestnet(t *testing.T) {
 func TestIsReserved(t *testing.T) {
 	test := func(runeStr string, expected bool) {
 		t.Run(runeStr, func(t *testing.T) {
+			t.Parallel()
 			rune, err := NewRuneFromBase26(runeStr)
 			assert.NoError(t, err)
 			actual := rune.IsReserved()
@@ -199,6 +204,7 @@ func TestIsReserved(t *testing.T) {
 func TestGetReservedRune(t *testing.T) {
 	test := func(blockHeight uint64, txIndex uint64, expected *Rune) {
 		t.Run(fmt.Sprintf("blockHeight_%d_txIndex_%d", blockHeight, txIndex), func(t *testing.T) {
+			t.Parallel()
 			rune := GetReservedRune(blockHeight, txIndex)
 			assert.Equal(t, expected, rune)
 		})
@@ -219,15 +225,19 @@ func TestGetReservedRune(t *testing.T) {
 
 func TestUnlockSteps(t *testing.T) {
 	for i := 0; i < len(unlockSteps); i++ {
-		encoded := (*Rune)(unlockSteps[i]).String()
-		expected := strings.Repeat("A", i+1)
-		assert.Equal(t, expected, encoded)
+		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
+			t.Parallel()
+			encoded := (*Rune)(unlockSteps[i]).String()
+			expected := strings.Repeat("A", i+1)
+			assert.Equal(t, expected, encoded)
+		})
 	}
 }
 
 func TestCommitment(t *testing.T) {
 	test := func(rune *Rune, expected []byte) {
 		t.Run((*big.Int)(rune).String(), func(t *testing.T) {
+			t.Parallel()
 			actual := rune.Commitment()
 			assert.Equal(t, expected, actual)
 		})

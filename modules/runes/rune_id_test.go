@@ -70,6 +70,7 @@ func TestNewRuneIdFromString(t *testing.T) {
 
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			runeId, err := NewRuneIdFromString(tc.input)
 			if tc.shouldError {
 				assert.Error(t, err)
