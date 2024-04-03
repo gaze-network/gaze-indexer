@@ -19,7 +19,7 @@ func NewRuneFromBigInt(value *big.Int) *Rune {
 	return (*Rune)(new(big.Int).Set(value))
 }
 
-var ErrInvalidBase10 = errs.ErrorKind("invalid base-10 character: must be in the range [0-9]")
+const ErrInvalidBase10 = errs.ErrorKind("invalid base-10 character: must be in the range [0-9]")
 
 // NewRuneFromString creates a new Rune from a string of base-10 integer
 func NewRuneFromString(value string) (*Rune, error) {
@@ -30,7 +30,7 @@ func NewRuneFromString(value string) (*Rune, error) {
 	return (*Rune)(bi), nil
 }
 
-var ErrInvalidBase26 = errs.ErrorKind("invalid base-26 character: must be in the range [A-Z]")
+const ErrInvalidBase26 = errs.ErrorKind("invalid base-26 character: must be in the range [A-Z]")
 
 // NewRuneFromBase26 creates a new Rune from a string of modified base-26 integer
 func NewRuneFromBase26(value string) (*Rune, error) {

@@ -25,7 +25,7 @@ type Etching struct {
 	// Number of runes to be minted during etching
 	Premine *big.Int
 	// Rune name
-	Rune Rune
+	Rune *Rune
 	// Minting terms. If not provided, the rune is not mintable.
 	Terms *Terms
 	// Bitmap of spacers to be displayed between each letter of the rune name

@@ -13,11 +13,16 @@ type RuneId struct {
 	TxIndex     uint64
 }
 
-func NewRuneId(blockHeight uint64, txIndex uint64) RuneId {
+const ErrRuneIdZeroBlockNonZeroTxIndex = errs.ErrorKind("rune id cannot be zero block height and non-zero tx index")
+
+func NewRuneId(blockHeight uint64, txIndex uint64) (RuneId, error) {
+	if blockHeight == 0 && txIndex != 0 {
+		return RuneId{}, errors.WithStack(ErrRuneIdZeroBlockNonZeroTxIndex)
+	}
 	return RuneId{
 		BlockHeight: blockHeight,
 		TxIndex:     txIndex,
-	}
+	}, nil
 }
 
 var (
@@ -59,15 +64,15 @@ func (r RuneId) Delta(next RuneId) (uint64, uint64) {
 }
 
 // Next calculates the next RuneId given a block delta and tx index delta.
-func (r RuneId) Next(blockDelta uint64, txIndexDelta uint64) RuneId {
+func (r RuneId) Next(blockDelta uint64, txIndexDelta uint64) (RuneId, error) {
 	if blockDelta == 0 {
-		return RuneId{
-			BlockHeight: r.BlockHeight,
-			TxIndex:     r.TxIndex + txIndexDelta,
-		}
+		return NewRuneId(
+			r.BlockHeight,
+			r.TxIndex+txIndexDelta,
+		)
 	}
-	return RuneId{
-		BlockHeight: r.BlockHeight + blockDelta,
-		TxIndex:     txIndexDelta,
-	}
+	return NewRuneId(
+		r.BlockHeight+blockDelta,
+		txIndexDelta,
+	)
 }
