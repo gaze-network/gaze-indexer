@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Cleverse/go-utilities/utils"
 	"github.com/gaze-network/indexer-network/common"
 	"github.com/stretchr/testify/assert"
 )
@@ -55,6 +56,7 @@ func TestString(t *testing.T) {
 	test(NewRune(51), "AZ")
 	test(NewRune(52), "BA")
 	test(NewRune(53), "BB")
+	test(utils.Must(NewRuneFromString("2055900680524219742")), "UNCOMMONGOODS")
 	maxUint128 := new(big.Int).Lsh(big.NewInt(1), 128)
 	maxUint128 = maxUint128.Sub(maxUint128, big.NewInt(1))
 	test(NewRuneFromBigInt(new(big.Int).Sub(maxUint128, big.NewInt(2))), "BCGDENLQRQWDSLRUGSNLBTMFIJAT")
