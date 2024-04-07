@@ -2,9 +2,10 @@ package runes
 
 import (
 	"fmt"
-	"math/big"
 	"testing"
 
+	"github.com/gaze-network/indexer-network/common/errs"
+	"github.com/gaze-network/uint128"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -12,64 +13,97 @@ import (
 
 func TestSupply(t *testing.T) {
 	testNumber := 0
-	test := func(e Etching, expectedSupply *big.Int) {
+	test := func(e Etching, expectedSupply uint128.Uint128) {
 		t.Run(fmt.Sprintf("case_%d", testNumber), func(t *testing.T) {
 			t.Parallel()
-			actualSupply := e.Supply()
+			actualSupply, err := e.Supply()
+			assert.NoError(t, err)
 			assert.Equal(t, expectedSupply, actualSupply)
 		})
 		testNumber++
 	}
+	testError := func(e Etching, expectedError error) {
+		t.Run(fmt.Sprintf("case_%d", testNumber), func(t *testing.T) {
+			t.Parallel()
+			_, err := e.Supply()
+			assert.ErrorIs(t, err, expectedError)
+		})
+		testNumber++
+	}
 
-	test(Etching{}, big.NewInt(0))
+	test(Etching{}, uint128.From64(0))
 
 	test(Etching{
-		Premine: big.NewInt(0),
+		Premine: uint128.From64(0),
 		Terms:   nil,
-	}, big.NewInt(0))
+	}, uint128.From64(0))
 
 	test(Etching{
-		Premine: big.NewInt(1),
+		Premine: uint128.From64(1),
 		Terms:   nil,
-	}, big.NewInt(1))
+	}, uint128.From64(1))
 
 	test(Etching{
-		Premine: big.NewInt(1),
+		Premine: uint128.From64(1),
 		Terms: &Terms{
-			Amount: nil,
-			Cap:    nil,
+			Amount: uint128.From64(0),
+			Cap:    uint128.From64(0),
 		},
-	}, big.NewInt(1))
+	}, uint128.From64(1))
 
 	test(Etching{
-		Premine: big.NewInt(1000),
+		Premine: uint128.From64(1000),
 		Terms: &Terms{
-			Amount: big.NewInt(100),
-			Cap:    big.NewInt(10),
+			Amount: uint128.From64(100),
+			Cap:    uint128.From64(10),
 		},
-	}, big.NewInt(2000))
+	}, uint128.From64(2000))
 
 	test(Etching{
-		Premine: nil,
+		Premine: uint128.From64(0),
 		Terms: &Terms{
-			Amount: big.NewInt(100),
-			Cap:    big.NewInt(10),
+			Amount: uint128.From64(100),
+			Cap:    uint128.From64(10),
 		},
-	}, big.NewInt(1000))
+	}, uint128.From64(1000))
 
 	test(Etching{
-		Premine: big.NewInt(1000),
+		Premine: uint128.From64(1000),
 		Terms: &Terms{
-			Amount: big.NewInt(100),
-			Cap:    nil,
+			Amount: uint128.From64(100),
+			Cap:    uint128.From64(0),
 		},
-	}, big.NewInt(1000))
+	}, uint128.From64(1000))
 
 	test(Etching{
-		Premine: big.NewInt(1000),
+		Premine: uint128.From64(1000),
 		Terms: &Terms{
-			Amount: nil,
-			Cap:    big.NewInt(10),
+			Amount: uint128.From64(0),
+			Cap:    uint128.From64(10),
 		},
-	}, big.NewInt(1000))
+	}, uint128.From64(1000))
+
+	test(Etching{
+		Premine: uint128.Max.Div64(2).Add64(1),
+		Terms: &Terms{
+			Amount: uint128.From64(1),
+			Cap:    uint128.Max.Div64(2),
+		},
+	}, uint128.Max)
+
+	test(Etching{
+		Premine: uint128.From64(0),
+		Terms: &Terms{
+			Amount: uint128.From64(1),
+			Cap:    uint128.Max,
+		},
+	}, uint128.Max)
+
+	testError(Etching{
+		Premine: uint128.Max,
+		Terms: &Terms{
+			Amount: uint128.From64(1),
+			Cap:    uint128.From64(1),
+		},
+	}, errs.OverflowUint128)
 }

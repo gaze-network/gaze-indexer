@@ -1,21 +1,22 @@
 package runes
 
 import (
-	"math/big"
+	"math"
 
 	"github.com/btcsuite/btcd/wire"
+	"github.com/gaze-network/uint128"
 	"github.com/samber/lo"
 )
 
 type Message struct {
-	Flaws  Flaws
-	Edicts []Edict
 	Fields Fields
+	Edicts []Edict
+	Flaws  Flaws
 }
 
-type Fields map[Tag][]*big.Int
+type Fields map[Tag][]uint128.Uint128
 
-func (fields Fields) Take(tag Tag) *big.Int {
+func (fields Fields) Take(tag Tag) *uint128.Uint128 {
 	values, ok := fields[tag]
 	if !ok {
 		return nil
@@ -27,13 +28,13 @@ func (fields Fields) Take(tag Tag) *big.Int {
 	} else {
 		fields[tag] = values
 	}
-	return first
+	return &first
 }
 
-func MessageFromIntegers(tx *wire.MsgTx, payload []*big.Int) Message {
+func MessageFromIntegers(tx *wire.MsgTx, payload []uint128.Uint128) Message {
 	flaws := Flaws(0)
 	edicts := make([]Edict, 0)
-	fields := make(map[Tag][]*big.Int)
+	fields := make(map[Tag][]uint128.Uint128)
 
 	for i := 0; i < len(payload); i += 2 {
 		tag, err := ParseTag(payload[i])
@@ -50,15 +51,15 @@ func MessageFromIntegers(tx *wire.MsgTx, payload []*big.Int) Message {
 					break
 				}
 				blockDelta, txIndexDelta, amount, output := chunk[0], chunk[1], chunk[2], chunk[3]
-				if !blockDelta.IsUint64() || !txIndexDelta.IsUint64() {
+				if blockDelta.Cmp64(math.MaxUint64) > 0 || blockDelta.Cmp64(math.MaxUint32) > 0 {
 					flaws |= FlawFlagEdictRuneId.Mask()
 					break
 				}
-				if output.Cmp(big.NewInt(int64(len(tx.TxOut)))) > 0 {
+				if output.Cmp64(uint64(len(tx.TxOut))) > 0 {
 					flaws |= FlawFlagEdictOutput.Mask()
 					break
 				}
-				nextRuneId, err := runeId.Next(blockDelta.Uint64(), txIndexDelta.Uint64())
+				nextRuneId, err := runeId.Next(blockDelta.Uint64(), txIndexDelta.Uint32()) // safe to cast as uint32 because we checked
 				if err != nil {
 					flaws |= FlawFlagEdictRuneId.Mask()
 					break
@@ -81,7 +82,7 @@ func MessageFromIntegers(tx *wire.MsgTx, payload []*big.Int) Message {
 		}
 		value := payload[i+1]
 		if _, ok := fields[tag]; !ok {
-			fields[tag] = make([]*big.Int, 0)
+			fields[tag] = make([]uint128.Uint128, 0)
 		}
 		fields[tag] = append(fields[tag], value)
 	}

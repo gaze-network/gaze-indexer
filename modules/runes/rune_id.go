@@ -10,12 +10,12 @@ import (
 
 type RuneId struct {
 	BlockHeight uint64
-	TxIndex     uint64
+	TxIndex     uint32
 }
 
 const ErrRuneIdZeroBlockNonZeroTxIndex = errs.ErrorKind("rune id cannot be zero block height and non-zero tx index")
 
-func NewRuneId(blockHeight uint64, txIndex uint64) (RuneId, error) {
+func NewRuneId(blockHeight uint64, txIndex uint32) (RuneId, error) {
 	if blockHeight == 0 && txIndex != 0 {
 		return RuneId{}, errors.WithStack(ErrRuneIdZeroBlockNonZeroTxIndex)
 	}
@@ -41,19 +41,19 @@ func NewRuneIdFromString(str string) (RuneId, error) {
 	if err != nil {
 		return RuneId{}, errors.WithStack(errors.Join(err, ErrCannotParseBlockHeight))
 	}
-	txIndex, err := strconv.ParseUint(txIndexStr, 10, 64)
+	txIndex, err := strconv.ParseUint(txIndexStr, 10, 32)
 	if err != nil {
 		return RuneId{}, errors.WithStack(errors.Join(err, ErrCannotParseTxIndex))
 	}
 	return RuneId{
 		BlockHeight: blockHeight,
-		TxIndex:     txIndex,
+		TxIndex:     uint32(txIndex),
 	}, nil
 }
 
 // Delta calculates the delta encoding between two RuneIds. If the two RuneIds are in the same block, then the block delta is 0 and the tx index delta is the difference between the two tx indices.
 // If the two RuneIds are in different blocks, then the block delta is the difference between the two block indices and the tx index delta is the tx index in the other block.
-func (r RuneId) Delta(next RuneId) (uint64, uint64) {
+func (r RuneId) Delta(next RuneId) (uint64, uint32) {
 	blockDelta := next.BlockHeight - r.BlockHeight
 	// if the block is the same, then tx index is the difference between the two
 	if blockDelta == 0 {
@@ -64,7 +64,7 @@ func (r RuneId) Delta(next RuneId) (uint64, uint64) {
 }
 
 // Next calculates the next RuneId given a block delta and tx index delta.
-func (r RuneId) Next(blockDelta uint64, txIndexDelta uint64) (RuneId, error) {
+func (r RuneId) Next(blockDelta uint64, txIndexDelta uint32) (RuneId, error) {
 	if blockDelta == 0 {
 		return NewRuneId(
 			r.BlockHeight,

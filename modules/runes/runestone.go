@@ -2,13 +2,13 @@ package runes
 
 import (
 	"math"
-	"math/big"
 
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/btcsuite/btcd/wire"
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/common/errs"
 	"github.com/gaze-network/indexer-network/lib/leb128"
+	"github.com/gaze-network/uint128"
 	"github.com/samber/lo"
 )
 
@@ -19,10 +19,10 @@ type Runestone struct {
 	Etching *Etching
 	// The rune ID of the runestone to mint in this transaction
 	Mint *RuneId
-	// List of edicts to execute in this transaction
-	Edicts []Edict
 	// Denotes the transaction output to allocate leftover runes to. If nil, use the first non-OP_RETURN output. If target output is OP_RETURN, those runes are burned.
 	Pointer *uint64
+	// List of edicts to execute in this transaction
+	Edicts []Edict
 	// If true, the runestone is a cenotaph. All minted runes in a cenotaph are burned. Runes etched in a cenotaph are not mintable.
 	Cenotaph bool
 	// Bitmask of flaws that caused the runestone to be a cenotaph
@@ -52,47 +52,57 @@ func DecipherRunestone(tx *wire.MsgTx) (*Runestone, error) {
 	message := MessageFromIntegers(tx, integers)
 	edicts, fields := message.Edicts, message.Fields
 
-	flags, err := ParseFlags(uint64OrDefault(fields.Take(TagFlags)))
+	flags, err := ParseFlags(unwrapUint128OrDefault(fields.Take(TagFlags)))
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot parse flags")
 	}
 
 	var etching *Etching
 	if flags.Take(FlagEtching) {
-		divisibilityBI := fields.Take(TagDivisibility)
-		var divisibility uint8 = 0
-		if divisibilityBI.Cmp(big.NewInt(int64(maxDivisibility))) <= 0 {
-			divisibility = uint8(divisibilityBI.Uint64())
+		divisibility := unwrapUint128OrDefault(fields.Take(TagDivisibility))
+		if divisibility.Cmp64(uint64(maxDivisibility)) > 0 {
+			divisibility = uint128.Zero
 		}
-		spacersBI := fields.Take(TagSpacers)
-		var spacers uint32 = 0
-		if spacersBI.Cmp(big.NewInt(int64(maxSpacers))) <= 0 {
-			spacers = uint32(spacersBI.Uint64())
+		spacers := unwrapUint128OrDefault(fields.Take(TagSpacers))
+		if spacers.Cmp64(uint64(maxSpacers)) > 0 {
+			spacers = uint128.Zero
 		}
-		symbolBI := fields.Take(TagSymbol)
-		var symbol rune
-		if symbolBI.Cmp(big.NewInt(math.MaxInt32)) <= 0 {
-			symbol = rune(symbolBI.Int64())
+		symbol := unwrapUint128OrDefault(fields.Take(TagSymbol))
+		if symbol.Cmp64(math.MaxInt32) > 0 {
+			symbol = uint128.Zero
 		}
 
 		var terms *Terms
 		if flags.Take(FlagTerms) {
+			var heightStart, heightEnd, offsetStart, offsetEnd uint64
+			if value := unwrapUint128OrDefault(fields.Take(TagHeightStart)); value.IsUint64() {
+				heightStart = value.Uint64()
+			}
+			if value := unwrapUint128OrDefault(fields.Take(TagHeightEnd)); value.IsUint64() {
+				heightEnd = value.Uint64()
+			}
+			if value := unwrapUint128OrDefault(fields.Take(TagOffsetStart)); value.IsUint64() {
+				offsetStart = value.Uint64()
+			}
+			if value := unwrapUint128OrDefault(fields.Take(TagOffsetEnd)); value.IsUint64() {
+				offsetEnd = value.Uint64()
+			}
 			terms = &Terms{
-				Amount:      fields.Take(TagAmount),
-				Cap:         fields.Take(TagCap),
-				HeightStart: uint64OrDefault(fields.Take(TagHeightStart)),
-				HeightEnd:   uint64OrDefault(fields.Take(TagHeightEnd)),
-				OffsetStart: uint64OrDefault(fields.Take(TagOffsetStart)),
-				OffsetEnd:   uint64OrDefault(fields.Take(TagOffsetEnd)),
+				Amount:      unwrapUint128OrDefault(fields.Take(TagAmount)),
+				Cap:         unwrapUint128OrDefault(fields.Take(TagCap)),
+				HeightStart: heightStart,
+				HeightEnd:   heightEnd,
+				OffsetStart: offsetStart,
+				OffsetEnd:   offsetEnd,
 			}
 		}
 
 		etching = &Etching{
-			Divisibility: divisibility,
-			Premine:      fields.Take(TagPremine),
+			Divisibility: divisibility.Uint8(),
+			Premine:      unwrapUint128OrDefault(fields.Take(TagPremine)),
 			Rune:         (*Rune)(fields.Take(TagRune)),
-			Spacers:      spacers,
-			Symbol:       symbol,
+			Spacers:      spacers.Uint32(),
+			Symbol:       rune(symbol.Uint32()),
 			Terms:        terms,
 		}
 	}
@@ -100,27 +110,35 @@ func DecipherRunestone(tx *wire.MsgTx) (*Runestone, error) {
 	var mint *RuneId
 	mintValues := fields[TagMint]
 	if len(mintValues) >= 2 {
-		// TODO: switch to uint128 for rune ids
-		mintRuneIdBlock := uint64OrDefault(fields.Take(TagMint))
-		mintRuneIdTx := uint64OrDefault(fields.Take(TagMint))
-		runeId, err := NewRuneId(mintRuneIdBlock, mintRuneIdTx)
-		if err == nil {
-			mint = &runeId
+		mintRuneIdBlock := unwrapUint128OrDefault(fields.Take(TagMint))
+		mintRuneIdTx := unwrapUint128OrDefault(fields.Take(TagMint))
+		if mintRuneIdBlock.IsUint64() && mintRuneIdTx.IsUint32() {
+			runeId, err := NewRuneId(mintRuneIdBlock.Uint64(), mintRuneIdTx.Uint32())
+			if err == nil {
+				mint = &runeId
+			}
 		}
 	}
 	var pointer *uint64
-	pointerBI := fields.Take(TagPointer)
-	if pointerBI.IsUint64() && pointerBI.Cmp(big.NewInt(int64(len(tx.TxOut)))) < 0 {
-		pointer = lo.ToPtr(pointerBI.Uint64())
+	pointerU128 := fields.Take(TagPointer)
+	if pointerU128 != nil && pointerU128.Cmp64(uint64(len(tx.TxOut))) < 0 {
+		pointer = lo.ToPtr(pointerU128.Uint64())
 	}
 
-	// TODO: Original implementation in Rust checks if supply overflows uint258. Need to check if we need to do the same here.
+	_, err = etching.Supply()
+	if err != nil {
+		if errors.Is(err, errs.OverflowUint128) {
+			flaws |= FlawFlagSupplyOverflow.Mask()
+		} else {
+			return nil, errors.Wrap(err, "cannot calculate supply")
+		}
+	}
 
-	if flags != 0 {
+	if !flags.Uint128().IsZero() {
 		flaws |= FlawFlagUnrecognizedFlag.Mask()
 	}
 	leftoverEvenTags := lo.Filter(lo.Keys(fields), func(tag Tag, _ int) bool {
-		return tag%2 == 0
+		return tag.Uint128().Mod64(2) == 0
 	})
 	if len(leftoverEvenTags) != 0 {
 		flaws |= FlawFlagUnrecognizedEvenTag.Mask()
@@ -178,17 +196,14 @@ func runestonePayloadFromTx(tx *wire.MsgTx) ([]byte, Flaws) {
 	return nil, 0
 }
 
-func decodeLEB128VarIntsFromPayload(payload []byte) ([]*big.Int, error) {
-	integers := make([]*big.Int, 0)
+func decodeLEB128VarIntsFromPayload(payload []byte) ([]uint128.Uint128, error) {
+	integers := make([]uint128.Uint128, 0)
 	i := 0
 
 	for i < len(payload) {
 		n, length, err := leb128.DecodeLEB128(payload[i:])
 		if err != nil {
 			return nil, errors.Wrap(err, "cannot decode LEB128 varint")
-		}
-		if new(big.Int).Rsh(n, 128).Sign() != 0 {
-			return nil, errors.WithStack(errs.OverflowUint128)
 		}
 
 		integers = append(integers, n)

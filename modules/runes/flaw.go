@@ -7,6 +7,7 @@ const (
 	FlawFlagEdictRuneId
 	FlawFlagInvalidScript
 	FlawFlagOpCode
+	FlawFlagSupplyOverflow
 	FlawFlagTrailingIntegers
 	FlawFlagTruncatedField
 	FlawFlagUnrecognizedEvenTag

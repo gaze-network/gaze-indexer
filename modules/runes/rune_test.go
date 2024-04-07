@@ -3,17 +3,17 @@ package runes
 import (
 	"fmt"
 	"math"
-	"math/big"
 	"strings"
 	"testing"
 
 	"github.com/Cleverse/go-utilities/utils"
 	"github.com/gaze-network/indexer-network/common"
+	"github.com/gaze-network/uint128"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestString(t *testing.T) {
-	test := func(rune *Rune, encoded string) {
+	test := func(rune Rune, encoded string) {
 		t.Run(encoded, func(t *testing.T) {
 			t.Parallel()
 			actualEncoded := rune.String()
@@ -57,11 +57,9 @@ func TestString(t *testing.T) {
 	test(NewRune(52), "BA")
 	test(NewRune(53), "BB")
 	test(utils.Must(NewRuneFromString("2055900680524219742")), "UNCOMMONGOODS")
-	maxUint128 := new(big.Int).Lsh(big.NewInt(1), 128)
-	maxUint128 = maxUint128.Sub(maxUint128, big.NewInt(1))
-	test(NewRuneFromBigInt(new(big.Int).Sub(maxUint128, big.NewInt(2))), "BCGDENLQRQWDSLRUGSNLBTMFIJAT")
-	test(NewRuneFromBigInt(new(big.Int).Sub(maxUint128, big.NewInt(1))), "BCGDENLQRQWDSLRUGSNLBTMFIJAU")
-	test(NewRuneFromBigInt(maxUint128), "BCGDENLQRQWDSLRUGSNLBTMFIJAV")
+	test(NewRuneFromUint128(uint128.Max.Sub64(2)), "BCGDENLQRQWDSLRUGSNLBTMFIJAT")
+	test(NewRuneFromUint128(uint128.Max.Sub64(1)), "BCGDENLQRQWDSLRUGSNLBTMFIJAU")
+	test(NewRuneFromUint128(uint128.Max), "BCGDENLQRQWDSLRUGSNLBTMFIJAV")
 }
 
 func TestNewRuneFromBase26Error(t *testing.T) {
@@ -89,7 +87,7 @@ func TestMinimumRuneAtHeightMainnet(t *testing.T) {
 			rune, err := NewRuneFromBase26(encoded)
 			assert.NoError(t, err)
 			actual := MinimumRuneAtHeight(common.NetworkMainnet, height)
-			assert.Equal(t, (*big.Int)(rune).String(), (*big.Int)(actual).String())
+			assert.Equal(t, rune, actual)
 		})
 	}
 
@@ -204,32 +202,31 @@ func TestIsReserved(t *testing.T) {
 }
 
 func TestGetReservedRune(t *testing.T) {
-	test := func(blockHeight uint64, txIndex uint64, expected *Rune) {
+	test := func(blockHeight uint64, txIndex uint32, expected Rune) {
 		t.Run(fmt.Sprintf("blockHeight_%d_txIndex_%d", blockHeight, txIndex), func(t *testing.T) {
 			t.Parallel()
 			rune := GetReservedRune(blockHeight, txIndex)
-			assert.Equal(t, expected, rune)
+			assert.Equal(t, expected.String(), rune.String())
 		})
 	}
 
 	test(0, 0, firstReservedRune)
-	test(0, 1, firstReservedRune.Add(big.NewInt(1)))
-	test(0, 2, firstReservedRune.Add(big.NewInt(2)))
-	test(1, 0, firstReservedRune.Add(new(big.Int).Lsh(big.NewInt(1), 32)))
-	test(1, 1, firstReservedRune.Add(new(big.Int).Lsh(big.NewInt(1), 32)).Add(big.NewInt(1)))
-	test(1, 2, firstReservedRune.Add(new(big.Int).Lsh(big.NewInt(1), 32)).Add(big.NewInt(2)))
-	test(2, 0, firstReservedRune.Add(new(big.Int).Lsh(big.NewInt(2), 32)))
-	test(2, 1, firstReservedRune.Add(new(big.Int).Lsh(big.NewInt(2), 32)).Add(big.NewInt(1)))
-	test(2, 2, firstReservedRune.Add(new(big.Int).Lsh(big.NewInt(2), 32)).Add(big.NewInt(2)))
-	test(math.MaxInt64, 0, firstReservedRune.Add(new(big.Int).Lsh(big.NewInt(math.MaxInt64), 32)))
-	test(math.MaxInt64, math.MaxInt64, firstReservedRune.Add(new(big.Int).Lsh(big.NewInt(math.MaxInt64), 32)).Add(big.NewInt(math.MaxInt64)))
+	test(0, 1, Rune(firstReservedRune.Uint128().Add(uint128.From64(1))))
+	test(0, 2, Rune(firstReservedRune.Uint128().Add(uint128.From64(2))))
+	test(1, 0, Rune(firstReservedRune.Uint128().Add(uint128.From64(1).Lsh(32))))
+	test(1, 1, Rune(firstReservedRune.Uint128().Add(uint128.From64(1).Lsh(32).Add(uint128.From64(1)))))
+	test(1, 2, Rune(firstReservedRune.Uint128().Add(uint128.From64(1).Lsh(32).Add(uint128.From64(2)))))
+	test(2, 0, Rune(firstReservedRune.Uint128().Add(uint128.From64(2).Lsh(32))))
+	test(2, 1, Rune(firstReservedRune.Uint128().Add(uint128.From64(2).Lsh(32).Add(uint128.From64(1)))))
+	test(2, 2, Rune(firstReservedRune.Uint128().Add(uint128.From64(2).Lsh(32).Add(uint128.From64(2)))))
+	test(math.MaxUint64, math.MaxUint32, Rune(firstReservedRune.Uint128().Add(uint128.From64(math.MaxUint64).Lsh(32).Add(uint128.From64(math.MaxUint32)))))
 }
 
 func TestUnlockSteps(t *testing.T) {
 	for i := 0; i < len(unlockSteps); i++ {
 		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
 			t.Parallel()
-			encoded := (*Rune)(unlockSteps[i]).String()
+			encoded := Rune(unlockSteps[i]).String()
 			expected := strings.Repeat("A", i+1)
 			assert.Equal(t, expected, encoded)
 		})
@@ -237,8 +234,8 @@ func TestUnlockSteps(t *testing.T) {
 }
 
 func TestCommitment(t *testing.T) {
-	test := func(rune *Rune, expected []byte) {
-		t.Run((*big.Int)(rune).String(), func(t *testing.T) {
+	test := func(rune Rune, expected []byte) {
+		t.Run(rune.String(), func(t *testing.T) {
 			t.Parallel()
 			actual := rune.Commitment()
 			assert.Equal(t, expected, actual)

@@ -1,13 +1,12 @@
 package runes
 
-import "math/big"
+import (
+	"github.com/gaze-network/uint128"
+)
 
-func uint64OrDefault(value *big.Int) (result uint64) {
+func unwrapUint128OrDefault(value *uint128.Uint128) uint128.Uint128 {
 	if value == nil {
-		return
+		return uint128.Uint128{}
 	}
-	if value.IsUint64() {
-		return value.Uint64()
-	}
-	return
+	return *value
 }
