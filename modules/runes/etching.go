@@ -1,39 +1,41 @@
 package runes
 
 import (
-	"math/big"
-
 	"github.com/Cleverse/go-utilities/utils"
+	"github.com/cockroachdb/errors"
+	"github.com/gaze-network/indexer-network/common/errs"
+	"github.com/gaze-network/uint128"
+	"github.com/samber/lo"
 )
 
 type Terms struct {
 	// Amount of the rune to be minted per transaction
-	Amount *big.Int
+	Amount *uint128.Uint128
 	// Number of allowed mints
-	Cap *big.Int
+	Cap *uint128.Uint128
 	// Block height at which the rune can start being minted. If both HeightStart and OffsetStart are set, use the higher value.
-	HeightStart uint64
+	HeightStart *uint64
 	// Block height at which the rune can no longer be minted. If both HeightEnd and OffsetEnd are set, use the lower value.
-	HeightEnd uint64
+	HeightEnd *uint64
 	// Offset from etched block at which the rune can start being minted. If both HeightStart and OffsetStart are set, use the higher value.
-	OffsetStart uint64
+	OffsetStart *uint64
 	// Offset from etched block at which the rune can no longer be minted. If both HeightEnd and OffsetEnd are set, use the lower value.
-	OffsetEnd uint64
+	OffsetEnd *uint64
 }
 
 type Etching struct {
-	// Number of runes to be minted during etching
-	Premine *big.Int
 	// Rune name
-	Rune Rune
+	Rune *Rune
 	// Minting terms. If not provided, the rune is not mintable.
 	Terms *Terms
+	// Number of runes to be minted during etching
+	Premine *uint128.Uint128
 	// Bitmap of spacers to be displayed between each letter of the rune name
-	Spacers uint32
+	Spacers *uint32
 	// Single Unicode codepoint to represent the rune
-	Symbol rune
+	Symbol *rune
 	// Number of decimals when displaying the rune
-	Divisibility uint8
+	Divisibility *uint8
 }
 
 const (
@@ -41,13 +43,20 @@ const (
 	maxSpacers      uint32 = 0b00000111_11111111_11111111_11111111
 )
 
-func (e Etching) Supply() *big.Int {
+func (e Etching) Supply() (uint128.Uint128, error) {
 	terms := utils.Default(e.Terms, &Terms{})
 
-	amount := utils.Default(terms.Amount, big.NewInt(0))
-	cap := utils.Default(terms.Cap, big.NewInt(0))
-	premine := utils.Default(e.Premine, big.NewInt(0))
+	amount := lo.FromPtr(terms.Amount)
+	cap := lo.FromPtr(terms.Cap)
+	premine := lo.FromPtr(e.Premine)
 
-	result := new(big.Int).Mul(amount, cap)
-	return result.Add(result, premine)
+	result, overflow := amount.MulOverflow(cap)
+	if overflow {
+		return uint128.Uint128{}, errors.WithStack(errs.OverflowUint128)
+	}
+	result, overflow = result.AddOverflow(premine)
+	if overflow {
+		return uint128.Uint128{}, errors.WithStack(errs.OverflowUint128)
+	}
+	return result, nil
 }

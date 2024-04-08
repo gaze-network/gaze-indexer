@@ -1,37 +1,47 @@
 package leb128
 
 import (
-	"math/big"
-
 	"github.com/gaze-network/indexer-network/common/errs"
+	"github.com/gaze-network/uint128"
 )
 
-const ErrUnterminated = errs.ErrorKind("leb128: unterminated byte sequence")
+const (
+	ErrEmpty        = errs.ErrorKind("leb128: empty byte sequence")
+	ErrUnterminated = errs.ErrorKind("leb128: unterminated byte sequence")
+)
 
-func EncodeLEB128(input *big.Int) []byte {
-	n := new(big.Int).Set(input)
+func EncodeLEB128(input uint128.Uint128) []byte {
 	bytes := make([]byte, 0)
 	// for n >> 7 > 0
-	for new(big.Int).Rsh(n, 7).Sign() > 0 {
-		last_7_bits := byte(new(big.Int).And(n, big.NewInt(0b0111_1111)).Int64())
+	for !input.Rsh(7).IsZero() {
+		last_7_bits := input.And64(0b0111_1111).Uint8()
 		bytes = append(bytes, last_7_bits|0b1000_0000)
-		n = n.Rsh(n, 7)
+		input = input.Rsh(7)
 	}
-	last_byte := byte(n.Int64())
+	last_byte := input.Uint8()
 	bytes = append(bytes, last_byte)
 	return bytes
 }
 
-func DecodeLEB128(data []byte) (n *big.Int, length int, err error) {
-	n = big.NewInt(0)
+func DecodeLEB128(data []byte) (n uint128.Uint128, length int, err error) {
+	if len(data) == 0 {
+		return uint128.Uint128{}, 0, ErrEmpty
+	}
+	n = uint128.From64(0)
 
 	for i, b := range data {
-		value := big.NewInt(int64(b & 0b0111_1111))
-		n = n.Or(n, value.Lsh(value, uint(7*i)))
+		if i > 18 {
+			return uint128.Uint128{}, 0, errs.OverflowUint128
+		}
+		value := uint128.New(uint64(b&0b0111_1111), 0)
+		if i == 18 && !value.And64(0b0111_1100).IsZero() {
+			return uint128.Uint128{}, 0, errs.OverflowUint128
+		}
+		n = n.Or(value.Lsh(uint(7 * i)))
 		// if the high bit is not set, then this is the last byte
 		if b&0b1000_0000 == 0 {
 			return n, i + 1, nil
 		}
 	}
-	return nil, 0, ErrUnterminated
+	return uint128.Uint128{}, 0, ErrUnterminated
 }
