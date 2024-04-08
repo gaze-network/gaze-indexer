@@ -19,6 +19,8 @@ type BitcoinProcessor interface {
 
 	// CurrentBlock returns the latest indexed block header.
 	CurrentBlock() (types.BlockHeader, error)
+
+	FixReorg(ctx context.Context, from types.BlockHeader) error
 }
 
 // BitcoinIndexer is the indexer for sync Bitcoin data to the database.
