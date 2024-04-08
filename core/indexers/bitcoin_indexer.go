@@ -20,6 +20,7 @@ type BitcoinProcessor interface {
 	CurrentBlock() (types.BlockHeader, error)
 
 	// PrepareData fetches the data from the source and prepares it for processing.
+	// TODO: extract PrepareData to a separate interface (e.g. DataFetcher)
 	PrepareData(ctx context.Context, from, to int64) ([]types.Block, error)
 
 	// RevertData revert synced data to the specified block for re-indexing.
