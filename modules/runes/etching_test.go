@@ -6,6 +6,7 @@ import (
 
 	"github.com/gaze-network/indexer-network/common/errs"
 	"github.com/gaze-network/uint128"
+	"github.com/samber/lo"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -34,76 +35,76 @@ func TestSupply(t *testing.T) {
 	test(Etching{}, uint128.From64(0))
 
 	test(Etching{
-		Premine: uint128.From64(0),
+		Premine: lo.ToPtr(uint128.From64(0)),
 		Terms:   nil,
 	}, uint128.From64(0))
 
 	test(Etching{
-		Premine: uint128.From64(1),
+		Premine: lo.ToPtr(uint128.From64(1)),
 		Terms:   nil,
 	}, uint128.From64(1))
 
 	test(Etching{
-		Premine: uint128.From64(1),
+		Premine: lo.ToPtr(uint128.From64(1)),
 		Terms: &Terms{
-			Amount: uint128.From64(0),
-			Cap:    uint128.From64(0),
+			Amount: lo.ToPtr(uint128.From64(0)),
+			Cap:    lo.ToPtr(uint128.From64(0)),
 		},
 	}, uint128.From64(1))
 
 	test(Etching{
-		Premine: uint128.From64(1000),
+		Premine: lo.ToPtr(uint128.From64(1000)),
 		Terms: &Terms{
-			Amount: uint128.From64(100),
-			Cap:    uint128.From64(10),
+			Amount: lo.ToPtr(uint128.From64(100)),
+			Cap:    lo.ToPtr(uint128.From64(10)),
 		},
 	}, uint128.From64(2000))
 
 	test(Etching{
-		Premine: uint128.From64(0),
+		Premine: lo.ToPtr(uint128.From64(0)),
 		Terms: &Terms{
-			Amount: uint128.From64(100),
-			Cap:    uint128.From64(10),
+			Amount: lo.ToPtr(uint128.From64(100)),
+			Cap:    lo.ToPtr(uint128.From64(10)),
 		},
 	}, uint128.From64(1000))
 
 	test(Etching{
-		Premine: uint128.From64(1000),
+		Premine: lo.ToPtr(uint128.From64(1000)),
 		Terms: &Terms{
-			Amount: uint128.From64(100),
-			Cap:    uint128.From64(0),
+			Amount: lo.ToPtr(uint128.From64(100)),
+			Cap:    lo.ToPtr(uint128.From64(0)),
 		},
 	}, uint128.From64(1000))
 
 	test(Etching{
-		Premine: uint128.From64(1000),
+		Premine: lo.ToPtr(uint128.From64(1000)),
 		Terms: &Terms{
-			Amount: uint128.From64(0),
-			Cap:    uint128.From64(10),
+			Amount: lo.ToPtr(uint128.From64(0)),
+			Cap:    lo.ToPtr(uint128.From64(10)),
 		},
 	}, uint128.From64(1000))
 
 	test(Etching{
-		Premine: uint128.Max.Div64(2).Add64(1),
+		Premine: lo.ToPtr(uint128.Max.Div64(2).Add64(1)),
 		Terms: &Terms{
-			Amount: uint128.From64(1),
-			Cap:    uint128.Max.Div64(2),
+			Amount: lo.ToPtr(uint128.From64(1)),
+			Cap:    lo.ToPtr(uint128.Max.Div64(2)),
 		},
 	}, uint128.Max)
 
 	test(Etching{
-		Premine: uint128.From64(0),
+		Premine: lo.ToPtr(uint128.From64(0)),
 		Terms: &Terms{
-			Amount: uint128.From64(1),
-			Cap:    uint128.Max,
+			Amount: lo.ToPtr(uint128.From64(1)),
+			Cap:    lo.ToPtr(uint128.Max),
 		},
 	}, uint128.Max)
 
 	testError(Etching{
-		Premine: uint128.Max,
+		Premine: lo.ToPtr(uint128.Max),
 		Terms: &Terms{
-			Amount: uint128.From64(1),
-			Cap:    uint128.From64(1),
+			Amount: lo.ToPtr(uint128.From64(1)),
+			Cap:    lo.ToPtr(uint128.From64(1)),
 		},
 	}, errs.OverflowUint128)
 }

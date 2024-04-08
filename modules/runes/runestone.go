@@ -29,6 +29,8 @@ type Runestone struct {
 	Flaws Flaws
 }
 
+// DecipherRunestone deciphers a runestone from a transaction. If the runestone is a cenotaph, the runestone is returned with Cenotaph set to true and Flaws set to the bitmask of flaws that caused the runestone to be a cenotaph.
+// If no runestone is found, nil is returned.
 func DecipherRunestone(tx *wire.MsgTx) (*Runestone, error) {
 	payload, flaws := runestonePayloadFromTx(tx)
 	if flaws != 0 {
@@ -52,44 +54,44 @@ func DecipherRunestone(tx *wire.MsgTx) (*Runestone, error) {
 	message := MessageFromIntegers(tx, integers)
 	edicts, fields := message.Edicts, message.Fields
 
-	flags, err := ParseFlags(unwrapUint128OrDefault(fields.Take(TagFlags)))
+	flags, err := ParseFlags(lo.FromPtr(fields.Take(TagFlags)))
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot parse flags")
 	}
 
 	var etching *Etching
 	if flags.Take(FlagEtching) {
-		divisibility := unwrapUint128OrDefault(fields.Take(TagDivisibility))
-		if divisibility.Cmp64(uint64(maxDivisibility)) > 0 {
-			divisibility = uint128.Zero
+		divisibility := fields.Take(TagDivisibility)
+		if divisibility != nil && divisibility.Cmp64(uint64(maxDivisibility)) > 0 {
+			divisibility = nil
 		}
-		spacers := unwrapUint128OrDefault(fields.Take(TagSpacers))
-		if spacers.Cmp64(uint64(maxSpacers)) > 0 {
-			spacers = uint128.Zero
+		spacers := fields.Take(TagSpacers)
+		if spacers != nil && spacers.Cmp64(uint64(maxSpacers)) > 0 {
+			spacers = nil
 		}
-		symbol := unwrapUint128OrDefault(fields.Take(TagSymbol))
-		if symbol.Cmp64(math.MaxInt32) > 0 {
-			symbol = uint128.Zero
+		symbol := fields.Take(TagSymbol)
+		if symbol != nil && symbol.Cmp64(math.MaxInt32) > 0 {
+			symbol = nil
 		}
 
 		var terms *Terms
 		if flags.Take(FlagTerms) {
-			var heightStart, heightEnd, offsetStart, offsetEnd uint64
-			if value := unwrapUint128OrDefault(fields.Take(TagHeightStart)); value.IsUint64() {
-				heightStart = value.Uint64()
+			var heightStart, heightEnd, offsetStart, offsetEnd *uint64
+			if value := fields.Take(TagHeightStart); value != nil && value.IsUint64() {
+				heightStart = lo.ToPtr(value.Uint64())
 			}
-			if value := unwrapUint128OrDefault(fields.Take(TagHeightEnd)); value.IsUint64() {
-				heightEnd = value.Uint64()
+			if value := fields.Take(TagHeightEnd); value != nil && value.IsUint64() {
+				heightEnd = lo.ToPtr(value.Uint64())
 			}
-			if value := unwrapUint128OrDefault(fields.Take(TagOffsetStart)); value.IsUint64() {
-				offsetStart = value.Uint64()
+			if value := fields.Take(TagOffsetStart); value != nil && value.IsUint64() {
+				offsetStart = lo.ToPtr(value.Uint64())
 			}
-			if value := unwrapUint128OrDefault(fields.Take(TagOffsetEnd)); value.IsUint64() {
-				offsetEnd = value.Uint64()
+			if value := fields.Take(TagOffsetEnd); value != nil && value.IsUint64() {
+				offsetEnd = lo.ToPtr(value.Uint64())
 			}
 			terms = &Terms{
-				Amount:      unwrapUint128OrDefault(fields.Take(TagAmount)),
-				Cap:         unwrapUint128OrDefault(fields.Take(TagCap)),
+				Amount:      fields.Take(TagAmount),
+				Cap:         fields.Take(TagCap),
 				HeightStart: heightStart,
 				HeightEnd:   heightEnd,
 				OffsetStart: offsetStart,
@@ -98,11 +100,11 @@ func DecipherRunestone(tx *wire.MsgTx) (*Runestone, error) {
 		}
 
 		etching = &Etching{
-			Divisibility: divisibility.Uint8(),
-			Premine:      unwrapUint128OrDefault(fields.Take(TagPremine)),
+			Divisibility: lo.ToPtr(divisibility.Uint8()),
+			Premine:      fields.Take(TagPremine),
 			Rune:         (*Rune)(fields.Take(TagRune)),
-			Spacers:      spacers.Uint32(),
-			Symbol:       rune(symbol.Uint32()),
+			Spacers:      lo.ToPtr(spacers.Uint32()),
+			Symbol:       lo.ToPtr(rune(symbol.Uint32())),
 			Terms:        terms,
 		}
 	}
@@ -110,8 +112,8 @@ func DecipherRunestone(tx *wire.MsgTx) (*Runestone, error) {
 	var mint *RuneId
 	mintValues := fields[TagMint]
 	if len(mintValues) >= 2 {
-		mintRuneIdBlock := unwrapUint128OrDefault(fields.Take(TagMint))
-		mintRuneIdTx := unwrapUint128OrDefault(fields.Take(TagMint))
+		mintRuneIdBlock := lo.FromPtr(fields.Take(TagMint))
+		mintRuneIdTx := lo.FromPtr(fields.Take(TagMint))
 		if mintRuneIdBlock.IsUint64() && mintRuneIdTx.IsUint32() {
 			runeId, err := NewRuneId(mintRuneIdBlock.Uint64(), mintRuneIdTx.Uint32())
 			if err == nil {
