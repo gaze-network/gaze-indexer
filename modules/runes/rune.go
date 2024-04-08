@@ -1,11 +1,9 @@
 package runes
 
 import (
-	"math/big"
 	"slices"
 
 	"github.com/Cleverse/go-utilities/utils"
-	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/common"
 	"github.com/gaze-network/indexer-network/common/errs"
 	"github.com/gaze-network/uint128"
@@ -25,29 +23,10 @@ func NewRuneFromUint128(value uint128.Uint128) Rune {
 	return Rune(value)
 }
 
-func NewRuneFromBigInt(value *big.Int) (Rune, error) {
-	rune, err := uint128.FromBig(value)
-	if err != nil {
-		return Rune{}, errors.WithStack(err)
-	}
-	return Rune(rune), nil
-}
-
-const ErrInvalidBase10 = errs.ErrorKind("invalid base-10 character: must be in the range [0-9]")
-
-// NewRuneFromString creates a new Rune from a string of base-10 integer
-func NewRuneFromString(value string) (Rune, error) {
-	rune, err := uint128.FromString(value)
-	if err != nil {
-		return Rune{}, errors.WithStack(err)
-	}
-	return Rune(rune), nil
-}
-
 const ErrInvalidBase26 = errs.ErrorKind("invalid base-26 character: must be in the range [A-Z]")
 
-// NewRuneFromBase26 creates a new Rune from a string of modified base-26 integer
-func NewRuneFromBase26(value string) (Rune, error) {
+// NewRuneFromString creates a new Rune from a string of modified base-26 integer
+func NewRuneFromString(value string) (Rune, error) {
 	n := uint128.From64(0)
 	for i, char := range value {
 		if i > 0 {
@@ -62,7 +41,7 @@ func NewRuneFromBase26(value string) (Rune, error) {
 	return Rune(n), nil
 }
 
-var firstReservedRune = utils.Must(NewRuneFromString("6402364363415443603228541259936211926"))
+var firstReservedRune = NewRuneFromUint128(utils.Must(uint128.FromString("6402364363415443603228541259936211926")))
 
 var unlockSteps = []uint128.Uint128{
 	utils.Must(uint128.FromString("0")),                                       // A

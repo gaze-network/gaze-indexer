@@ -12,14 +12,14 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestString(t *testing.T) {
+func TestRuneString(t *testing.T) {
 	test := func(rune Rune, encoded string) {
 		t.Run(encoded, func(t *testing.T) {
 			t.Parallel()
 			actualEncoded := rune.String()
 			assert.Equal(t, encoded, actualEncoded)
 
-			actualRune, err := NewRuneFromBase26(encoded)
+			actualRune, err := NewRuneFromString(encoded)
 			assert.NoError(t, err)
 			assert.Equal(t, rune, actualRune)
 		})
@@ -56,14 +56,14 @@ func TestString(t *testing.T) {
 	test(NewRune(51), "AZ")
 	test(NewRune(52), "BA")
 	test(NewRune(53), "BB")
-	test(utils.Must(NewRuneFromString("2055900680524219742")), "UNCOMMONGOODS")
+	test(NewRuneFromUint128(utils.Must(uint128.FromString("2055900680524219742"))), "UNCOMMONGOODS")
 	test(NewRuneFromUint128(uint128.Max.Sub64(2)), "BCGDENLQRQWDSLRUGSNLBTMFIJAT")
 	test(NewRuneFromUint128(uint128.Max.Sub64(1)), "BCGDENLQRQWDSLRUGSNLBTMFIJAU")
 	test(NewRuneFromUint128(uint128.Max), "BCGDENLQRQWDSLRUGSNLBTMFIJAV")
 }
 
 func TestNewRuneFromBase26Error(t *testing.T) {
-	_, err := NewRuneFromBase26("?")
+	_, err := NewRuneFromString("?")
 	assert.ErrorIs(t, err, ErrInvalidBase26)
 }
 
@@ -84,7 +84,7 @@ func TestMinimumRuneAtHeightMainnet(t *testing.T) {
 	test := func(height uint64, encoded string) {
 		t.Run(fmt.Sprintf("%d", height), func(t *testing.T) {
 			t.Parallel()
-			rune, err := NewRuneFromBase26(encoded)
+			rune, err := NewRuneFromString(encoded)
 			assert.NoError(t, err)
 			actual := MinimumRuneAtHeight(common.NetworkMainnet, height)
 			assert.Equal(t, rune, actual)
@@ -168,7 +168,7 @@ func TestMinimumRuneAtHeightTestnet(t *testing.T) {
 	test := func(height uint64, runeStr string) {
 		t.Run(fmt.Sprintf("%d", height), func(t *testing.T) {
 			t.Parallel()
-			rune, err := NewRuneFromBase26(runeStr)
+			rune, err := NewRuneFromString(runeStr)
 			assert.NoError(t, err)
 			actual := MinimumRuneAtHeight(common.NetworkTestnet, height)
 			assert.Equal(t, rune, actual)
@@ -186,7 +186,7 @@ func TestIsReserved(t *testing.T) {
 	test := func(runeStr string, expected bool) {
 		t.Run(runeStr, func(t *testing.T) {
 			t.Parallel()
-			rune, err := NewRuneFromBase26(runeStr)
+			rune, err := NewRuneFromString(runeStr)
 			assert.NoError(t, err)
 			actual := rune.IsReserved()
 			assert.Equal(t, expected, actual)
