@@ -5,7 +5,7 @@ SELECT * FROM bitcoin_blocks ORDER BY block_height DESC LIMIT 1;
 
 -- TODO: GetBlockByHeight/Hash (Join block with transactions, txins, txouts)
 
--- name: InsertttBlock :exec
+-- name: InsertBlock :exec
 INSERT INTO bitcoin_blocks ("block_height","block_hash","version","merkle_root","prev_block_hash","timestamp","bits","nonce") VALUES ($1, $2, $3, $4, $5, $6, $7, $8);
 
 -- name: InsertTransaction :exec
