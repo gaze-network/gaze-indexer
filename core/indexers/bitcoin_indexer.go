@@ -33,12 +33,12 @@ type BitcoinIndexer struct {
 	currentBlock types.BlockHeader
 }
 
-func (b *BitcoinIndexer) Run(ctx context.Context) (err error) {
+func (i *BitcoinIndexer) Run(ctx context.Context) (err error) {
 	// set to -1 to start from genesis block
-	b.currentBlock, err = b.Processor.CurrentBlock()
+	i.currentBlock, err = i.Processor.CurrentBlock()
 	if err != nil {
 		if errors.Is(err, errs.NotFound) {
-			b.currentBlock.Height = -1
+			i.currentBlock.Height = -1
 		}
 		return errors.Wrap(err, "can't init state, failed to get indexer current block")
 	}
@@ -51,7 +51,7 @@ func (b *BitcoinIndexer) Run(ctx context.Context) (err error) {
 			return nil
 		case <-ticker.C:
 			// Prepare range of blocks to sync
-			startHeight, endHeight, skip, err := b.prepareRange(b.currentBlock.Height)
+			startHeight, endHeight, skip, err := i.prepareRange(i.currentBlock.Height)
 			if err != nil {
 				return errors.Wrap(err, "failed to prepare range")
 			}
@@ -69,17 +69,17 @@ func (b *BitcoinIndexer) Run(ctx context.Context) (err error) {
 				2. Process blocks sequentially
 			*/
 
-			blockHash, err := b.btcclient.GetBlockHash(endHeight)
+			blockHash, err := i.btcclient.GetBlockHash(endHeight)
 			if err != nil {
 				return errors.Wrap(err, "failed to get block hash")
 			}
 
-			if endHeight <= b.currentBlock.Height && !blockHash.IsEqual(b.currentBlock.Hash) {
+			if endHeight <= i.currentBlock.Height && !blockHash.IsEqual(i.currentBlock.Hash) {
 				// TODO: Chain reorganization detected, need to re-index
 				log.Println("Chain reorganization detected, need to re-index")
 			}
 
-			block, err := b.btcclient.GetBlock(blockHash)
+			block, err := i.btcclient.GetBlock(blockHash)
 			if err != nil {
 				return errors.Wrap(err, "failed to get block")
 			}
@@ -92,10 +92,10 @@ func (b *BitcoinIndexer) Run(ctx context.Context) (err error) {
 				},
 				Transactions: block.Transactions,
 			}
-			if err := b.Processor.Process(ctx, []types.Block{input}); err != nil {
+			if err := i.Processor.Process(ctx, []types.Block{input}); err != nil {
 				return errors.WithStack(err)
 			}
-			b.currentBlock = input.BlockHeader
+			i.currentBlock = input.BlockHeader
 		}
 	}
 }

@@ -23,12 +23,12 @@ type BitcoinProtocolIndexer struct {
 	currentBlock types.BlockHeader
 }
 
-func (b *BitcoinProtocolIndexer) Run(ctx context.Context) error {
-	cur, err := b.Processor.CurrentBlock()
+func (i *BitcoinProtocolIndexer) Run(ctx context.Context) error {
+	cur, err := i.Processor.CurrentBlock()
 	if err != nil {
 		return errors.Wrap(err, "can't init state, failed to get indexer current block")
 	}
-	b.currentBlock = cur
+	i.currentBlock = cur
 
 	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
@@ -42,12 +42,12 @@ func (b *BitcoinProtocolIndexer) Run(ctx context.Context) error {
 			// TODO: Get the latest block from Database (Phase #1)
 			var block types.Block
 
-			if block.Height <= b.currentBlock.Height && block.Hash != b.currentBlock.Hash {
+			if block.Height <= i.currentBlock.Height && block.Hash != i.currentBlock.Hash {
 				// TODO: Chain reorganization detected, need to re-index
 				_ = block
 			}
 
-			if err := b.Processor.Process(ctx, block); err != nil {
+			if err := i.Processor.Process(ctx, block); err != nil {
 				return errors.WithStack(err)
 			}
 		}
