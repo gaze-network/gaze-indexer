@@ -2,6 +2,7 @@ package runes
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/gaze-network/indexer-network/common/errs"
@@ -10,7 +11,19 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// TODO: add maxSpacers test
+func TestMaxSpacers(t *testing.T) {
+	maxRune := Rune(uint128.Max)
+	var sb strings.Builder
+	for i, c := range maxRune.String() {
+		if i > 0 {
+			sb.WriteRune('•')
+		}
+		sb.WriteRune(c)
+	}
+	spacedRune, err := NewSpacedRuneFromString(sb.String())
+	assert.NoError(t, err)
+	assert.Equal(t, maxSpacers, spacedRune.Spacers)
+}
 
 func TestSupply(t *testing.T) {
 	testNumber := 0
