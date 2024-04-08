@@ -65,3 +65,8 @@ func (f *Flags) Take(flag Flag) bool {
 	}
 	return found
 }
+
+func (f *Flags) Set(flag Flag) {
+	// f = f | (1 << flag)
+	*f = Flags(f.Uint128().Or(flag.Mask().Uint128()))
+}

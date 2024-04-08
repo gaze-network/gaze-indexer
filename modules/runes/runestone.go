@@ -2,6 +2,7 @@ package runes
 
 import (
 	"math"
+	"slices"
 
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/btcsuite/btcd/wire"
@@ -12,7 +13,7 @@ import (
 	"github.com/samber/lo"
 )
 
-const PAYLOAD_MAGIC_NUMBER = txscript.OP_13
+const RUNESTONE_PAYLOAD_MAGIC_NUMBER = txscript.OP_13
 
 type Runestone struct {
 	// Rune to etch in this transaction
@@ -27,6 +28,116 @@ type Runestone struct {
 	Cenotaph bool
 	// Bitmask of flaws that caused the runestone to be a cenotaph
 	Flaws Flaws
+}
+
+// Encipher encodes a runestone into a scriptPubKey, ready to be put into a transaction output.
+func (r Runestone) Encipher() ([]byte, error) {
+	var payload []byte
+
+	encodeUint128 := func(value uint128.Uint128) {
+		payload = append(payload, leb128.EncodeLEB128(value)...)
+	}
+	encodeTagValues := func(tag Tag, values ...uint128.Uint128) {
+		for _, value := range values {
+			// encode tag key
+			encodeUint128(tag.Uint128())
+			// encode tag value
+			encodeUint128(value)
+		}
+	}
+	encodeEdict := func(previousRuneId RuneId, edict Edict) {
+		blockHeight, txIndex := previousRuneId.Delta(edict.Id)
+		encodeUint128(uint128.From64(blockHeight))
+		encodeUint128(uint128.From64(uint64(txIndex)))
+		encodeUint128(edict.Amount)
+		encodeUint128(uint128.From64(uint64(edict.Output)))
+	}
+
+	if r.Etching != nil {
+		etching := r.Etching
+		flags := Flags(uint128.Zero)
+		flags.Set(FlagEtching)
+		if etching.Terms != nil {
+			flags.Set(FlagTerms)
+		}
+		encodeTagValues(TagFlags, flags.Uint128())
+
+		if etching.Rune != nil {
+			encodeTagValues(TagRune, etching.Rune.Uint128())
+		}
+		if etching.Divisibility != nil {
+			encodeTagValues(TagDivisibility, uint128.From64(uint64(*etching.Divisibility)))
+		}
+		if etching.Spacers != nil {
+			encodeTagValues(TagSpacers, uint128.From64(uint64(*etching.Spacers)))
+		}
+		if etching.Symbol != nil {
+			encodeTagValues(TagSymbol, uint128.From64(uint64(*etching.Symbol)))
+		}
+		if etching.Premine != nil {
+			encodeTagValues(TagPremine, *etching.Premine)
+		}
+		if etching.Terms != nil {
+			terms := etching.Terms
+			if terms.Amount != nil {
+				encodeTagValues(TagAmount, *terms.Amount)
+			}
+			if terms.Cap != nil {
+				encodeTagValues(TagCap, *terms.Cap)
+			}
+			if terms.HeightStart != nil {
+				encodeTagValues(TagHeightStart, uint128.From64(*terms.HeightStart))
+			}
+			if terms.HeightEnd != nil {
+				encodeTagValues(TagHeightEnd, uint128.From64(*terms.HeightEnd))
+			}
+			if terms.OffsetStart != nil {
+				encodeTagValues(TagOffsetStart, uint128.From64(*terms.OffsetStart))
+			}
+			if terms.OffsetEnd != nil {
+				encodeTagValues(TagOffsetEnd, uint128.From64(*terms.OffsetEnd))
+			}
+		}
+	}
+
+	if r.Mint != nil {
+		encodeTagValues(TagMint, uint128.From64(r.Mint.BlockHeight), uint128.From64(uint64(r.Mint.TxIndex)))
+	}
+	if r.Pointer != nil {
+		encodeTagValues(TagPointer, uint128.From64(*r.Pointer))
+	}
+	if len(r.Edicts) > 0 {
+		encodeUint128(TagBody.Uint128())
+		edicts := make([]Edict, len(r.Edicts))
+		copy(edicts, r.Edicts)
+		// sort by block height first, then by tx index
+		slices.SortFunc(edicts, func(i, j Edict) int {
+			if i.Id.BlockHeight != j.Id.BlockHeight {
+				return int(i.Id.BlockHeight) - int(j.Id.BlockHeight)
+			}
+			return int(i.Id.TxIndex) - int(j.Id.TxIndex)
+		})
+		var previousRuneId RuneId
+		for _, edict := range edicts {
+			encodeEdict(previousRuneId, edict)
+			previousRuneId = edict.Id
+		}
+	}
+
+	sb := txscript.NewScriptBuilder().
+		AddOp(txscript.OP_RETURN).
+		AddOp(RUNESTONE_PAYLOAD_MAGIC_NUMBER)
+
+	// chunk payload to MaxScriptElementSize
+	for _, chunk := range lo.Chunk(payload, txscript.MaxScriptElementSize) {
+		sb.AddData(chunk)
+	}
+
+	scriptPubKey, err := sb.Script()
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot build scriptPubKey")
+	}
+	return scriptPubKey, nil
 }
 
 // DecipherRunestone deciphers a runestone from a transaction. If the runestone is a cenotaph, the runestone is returned with Cenotaph set to true and Flaws set to the bitmask of flaws that caused the runestone to be a cenotaph.
@@ -174,7 +285,7 @@ func runestonePayloadFromTx(tx *wire.MsgTx) ([]byte, Flaws) {
 
 		// next opcode must be the magic number
 		tokenizer.Next()
-		if opCode := tokenizer.Opcode(); opCode != PAYLOAD_MAGIC_NUMBER {
+		if opCode := tokenizer.Opcode(); opCode != RUNESTONE_PAYLOAD_MAGIC_NUMBER {
 			continue
 		}
 
