@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/btcsuite/btcd/rpcclient"
-	"github.com/btcsuite/btcd/wire"
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/common/errs"
 	"github.com/gaze-network/indexer-network/core/types"
@@ -15,12 +14,16 @@ import (
 // BitcoinProcessor is indexer processor for Bitcoin Indexer.
 type BitcoinProcessor interface {
 	// Process processes the input data and indexes it.
-	Process(ctx context.Context, input *wire.MsgBlock) error
+	Process(ctx context.Context, inputs []types.Block) error
 
 	// CurrentBlock returns the latest indexed block header.
 	CurrentBlock() (types.BlockHeader, error)
 
-	FixReorg(ctx context.Context, from types.BlockHeader) error
+	// PrepareData fetches the data from the source and prepares it for processing.
+	PrepareData(ctx context.Context, from, to int64) ([]types.Block, error)
+
+	// RevertData revert synced data to the specified block for re-indexing.
+	RevertData(ctx context.Context, from types.BlockHeader) error
 }
 
 // BitcoinIndexer is the indexer for sync Bitcoin data to the database.
@@ -81,13 +84,18 @@ func (b *BitcoinIndexer) Run(ctx context.Context) (err error) {
 				return errors.Wrap(err, "failed to get block")
 			}
 
-			if err := b.Processor.Process(ctx, block); err != nil {
+			input := types.Block{
+				BlockHeader: types.BlockHeader{
+					Hash:        blockHash,
+					Height:      startHeight,
+					BlockHeader: block.Header,
+				},
+				Transactions: block.Transactions,
+			}
+			if err := b.Processor.Process(ctx, []types.Block{input}); err != nil {
 				return errors.WithStack(err)
 			}
-
-			b.currentBlock.Hash = blockHash
-			b.currentBlock.Height = endHeight
-			b.currentBlock.BlockHeader = block.Header
+			b.currentBlock = input.BlockHeader
 		}
 	}
 }
