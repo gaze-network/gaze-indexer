@@ -1,6 +1,7 @@
 package runes
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/Cleverse/go-utilities/utils"
@@ -242,6 +243,237 @@ func TestDecipherRunestone(t *testing.T) {
 					Output: 0,
 				},
 			},
+		},
+	)
+	testDecipherInteger(
+		"decipher_etching_with_rune",
+		[]uint128.Uint128{
+			TagFlags.Uint128(),
+			FlagEtching.Mask().Uint128(),
+			TagRune.Uint128(),
+			uint128.From64(4),
+			TagBody.Uint128(),
+			uint128.From64(1),
+			uint128.From64(1),
+			uint128.From64(2),
+			uint128.From64(0),
+		},
+		&Runestone{
+			Etching: &Etching{
+				Rune: lo.ToPtr(NewRune(4)),
+			},
+			Edicts: []Edict{
+				{
+					Id:     RuneId{1, 1},
+					Amount: uint128.From64(2),
+					Output: 0,
+				},
+			},
+		},
+	)
+	testDecipherInteger(
+		"terms_flag_without_etching_flag_produces_cenotaph",
+		[]uint128.Uint128{
+			TagFlags.Uint128(),
+			FlagTerms.Mask().Uint128(),
+			TagBody.Uint128(),
+			uint128.From64(1),
+			uint128.From64(1),
+			uint128.From64(2),
+			uint128.From64(0),
+		},
+		&Runestone{
+			Cenotaph: true,
+			Flaws:    FlawFlagUnrecognizedFlag.Mask(),
+		},
+	)
+	// test recognized_fields_without_flag_produces_cenotaph
+	{
+		testcase := func(integers []uint128.Uint128) {
+			testDecipherInteger(
+				fmt.Sprintf("recognized_fields_without_flag_produces_cenotaph_%v", integers),
+				integers,
+				&Runestone{
+					Cenotaph: true,
+					Flaws:    FlawFlagUnrecognizedEvenTag.Mask(),
+				},
+			)
+		}
+
+		testcase([]uint128.Uint128{TagPremine.Uint128(), uint128.Zero})
+		testcase([]uint128.Uint128{TagRune.Uint128(), uint128.Zero})
+		testcase([]uint128.Uint128{TagCap.Uint128(), uint128.Zero})
+		testcase([]uint128.Uint128{TagAmount.Uint128(), uint128.Zero})
+		testcase([]uint128.Uint128{TagOffsetStart.Uint128(), uint128.Zero})
+		testcase([]uint128.Uint128{TagOffsetEnd.Uint128(), uint128.Zero})
+		testcase([]uint128.Uint128{TagHeightStart.Uint128(), uint128.Zero})
+		testcase([]uint128.Uint128{TagHeightEnd.Uint128(), uint128.Zero})
+
+		testcase([]uint128.Uint128{TagFlags.Uint128(), FlagEtching.Mask().Uint128(), TagCap.Uint128(), uint128.Zero})
+		testcase([]uint128.Uint128{TagFlags.Uint128(), FlagEtching.Mask().Uint128(), TagAmount.Uint128(), uint128.Zero})
+		testcase([]uint128.Uint128{TagFlags.Uint128(), FlagEtching.Mask().Uint128(), TagOffsetStart.Uint128(), uint128.Zero})
+		testcase([]uint128.Uint128{TagFlags.Uint128(), FlagEtching.Mask().Uint128(), TagOffsetEnd.Uint128(), uint128.Zero})
+		testcase([]uint128.Uint128{TagFlags.Uint128(), FlagEtching.Mask().Uint128(), TagHeightStart.Uint128(), uint128.Zero})
+		testcase([]uint128.Uint128{TagFlags.Uint128(), FlagEtching.Mask().Uint128(), TagHeightEnd.Uint128(), uint128.Zero})
+	}
+	testDecipherInteger(
+		"decipher_etching_with_term",
+		[]uint128.Uint128{
+			TagFlags.Uint128(),
+			FlagEtching.Mask().Uint128().Or(FlagTerms.Mask().Uint128()),
+			TagOffsetEnd.Uint128(),
+			uint128.From64(4),
+			TagBody.Uint128(),
+			uint128.From64(1),
+			uint128.From64(1),
+			uint128.From64(2),
+			uint128.From64(0),
+		},
+		&Runestone{
+			Etching: &Etching{
+				Terms: &Terms{
+					OffsetEnd: lo.ToPtr(uint64(4)),
+				},
+			},
+			Edicts: []Edict{
+				{
+					Id:     RuneId{1, 1},
+					Amount: uint128.From64(2),
+					Output: 0,
+				},
+			},
+		},
+	)
+	testDecipherInteger(
+		"decipher_etching_with_amount",
+		[]uint128.Uint128{
+			TagFlags.Uint128(),
+			FlagEtching.Mask().Uint128().Or(FlagTerms.Mask().Uint128()),
+			TagAmount.Uint128(),
+			uint128.From64(4),
+			TagBody.Uint128(),
+			uint128.From64(1),
+			uint128.From64(1),
+			uint128.From64(2),
+			uint128.From64(0),
+		},
+		&Runestone{
+			Etching: &Etching{
+				Terms: &Terms{
+					Amount: lo.ToPtr(uint128.From64(4)),
+				},
+			},
+			Edicts: []Edict{
+				{
+					Id:     RuneId{1, 1},
+					Amount: uint128.From64(2),
+					Output: 0,
+				},
+			},
+		},
+	)
+	testDecipherInteger(
+		"duplicate_even_tags_produce_cenotaph",
+		[]uint128.Uint128{
+			TagFlags.Uint128(),
+			FlagEtching.Mask().Uint128(),
+			TagRune.Uint128(),
+			uint128.From64(4),
+			TagRune.Uint128(),
+			uint128.From64(5),
+			TagBody.Uint128(),
+			uint128.From64(1),
+			uint128.From64(1),
+			uint128.From64(2),
+			uint128.From64(0),
+		},
+		&Runestone{
+			Cenotaph: true,
+			Etching: &Etching{
+				Rune: lo.ToPtr(NewRune(4)),
+			},
+			Flaws: FlawFlagUnrecognizedEvenTag.Mask(),
+		},
+	)
+	testDecipherInteger(
+		"duplicate_odd_tags_are_ignored",
+		[]uint128.Uint128{
+			TagFlags.Uint128(),
+			FlagEtching.Mask().Uint128(),
+			TagDivisibility.Uint128(),
+			uint128.From64(4),
+			TagDivisibility.Uint128(),
+			uint128.From64(5),
+			TagBody.Uint128(),
+			uint128.From64(1),
+			uint128.From64(1),
+			uint128.From64(2),
+			uint128.From64(0),
+		},
+		&Runestone{
+			Etching: &Etching{
+				Divisibility: lo.ToPtr(uint8(4)),
+			},
+			Edicts: []Edict{
+				{
+					Id:     RuneId{1, 1},
+					Amount: uint128.From64(2),
+					Output: 0,
+				},
+			},
+		},
+	)
+	testDecipherInteger(
+		"unrecognized_odd_tag_is_ignored",
+		[]uint128.Uint128{
+			TagNop.Uint128(),
+			uint128.From64(5),
+			TagBody.Uint128(),
+			uint128.From64(1),
+			uint128.From64(1),
+			uint128.From64(2),
+			uint128.From64(0),
+		},
+		&Runestone{
+			Edicts: []Edict{
+				{
+					Id:     RuneId{1, 1},
+					Amount: uint128.From64(2),
+					Output: 0,
+				},
+			},
+		},
+	)
+	testDecipherInteger(
+		"runestone_with_unrecognized_even_tag_is_cenotaph",
+		[]uint128.Uint128{
+			TagCenotaph.Uint128(),
+			uint128.From64(5),
+			TagBody.Uint128(),
+			uint128.From64(1),
+			uint128.From64(1),
+			uint128.From64(2),
+			uint128.From64(0),
+		},
+		&Runestone{
+			Cenotaph: true,
+			Flaws:    FlawFlagUnrecognizedEvenTag.Mask(),
+		},
+	)
+	testDecipherInteger(
+		"runestone_with_unrecognized_flag_is_cenotaph",
+		[]uint128.Uint128{
+			TagFlags.Uint128(),
+			FlagCenotaph.Mask().Uint128(),
+			TagBody.Uint128(),
+			uint128.From64(1),
+			uint128.From64(1),
+			uint128.From64(2),
+			uint128.From64(0),
+		},
+		&Runestone{
+			Cenotaph: true,
+			Flaws:    FlawFlagUnrecognizedFlag.Mask(),
 		},
 	)
 }
