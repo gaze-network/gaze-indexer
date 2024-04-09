@@ -25,7 +25,7 @@ func NewRunesProcessor(params NewRunesProcessorParams) *Processor {
 	}
 }
 
-func (r *Processor) Process(ctx context.Context, blocks []types.Block) error {
+func (r *Processor) Process(ctx context.Context, blocks []*types.Block) error {
 	for _, block := range blocks {
 		for _, tx := range block.Transactions {
 			if err := r.processTx(tx, block.Header); err != nil {
@@ -44,7 +44,7 @@ func (r *Processor) CurrentBlock() (types.BlockHeader, error) {
 	panic("implement me")
 }
 
-func (r *Processor) PrepareData(ctx context.Context, from, to int64) ([]types.Block, error) {
+func (r *Processor) PrepareData(ctx context.Context, from, to int64) ([]*types.Block, error) {
 	panic("implement me")
 }
 
