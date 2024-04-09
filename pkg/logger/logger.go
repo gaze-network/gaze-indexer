@@ -5,7 +5,9 @@ import (
 	"context"
 	"log/slog"
 	"os"
+	"runtime"
 	"strings"
+	"time"
 )
 
 const (
@@ -49,46 +51,65 @@ func SetLevel(level slog.Level) (old slog.Level) {
 	return old
 }
 
-// Debug calls [Logger.Debug] on the default logger.
+// With returns a Logger that includes the given attributes
+// in each output operation. Arguments are converted to
+// attributes as if by [Logger.Log].
 func With(args ...any) *slog.Logger {
 	return logger.With(args...)
 }
 
-// Debug calls [Logger.Debug] on the default logger.
+// WithGroup returns a Logger that starts a group, if name is non-empty.
+// The keys of all attributes added to the Logger will be qualified by the given
+// name. (How that qualification happens depends on the [Handler.WithGroup]
+// method of the Logger's Handler.)
+//
+// If name is empty, WithGroup returns the receiver.
+func WithGroup(group string) *slog.Logger {
+	return logger.WithGroup(group)
+}
+
+// Debug logs at [LevelDebug].
 func Debug(msg string, args ...any) {
-	logger.Debug(msg, args...)
+	log(context.Background(), logger, slog.LevelDebug, msg, args...)
 }
 
-// Info calls [Logger.Info] on the default logger.
+// Info logs at [LevelInfo].
 func Info(msg string, args ...any) {
-	logger.Info(msg, args...)
+	log(context.Background(), logger, slog.LevelInfo, msg, args...)
 }
 
-// Warn calls [Logger.Warn] on the default logger.
+// Warn logs at [LevelWarn].
 func Warn(msg string, args ...any) {
-	logger.Warn(msg, args...)
+	log(context.Background(), logger, slog.LevelWarn, msg, args...)
 }
 
-// Error calls [Logger.Error] on the default logger.
-// TODO: support stack trace for error
+// Error logs at [LevelError] with an error.
 func Error(msg string, err error, args ...any) {
-	logger.Error(msg, append(args, AttrError(err))...)
+	log(context.Background(), logger, slog.LevelError, msg, append(args, AttrError(err))...)
 }
 
-// Panic calls [Logger.Log] with PANIC level on the default logger and then panic.
+// Panic logs at [LevelPanic] and then panics.
 func Panic(msg string, args ...any) {
-	logger.Log(context.Background(), LevelPanic, msg, args...)
+	log(context.Background(), logger, LevelPanic, msg, args...)
 	panic(msg)
 }
 
-// Log calls [Logger.Log] on the default logger.
-func Log(level slog.Level, msg string, args ...any) {
-	logger.Log(context.Background(), level, msg, args...)
+// Fatal logs at [LevelFatal] followed by a call to [os.Exit](1).
+func Fatal(msg string, args ...any) {
+	log(context.Background(), logger, LevelFatal, msg, args...)
+	os.Exit(1)
 }
 
-// LogAttrs calls [Logger.LogAttrs] on the default logger.
+// Log emits a log record with the current time and the given level and message.
+// The Record's Attrs consist of the Logger's attributes followed by
+// the Attrs specified by args.
+func Log(level slog.Level, msg string, args ...any) {
+	log(context.Background(), logger, level, msg, args...)
+}
+
+// LogAttrs is a more efficient version of [Logger.Log] that accepts only Attrs.
 func LogAttrs(ctx context.Context, level slog.Level, msg string, attrs ...slog.Attr) {
-	logger.LogAttrs(ctx, level, msg, attrs...)
+	logAttrs(ctx, FromContext(ctx), level, msg, attrs...)
 }
 
 // Config is the logger configuration.
@@ -158,4 +179,48 @@ func attrReplacerChain(replacers ...func([]string, slog.Attr) slog.Attr) func([]
 		}
 		return attr
 	}
+}
+
+// log is the low-level logging method for methods that take ...any.
+// It must always be called directly by an exported logging method
+// or function, because it uses a fixed call depth to obtain the pc.
+func log(ctx context.Context, l *slog.Logger, level slog.Level, msg string, args ...any) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	if !l.Enabled(ctx, level) {
+		return
+	}
+
+	var pc uintptr
+	var pcs [1]uintptr
+	// skip [runtime.Callers, this function, this function's caller]
+	runtime.Callers(3, pcs[:])
+	pc = pcs[0]
+
+	r := slog.NewRecord(time.Now(), level, msg, pc)
+	r.Add(args...)
+	_ = l.Handler().Handle(ctx, r)
+}
+
+// logAttrs is like [Logger.log], but for methods that take ...Attr.
+func logAttrs(ctx context.Context, l *slog.Logger, level slog.Level, msg string, attrs ...slog.Attr) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	if !l.Enabled(ctx, level) {
+		return
+	}
+
+	var pc uintptr
+	var pcs [1]uintptr
+	// skip [runtime.Callers, this function, this function's caller]
+	runtime.Callers(3, pcs[:])
+	pc = pcs[0]
+
+	r := slog.NewRecord(time.Now(), level, msg, pc)
+	r.AddAttrs(attrs...)
+	_ = l.Handler().Handle(ctx, r)
 }
