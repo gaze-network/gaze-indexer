@@ -10,7 +10,6 @@ import (
 	"github.com/gaze-network/indexer-network/modules/runes/internal/datagateway"
 	"github.com/gaze-network/indexer-network/modules/runes/internal/runes"
 	"github.com/gaze-network/uint128"
-	"lukechampine.com/uint128"
 )
 
 var _ indexers.BitcoinProcessor = (*Processor)(nil)
