@@ -27,8 +27,8 @@ func main() {
 	defer stop()
 
 	if err := logger.Init(logger.Config{
-		Env:      "Production",
-		Platform: "GCP",
+		Output: "text",
+		Debug:  true,
 	}); err != nil {
 		logger.Panic("Failed to initialize logger: %v", logger.AttrError(err))
 	}

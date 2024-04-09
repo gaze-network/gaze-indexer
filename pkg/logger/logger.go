@@ -93,54 +93,60 @@ func LogAttrs(ctx context.Context, level slog.Level, msg string, attrs ...slog.A
 
 // Config is the logger configuration.
 type Config struct {
-	// Env is the logger environment.
-	//	- PRODUCTION, PROD: use JSON format, log level: INFO
-	//	- Default: use Text format, log level: DEBUG
-	Env string `env:"ENV,expand" envDefault:"${ENV}"`
+	// Output is the logger output format.
+	// Possible values:
+	//  - Text (default)
+	//  - JSON
+	//  - GCP: Output format for Stackdriver Logging/Cloud Logging or others GCP services.
+	Output string `env:"OUTPUT" envDefault:"TEXT"`
 
-	Platform string `env:"PLATFORM" envDefault:"none"`
+	// Debug is enabled logger level debug. (default: false)
+	Debug bool `env:"DEBUG" envDefault:"false"`
 }
+
+var (
+	// Default Attribute Replacers
+	defaultAttrReplacers = []func([]string, slog.Attr) slog.Attr{
+		levelAttrReplacer,
+	}
+
+	// Default Middlewares
+	defaultMiddleware = []middleware{
+		middlewareError(),
+	}
+)
 
 // Init initializes global logger and slog logger with given configuration.
 func Init(cfg Config) error {
-	replacers := []func([]string, slog.Attr) slog.Attr{}
-
-	// Platform specific attr replacer
-	switch strings.ToLower(cfg.Platform) {
-	case "gcp":
-		replacers = append(replacers, GCPAttrReplacer)
-	}
-
-	// Default attr replacer
-	replacers = append(replacers,
-		levelAttrReplacer,
-	)
-
 	var (
 		handler slog.Handler
-		level   = new(slog.LevelVar)
 		options = &slog.HandlerOptions{
-			AddSource:   true,
-			Level:       level,
-			ReplaceAttr: attrReplacerChain(replacers...),
+			AddSource:   false,
+			Level:       lvl,
+			ReplaceAttr: attrReplacerChain(defaultAttrReplacers...),
 		}
 	)
 
-	switch strings.ToLower(cfg.Env) {
-	case "production", "prod":
-		level.Set(slog.LevelInfo)
+	lvl.Set(slog.LevelInfo)
+	if cfg.Debug {
+		lvl.Set(slog.LevelDebug)
+		options.AddSource = true
+	}
+
+	switch strings.ToLower(cfg.Output) {
+	case "json":
+		lvl.Set(slog.LevelInfo)
 		handler = slog.NewJSONHandler(os.Stdout, options)
+	case "gcp":
+		handler = NewGCPHandler(options)
 	default:
-		level.Set(DefaultLevel)
 		handler = slog.NewTextHandler(os.Stdout, options)
 	}
 
-	logger = slog.New(newChainHandlers(handler, middlewareError()))
-
-	lvl = level
+	logger = slog.New(newChainHandlers(handler, defaultMiddleware...))
 	slog.SetDefault(logger)
 
-	logger.Info("logger initialized", slog.String("environment", cfg.Env))
+	logger.Info("logger initialized", slog.String("log_output", cfg.Output))
 	return nil
 }
 
