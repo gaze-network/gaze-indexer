@@ -3,6 +3,7 @@ package bitcoin
 import (
 	"context"
 
+	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/core/indexers"
 	"github.com/gaze-network/indexer-network/core/types"
 	"github.com/gaze-network/indexer-network/modules/bitcoin/internal/datagateway"
@@ -20,8 +21,11 @@ func (p *Processor) Process(ctx context.Context, inputs []*types.Block) error {
 }
 
 func (p *Processor) CurrentBlock(ctx context.Context) (types.BlockHeader, error) {
-	p.bitcoinDg.GetLatestBlockHeader(context.Background())
-	return types.BlockHeader{}, nil
+	b, err := p.bitcoinDg.GetLatestBlockHeader(ctx)
+	if err != nil {
+		return types.BlockHeader{}, errors.WithStack(err)
+	}
+	return b, nil
 }
 
 func (p *Processor) PrepareData(ctx context.Context, from, to int64) ([]*types.Block, error) {
