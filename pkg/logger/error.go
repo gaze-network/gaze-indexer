@@ -8,21 +8,14 @@ import (
 	"strings"
 
 	"github.com/cockroachdb/errors/errbase"
+	"github.com/gaze-network/indexer-network/pkg/logger/slogx"
 )
-
-// AttrError returns an attribute with error key.
-func AttrError(err error) slog.Attr {
-	if err == nil {
-		return slog.Attr{}
-	}
-	return slog.Any(ErrorKey, err)
-}
 
 func middlewareError() middleware {
 	return func(next handleFunc) handleFunc {
 		return func(ctx context.Context, rec slog.Record) error {
 			rec.Attrs(func(attr slog.Attr) bool {
-				if attr.Key == ErrorKey || attr.Key == "err" {
+				if attr.Key == slogx.ErrorKey || attr.Key == "err" {
 					err := attr.Value.Any()
 					if err, ok := err.(error); ok && err != nil {
 						rec.AddAttrs(slog.String("error_verbose", fmt.Sprintf("%+v", err)))
