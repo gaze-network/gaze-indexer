@@ -9,17 +9,51 @@ import (
 	"context"
 )
 
-const getBalancesAtBlock = `-- name: GetBalancesAtBlock :many
-SELECT DISTINCT ON (rune_id) pkscript, block_height, rune_id, value FROM runes_balances WHERE pkscript = $1 AND block_height <= $2 ORDER BY block_height DESC
+const getBalancesByPkScript = `-- name: GetBalancesByPkScript :many
+SELECT DISTINCT ON (rune_id) pkscript, block_height, rune_id, value FROM runes_balances WHERE pkscript = $1 AND block_height <= $2 ORDER BY rune_id, block_height DESC
 `
 
-type GetBalancesAtBlockParams struct {
+type GetBalancesByPkScriptParams struct {
 	Pkscript    string
 	BlockHeight int32
 }
 
-func (q *Queries) GetBalancesAtBlock(ctx context.Context, arg GetBalancesAtBlockParams) ([]RunesBalance, error) {
-	rows, err := q.db.Query(ctx, getBalancesAtBlock, arg.Pkscript, arg.BlockHeight)
+func (q *Queries) GetBalancesByPkScript(ctx context.Context, arg GetBalancesByPkScriptParams) ([]RunesBalance, error) {
+	rows, err := q.db.Query(ctx, getBalancesByPkScript, arg.Pkscript, arg.BlockHeight)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []RunesBalance
+	for rows.Next() {
+		var i RunesBalance
+		if err := rows.Scan(
+			&i.Pkscript,
+			&i.BlockHeight,
+			&i.RuneID,
+			&i.Value,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getBalancesByRuneId = `-- name: GetBalancesByRuneId :many
+SELECT DISTINCT ON (pkscript) pkscript, block_height, rune_id, value FROM runes_balances WHERE rune_id = $1 AND block_height <= $2 ORDER BY pkscript, block_height DESC
+`
+
+type GetBalancesByRuneIdParams struct {
+	RuneID      string
+	BlockHeight int32
+}
+
+func (q *Queries) GetBalancesByRuneId(ctx context.Context, arg GetBalancesByRuneIdParams) ([]RunesBalance, error) {
+	rows, err := q.db.Query(ctx, getBalancesByRuneId, arg.RuneID, arg.BlockHeight)
 	if err != nil {
 		return nil, err
 	}
