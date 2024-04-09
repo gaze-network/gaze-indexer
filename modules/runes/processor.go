@@ -3,6 +3,7 @@ package runes
 import (
 	"context"
 
+	"github.com/btcsuite/btcd/wire"
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/core/indexers"
 	"github.com/gaze-network/indexer-network/core/types"
@@ -67,7 +68,10 @@ func (r *Processor) processTx(ctx context.Context, tx *types.Transaction, blockH
 func (r *Processor) getUnallocatedRunes(ctx context.Context, txInputs []*types.TxIn) (map[runes.RuneId]uint128.Uint128, error) {
 	unallocatedRunes := make(map[runes.RuneId]uint128.Uint128)
 	for _, txIn := range txInputs {
-		balances, err := r.runesProcessorDG.GetRunesBalancesAtOutPoint(ctx, txIn.PreviousOutTxHash, txIn.PreviousOutIndex)
+		balances, err := r.runesProcessorDG.GetRunesBalancesAtOutPoint(ctx, wire.OutPoint{
+			Hash:  txIn.PreviousOutTxHash,
+			Index: txIn.PreviousOutIndex,
+		})
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to get runes balances in ")
 		}
