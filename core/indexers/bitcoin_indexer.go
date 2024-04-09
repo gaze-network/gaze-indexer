@@ -3,16 +3,20 @@ package indexers
 import (
 	"context"
 	"log"
+	"log/slog"
 	"time"
 
 	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/common/errs"
 	"github.com/gaze-network/indexer-network/core/types"
+	"github.com/gaze-network/indexer-network/pkg/logger"
 )
 
 // BitcoinProcessor is indexer processor for Bitcoin Indexer.
 type BitcoinProcessor interface {
+	Processor
+
 	// Process processes the input data and indexes it.
 	Process(ctx context.Context, inputs []*types.Block) error
 
@@ -35,6 +39,8 @@ type BitcoinIndexer struct {
 }
 
 func (i *BitcoinIndexer) Run(ctx context.Context) (err error) {
+	ctx = logger.WithContext(ctx, slog.String("module", i.Processor.Name()))
+
 	// set to -1 to start from genesis block
 	i.currentBlock, err = i.Processor.CurrentBlock(ctx)
 	if err != nil {
@@ -60,7 +66,7 @@ func (i *BitcoinIndexer) Run(ctx context.Context) (err error) {
 				continue
 			}
 
-			log.Printf("Syncing blocks from %d to %d\n", startHeight, endHeight)
+			logger.InfoContext(ctx, "Syncing blocks from %d to %d\n", startHeight, endHeight)
 
 			// TODO: supports chain reorganization
 

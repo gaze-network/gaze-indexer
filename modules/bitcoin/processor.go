@@ -19,6 +19,10 @@ type Processor struct {
 	bitcoinDg datagateway.BitcoinDataGateway
 }
 
+func (p *Processor) Name() string {
+	return "Bitcoin"
+}
+
 func (p *Processor) Process(ctx context.Context, inputs []*types.Block) error {
 	if len(inputs) == 0 {
 		return nil
@@ -53,7 +57,7 @@ func (p *Processor) Process(ctx context.Context, inputs []*types.Block) error {
 		if err != nil {
 			return errors.Wrapf(err, "failed to insert block, height: %d, hash: %s", b.Header.Height, b.Header.Hash)
 		}
-		logger.Info("Block inserted", "height", b.Header.Height, "hash", b.Header.Hash)
+		logger.InfoContext(ctx, "Block inserted", "height", b.Header.Height, "hash", b.Header.Hash)
 	}
 
 	return nil
