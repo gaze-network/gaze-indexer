@@ -17,3 +17,13 @@ sql:
         sql_package: "pgx/v5"
         rename:
           id: "Id"
+  - schema: "./modules/runes/database/postgresql/migrations"
+    queries: "./modules/runes/database/postgresql/queries"
+    engine: "postgresql"
+    gen:
+      go:
+        package: "gen"
+        out: "./modules/runes/internal/repository/postgres/gen"
+        sql_package: "pgx/v5"
+        rename:
+          id: "Id"
