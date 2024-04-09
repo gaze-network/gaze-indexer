@@ -1,6 +1,20 @@
 package logger
 
-import "log/slog"
+import (
+	"log/slog"
+	"os"
+)
+
+func NewGCPHandler(opts *slog.HandlerOptions) slog.Handler {
+	return slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		AddSource: true,
+		Level:     opts.Level,
+		ReplaceAttr: attrReplacerChain(
+			GCPAttrReplacer,
+			opts.ReplaceAttr,
+		),
+	})
+}
 
 // GCPAttrReplacer replaces the default attribute keys with the GCP logging attribute keys.
 func GCPAttrReplacer(groups []string, attr slog.Attr) slog.Attr {

@@ -24,6 +24,13 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
+	if err := logger.Init(logger.Config{
+		Output: "text",
+		Debug:  true,
+	}); err != nil {
+		logger.Panic("Failed to initialize logger: %v", logger.AttrError(err))
+	}
+
 	client, err := rpcclient.New(&rpcclient.ConnConfig{
 		Host:         os.Getenv("BITCOIN_HOST"),
 		User:         "user",
