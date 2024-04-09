@@ -33,7 +33,7 @@ func (fields Fields) Take(tag Tag) *uint128.Uint128 {
 
 func MessageFromIntegers(tx *wire.MsgTx, payload []uint128.Uint128) Message {
 	flaws := Flaws(0)
-	edicts := make([]Edict, 0)
+	var edicts []Edict
 	fields := make(map[Tag][]uint128.Uint128)
 
 	for i := 0; i < len(payload); i += 2 {
@@ -59,7 +59,7 @@ func MessageFromIntegers(tx *wire.MsgTx, payload []uint128.Uint128) Message {
 					flaws |= FlawFlagEdictOutput.Mask()
 					break
 				}
-				nextRuneId, err := runeId.Next(blockDelta.Uint64(), txIndexDelta.Uint32()) // safe to cast as uint32 because we checked
+				runeId, err = runeId.Next(blockDelta.Uint64(), txIndexDelta.Uint32()) // safe to cast as uint32 because we checked
 				if err != nil {
 					flaws |= FlawFlagEdictRuneId.Mask()
 					break
@@ -70,7 +70,6 @@ func MessageFromIntegers(tx *wire.MsgTx, payload []uint128.Uint128) Message {
 					Output: int(output.Uint64()),
 				}
 				edicts = append(edicts, edict)
-				runeId = nextRuneId
 			}
 			break
 		}
