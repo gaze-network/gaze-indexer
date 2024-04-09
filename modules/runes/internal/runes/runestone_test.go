@@ -6,7 +6,7 @@ import (
 
 	"github.com/Cleverse/go-utilities/utils"
 	"github.com/btcsuite/btcd/txscript"
-	"github.com/btcsuite/btcd/wire"
+	"github.com/gaze-network/indexer-network/core/types"
 	"github.com/gaze-network/indexer-network/pkg/leb128"
 	"github.com/gaze-network/uint128"
 	"github.com/samber/lo"
@@ -22,7 +22,7 @@ func encodeLEB128VarIntsToPayload(integers []uint128.Uint128) []byte {
 }
 
 func TestDecipherRunestone(t *testing.T) {
-	testDecipherTx := func(name string, tx *wire.MsgTx, expected *Runestone) {
+	testDecipherTx := func(name string, tx *types.Transaction, expected *Runestone) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			runestone, err := DecipherRunestone(tx)
@@ -39,11 +39,11 @@ func TestDecipherRunestone(t *testing.T) {
 			AddData(payload).
 			Script()
 		assert.NoError(t, err)
-		tx := &wire.MsgTx{
+		tx := &types.Transaction{
 			Version:  2,
 			LockTime: 0,
-			TxIn:     []*wire.TxIn{},
-			TxOut: []*wire.TxOut{
+			TxIn:     []*types.TxIn{},
+			TxOut: []*types.TxOut{
 				{
 					PkScript: pkScript,
 					Value:    0,
@@ -54,11 +54,11 @@ func TestDecipherRunestone(t *testing.T) {
 	}
 
 	testDecipherPkScript := func(name string, pkScript []byte, expected *Runestone) {
-		tx := &wire.MsgTx{
+		tx := &types.Transaction{
 			Version:  2,
 			LockTime: 0,
-			TxIn:     []*wire.TxIn{},
-			TxOut: []*wire.TxOut{
+			TxIn:     []*types.TxIn{},
+			TxOut: []*types.TxOut{
 				{
 					PkScript: pkScript,
 					Value:    0,
@@ -75,11 +75,11 @@ func TestDecipherRunestone(t *testing.T) {
 	)
 	testDecipherTx(
 		"deciphering_transaction_with_non_op_return_output_returns_none",
-		&wire.MsgTx{
+		&types.Transaction{
 			Version:  2,
 			LockTime: 0,
-			TxIn:     []*wire.TxIn{},
-			TxOut:    []*wire.TxOut{},
+			TxIn:     []*types.TxIn{},
+			TxOut:    []*types.TxOut{},
 		},
 		nil,
 	)
@@ -178,11 +178,11 @@ func TestDecipherRunestone(t *testing.T) {
 	)
 	testDecipherTx(
 		"invalid_input_scripts_are_skipped_when_searching_for_runestone",
-		&wire.MsgTx{
+		&types.Transaction{
 			Version:  2,
 			LockTime: 0,
-			TxIn:     []*wire.TxIn{},
-			TxOut: []*wire.TxOut{
+			TxIn:     []*types.TxIn{},
+			TxOut: []*types.TxOut{
 				{
 					PkScript: utils.Must(txscript.NewScriptBuilder().
 						AddOp(txscript.OP_RETURN).

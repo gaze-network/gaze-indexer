@@ -3,7 +3,7 @@ package runes
 import (
 	"math"
 
-	"github.com/btcsuite/btcd/wire"
+	"github.com/gaze-network/indexer-network/core/types"
 	"github.com/gaze-network/uint128"
 	"github.com/samber/lo"
 )
@@ -31,7 +31,7 @@ func (fields Fields) Take(tag Tag) *uint128.Uint128 {
 	return &first
 }
 
-func MessageFromIntegers(tx *wire.MsgTx, payload []uint128.Uint128) Message {
+func MessageFromIntegers(tx *types.Transaction, payload []uint128.Uint128) Message {
 	flaws := Flaws(0)
 	var edicts []Edict
 	fields := make(map[Tag][]uint128.Uint128)

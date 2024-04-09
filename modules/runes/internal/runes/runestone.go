@@ -7,9 +7,9 @@ import (
 	"slices"
 
 	"github.com/btcsuite/btcd/txscript"
-	"github.com/btcsuite/btcd/wire"
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/common/errs"
+	"github.com/gaze-network/indexer-network/core/types"
 	"github.com/gaze-network/indexer-network/pkg/leb128"
 	"github.com/gaze-network/uint128"
 	"github.com/samber/lo"
@@ -144,7 +144,7 @@ func (r Runestone) Encipher() ([]byte, error) {
 
 // DecipherRunestone deciphers a runestone from a transaction. If the runestone is a cenotaph, the runestone is returned with Cenotaph set to true and Flaws set to the bitmask of flaws that caused the runestone to be a cenotaph.
 // If no runestone is found, nil is returned.
-func DecipherRunestone(tx *wire.MsgTx) (*Runestone, error) {
+func DecipherRunestone(tx *types.Transaction) (*Runestone, error) {
 	payload, flaws := runestonePayloadFromTx(tx)
 	if flaws != 0 {
 		return &Runestone{
@@ -297,7 +297,7 @@ func DecipherRunestone(tx *wire.MsgTx) (*Runestone, error) {
 	}, nil
 }
 
-func runestonePayloadFromTx(tx *wire.MsgTx) ([]byte, Flaws) {
+func runestonePayloadFromTx(tx *types.Transaction) ([]byte, Flaws) {
 	for _, output := range tx.TxOut {
 		tokenizer := txscript.MakeScriptTokenizer(0, output.PkScript)
 
