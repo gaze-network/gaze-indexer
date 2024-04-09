@@ -7,7 +7,7 @@ import (
 	"github.com/Cleverse/go-utilities/utils"
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/btcsuite/btcd/wire"
-	"github.com/gaze-network/indexer-network/lib/leb128"
+	"github.com/gaze-network/indexer-network/pkg/leb128"
 	"github.com/gaze-network/uint128"
 	"github.com/samber/lo"
 	"github.com/stretchr/testify/assert"
@@ -16,7 +16,7 @@ import (
 func encodeLEB128VarIntsToPayload(integers []uint128.Uint128) []byte {
 	payload := make([]byte, 0)
 	for _, integer := range integers {
-		payload = append(payload, leb128.EncodeLEB128(integer)...)
+		payload = append(payload, leb128.EncodeUint128(integer)...)
 	}
 	return payload
 }
@@ -124,8 +124,8 @@ func TestDecipherRunestone(t *testing.T) {
 			AddOp(RUNESTONE_PAYLOAD_MAGIC_NUMBER).
 			AddOp(txscript.OP_VERIFY).
 			AddData([]byte{0}).
-			AddData(leb128.EncodeLEB128(uint128.From64(1))).
-			AddData(leb128.EncodeLEB128(uint128.From64(1))).
+			AddData(leb128.EncodeUint128(uint128.From64(1))).
+			AddData(leb128.EncodeUint128(uint128.From64(1))).
 			AddData([]byte{2, 0}).
 			Script()),
 		&Runestone{
@@ -139,8 +139,8 @@ func TestDecipherRunestone(t *testing.T) {
 			AddOp(txscript.OP_RETURN).
 			AddOp(RUNESTONE_PAYLOAD_MAGIC_NUMBER).
 			AddData([]byte{0}).
-			AddData(leb128.EncodeLEB128(uint128.From64(1))).
-			AddData(leb128.EncodeLEB128(uint128.From64(2))).
+			AddData(leb128.EncodeUint128(uint128.From64(1))).
+			AddData(leb128.EncodeUint128(uint128.From64(2))).
 			AddData([]byte{3, 0}).
 			Script()),
 		&Runestone{

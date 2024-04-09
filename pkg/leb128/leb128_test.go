@@ -12,8 +12,8 @@ func TestRoundTrip(t *testing.T) {
 	test := func(n uint128.Uint128) {
 		t.Run(n.String(), func(t *testing.T) {
 			t.Parallel()
-			encoded := EncodeLEB128(n)
-			decoded, length, err := DecodeLEB128(encoded)
+			encoded := EncodeUint128(n)
+			decoded, length, err := DecodeUint128(encoded)
 			assert.NoError(t, err)
 			assert.Equal(t, n, decoded)
 			assert.Equal(t, len(encoded), length)
@@ -40,7 +40,7 @@ func TestDecodeError(t *testing.T) {
 	testError := func(name string, bytes []byte, expectedError error) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			_, _, err := DecodeLEB128(bytes)
+			_, _, err := DecodeUint128(bytes)
 			if expectedError == nil {
 				assert.NoError(t, err)
 			} else {

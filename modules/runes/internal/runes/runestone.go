@@ -10,7 +10,7 @@ import (
 	"github.com/btcsuite/btcd/wire"
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/common/errs"
-	"github.com/gaze-network/indexer-network/lib/leb128"
+	"github.com/gaze-network/indexer-network/pkg/leb128"
 	"github.com/gaze-network/uint128"
 	"github.com/samber/lo"
 )
@@ -37,7 +37,7 @@ func (r Runestone) Encipher() ([]byte, error) {
 	var payload []byte
 
 	encodeUint128 := func(value uint128.Uint128) {
-		payload = append(payload, leb128.EncodeLEB128(value)...)
+		payload = append(payload, leb128.EncodeUint128(value)...)
 	}
 	encodeTagValues := func(tag Tag, values ...uint128.Uint128) {
 		for _, value := range values {
@@ -350,7 +350,7 @@ func decodeLEB128VarIntsFromPayload(payload []byte) ([]uint128.Uint128, error) {
 	i := 0
 
 	for i < len(payload) {
-		n, length, err := leb128.DecodeLEB128(payload[i:])
+		n, length, err := leb128.DecodeUint128(payload[i:])
 		if err != nil {
 			return nil, errors.Wrap(err, "cannot decode LEB128 varint")
 		}
