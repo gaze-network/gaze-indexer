@@ -5,19 +5,22 @@ import (
 
 	"github.com/gaze-network/indexer-network/core/indexers"
 	"github.com/gaze-network/indexer-network/core/types"
+	"github.com/gaze-network/indexer-network/modules/bitcoin/internal/datagateway"
 )
 
 // Make sure to implement the BitcoinProcessor interface
 var _ indexers.BitcoinProcessor = (*Processor)(nil)
 
-type Processor struct{}
+type Processor struct {
+	bitcoinDg datagateway.BitcoinDataGateway
+}
 
 func (p *Processor) Process(ctx context.Context, inputs []*types.Block) error {
 	return nil
 }
 
-func (p *Processor) CurrentBlock() (types.BlockHeader, error) {
-	// TODO: return the latest indexed block header
+func (p *Processor) CurrentBlock(ctx context.Context) (types.BlockHeader, error) {
+	p.bitcoinDg.GetLatestBlockHeader(context.Background())
 	return types.BlockHeader{}, nil
 }
 
