@@ -59,9 +59,19 @@ func Debug(msg string, args ...any) {
 	logger.Debug(msg, args...)
 }
 
+// DebugContext calls [Logger.DebugContext] on the default logger.
+func DebugContext(ctx context.Context, msg string, args ...any) {
+	logger.DebugContext(ctx, msg, args...)
+}
+
 // Info calls [Logger.Info] on the default logger.
 func Info(msg string, args ...any) {
 	logger.Info(msg, args...)
+}
+
+// InfoContext calls [Logger.InfoContext] on the default logger.
+func InfoContext(ctx context.Context, msg string, args ...any) {
+	logger.InfoContext(ctx, msg, args...)
 }
 
 // Warn calls [Logger.Warn] on the default logger.
@@ -69,15 +79,30 @@ func Warn(msg string, args ...any) {
 	logger.Warn(msg, args...)
 }
 
+// WarnContext calls [Logger.WarnContext] on the default logger.
+func WarnContext(ctx context.Context, msg string, args ...any) {
+	logger.WarnContext(ctx, msg, args...)
+}
+
 // Error calls [Logger.Error] on the default logger.
-// TODO: support stack trace for error
 func Error(msg string, err error, args ...any) {
 	logger.Error(msg, append(args, AttrError(err))...)
+}
+
+// ErrorContext calls [Logger.ErrorContext] on the default logger.
+func ErrorContext(ctx context.Context, msg string, err error, args ...any) {
+	logger.ErrorContext(ctx, msg, append(args, AttrError(err))...)
 }
 
 // Panic calls [Logger.Log] with PANIC level on the default logger and then panic.
 func Panic(msg string, args ...any) {
 	logger.Log(context.Background(), LevelPanic, msg, args...)
+	panic(msg)
+}
+
+// PanicContext calls [Logger.Log] with PANIC level on the default logger and then panic.
+func PanicContext(ctx context.Context, msg string, args ...any) {
+	logger.Log(ctx, LevelPanic, msg, args...)
 	panic(msg)
 }
 
