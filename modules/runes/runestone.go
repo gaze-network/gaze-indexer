@@ -1,6 +1,8 @@
 package runes
 
 import (
+	"fmt"
+	"log"
 	"math"
 	"slices"
 
@@ -156,6 +158,7 @@ func DecipherRunestone(tx *wire.MsgTx) (*Runestone, error) {
 
 	integers, err := decodeLEB128VarIntsFromPayload(payload)
 	if err != nil {
+		log.Printf("warning: %v\n", err)
 		flaws |= FlawFlagVarInt.Mask()
 		return &Runestone{
 			Cenotaph: true,
@@ -172,17 +175,17 @@ func DecipherRunestone(tx *wire.MsgTx) (*Runestone, error) {
 
 	var etching *Etching
 	if flags.Take(FlagEtching) {
-		divisibility := fields.Take(TagDivisibility)
-		if divisibility != nil && divisibility.Cmp64(uint64(maxDivisibility)) > 0 {
-			divisibility = nil
+		divisibilityU128 := fields.Take(TagDivisibility)
+		if divisibilityU128 != nil && divisibilityU128.Cmp64(uint64(maxDivisibility)) > 0 {
+			divisibilityU128 = nil
 		}
-		spacers := fields.Take(TagSpacers)
-		if spacers != nil && spacers.Cmp64(uint64(maxSpacers)) > 0 {
-			spacers = nil
+		spacersU128 := fields.Take(TagSpacers)
+		if spacersU128 != nil && spacersU128.Cmp64(uint64(maxSpacers)) > 0 {
+			spacersU128 = nil
 		}
-		symbol := fields.Take(TagSymbol)
-		if symbol != nil && symbol.Cmp64(math.MaxInt32) > 0 {
-			symbol = nil
+		symbolU128 := fields.Take(TagSymbol)
+		if symbolU128 != nil && symbolU128.Cmp64(math.MaxInt32) > 0 {
+			symbolU128 = nil
 		}
 
 		var terms *Terms
@@ -210,12 +213,25 @@ func DecipherRunestone(tx *wire.MsgTx) (*Runestone, error) {
 			}
 		}
 
+		var divisibility *uint8
+		if divisibilityU128 != nil {
+			divisibility = lo.ToPtr(divisibilityU128.Uint8())
+		}
+		var spacers *uint32
+		if spacersU128 != nil {
+			spacers = lo.ToPtr(spacersU128.Uint32())
+		}
+		var symbol *rune
+		if symbolU128 != nil {
+			symbol = lo.ToPtr(rune(symbolU128.Uint32()))
+		}
+
 		etching = &Etching{
-			Divisibility: lo.ToPtr(divisibility.Uint8()),
+			Divisibility: divisibility,
 			Premine:      fields.Take(TagPremine),
 			Rune:         (*Rune)(fields.Take(TagRune)),
-			Spacers:      lo.ToPtr(spacers.Uint32()),
-			Symbol:       lo.ToPtr(rune(symbol.Uint32())),
+			Spacers:      spacers,
+			Symbol:       symbol,
 			Terms:        terms,
 		}
 	}
@@ -238,12 +254,14 @@ func DecipherRunestone(tx *wire.MsgTx) (*Runestone, error) {
 		pointer = lo.ToPtr(pointerU128.Uint64())
 	}
 
-	_, err = etching.Supply()
-	if err != nil {
-		if errors.Is(err, errs.OverflowUint128) {
-			flaws |= FlawFlagSupplyOverflow.Mask()
-		} else {
-			return nil, errors.Wrap(err, "cannot calculate supply")
+	if etching != nil {
+		_, err = etching.Supply()
+		if err != nil {
+			if errors.Is(err, errs.OverflowUint128) {
+				flaws |= FlawFlagSupplyOverflow.Mask()
+			} else {
+				return nil, errors.Wrap(err, "cannot calculate supply")
+			}
 		}
 	}
 
@@ -279,19 +297,31 @@ func runestonePayloadFromTx(tx *wire.MsgTx) ([]byte, Flaws) {
 
 		// payload must start with OP_RETURN
 		tokenizer.Next()
+		if err := tokenizer.Err(); err != nil {
+			continue
+		}
 		if opCode := tokenizer.Opcode(); opCode != txscript.OP_RETURN {
 			continue
 		}
 
 		// next opcode must be the magic number
 		tokenizer.Next()
+		if err := tokenizer.Err(); err != nil {
+			fmt.Println(err.Error())
+			continue
+		}
 		if opCode := tokenizer.Opcode(); opCode != RUNESTONE_PAYLOAD_MAGIC_NUMBER {
 			continue
 		}
 
+		// this output is now selected to be the runestone output. Any errors from now on will be considered a flaw.
+
 		// construct the payload by concatenating the remaining data pushes
 		payload := make([]byte, 0)
 		for tokenizer.Next() {
+			if tokenizer.Err() != nil {
+				return nil, FlawFlagInvalidScript.Mask()
+			}
 			data := tokenizer.Data()
 			if data == nil {
 				return nil, FlawFlagOpCode.Mask()
