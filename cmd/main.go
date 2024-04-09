@@ -10,6 +10,7 @@ import (
 	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/btcsuite/btclog"
 	"github.com/gaze-network/indexer-network/pkg/logger"
+	"github.com/gaze-network/indexer-network/pkg/logger/slogx"
 )
 
 var (
@@ -30,7 +31,7 @@ func main() {
 		Output: "text",
 		Debug:  true,
 	}); err != nil {
-		logger.Panic("Failed to initialize logger: %v", logger.AttrError(err))
+		logger.Panic("Failed to initialize logger: %v", slogx.Error(err))
 	}
 
 	client, err := rpcclient.New(&rpcclient.ConnConfig{
@@ -41,17 +42,17 @@ func main() {
 		// DisableTLS:   true,
 	}, nil)
 	if err != nil {
-		logger.Panic("Failed to create Bitcoin Core RPC Client", logger.AttrError(err))
+		logger.Panic("Failed to create Bitcoin Core RPC Client", slogx.Error(err))
 	}
 	defer client.Shutdown()
 
 	if err := client.Ping(); err != nil {
-		logger.Panic("Failed to ping Bitcoin Core RPC Server", logger.AttrError(err))
+		logger.Panic("Failed to ping Bitcoin Core RPC Server", slogx.Error(err))
 	}
 
 	peerInfo, err := client.GetPeerInfo()
 	if err != nil {
-		logger.Panic("Failed to get peer info", logger.AttrError(err))
+		logger.Panic("Failed to get peer info", slogx.Error(err))
 	}
 
 	logger.Info("Connected to Bitcoin Core RPC Server", slog.Int("peers", len(peerInfo)))
