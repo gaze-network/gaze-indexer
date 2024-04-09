@@ -51,9 +51,21 @@ func SetLevel(level slog.Level) (old slog.Level) {
 	return old
 }
 
-// With returns a new logger with given attributes.
+// With returns a Logger that includes the given attributes
+// in each output operation. Arguments are converted to
+// attributes as if by [Logger.Log].
 func With(args ...any) *slog.Logger {
 	return logger.With(args...)
+}
+
+// WithGroup returns a Logger that starts a group, if name is non-empty.
+// The keys of all attributes added to the Logger will be qualified by the given
+// name. (How that qualification happens depends on the [Handler.WithGroup]
+// method of the Logger's Handler.)
+//
+// If name is empty, WithGroup returns the receiver.
+func WithGroup(group string) *slog.Logger {
+	return logger.WithGroup(group)
 }
 
 // Debug logs at [LevelDebug].
@@ -97,7 +109,7 @@ func Log(level slog.Level, msg string, args ...any) {
 
 // LogAttrs is a more efficient version of [Logger.Log] that accepts only Attrs.
 func LogAttrs(ctx context.Context, level slog.Level, msg string, attrs ...slog.Attr) {
-	logAttrs(ctx, logger, level, msg, attrs...)
+	logAttrs(ctx, FromContext(ctx), level, msg, attrs...)
 }
 
 // Config is the logger configuration.
