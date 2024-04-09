@@ -8,6 +8,7 @@ import (
 
 	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/btcsuite/btclog"
+	"github.com/gaze-network/indexer-network/pkg/logger"
 )
 
 var (
