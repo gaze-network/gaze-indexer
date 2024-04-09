@@ -17,7 +17,7 @@ type BitcoinProcessor interface {
 	Process(ctx context.Context, inputs []*types.Block) error
 
 	// CurrentBlock returns the latest indexed block header.
-	CurrentBlock() (types.BlockHeader, error)
+	CurrentBlock(ctx context.Context) (types.BlockHeader, error)
 
 	// PrepareData fetches the data from the source and prepares it for processing.
 	// TODO: extract PrepareData to a separate interface (e.g. DataFetcher)
@@ -36,7 +36,7 @@ type BitcoinIndexer struct {
 
 func (i *BitcoinIndexer) Run(ctx context.Context) (err error) {
 	// set to -1 to start from genesis block
-	i.currentBlock, err = i.Processor.CurrentBlock()
+	i.currentBlock, err = i.Processor.CurrentBlock(ctx)
 	if err != nil {
 		if errors.Is(err, errs.NotFound) {
 			i.currentBlock.Height = -1
