@@ -6,9 +6,11 @@ import (
 
 	"github.com/Cleverse/go-utilities/utils"
 	"github.com/cockroachdb/errors"
+	"github.com/gaze-network/indexer-network/pkg/logger"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/tracelog"
+	pgxslog "github.com/mcosta74/pgx-slog"
 )
 
 const (
@@ -118,7 +120,7 @@ func (conf Config) QueryTracer() pgx.QueryTracer {
 		loglevel = tracelog.LogLevelTrace
 	}
 	return &tracelog.TraceLog{
-		// Logger:   , //TODO: use pgx/log.zapadapter
+		Logger:   pgxslog.NewLogger(logger.With("package", "postgres")),
 		LogLevel: loglevel,
 	}
 }
