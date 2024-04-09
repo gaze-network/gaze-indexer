@@ -3,7 +3,6 @@ package runes
 import (
 	"context"
 
-	"github.com/btcsuite/btcd/wire"
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/core/indexers"
 	"github.com/gaze-network/indexer-network/core/types"
@@ -29,7 +28,7 @@ func NewRunesProcessor(params NewRunesProcessorParams) *Processor {
 func (r *Processor) Process(ctx context.Context, blocks []types.Block) error {
 	for _, block := range blocks {
 		for _, tx := range block.Transactions {
-			if err := r.processTx(tx, block.BlockHeader); err != nil {
+			if err := r.processTx(tx, block.Header); err != nil {
 				return errors.Wrap(err, "failed to process tx")
 			}
 		}
@@ -37,7 +36,7 @@ func (r *Processor) Process(ctx context.Context, blocks []types.Block) error {
 	return nil
 }
 
-func (r *Processor) processTx(tx *wire.MsgTx, blockHeader types.BlockHeader) error {
+func (r *Processor) processTx(tx *types.Transaction, blockHeader types.BlockHeader) error {
 	panic("implement me")
 }
 
