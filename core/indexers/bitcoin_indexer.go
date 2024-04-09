@@ -14,14 +14,14 @@ import (
 // BitcoinProcessor is indexer processor for Bitcoin Indexer.
 type BitcoinProcessor interface {
 	// Process processes the input data and indexes it.
-	Process(ctx context.Context, inputs []types.Block) error
+	Process(ctx context.Context, inputs []*types.Block) error
 
 	// CurrentBlock returns the latest indexed block header.
 	CurrentBlock() (types.BlockHeader, error)
 
 	// PrepareData fetches the data from the source and prepares it for processing.
 	// TODO: extract PrepareData to a separate interface (e.g. DataFetcher)
-	PrepareData(ctx context.Context, from, to int64) ([]types.Block, error)
+	PrepareData(ctx context.Context, from, to int64) ([]*types.Block, error)
 
 	// RevertData revert synced data to the specified block for re-indexing.
 	RevertData(ctx context.Context, from types.BlockHeader) error
@@ -75,7 +75,7 @@ func (i *BitcoinIndexer) Run(ctx context.Context) (err error) {
 				return errors.Wrap(err, "failed to get block hash")
 			}
 
-			if endHeight <= i.currentBlock.Height && !blockHash.IsEqual(i.currentBlock.Hash) {
+			if endHeight <= i.currentBlock.Height && !blockHash.IsEqual(&i.currentBlock.Hash) {
 				// TODO: Chain reorganization detected, need to re-index
 				log.Println("Chain reorganization detected, need to re-index")
 			}
@@ -85,18 +85,11 @@ func (i *BitcoinIndexer) Run(ctx context.Context) (err error) {
 				return errors.Wrap(err, "failed to get block")
 			}
 
-			input := types.Block{
-				BlockHeader: types.BlockHeader{
-					Hash:        blockHash,
-					Height:      startHeight,
-					BlockHeader: block.Header,
-				},
-				Transactions: block.Transactions,
-			}
-			if err := i.Processor.Process(ctx, []types.Block{input}); err != nil {
+			b := types.ParseMsgBlock(block)
+			if err := i.Processor.Process(ctx, []*types.Block{b}); err != nil {
 				return errors.WithStack(err)
 			}
-			i.currentBlock = input.BlockHeader
+			i.currentBlock = b.Header
 		}
 	}
 }
