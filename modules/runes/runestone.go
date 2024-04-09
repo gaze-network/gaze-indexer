@@ -275,11 +275,17 @@ func DecipherRunestone(tx *wire.MsgTx) (*Runestone, error) {
 		flaws |= FlawFlagUnrecognizedEvenTag.Mask()
 	}
 	if flaws != 0 {
+		var cenotaphEtching *Etching
+		if etching != nil && etching.Rune != nil {
+			cenotaphEtching = &Etching{
+				Rune: etching.Rune,
+			}
+		}
 		return &Runestone{
 			Cenotaph: true,
 			Flaws:    flaws,
 			Mint:     mint,
-			Etching:  etching,
+			Etching:  cenotaphEtching, // return etching with only Rune field if runestone is cenotaph
 		}, nil
 	}
 
