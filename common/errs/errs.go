@@ -6,7 +6,9 @@ type ErrorKind string
 
 const (
 	// NotFound is returned when a requested item is not found.
-	NotFound = ErrorKind("Not Found")
+	NotFound        = ErrorKind("Not Found")
+	OverflowUint64  = ErrorKind("overflow uint64")
+	OverflowUint128 = ErrorKind("overflow uint128")
 )
 
 // Error satisfies the error interface and prints human-readable errors.
