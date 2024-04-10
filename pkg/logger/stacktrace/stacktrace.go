@@ -37,7 +37,10 @@ func Capture(skip int) *StackTrace {
 	// Deallocate the unused space in the slice.
 	pcs = pcs[:n:n]
 
-	// Preprocess stack frames.
+	return ParsePCS(pcs)
+}
+
+func ParsePCS(pcs []uintptr) *StackTrace {
 	frames := make([]Frame, 0, len(pcs))
 	callerFrames := runtime.CallersFrames(pcs)
 	for frame, more := callerFrames.Next(); more; frame, more = callerFrames.Next() {
@@ -45,7 +48,6 @@ func Capture(skip int) *StackTrace {
 			frames = append(frames, Frame{frame})
 		}
 	}
-
 	return &StackTrace{
 		PCS:    pcs,
 		Frames: frames[:len(frames):len(frames)],
