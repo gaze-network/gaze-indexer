@@ -28,3 +28,15 @@ func middlewareError() middleware {
 		}
 	}
 }
+
+func errorAttrReplacer(groups []string, attr slog.Attr) slog.Attr {
+	if len(groups) == 0 && (attr.Key == slogx.ErrorKey || attr.Key == "err") {
+		if err, ok := attr.Value.Any().(error); ok {
+			if err != nil {
+				return slog.Attr{Key: slogx.ErrorKey, Value: slog.StringValue(err.Error())}
+			}
+			return slog.Attr{Key: slogx.ErrorKey, Value: slog.StringValue("null")}
+		}
+	}
+	return attr
+}
