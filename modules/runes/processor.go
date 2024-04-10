@@ -29,10 +29,14 @@ func NewRunesProcessor(params NewRunesProcessorParams) *Processor {
 	}
 }
 
-func (r *Processor) Process(ctx context.Context, blocks []*types.Block) error {
+func (p *Processor) Name() string {
+	return "Runes"
+}
+
+func (p *Processor) Process(ctx context.Context, blocks []*types.Block) error {
 	for _, block := range blocks {
 		for _, tx := range block.Transactions {
-			if err := r.processTx(ctx, tx, block.Header); err != nil {
+			if err := p.processTx(ctx, tx, block.Header); err != nil {
 				return errors.Wrap(err, "failed to process tx")
 			}
 		}
@@ -40,13 +44,13 @@ func (r *Processor) Process(ctx context.Context, blocks []*types.Block) error {
 	return nil
 }
 
-func (r *Processor) processTx(ctx context.Context, tx *types.Transaction, blockHeader types.BlockHeader) error {
+func (p *Processor) processTx(ctx context.Context, tx *types.Transaction, blockHeader types.BlockHeader) error {
 	runestone, err := runes.DecipherRunestone(tx)
 	if err != nil {
 		return errors.Wrap(err, "failed to decipher runestone")
 	}
 
-	unallocated, err := r.getUnallocatedRunes(ctx, tx.TxIn)
+	unallocated, err := p.getUnallocatedRunes(ctx, tx.TxIn)
 	if err != nil {
 		return errors.Wrap(err, "failed to get unallocated runes")
 	}
@@ -54,7 +58,7 @@ func (r *Processor) processTx(ctx context.Context, tx *types.Transaction, blockH
 	if runestone != nil {
 		if runestone.Mint != nil {
 			mintRuneId := *runestone.Mint
-			amount, err := r.mint(ctx, mintRuneId, uint64(blockHeader.Height))
+			amount, err := p.mint(ctx, mintRuneId, uint64(blockHeader.Height))
 			if err != nil {
 				return errors.Wrap(err, "error during mint")
 			}
@@ -64,10 +68,10 @@ func (r *Processor) processTx(ctx context.Context, tx *types.Transaction, blockH
 	// TODO: finish implementation
 }
 
-func (r *Processor) getUnallocatedRunes(ctx context.Context, txInputs []*types.TxIn) (map[runes.RuneId]uint128.Uint128, error) {
+func (p *Processor) getUnallocatedRunes(ctx context.Context, txInputs []*types.TxIn) (map[runes.RuneId]uint128.Uint128, error) {
 	unallocatedRunes := make(map[runes.RuneId]uint128.Uint128)
 	for _, txIn := range txInputs {
-		balances, err := r.runesProcessorDG.GetRunesBalancesAtOutPoint(ctx, wire.OutPoint{
+		balances, err := p.runesProcessorDG.GetRunesBalancesAtOutPoint(ctx, wire.OutPoint{
 			Hash:  txIn.PreviousOutTxHash,
 			Index: txIn.PreviousOutIndex,
 		})
@@ -81,11 +85,11 @@ func (r *Processor) getUnallocatedRunes(ctx context.Context, txInputs []*types.T
 	return unallocatedRunes, nil
 }
 
-func (r *Processor) mint(ctx context.Context, runeId runes.RuneId, height uint64) (uint128.Uint128, error) {
-	runeEntry, ok := r.entriesToUpdate[runeId]
+func (p *Processor) mint(ctx context.Context, runeId runes.RuneId, height uint64) (uint128.Uint128, error) {
+	runeEntry, ok := p.entriesToUpdate[runeId]
 	if !ok {
 		var err error
-		runeEntry, err = r.runesProcessorDG.GetRuneEntryByRuneId(ctx, runeId)
+		runeEntry, err = p.runesProcessorDG.GetRuneEntryByRuneId(ctx, runeId)
 		if err != nil {
 			return uint128.Uint128{}, errors.Wrap(err, "failed to get rune entry by rune id")
 		}
@@ -97,18 +101,18 @@ func (r *Processor) mint(ctx context.Context, runeId runes.RuneId, height uint64
 	}
 
 	runeEntry.Mints = runeEntry.Mints.Add64(1)
-	r.entriesToUpdate[runeId] = runeEntry
+	p.entriesToUpdate[runeId] = runeEntry
 	return amount, nil
 }
 
-func (r *Processor) CurrentBlock() (types.BlockHeader, error) {
+func (p *Processor) CurrentBlock(ctx context.Context) (types.BlockHeader, error) {
 	panic("implement me")
 }
 
-func (r *Processor) PrepareData(ctx context.Context, from, to int64) ([]*types.Block, error) {
+func (p *Processor) PrepareData(ctx context.Context, from, to int64) ([]*types.Block, error) {
 	panic("implement me")
 }
 
-func (r *Processor) RevertData(ctx context.Context, from types.BlockHeader) error {
+func (p *Processor) RevertData(ctx context.Context, from types.BlockHeader) error {
 	panic("implement me")
 }
