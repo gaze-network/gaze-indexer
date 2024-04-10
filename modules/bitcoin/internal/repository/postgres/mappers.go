@@ -5,12 +5,13 @@ import (
 
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/cockroachdb/errors"
+	"github.com/gaze-network/indexer-network/common/errs"
 	"github.com/gaze-network/indexer-network/core/types"
 	"github.com/gaze-network/indexer-network/modules/bitcoin/internal/repository/postgres/gen"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-func mapBlockHeaderTypeToModel(src *types.BlockHeader) gen.BitcoinBlock {
+func mapBlockHeaderTypeToModel(src types.BlockHeader) gen.BitcoinBlock {
 	return gen.BitcoinBlock{
 		BlockHeight:   int32(src.Height),
 		BlockHash:     src.Hash.String(),
@@ -26,20 +27,20 @@ func mapBlockHeaderTypeToModel(src *types.BlockHeader) gen.BitcoinBlock {
 	}
 }
 
-func mapBlockHeaderModelToType(src gen.BitcoinBlock) (*types.BlockHeader, error) {
+func mapBlockHeaderModelToType(src gen.BitcoinBlock) (types.BlockHeader, error) {
 	hash, err := chainhash.NewHashFromStr(src.BlockHash)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to parse block hash")
+		return types.BlockHeader{}, errors.Join(errors.Wrap(err, "failed to parse block hash"), errs.InternalError)
 	}
 	prevHash, err := chainhash.NewHashFromStr(src.PrevBlockHash)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to parse prev block hash")
+		return types.BlockHeader{}, errors.Join(errors.Wrap(err, "failed to parse prev block hash"), errs.InternalError)
 	}
 	merkleRoot, err := chainhash.NewHashFromStr(src.MerkleRoot)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to parse merkle root")
+		return types.BlockHeader{}, errors.Join(errors.Wrap(err, "failed to parse merkle root"), errs.InternalError)
 	}
-	return &types.BlockHeader{
+	return types.BlockHeader{
 		Hash:       *hash,
 		Height:     int64(src.BlockHeight),
 		Version:    src.Version,
@@ -51,13 +52,25 @@ func mapBlockHeaderModelToType(src gen.BitcoinBlock) (*types.BlockHeader, error)
 	}, nil
 }
 
-func mapBlockTypeToModel(src *types.Block) (gen.BitcoinBlock, []gen.BitcoinTransaction, []gen.BitcoinTransactionTxin, []gen.BitcoinTransactionTxout) {
-	block := mapBlockHeaderTypeToModel(&src.Header)
-	txs := make([]gen.BitcoinTransaction, 0, len(src.Transactions))
-	txins := make([]gen.BitcoinTransactionTxin, 0)
-	txouts := make([]gen.BitcoinTransactionTxout, 0)
+func mapBlockTypeToParams(src *types.Block) (gen.InsertBlockParams, []gen.InsertTransactionParams, []gen.InsertTransactionTxOutParams, []gen.InsertTransactionTxInParams) {
+	txs := make([]gen.InsertTransactionParams, 0, len(src.Transactions))
+	txouts := make([]gen.InsertTransactionTxOutParams, 0)
+	txins := make([]gen.InsertTransactionTxInParams, 0)
+	block := gen.InsertBlockParams{
+		BlockHeight:   int32(src.Header.Height),
+		BlockHash:     src.Header.Hash.String(),
+		Version:       src.Header.Version,
+		MerkleRoot:    src.Header.MerkleRoot.String(),
+		PrevBlockHash: src.Header.PrevBlock.String(),
+		Timestamp: pgtype.Timestamptz{
+			Time:  src.Header.Timestamp,
+			Valid: true,
+		},
+		Bits:  int32(src.Header.Bits),
+		Nonce: int32(src.Header.Nonce),
+	}
 	for txIdx, srcTx := range src.Transactions {
-		tx := gen.BitcoinTransaction{
+		tx := gen.InsertTransactionParams{
 			TxHash:      srcTx.TxHash.String(),
 			Version:     srcTx.Version,
 			Locktime:    int32(srcTx.LockTime),
@@ -68,13 +81,12 @@ func mapBlockTypeToModel(src *types.Block) (gen.BitcoinBlock, []gen.BitcoinTrans
 		txs = append(txs, tx)
 
 		for idx, txin := range srcTx.TxIn {
-			txins = append(txins, gen.BitcoinTransactionTxin{
-				TxHash:          tx.TxHash,
-				TxIdx:           int16(idx),
-				PrevoutTxHash:   txin.PreviousOutTxHash.String(),
-				PrevoutTxIdx:    int16(txin.PreviousOutIndex),
-				PrevoutPkscript: "", // Note: this will be updated while inserting to the database
-				Scriptsig:       hex.EncodeToString(txin.SignatureScript),
+			txins = append(txins, gen.InsertTransactionTxInParams{
+				TxHash:        tx.TxHash,
+				TxIdx:         int16(idx),
+				PrevoutTxHash: txin.PreviousOutTxHash.String(),
+				PrevoutTxIdx:  int16(txin.PreviousOutIndex),
+				Scriptsig:     hex.EncodeToString(txin.SignatureScript),
 				// TODO: should figure out how to store this
 				// Witness: pgtype.Text{
 				// 	String: string(txin.Witness),
@@ -85,14 +97,13 @@ func mapBlockTypeToModel(src *types.Block) (gen.BitcoinBlock, []gen.BitcoinTrans
 		}
 
 		for idx, txout := range srcTx.TxOut {
-			txouts = append(txouts, gen.BitcoinTransactionTxout{
+			txouts = append(txouts, gen.InsertTransactionTxOutParams{
 				TxHash:   tx.TxHash,
 				TxIdx:    int16(idx),
 				Pkscript: hex.EncodeToString(txout.PkScript),
 				Value:    txout.Value,
-				IsSpent:  false,
 			})
 		}
 	}
-	return block, txs, txins, txouts
+	return block, txs, txouts, txins
 }
