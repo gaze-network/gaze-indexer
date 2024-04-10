@@ -16,9 +16,9 @@ func middlewareError() middleware {
 				if attr.Key == slogx.ErrorKey || attr.Key == "err" {
 					err := attr.Value.Any()
 					if err, ok := err.(error); ok && err != nil {
-						rec.AddAttrs(slog.String("error_verbose", fmt.Sprintf("%+v", err)))
+						rec.AddAttrs(slog.String(slogx.ErrorVerboseKey, fmt.Sprintf("%+v", err)))
 						if st, ok := stacktrace.ParseErrStackTrace(err); ok {
-							rec.AddAttrs(slog.Any("stack_trace", st.FramesStrings()))
+							rec.AddAttrs(slog.Any(slogx.ErrorStackTraceKey, st.FramesStrings()))
 						}
 					}
 				}
