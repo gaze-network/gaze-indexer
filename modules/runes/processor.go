@@ -34,12 +34,21 @@ func (p *Processor) Name() string {
 }
 
 func (p *Processor) Process(ctx context.Context, blocks []*types.Block) error {
+	err := p.runesDg.Begin(ctx)
+	if err != nil {
+		return errors.Wrap(err, "failed to begin transaction")
+	}
+	defer p.runesDg.Rollback(ctx)
+
 	for _, block := range blocks {
 		for _, tx := range block.Transactions {
 			if err := p.processTx(ctx, tx, block.Header); err != nil {
 				return errors.Wrap(err, "failed to process tx")
 			}
 		}
+	}
+	if err := p.runesDg.Commit(ctx); err != nil {
+		return errors.Wrap(err, "failed to commit transaction")
 	}
 	return nil
 }
