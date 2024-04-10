@@ -8,12 +8,12 @@ SELECT DISTINCT ON (pkscript) * FROM runes_balances WHERE rune_id = $1 AND block
 SELECT * FROM runes_outpoint_balances WHERE tx_hash = $1 AND tx_idx = $2;
 
 -- using FOR UPDATE to prevent other connections for updating the same rune entries if they are being accessed by Processor
--- name: GetRuneEntryByRuneId :one
-SELECT * FROM runes_entries WHERE rune_id = $1 FOR UPDATE;
+-- name: GetRuneEntriesByRuneIds :many
+SELECT * FROM runes_entries WHERE rune_id = ANY(@rune_ids::text[]) FOR UPDATE;
 
 -- using FOR UPDATE to prevent other connections for updating the same rune entries if they are being accessed by Processor
--- name: GetRuneEntryByRune :one
-SELECT * FROM runes_entries WHERE rune = $1 FOR UPDATE;
+-- name: GetRuneEntriesByRunes :many
+SELECT * FROM runes_entries WHERE rune = ANY(@runes::text[]) FOR UPDATE;
 
 -- name: SetRuneEntry :exec
 INSERT INTO runes_entries (rune_id, rune, spacers, burned_amount, mints, premine, symbol, divisibility, terms, terms_amount, terms_cap, terms_height_start, terms_height_end, terms_offset_start, terms_offset_end, completion_time) 

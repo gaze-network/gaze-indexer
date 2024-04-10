@@ -53,7 +53,7 @@ func (r *Repository) Rollback(ctx context.Context) error {
 		return nil
 	}
 	err := r.tx.Rollback(ctx)
-	if err != nil {
+	if err != nil && !errors.Is(err, pgx.ErrTxClosed) {
 		return errors.Wrap(err, "failed to rollback transaction")
 	}
 	r.tx = nil

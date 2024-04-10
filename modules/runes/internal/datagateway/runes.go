@@ -15,8 +15,12 @@ type RunesDataGateway interface {
 
 type RunesReaderDataGateway interface {
 	GetRunesBalancesAtOutPoint(ctx context.Context, outPoint wire.OutPoint) (map[runes.RuneId]uint128.Uint128, error)
-	GetRuneIdByRune(ctx context.Context, rune runes.Rune) (runes.RuneId, error)
+	// GetRuneEntryByRune returns the RuneEntry for the given rune. Returns errs.NotFound if the rune entry is not found.
+	GetRuneEntryByRune(ctx context.Context, rune runes.Rune) (*runes.RuneEntry, error)
+	// GetRuneEntryByRuneId returns the RuneEntry for the given runeId. Returns errs.NotFound if the rune entry is not found.
 	GetRuneEntryByRuneId(ctx context.Context, runeId runes.RuneId) (*runes.RuneEntry, error)
+	// GetRuneEntryByRuneId returns the RuneEntry for the given runeId. Returns errs.NotFound if the rune entry is not found.
+	GetRuneEntryByRuneIdBatch(ctx context.Context, runeIds []runes.RuneId) (map[runes.RuneId]*runes.RuneEntry, error)
 }
 
 type RunesWriterDataGateway interface {

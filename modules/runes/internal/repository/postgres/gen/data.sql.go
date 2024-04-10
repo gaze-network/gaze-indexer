@@ -113,62 +113,88 @@ func (q *Queries) GetOutPointBalances(ctx context.Context, arg GetOutPointBalanc
 	return items, nil
 }
 
-const getRuneEntryByRune = `-- name: GetRuneEntryByRune :one
-SELECT rune_id, rune, spacers, burned_amount, mints, premine, symbol, divisibility, terms, terms_amount, terms_cap, terms_height_start, terms_height_end, terms_offset_start, terms_offset_end, completion_time FROM runes_entries WHERE rune = $1 FOR UPDATE
+const getRuneEntriesByRuneIds = `-- name: GetRuneEntriesByRuneIds :many
+SELECT rune_id, rune, spacers, burned_amount, mints, premine, symbol, divisibility, terms, terms_amount, terms_cap, terms_height_start, terms_height_end, terms_offset_start, terms_offset_end, completion_time FROM runes_entries WHERE rune_id = ANY($1::text[]) FOR UPDATE
 `
 
 // using FOR UPDATE to prevent other connections for updating the same rune entries if they are being accessed by Processor
-func (q *Queries) GetRuneEntryByRune(ctx context.Context, rune string) (RunesEntry, error) {
-	row := q.db.QueryRow(ctx, getRuneEntryByRune, rune)
-	var i RunesEntry
-	err := row.Scan(
-		&i.RuneID,
-		&i.Rune,
-		&i.Spacers,
-		&i.BurnedAmount,
-		&i.Mints,
-		&i.Premine,
-		&i.Symbol,
-		&i.Divisibility,
-		&i.Terms,
-		&i.TermsAmount,
-		&i.TermsCap,
-		&i.TermsHeightStart,
-		&i.TermsHeightEnd,
-		&i.TermsOffsetStart,
-		&i.TermsOffsetEnd,
-		&i.CompletionTime,
-	)
-	return i, err
+func (q *Queries) GetRuneEntriesByRuneIds(ctx context.Context, runeIds []string) ([]RunesEntry, error) {
+	rows, err := q.db.Query(ctx, getRuneEntriesByRuneIds, runeIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []RunesEntry
+	for rows.Next() {
+		var i RunesEntry
+		if err := rows.Scan(
+			&i.RuneID,
+			&i.Rune,
+			&i.Spacers,
+			&i.BurnedAmount,
+			&i.Mints,
+			&i.Premine,
+			&i.Symbol,
+			&i.Divisibility,
+			&i.Terms,
+			&i.TermsAmount,
+			&i.TermsCap,
+			&i.TermsHeightStart,
+			&i.TermsHeightEnd,
+			&i.TermsOffsetStart,
+			&i.TermsOffsetEnd,
+			&i.CompletionTime,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
-const getRuneEntryByRuneId = `-- name: GetRuneEntryByRuneId :one
-SELECT rune_id, rune, spacers, burned_amount, mints, premine, symbol, divisibility, terms, terms_amount, terms_cap, terms_height_start, terms_height_end, terms_offset_start, terms_offset_end, completion_time FROM runes_entries WHERE rune_id = $1 FOR UPDATE
+const getRuneEntriesByRunes = `-- name: GetRuneEntriesByRunes :many
+SELECT rune_id, rune, spacers, burned_amount, mints, premine, symbol, divisibility, terms, terms_amount, terms_cap, terms_height_start, terms_height_end, terms_offset_start, terms_offset_end, completion_time FROM runes_entries WHERE rune = ANY($1::text[]) FOR UPDATE
 `
 
 // using FOR UPDATE to prevent other connections for updating the same rune entries if they are being accessed by Processor
-func (q *Queries) GetRuneEntryByRuneId(ctx context.Context, runeID string) (RunesEntry, error) {
-	row := q.db.QueryRow(ctx, getRuneEntryByRuneId, runeID)
-	var i RunesEntry
-	err := row.Scan(
-		&i.RuneID,
-		&i.Rune,
-		&i.Spacers,
-		&i.BurnedAmount,
-		&i.Mints,
-		&i.Premine,
-		&i.Symbol,
-		&i.Divisibility,
-		&i.Terms,
-		&i.TermsAmount,
-		&i.TermsCap,
-		&i.TermsHeightStart,
-		&i.TermsHeightEnd,
-		&i.TermsOffsetStart,
-		&i.TermsOffsetEnd,
-		&i.CompletionTime,
-	)
-	return i, err
+func (q *Queries) GetRuneEntriesByRunes(ctx context.Context, runes []string) ([]RunesEntry, error) {
+	rows, err := q.db.Query(ctx, getRuneEntriesByRunes, runes)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []RunesEntry
+	for rows.Next() {
+		var i RunesEntry
+		if err := rows.Scan(
+			&i.RuneID,
+			&i.Rune,
+			&i.Spacers,
+			&i.BurnedAmount,
+			&i.Mints,
+			&i.Premine,
+			&i.Symbol,
+			&i.Divisibility,
+			&i.Terms,
+			&i.TermsAmount,
+			&i.TermsCap,
+			&i.TermsHeightStart,
+			&i.TermsHeightEnd,
+			&i.TermsOffsetStart,
+			&i.TermsOffsetEnd,
+			&i.CompletionTime,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const setRuneEntry = `-- name: SetRuneEntry :exec

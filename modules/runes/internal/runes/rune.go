@@ -108,6 +108,10 @@ func (r Rune) String() string {
 	return string(encoded)
 }
 
+func (r Rune) Cmp(other Rune) int {
+	return r.Uint128().Cmp(other.Uint128())
+}
+
 func FirstRuneHeight(network common.Network) uint64 {
 	switch network {
 	case common.NetworkMainnet:

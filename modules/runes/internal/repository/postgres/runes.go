@@ -12,6 +12,7 @@ import (
 	"github.com/gaze-network/indexer-network/modules/runes/internal/runes"
 	"github.com/gaze-network/uint128"
 	"github.com/jackc/pgx/v5"
+	"github.com/samber/lo"
 )
 
 var _ datagateway.RunesDataGateway = (*Repository)(nil)
@@ -40,24 +41,38 @@ func (r *Repository) GetRunesBalancesAtOutPoint(ctx context.Context, outPoint wi
 	return result, nil
 }
 
-func (r *Repository) GetRuneIdByRune(ctx context.Context, rune runes.Rune) (runes.RuneId, error) {
-	runeEntryModel, err := r.queries.GetRuneEntryByRune(ctx, rune.String())
+func (r *Repository) GetRuneEntryByRune(ctx context.Context, rune runes.Rune) (*runes.RuneEntry, error) {
+	runeEntryModels, err := r.queries.GetRuneEntriesByRunes(ctx, []string{rune.String()})
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return runes.RuneId{}, errors.WithStack(errs.NotFound)
-		}
-		return runes.RuneId{}, errors.Wrap(err, "error during query")
+		return nil, errors.Wrap(err, "error during query")
+	}
+	if len(runeEntryModels) == 0 {
+		return nil, errors.WithStack(errs.NotFound)
 	}
 
-	runeId, err := runes.NewRuneIdFromString(runeEntryModel.RuneID)
+	runeEntry, err := mapRuneEntryModelToType(runeEntryModels[0])
 	if err != nil {
-		return runes.RuneId{}, errors.Wrap(err, "failed to parse rune id")
+		return nil, errors.Wrap(err, "failed to parse rune entry model")
 	}
-	return runeId, nil
+	return &runeEntry, nil
 }
 
 func (r *Repository) GetRuneEntryByRuneId(ctx context.Context, runeId runes.RuneId) (*runes.RuneEntry, error) {
-	runeEntryModel, err := r.queries.GetRuneEntryByRuneId(ctx, runeId.String())
+	runeEntries, err := r.GetRuneEntryByRuneIdBatch(ctx, []runes.RuneId{runeId})
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get rune entries by rune id")
+	}
+	runeEntry, ok := runeEntries[runeId]
+	if !ok {
+		return nil, errors.WithStack(errs.NotFound)
+	}
+	return runeEntry, nil
+}
+
+func (r *Repository) GetRuneEntryByRuneIdBatch(ctx context.Context, runeIds []runes.RuneId) (map[runes.RuneId]*runes.RuneEntry, error) {
+	runeEntryModels, err := r.queries.GetRuneEntriesByRuneIds(ctx, lo.Map(runeIds, func(runeId runes.RuneId, _ int) string {
+		return runeId.String()
+	}))
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, errors.WithStack(errs.NotFound)
@@ -65,39 +80,32 @@ func (r *Repository) GetRuneEntryByRuneId(ctx context.Context, runeId runes.Rune
 		return nil, errors.Wrap(err, "error during query")
 	}
 
-	runeEntry, err := mapRuneEntryModelToType(runeEntryModel)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to parse rune entry model")
+	runeEntries := make(map[runes.RuneId]*runes.RuneEntry, len(runeEntryModels))
+	var errs []error
+	for i, runeEntryModel := range runeEntryModels {
+		runeEntry, err := mapRuneEntryModelToType(runeEntryModel)
+		if err != nil {
+			errs = append(errs, errors.Wrapf(err, "failed to parse rune entry model index %d", i))
+			continue
+		}
+		runeEntries[runeEntry.RuneId] = &runeEntry
 	}
-	return &runeEntry, nil
+	if len(errs) > 0 {
+		return nil, errors.Join(errs...)
+	}
+
+	return runeEntries, nil
 }
 
 func (r *Repository) SetRuneEntry(ctx context.Context, entry *runes.RuneEntry) error {
 	if entry == nil {
 		return nil
 	}
-	runeEntryModel, err := mapRuneEntryTypeToModel(*entry)
+	params, err := mapRuneEntryTypeToParams(*entry)
 	if err != nil {
-		return errors.Wrap(err, "failed to map rune entry to model")
+		return errors.Wrap(err, "failed to map rune entry to params")
 	}
-	if err = r.queries.SetRuneEntry(ctx, gen.SetRuneEntryParams{
-		RuneID:           runeEntryModel.RuneID,
-		Rune:             runeEntryModel.Rune,
-		Spacers:          runeEntryModel.Spacers,
-		BurnedAmount:     runeEntryModel.BurnedAmount,
-		Mints:            runeEntryModel.Mints,
-		Premine:          runeEntryModel.Premine,
-		Symbol:           runeEntryModel.Symbol,
-		Divisibility:     runeEntryModel.Divisibility,
-		Terms:            runeEntryModel.Terms,
-		TermsAmount:      runeEntryModel.TermsAmount,
-		TermsCap:         runeEntryModel.TermsCap,
-		TermsHeightStart: runeEntryModel.TermsHeightStart,
-		TermsHeightEnd:   runeEntryModel.TermsHeightEnd,
-		TermsOffsetStart: runeEntryModel.TermsOffsetStart,
-		TermsOffsetEnd:   runeEntryModel.TermsOffsetEnd,
-		CompletionTime:   runeEntryModel.CompletionTime,
-	}); err != nil {
+	if err = r.queries.SetRuneEntry(ctx, params); err != nil {
 		return errors.Wrap(err, "error during exec")
 	}
 	return nil

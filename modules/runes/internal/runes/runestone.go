@@ -15,7 +15,10 @@ import (
 	"github.com/samber/lo"
 )
 
-const RUNESTONE_PAYLOAD_MAGIC_NUMBER = txscript.OP_13
+const (
+	RUNESTONE_PAYLOAD_MAGIC_NUMBER = txscript.OP_13
+	RUNE_COMMIT_BLOCKS             = 6
+)
 
 type Runestone struct {
 	// Rune to etch in this transaction
