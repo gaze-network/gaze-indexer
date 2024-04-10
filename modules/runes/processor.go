@@ -15,17 +15,17 @@ import (
 var _ indexers.BitcoinProcessor = (*Processor)(nil)
 
 type Processor struct {
-	runesProcessorDG datagateway.RunesProcessorDataGateway
-	entriesToUpdate  map[runes.RuneId]*runes.RuneEntry
+	runesDg         datagateway.RunesDataGateway
+	entriesToUpdate map[runes.RuneId]*runes.RuneEntry
 }
 
-type NewRunesProcessorParams struct {
-	RunesProcessorDG datagateway.RunesProcessorDataGateway
+type NewProcessorParams struct {
+	RunesDg datagateway.RunesDataGateway
 }
 
-func NewRunesProcessor(params NewRunesProcessorParams) *Processor {
+func NewProcessor(params NewProcessorParams) *Processor {
 	return &Processor{
-		runesProcessorDG: params.RunesProcessorDG,
+		runesDg: params.RunesDg,
 	}
 }
 
@@ -71,7 +71,7 @@ func (p *Processor) processTx(ctx context.Context, tx *types.Transaction, blockH
 func (p *Processor) getUnallocatedRunes(ctx context.Context, txInputs []*types.TxIn) (map[runes.RuneId]uint128.Uint128, error) {
 	unallocatedRunes := make(map[runes.RuneId]uint128.Uint128)
 	for _, txIn := range txInputs {
-		balances, err := p.runesProcessorDG.GetRunesBalancesAtOutPoint(ctx, wire.OutPoint{
+		balances, err := p.runesDg.GetRunesBalancesAtOutPoint(ctx, wire.OutPoint{
 			Hash:  txIn.PreviousOutTxHash,
 			Index: txIn.PreviousOutIndex,
 		})
@@ -89,7 +89,7 @@ func (p *Processor) mint(ctx context.Context, runeId runes.RuneId, height uint64
 	runeEntry, ok := p.entriesToUpdate[runeId]
 	if !ok {
 		var err error
-		runeEntry, err = p.runesProcessorDG.GetRuneEntryByRuneId(ctx, runeId)
+		runeEntry, err = p.runesDg.GetRuneEntryByRuneId(ctx, runeId)
 		if err != nil {
 			return uint128.Uint128{}, errors.Wrap(err, "failed to get rune entry by rune id")
 		}
