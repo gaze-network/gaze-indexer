@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/gaze-network/indexer-network/pkg/bufferpool"
+	"github.com/gaze-network/indexer-network/pkg/logger/stacktrace"
 )
 
 // Any returns an slog.Attr for the supplied value.
@@ -159,4 +160,18 @@ func Reflect(key string, v interface{}) slog.Attr {
 	_ = enc.Encode(v)
 	buff.TrimNewline()
 	return slog.String(key, buff.String())
+}
+
+// Stack returns an slog.Attr for the current stack trace.
+// Keep in mind that taking a stacktrace is eager and
+// expensive (relatively speaking); this function both makes an allocation and
+// takes about two microseconds.
+func Stack(key string) slog.Attr {
+	return StackSkip(key, 1)
+}
+
+// StackSkip returns an slog.Attr for the stack trace similarly to Stack,
+// but also skips the given number of frames from the top of the stacktrace.
+func StackSkip(key string, skip int) slog.Attr {
+	return slog.Any(key, stacktrace.Capture(skip+1).TraceFramesStrings())
 }
