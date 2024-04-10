@@ -2,9 +2,12 @@ package slogx
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"time"
+
+	"github.com/gaze-network/indexer-network/pkg/bufferpool"
 )
 
 // Any returns an slog.Attr for the supplied value.
@@ -142,4 +145,18 @@ func Binary(key string, v []byte) slog.Attr {
 // Binary.
 func ByteString(key string, v []byte) slog.Attr {
 	return slog.String(key, string(v))
+}
+
+// Reflect returns an slog.Attr for an arbitrary object.
+// It uses an encoding-appropriate, reflection-based function to lazily serialize nearly
+// any object into an slog.Attr, but it's relatively slow and
+// allocation-heavy. Any is always a better choice.
+func Reflect(key string, v interface{}) slog.Attr {
+	buff := bufferpool.Get()
+	defer buff.Free()
+	enc := json.NewEncoder(buff)
+	enc.SetEscapeHTML(false)
+	_ = enc.Encode(v)
+	buff.TrimNewline()
+	return slog.String(key, buff.String())
 }
