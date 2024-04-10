@@ -3,21 +3,25 @@ package indexers
 import (
 	"context"
 	"log"
+	"log/slog"
 	"time"
 
 	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/common/errs"
 	"github.com/gaze-network/indexer-network/core/types"
+	"github.com/gaze-network/indexer-network/pkg/logger"
 )
 
 // BitcoinProcessor is indexer processor for Bitcoin Indexer.
 type BitcoinProcessor interface {
+	Processor
+
 	// Process processes the input data and indexes it.
 	Process(ctx context.Context, inputs []*types.Block) error
 
 	// CurrentBlock returns the latest indexed block header.
-	CurrentBlock() (types.BlockHeader, error)
+	CurrentBlock(ctx context.Context) (types.BlockHeader, error)
 
 	// PrepareData fetches the data from the source and prepares it for processing.
 	// TODO: extract PrepareData to a separate interface (e.g. DataFetcher)
@@ -35,8 +39,10 @@ type BitcoinIndexer struct {
 }
 
 func (i *BitcoinIndexer) Run(ctx context.Context) (err error) {
+	ctx = logger.WithContext(ctx, slog.String("module", i.Processor.Name()))
+
 	// set to -1 to start from genesis block
-	i.currentBlock, err = i.Processor.CurrentBlock()
+	i.currentBlock, err = i.Processor.CurrentBlock(ctx)
 	if err != nil {
 		if errors.Is(err, errs.NotFound) {
 			i.currentBlock.Height = -1
@@ -60,7 +66,7 @@ func (i *BitcoinIndexer) Run(ctx context.Context) (err error) {
 				continue
 			}
 
-			log.Printf("Syncing blocks from %d to %d\n", startHeight, endHeight)
+			logger.InfoContext(ctx, "Syncing blocks from %d to %d\n", startHeight, endHeight)
 
 			// TODO: supports chain reorganization
 
@@ -85,7 +91,7 @@ func (i *BitcoinIndexer) Run(ctx context.Context) (err error) {
 				return errors.Wrap(err, "failed to get block")
 			}
 
-			b := types.ParseMsgBlock(block)
+			b := types.ParseMsgBlock(block, endHeight)
 			if err := i.Processor.Process(ctx, []*types.Block{b}); err != nil {
 				return errors.WithStack(err)
 			}

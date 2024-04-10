@@ -52,6 +52,7 @@ linters:
     - gosec # bugs - Inspects source code for security problems
     - wrapcheck # style, error - Checks that errors returned from external packages are wrapped, we should wrap the error from external library
     - depguard # import - Go linter that checks if package imports are in a list of acceptable packages.
+    - sloglint # style, format Ensure consistent code style when using log/slog.
     ### Annoying Linters
     # - dupl # style - code clone detection
 
@@ -90,3 +91,7 @@ linters-settings:
         deny:
           - pkg: "github.com/pkg/errors"
             desc: Should be replaced by "cockroachdb/errors" or "cleverse/go-utilities" package
+  sloglint:
+    attr-only: true
+    key-naming-case: snake
+    args-on-sep-lines: true

@@ -3,6 +3,8 @@ package logger
 import (
 	"fmt"
 	"log/slog"
+
+	"github.com/gaze-network/indexer-network/pkg/logger/slogx"
 )
 
 const (
@@ -12,7 +14,7 @@ const (
 )
 
 func levelAttrReplacer(groups []string, attr slog.Attr) slog.Attr {
-	if len(groups) == 0 && attr.Key == "level" {
+	if len(groups) == 0 && attr.Key == slogx.LevelKey {
 		str := func(base string, val slog.Level) string {
 			if val == 0 {
 				return base

@@ -7,11 +7,13 @@ import (
 )
 
 type Transaction struct {
-	Hash     chainhash.Hash
-	Version  int32
-	LockTime uint32
-	TxIn     []*TxIn
-	TxOut    []*TxOut
+	BlockHeight int64
+	BlockHash   chainhash.Hash
+	TxHash      chainhash.Hash
+	Version     int32
+	LockTime    uint32
+	TxIn        []*TxIn
+	TxOut       []*TxOut
 }
 
 type TxIn struct {
@@ -28,13 +30,19 @@ type TxOut struct {
 }
 
 // ParseMsgTx parses btcd/wire.MsgTx to Transaction.
-func ParseMsgTx(src *wire.MsgTx) *Transaction {
+func ParseMsgTx(src *wire.MsgTx, blockHeight int64, blockHash chainhash.Hash) *Transaction {
 	return &Transaction{
-		Hash:     src.TxHash(),
-		Version:  src.Version,
-		LockTime: src.LockTime,
-		TxIn:     lo.Map(src.TxIn, func(item *wire.TxIn, _ int) *TxIn { return ParseTxIn(item) }),
-		TxOut:    lo.Map(src.TxOut, func(item *wire.TxOut, _ int) *TxOut { return ParseTxOut(item) }),
+		BlockHeight: blockHeight,
+		BlockHash:   blockHash,
+		TxHash:      src.TxHash(),
+		Version:     src.Version,
+		LockTime:    src.LockTime,
+		TxIn: lo.Map(src.TxIn, func(item *wire.TxIn, _ int) *TxIn {
+			return ParseTxIn(item)
+		}),
+		TxOut: lo.Map(src.TxOut, func(item *wire.TxOut, _ int) *TxOut {
+			return ParseTxOut(item)
+		}),
 	}
 }
 

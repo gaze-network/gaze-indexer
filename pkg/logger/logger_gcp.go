@@ -1,15 +1,31 @@
 package logger
 
-import "log/slog"
+import (
+	"log/slog"
+	"os"
+
+	"github.com/gaze-network/indexer-network/pkg/logger/slogx"
+)
+
+func NewGCPHandler(opts *slog.HandlerOptions) slog.Handler {
+	return slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		AddSource: true,
+		Level:     opts.Level,
+		ReplaceAttr: attrReplacerChain(
+			GCPAttrReplacer,
+			opts.ReplaceAttr,
+		),
+	})
+}
 
 // GCPAttrReplacer replaces the default attribute keys with the GCP logging attribute keys.
 func GCPAttrReplacer(groups []string, attr slog.Attr) slog.Attr {
 	switch attr.Key {
-	case MessageKey:
+	case slogx.MessageKey:
 		attr.Key = "message"
-	case SourceKey:
+	case slogx.SourceKey:
 		attr.Key = "logging.googleapis.com/sourceLocation"
-	case LevelKey:
+	case slogx.LevelKey:
 		attr.Key = "severity"
 		lvl, ok := attr.Value.Any().(slog.Level)
 		if ok {

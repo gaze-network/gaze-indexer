@@ -46,7 +46,7 @@ CREATE INDEX IF NOT EXISTS bitcoin_transactions_block_hash_idx ON "bitcoin_trans
 CREATE TABLE IF NOT EXISTS "bitcoin_transaction_txouts" (
 	"tx_hash" TEXT NOT NULL,
 	"tx_idx" SMALLINT NOT NULL,
-	"pkscript" TEXT NOT NULL,
+	"pkscript" TEXT NOT NULL, -- Hex String
 	"value" BIGINT NOT NULL,
 	"is_spent" BOOLEAN NOT NULL DEFAULT false,
 	PRIMARY KEY ("tx_hash", "tx_idx")
@@ -59,9 +59,9 @@ CREATE TABLE IF NOT EXISTS "bitcoin_transaction_txins" (
 	"tx_idx" SMALLINT NOT NULL,
 	"prevout_tx_hash" TEXT NOT NULL,
 	"prevout_tx_idx" SMALLINT NOT NULL,
-	"prevout_pkscript" TEXT NOT NULL,
-	"scriptsig" TEXT NOT NULL,
-	"witness" TEXT,
+	"prevout_pkscript" TEXT NOT NULL, -- Hex String
+	"scriptsig" TEXT NOT NULL, -- Hex String
+	"witness" TEXT, -- Hex String
 	"sequence" INT NOT NULL,
 	PRIMARY KEY ("tx_hash", "tx_idx")
 );
