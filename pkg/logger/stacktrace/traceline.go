@@ -14,16 +14,16 @@ type TraceFrame struct {
 	Line     int
 }
 
-func TraceLines(s StackTrace) []TraceFrame {
-	traceLines := make([]TraceFrame, 0, len(s))
+func TraceLines(s *StackTrace) []TraceFrame {
+	traceLines := make([]TraceFrame, 0, len(*s))
 
 	// Iterate in reverse to skip uninteresting, consecutive runtime frames at
 	// the bottom of the trace.
 	skipping := true
-	for i := len(s) - 1; i >= 0; i-- {
+	for i := len(*s) - 1; i >= 0; i-- {
 		// Adapted from errors.Frame.MarshalText(), but avoiding repeated
 		// calls to FuncForPC and FileLine.
-		pc := uintptr(s[i]) - 1
+		pc := uintptr((*s)[i]) - 1
 		fn := runtime.FuncForPC(pc)
 		if fn == nil {
 			traceLines = append(traceLines, TraceFrame{pc, "unknown", "", 0})

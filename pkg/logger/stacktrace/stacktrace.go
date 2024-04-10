@@ -35,11 +35,11 @@ func Capture(skip int) *StackTrace {
 }
 
 // TraceFrames returns the trace line frames of the stack trace.
-func (s StackTrace) TraceFrames() []TraceFrame {
+func (s *StackTrace) TraceFrames() []TraceFrame {
 	return TraceLines(s)
 }
 
-func (s StackTrace) TraceFramesStrings() []string {
+func (s *StackTrace) TraceFramesStrings() []string {
 	traceLines := s.TraceFrames()
 	t := make([]string, len(traceLines))
 	for i, tl := range traceLines {
@@ -49,7 +49,7 @@ func (s StackTrace) TraceFramesStrings() []string {
 }
 
 // Format formats the stack of Frames according to the fmt.Formatter interface.
-func (s StackTrace) Format(fs fmt.State, verb rune) {
+func (s *StackTrace) Format(fs fmt.State, verb rune) {
 	tracelines := s.TraceFrames()
 	for i, tl := range tracelines {
 		if i > 0 {
@@ -60,7 +60,7 @@ func (s StackTrace) Format(fs fmt.State, verb rune) {
 }
 
 // String returns a string representation of the stack trace.
-func (s StackTrace) String() string {
+func (s *StackTrace) String() string {
 	var sb strings.Builder
 	tracelines := s.TraceFrames()
 	for i, tl := range tracelines {
