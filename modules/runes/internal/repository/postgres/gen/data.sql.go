@@ -114,9 +114,10 @@ func (q *Queries) GetOutPointBalances(ctx context.Context, arg GetOutPointBalanc
 }
 
 const getRuneEntryByRune = `-- name: GetRuneEntryByRune :one
-SELECT rune_id, rune, spacers, burned_amount, mints, premine, symbol, divisibility, terms, terms_amount, terms_cap, terms_height_start, terms_height_end, terms_offset_start, terms_offset_end, completion_time FROM runes_entries WHERE rune = $1
+SELECT rune_id, rune, spacers, burned_amount, mints, premine, symbol, divisibility, terms, terms_amount, terms_cap, terms_height_start, terms_height_end, terms_offset_start, terms_offset_end, completion_time FROM runes_entries WHERE rune = $1 FOR UPDATE
 `
 
+// using FOR UPDATE to prevent other connections for updating the same rune entries if they are being accessed by Processor
 func (q *Queries) GetRuneEntryByRune(ctx context.Context, rune string) (RunesEntry, error) {
 	row := q.db.QueryRow(ctx, getRuneEntryByRune, rune)
 	var i RunesEntry
@@ -142,9 +143,10 @@ func (q *Queries) GetRuneEntryByRune(ctx context.Context, rune string) (RunesEnt
 }
 
 const getRuneEntryByRuneId = `-- name: GetRuneEntryByRuneId :one
-SELECT rune_id, rune, spacers, burned_amount, mints, premine, symbol, divisibility, terms, terms_amount, terms_cap, terms_height_start, terms_height_end, terms_offset_start, terms_offset_end, completion_time FROM runes_entries WHERE rune_id = $1
+SELECT rune_id, rune, spacers, burned_amount, mints, premine, symbol, divisibility, terms, terms_amount, terms_cap, terms_height_start, terms_height_end, terms_offset_start, terms_offset_end, completion_time FROM runes_entries WHERE rune_id = $1 FOR UPDATE
 `
 
+// using FOR UPDATE to prevent other connections for updating the same rune entries if they are being accessed by Processor
 func (q *Queries) GetRuneEntryByRuneId(ctx context.Context, runeID string) (RunesEntry, error) {
 	row := q.db.QueryRow(ctx, getRuneEntryByRuneId, runeID)
 	var i RunesEntry
