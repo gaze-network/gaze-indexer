@@ -131,6 +131,7 @@ var (
 	// Default Attribute Replacers
 	defaultAttrReplacers = []func([]string, slog.Attr) slog.Attr{
 		levelAttrReplacer,
+		errorAttrReplacer,
 	}
 
 	// Default Middlewares
