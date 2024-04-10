@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/gaze-network/indexer-network/pkg/bufferpool"
-	"github.com/gaze-network/indexer-network/pkg/logger/stacktrace"
+	"github.com/gaze-network/indexer-network/pkg/stacktrace"
 )
 
 // Any returns an slog.Attr for the supplied value.
