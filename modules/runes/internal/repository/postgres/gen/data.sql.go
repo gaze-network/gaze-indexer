@@ -7,6 +7,8 @@ package gen
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const getBalancesByPkScript = `-- name: GetBalancesByPkScript :many
@@ -165,4 +167,60 @@ func (q *Queries) GetRuneEntryByRuneId(ctx context.Context, runeID string) (Rune
 		&i.CompletionTime,
 	)
 	return i, err
+}
+
+const setRuneEntry = `-- name: SetRuneEntry :exec
+INSERT INTO runes_entries (rune_id, rune, spacers, burned_amount, mints, premine, symbol, divisibility, terms, terms_amount, terms_cap, terms_height_start, terms_height_end, terms_offset_start, terms_offset_end, completion_time) 
+  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) 
+  ON CONFLICT (rune_id) DO UPDATE SET (burned_amount, mints, completion_time) = (excluded.burned_amount, excluded.mints, excluded.completion_time)
+`
+
+type SetRuneEntryParams struct {
+	RuneID           string
+	Rune             string
+	Spacers          int32
+	BurnedAmount     pgtype.Numeric
+	Mints            pgtype.Numeric
+	Premine          pgtype.Numeric
+	Symbol           int32
+	Divisibility     int16
+	Terms            bool
+	TermsAmount      pgtype.Numeric
+	TermsCap         pgtype.Numeric
+	TermsHeightStart pgtype.Numeric
+	TermsHeightEnd   pgtype.Numeric
+	TermsOffsetStart pgtype.Numeric
+	TermsOffsetEnd   pgtype.Numeric
+	CompletionTime   pgtype.Timestamp
+}
+
+func (q *Queries) SetRuneEntry(ctx context.Context, arg SetRuneEntryParams) error {
+	_, err := q.db.Exec(ctx, setRuneEntry,
+		arg.RuneID,
+		arg.Rune,
+		arg.Spacers,
+		arg.BurnedAmount,
+		arg.Mints,
+		arg.Premine,
+		arg.Symbol,
+		arg.Divisibility,
+		arg.Terms,
+		arg.TermsAmount,
+		arg.TermsCap,
+		arg.TermsHeightStart,
+		arg.TermsHeightEnd,
+		arg.TermsOffsetStart,
+		arg.TermsOffsetEnd,
+		arg.CompletionTime,
+	)
+	return err
+}
+
+const updateLatestBlockHeight = `-- name: UpdateLatestBlockHeight :exec
+UPDATE runes_processor_state SET latest_block_height = $1
+`
+
+func (q *Queries) UpdateLatestBlockHeight(ctx context.Context, latestBlockHeight int32) error {
+	_, err := q.db.Exec(ctx, updateLatestBlockHeight, latestBlockHeight)
+	return err
 }

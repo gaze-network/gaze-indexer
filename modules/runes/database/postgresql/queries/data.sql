@@ -12,3 +12,17 @@ SELECT * FROM runes_entries WHERE rune_id = $1;
 
 -- name: GetRuneEntryByRune :one
 SELECT * FROM runes_entries WHERE rune = $1;
+
+-- name: SetRuneEntry :exec
+INSERT INTO runes_entries (rune_id, rune, spacers, burned_amount, mints, premine, symbol, divisibility, terms, terms_amount, terms_cap, terms_height_start, terms_height_end, terms_offset_start, terms_offset_end, completion_time) 
+  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) 
+  ON CONFLICT (rune_id) DO UPDATE SET (burned_amount, mints, completion_time) = (excluded.burned_amount, excluded.mints, excluded.completion_time);
+
+-- name: CreateRuneBalancesAtOutPoint :batchexec
+INSERT INTO runes_outpoint_balances (rune_id, tx_hash, tx_idx, value) VALUES ($1, $2, $3, $4);
+
+-- name: CreateRuneBalanceAtBlock :batchexec
+INSERT INTO runes_balances (pkscript, block_height, rune_id, value) VALUES ($1, $2, $3, $4);
+
+-- name: UpdateLatestBlockHeight :exec
+UPDATE runes_processor_state SET latest_block_height = $1;

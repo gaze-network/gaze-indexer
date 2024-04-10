@@ -54,3 +54,8 @@ type RunesOutpointBalance struct {
 	TxIdx  int32
 	Value  pgtype.Numeric
 }
+
+type RunesProcessorState struct {
+	Id                int32
+	LatestBlockHeight int32
+}

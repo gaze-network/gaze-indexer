@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"encoding/hex"
 
 	"github.com/btcsuite/btcd/wire"
 	"github.com/cockroachdb/errors"
@@ -68,21 +69,99 @@ func (r *Repository) GetRuneEntryByRuneId(ctx context.Context, runeId runes.Rune
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to parse rune entry model")
 	}
-	return runeEntry, nil
+	return &runeEntry, nil
 }
 
 func (r *Repository) SetRuneEntry(ctx context.Context, entry *runes.RuneEntry) error {
-	panic("implement me")
+	if entry == nil {
+		return nil
+	}
+	runeEntryModel, err := mapRuneEntryTypeToModel(*entry)
+	if err != nil {
+		return errors.Wrap(err, "failed to map rune entry to model")
+	}
+	if err = r.queries.SetRuneEntry(ctx, gen.SetRuneEntryParams{
+		RuneID:           runeEntryModel.RuneID,
+		Rune:             runeEntryModel.Rune,
+		Spacers:          runeEntryModel.Spacers,
+		BurnedAmount:     runeEntryModel.BurnedAmount,
+		Mints:            runeEntryModel.Mints,
+		Premine:          runeEntryModel.Premine,
+		Symbol:           runeEntryModel.Symbol,
+		Divisibility:     runeEntryModel.Divisibility,
+		Terms:            runeEntryModel.Terms,
+		TermsAmount:      runeEntryModel.TermsAmount,
+		TermsCap:         runeEntryModel.TermsCap,
+		TermsHeightStart: runeEntryModel.TermsHeightStart,
+		TermsHeightEnd:   runeEntryModel.TermsHeightEnd,
+		TermsOffsetStart: runeEntryModel.TermsOffsetStart,
+		TermsOffsetEnd:   runeEntryModel.TermsOffsetEnd,
+		CompletionTime:   runeEntryModel.CompletionTime,
+	}); err != nil {
+		return errors.Wrap(err, "error during exec")
+	}
+	return nil
 }
 
-func (r *Repository) CreateRunesBalanceAtOutPoint(ctx context.Context, outPoint wire.OutPoint, balances map[runes.RuneId]uint128.Uint128) error {
-	panic("implement me")
+func (r *Repository) CreateRuneBalancesAtOutPoint(ctx context.Context, outPoint wire.OutPoint, balances map[runes.RuneId]uint128.Uint128) error {
+	params := make([]gen.CreateRuneBalancesAtOutPointParams, 0, len(balances))
+	for runeId, balance := range balances {
+		balance := balance
+		value, err := numericFromUint128(&balance)
+		if err != nil {
+			return errors.Wrap(err, "failed to convert balance to numeric")
+		}
+		params = append(params, gen.CreateRuneBalancesAtOutPointParams{
+			RuneID: runeId.String(),
+			TxHash: outPoint.Hash.String(),
+			TxIdx:  int32(outPoint.Index),
+			Value:  value,
+		})
+	}
+	result := r.queries.CreateRuneBalancesAtOutPoint(ctx, params)
+	var execErrors []error
+	result.Exec(func(i int, err error) {
+		if err != nil {
+			execErrors = append(execErrors, err)
+		}
+	})
+	if len(execErrors) > 0 {
+		return errors.Wrap(errors.Join(execErrors...), "error during exec")
+	}
+	return nil
 }
 
-func (r *Repository) CreateRuneBalance(ctx context.Context, pkScript string, runeId runes.RuneId, blockHeight uint64, balance uint128.Uint128) error {
-	panic("implement me")
+func (r *Repository) CreateRuneBalancesAtBlock(ctx context.Context, params []datagateway.CreateRuneBalancesAtBlockParams) error {
+	insertParams := make([]gen.CreateRuneBalanceAtBlockParams, 0, len(params))
+	for _, param := range params {
+		param := param
+		value, err := numericFromUint128(&param.Balance)
+		if err != nil {
+			return errors.Wrap(err, "failed to convert balance to numeric")
+		}
+		insertParams = append(insertParams, gen.CreateRuneBalanceAtBlockParams{
+			Pkscript:    hex.EncodeToString(param.PkScript),
+			BlockHeight: int32(param.BlockHeight),
+			RuneID:      param.RuneId.String(),
+			Value:       value,
+		})
+	}
+	result := r.queries.CreateRuneBalanceAtBlock(ctx, insertParams)
+	var execErrors []error
+	result.Exec(func(i int, err error) {
+		if err != nil {
+			execErrors = append(execErrors, err)
+		}
+	})
+	if len(execErrors) > 0 {
+		return errors.Wrap(errors.Join(execErrors...), "error during exec")
+	}
+	return nil
 }
 
 func (r *Repository) UpdateLatestBlockHeight(ctx context.Context, blockHeight uint64) error {
-	panic("implement me")
+	if err := r.queries.UpdateLatestBlockHeight(ctx, int32(blockHeight)); err != nil {
+		return errors.Wrap(err, "error during exec")
+	}
+	return nil
 }

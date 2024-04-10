@@ -19,6 +19,11 @@ INSERT INTO "runes_indexer_db_version" ("version") VALUES (1);
 
 -- Runes data
 
+CREATE TABLE IF NOT EXISTS "runes_processor_state" (
+	"id" SERIAL PRIMARY KEY,
+	"latest_block_height" INT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS "runes_entries" (
 	"rune_id" TEXT NOT NULL PRIMARY KEY,
 	"rune" TEXT NOT NULL,

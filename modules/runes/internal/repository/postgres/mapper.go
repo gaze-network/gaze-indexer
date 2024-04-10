@@ -23,26 +23,39 @@ func uint128FromNumeric(src pgtype.Numeric) (uint128.Uint128, error) {
 	return result, nil
 }
 
-func mapRuneEntryModelToType(src gen.RunesEntry) (*runes.RuneEntry, error) {
+func numericFromUint128(src *uint128.Uint128) (pgtype.Numeric, error) {
+	if src == nil {
+		return pgtype.Numeric{}, nil
+	}
+	bytes := []byte(src.String())
+	var result pgtype.Numeric
+	err := result.UnmarshalJSON(bytes)
+	if err != nil {
+		return pgtype.Numeric{}, errors.WithStack(err)
+	}
+	return result, nil
+}
+
+func mapRuneEntryModelToType(src gen.RunesEntry) (runes.RuneEntry, error) {
 	runeId, err := runes.NewRuneIdFromString(src.RuneID)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to parse rune id")
+		return runes.RuneEntry{}, errors.Wrap(err, "failed to parse rune id")
 	}
 	burnedAmount, err := uint128FromNumeric(src.BurnedAmount)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to parse burned amount")
+		return runes.RuneEntry{}, errors.Wrap(err, "failed to parse burned amount")
 	}
 	rune, err := runes.NewRuneFromString(src.Rune)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to parse rune")
+		return runes.RuneEntry{}, errors.Wrap(err, "failed to parse rune")
 	}
 	mints, err := uint128FromNumeric(src.Mints)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to parse mints")
+		return runes.RuneEntry{}, errors.Wrap(err, "failed to parse mints")
 	}
 	premine, err := uint128FromNumeric(src.Premine)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to parse premine")
+		return runes.RuneEntry{}, errors.Wrap(err, "failed to parse premine")
 	}
 	var completionTime time.Time
 	if src.CompletionTime.Valid {
@@ -54,47 +67,47 @@ func mapRuneEntryModelToType(src gen.RunesEntry) (*runes.RuneEntry, error) {
 		if src.TermsAmount.Valid {
 			amount, err := uint128FromNumeric(src.TermsAmount)
 			if err != nil {
-				return nil, errors.Wrap(err, "failed to parse terms amount")
+				return runes.RuneEntry{}, errors.Wrap(err, "failed to parse terms amount")
 			}
 			terms.Amount = &amount
 		}
 		if src.TermsCap.Valid {
 			cap, err := uint128FromNumeric(src.TermsCap)
 			if err != nil {
-				return nil, errors.Wrap(err, "failed to parse terms cap")
+				return runes.RuneEntry{}, errors.Wrap(err, "failed to parse terms cap")
 			}
 			terms.Cap = &cap
 		}
 		if src.TermsHeightStart.Valid {
 			heightStart, err := uint128FromNumeric(src.TermsHeightStart)
 			if err != nil {
-				return nil, errors.Wrap(err, "failed to parse terms height start")
+				return runes.RuneEntry{}, errors.Wrap(err, "failed to parse terms height start")
 			}
 			terms.HeightStart = lo.ToPtr((heightStart.Uint64()))
 		}
 		if src.TermsHeightEnd.Valid {
 			heightEnd, err := uint128FromNumeric(src.TermsHeightEnd)
 			if err != nil {
-				return nil, errors.Wrap(err, "failed to parse terms height end")
+				return runes.RuneEntry{}, errors.Wrap(err, "failed to parse terms height end")
 			}
 			terms.HeightEnd = lo.ToPtr((heightEnd.Uint64()))
 		}
 		if src.TermsOffsetStart.Valid {
 			offsetStart, err := uint128FromNumeric(src.TermsOffsetStart)
 			if err != nil {
-				return nil, errors.Wrap(err, "failed to parse terms offset start")
+				return runes.RuneEntry{}, errors.Wrap(err, "failed to parse terms offset start")
 			}
 			terms.OffsetStart = lo.ToPtr((offsetStart.Uint64()))
 		}
 		if src.TermsOffsetEnd.Valid {
 			offsetEnd, err := uint128FromNumeric(src.TermsOffsetEnd)
 			if err != nil {
-				return nil, errors.Wrap(err, "failed to parse terms offset end")
+				return runes.RuneEntry{}, errors.Wrap(err, "failed to parse terms offset end")
 			}
 			terms.OffsetEnd = lo.ToPtr((offsetEnd.Uint64()))
 		}
 	}
-	return &runes.RuneEntry{
+	return runes.RuneEntry{
 		RuneId:         runeId,
 		SpacedRune:     runes.NewSpacedRune(rune, uint32(src.Spacers)),
 		Mints:          mints,
@@ -104,5 +117,88 @@ func mapRuneEntryModelToType(src gen.RunesEntry) (*runes.RuneEntry, error) {
 		Divisibility:   uint8(src.Divisibility),
 		CompletionTime: completionTime,
 		Terms:          terms,
+	}, nil
+}
+
+func mapRuneEntryTypeToModel(src runes.RuneEntry) (gen.RunesEntry, error) {
+	runeId := src.RuneId.String()
+	rune := src.SpacedRune.Rune.String()
+	spacers := int32(src.SpacedRune.Spacers)
+	burnedAmount, err := numericFromUint128(&src.BurnedAmount)
+	if err != nil {
+		return gen.RunesEntry{}, errors.Wrap(err, "failed to parse burned amount")
+	}
+	mints, err := numericFromUint128(&src.Mints)
+	if err != nil {
+		return gen.RunesEntry{}, errors.Wrap(err, "failed to parse mints")
+	}
+	premine, err := numericFromUint128(&src.Premine)
+	if err != nil {
+		return gen.RunesEntry{}, errors.Wrap(err, "failed to parse premine")
+	}
+	var completionTime pgtype.Timestamp
+	if !src.CompletionTime.IsZero() {
+		completionTime.Time = src.CompletionTime
+		completionTime.Valid = true
+	}
+	var terms bool
+	var termsAmount, termsCap, termsHeightStart, termsHeightEnd, termsOffsetStart, termsOffsetEnd pgtype.Numeric
+	if src.Terms != nil {
+		terms = true
+		if src.Terms.Amount != nil {
+			termsAmount, err = numericFromUint128(src.Terms.Amount)
+			if err != nil {
+				return gen.RunesEntry{}, errors.Wrap(err, "failed to parse terms amount")
+			}
+		}
+		if src.Terms.Cap != nil {
+			termsCap, err = numericFromUint128(src.Terms.Cap)
+			if err != nil {
+				return gen.RunesEntry{}, errors.Wrap(err, "failed to parse terms cap")
+			}
+		}
+		if src.Terms.HeightStart != nil {
+			termsHeightStart, err = numericFromUint128(lo.ToPtr(uint128.From64(*src.Terms.HeightStart)))
+			if err != nil {
+				return gen.RunesEntry{}, errors.Wrap(err, "failed to parse terms height start")
+			}
+		}
+		if src.Terms.HeightEnd != nil {
+			termsHeightEnd, err = numericFromUint128(lo.ToPtr(uint128.From64(*src.Terms.HeightEnd)))
+			if err != nil {
+				return gen.RunesEntry{}, errors.Wrap(err, "failed to parse terms height end")
+			}
+		}
+		if src.Terms.OffsetStart != nil {
+			termsOffsetStart, err = numericFromUint128(lo.ToPtr(uint128.From64(*src.Terms.OffsetStart)))
+			if err != nil {
+				return gen.RunesEntry{}, errors.Wrap(err, "failed to parse terms offset start")
+			}
+		}
+		if src.Terms.OffsetEnd != nil {
+			termsOffsetEnd, err = numericFromUint128(lo.ToPtr(uint128.From64(*src.Terms.OffsetEnd)))
+			if err != nil {
+				return gen.RunesEntry{}, errors.Wrap(err, "failed to parse terms offset end")
+			}
+		}
+	}
+
+	return gen.RunesEntry{
+		RuneID:           runeId,
+		Rune:             rune,
+		Spacers:          spacers,
+		BurnedAmount:     burnedAmount,
+		Mints:            mints,
+		Premine:          premine,
+		Symbol:           src.Symbol,
+		Divisibility:     int16(src.Divisibility),
+		Terms:            terms,
+		TermsAmount:      termsAmount,
+		TermsCap:         termsCap,
+		TermsHeightStart: termsHeightStart,
+		TermsHeightEnd:   termsHeightEnd,
+		TermsOffsetStart: termsOffsetStart,
+		TermsOffsetEnd:   termsOffsetEnd,
+		CompletionTime:   completionTime,
 	}, nil
 }

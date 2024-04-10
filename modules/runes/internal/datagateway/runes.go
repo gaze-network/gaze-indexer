@@ -28,7 +28,14 @@ type RunesWriterDataGateway interface {
 	Rollback(ctx context.Context) error
 
 	SetRuneEntry(ctx context.Context, entry *runes.RuneEntry) error
-	CreateRunesBalanceAtOutPoint(ctx context.Context, outPoint wire.OutPoint, balances map[runes.RuneId]uint128.Uint128) error
-	CreateRuneBalance(ctx context.Context, pkScript string, runeId runes.RuneId, blockHeight uint64, balance uint128.Uint128) error
+	CreateRuneBalancesAtOutPoint(ctx context.Context, outPoint wire.OutPoint, balances map[runes.RuneId]uint128.Uint128) error
+	CreateRuneBalancesAtBlock(ctx context.Context, params []CreateRuneBalancesAtBlockParams) error
 	UpdateLatestBlockHeight(ctx context.Context, blockHeight uint64) error
+}
+
+type CreateRuneBalancesAtBlockParams struct {
+	PkScript    []byte
+	RuneId      runes.RuneId
+	Balance     uint128.Uint128
+	BlockHeight uint64
 }
