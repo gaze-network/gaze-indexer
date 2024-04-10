@@ -27,15 +27,17 @@ CREATE TABLE IF NOT EXISTS "runes_entries" (
 	"mints" DECIMAL NOT NULL,
 	"premine" DECIMAL NOT NULL,
 	"symbol" INT NOT NULL,
-	"term_amount" DECIMAL,
-	"term_cap" DECIMAL,
-	"term_height_start" DECIMAL, -- using DECIMAL because it is uint64 but postgres only supports up to int64
-	"term_height_end" DECIMAL,
-	"term_offset_start" DECIMAL,
-	"term_offset_end" DECIMAL,
+	"divisibility" SMALLINT NOT NULL,
+	"terms" BOOLEAN NOT NULL, -- if true, then minting term exists for this entry
+	"terms_amount" DECIMAL,
+	"terms_cap" DECIMAL,
+	"terms_height_start" DECIMAL, -- using DECIMAL because it is uint64 but postgres only supports up to int64
+	"terms_height_end" DECIMAL,
+	"terms_offset_start" DECIMAL,
+	"terms_offset_end" DECIMAL,
 	"completion_time" TIMESTAMP NOT NULL
 );
-CREATE INDEX IF NOT EXISTS runes_entries_rune_idx ON "runes_entries" USING HASH ("rune");
+CREATE UNIQUE INDEX IF NOT EXISTS runes_entries_rune_idx ON "runes_entries" USING BTREE ("rune");
 
 CREATE TABLE IF NOT EXISTS "runes_outpoint_balances" (
 	"rune_id" TEXT NOT NULL,

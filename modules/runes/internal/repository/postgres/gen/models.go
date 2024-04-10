@@ -16,20 +16,22 @@ type RunesBalance struct {
 }
 
 type RunesEntry struct {
-	RuneID          string
-	Rune            string
-	Spacers         int32
-	BurnedAmount    pgtype.Numeric
-	Mints           pgtype.Numeric
-	Premine         pgtype.Numeric
-	Symbol          int32
-	TermAmount      pgtype.Numeric
-	TermCap         pgtype.Numeric
-	TermHeightStart pgtype.Numeric
-	TermHeightEnd   pgtype.Numeric
-	TermOffsetStart pgtype.Numeric
-	TermOffsetEnd   pgtype.Numeric
-	CompletionTime  pgtype.Timestamp
+	RuneID           string
+	Rune             string
+	Spacers          int32
+	BurnedAmount     pgtype.Numeric
+	Mints            pgtype.Numeric
+	Premine          pgtype.Numeric
+	Symbol           int32
+	Divisibility     int16
+	Terms            bool
+	TermsAmount      pgtype.Numeric
+	TermsCap         pgtype.Numeric
+	TermsHeightStart pgtype.Numeric
+	TermsHeightEnd   pgtype.Numeric
+	TermsOffsetStart pgtype.Numeric
+	TermsOffsetEnd   pgtype.Numeric
+	CompletionTime   pgtype.Timestamp
 }
 
 type RunesIndexerDbVersion struct {
@@ -39,10 +41,11 @@ type RunesIndexerDbVersion struct {
 }
 
 type RunesIndexerStat struct {
-	Id            int64
-	ClientVersion string
-	Network       string
-	CreatedAt     pgtype.Timestamptz
+	Id                int64
+	ClientVersion     string
+	Network           string
+	LatestBlockHeight int32
+	CreatedAt         pgtype.Timestamptz
 }
 
 type RunesOutpointBalance struct {

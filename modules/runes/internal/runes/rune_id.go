@@ -1,6 +1,7 @@
 package runes
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -49,6 +50,10 @@ func NewRuneIdFromString(str string) (RuneId, error) {
 		BlockHeight: blockHeight,
 		TxIndex:     uint32(txIndex),
 	}, nil
+}
+
+func (r RuneId) String() string {
+	return fmt.Sprintf("%d:%d", r.BlockHeight, r.TxIndex)
 }
 
 // Delta calculates the delta encoding between two RuneIds. If the two RuneIds are in the same block, then the block delta is 0 and the tx index delta is the difference between the two tx indices.

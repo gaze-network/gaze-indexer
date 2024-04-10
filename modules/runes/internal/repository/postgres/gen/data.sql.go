@@ -78,17 +78,16 @@ func (q *Queries) GetBalancesByRuneId(ctx context.Context, arg GetBalancesByRune
 }
 
 const getOutPointBalances = `-- name: GetOutPointBalances :many
-SELECT rune_id, tx_hash, tx_idx, value FROM runes_outpoint_balances WHERE rune_id = $1 AND tx_hash = $2 AND tx_idx = $3
+SELECT rune_id, tx_hash, tx_idx, value FROM runes_outpoint_balances WHERE tx_hash = $1 AND tx_idx = $2
 `
 
 type GetOutPointBalancesParams struct {
-	RuneID string
 	TxHash string
 	TxIdx  int32
 }
 
 func (q *Queries) GetOutPointBalances(ctx context.Context, arg GetOutPointBalancesParams) ([]RunesOutpointBalance, error) {
-	rows, err := q.db.Query(ctx, getOutPointBalances, arg.RuneID, arg.TxHash, arg.TxIdx)
+	rows, err := q.db.Query(ctx, getOutPointBalances, arg.TxHash, arg.TxIdx)
 	if err != nil {
 		return nil, err
 	}
@@ -112,80 +111,58 @@ func (q *Queries) GetOutPointBalances(ctx context.Context, arg GetOutPointBalanc
 	return items, nil
 }
 
-const getRuneEntriesByRuneIds = `-- name: GetRuneEntriesByRuneIds :many
-SELECT rune_id, rune, spacers, burned_amount, mints, premine, symbol, term_amount, term_cap, term_height_start, term_height_end, term_offset_start, term_offset_end, completion_time FROM runes_entries WHERE rune_id = ANY($1::text[])
+const getRuneEntryByRune = `-- name: GetRuneEntryByRune :one
+SELECT rune_id, rune, spacers, burned_amount, mints, premine, symbol, divisibility, terms, terms_amount, terms_cap, terms_height_start, terms_height_end, terms_offset_start, terms_offset_end, completion_time FROM runes_entries WHERE rune = $1
 `
 
-func (q *Queries) GetRuneEntriesByRuneIds(ctx context.Context, runeIds []string) ([]RunesEntry, error) {
-	rows, err := q.db.Query(ctx, getRuneEntriesByRuneIds, runeIds)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []RunesEntry
-	for rows.Next() {
-		var i RunesEntry
-		if err := rows.Scan(
-			&i.RuneID,
-			&i.Rune,
-			&i.Spacers,
-			&i.BurnedAmount,
-			&i.Mints,
-			&i.Premine,
-			&i.Symbol,
-			&i.TermAmount,
-			&i.TermCap,
-			&i.TermHeightStart,
-			&i.TermHeightEnd,
-			&i.TermOffsetStart,
-			&i.TermOffsetEnd,
-			&i.CompletionTime,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
+func (q *Queries) GetRuneEntryByRune(ctx context.Context, rune string) (RunesEntry, error) {
+	row := q.db.QueryRow(ctx, getRuneEntryByRune, rune)
+	var i RunesEntry
+	err := row.Scan(
+		&i.RuneID,
+		&i.Rune,
+		&i.Spacers,
+		&i.BurnedAmount,
+		&i.Mints,
+		&i.Premine,
+		&i.Symbol,
+		&i.Divisibility,
+		&i.Terms,
+		&i.TermsAmount,
+		&i.TermsCap,
+		&i.TermsHeightStart,
+		&i.TermsHeightEnd,
+		&i.TermsOffsetStart,
+		&i.TermsOffsetEnd,
+		&i.CompletionTime,
+	)
+	return i, err
 }
 
-const getRuneEntriesByRunes = `-- name: GetRuneEntriesByRunes :many
-SELECT rune_id, rune, spacers, burned_amount, mints, premine, symbol, term_amount, term_cap, term_height_start, term_height_end, term_offset_start, term_offset_end, completion_time FROM runes_entries WHERE rune = ANY($1::text[])
+const getRuneEntryByRuneId = `-- name: GetRuneEntryByRuneId :one
+SELECT rune_id, rune, spacers, burned_amount, mints, premine, symbol, divisibility, terms, terms_amount, terms_cap, terms_height_start, terms_height_end, terms_offset_start, terms_offset_end, completion_time FROM runes_entries WHERE rune_id = $1
 `
 
-func (q *Queries) GetRuneEntriesByRunes(ctx context.Context, runeIds []string) ([]RunesEntry, error) {
-	rows, err := q.db.Query(ctx, getRuneEntriesByRunes, runeIds)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []RunesEntry
-	for rows.Next() {
-		var i RunesEntry
-		if err := rows.Scan(
-			&i.RuneID,
-			&i.Rune,
-			&i.Spacers,
-			&i.BurnedAmount,
-			&i.Mints,
-			&i.Premine,
-			&i.Symbol,
-			&i.TermAmount,
-			&i.TermCap,
-			&i.TermHeightStart,
-			&i.TermHeightEnd,
-			&i.TermOffsetStart,
-			&i.TermOffsetEnd,
-			&i.CompletionTime,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
+func (q *Queries) GetRuneEntryByRuneId(ctx context.Context, runeID string) (RunesEntry, error) {
+	row := q.db.QueryRow(ctx, getRuneEntryByRuneId, runeID)
+	var i RunesEntry
+	err := row.Scan(
+		&i.RuneID,
+		&i.Rune,
+		&i.Spacers,
+		&i.BurnedAmount,
+		&i.Mints,
+		&i.Premine,
+		&i.Symbol,
+		&i.Divisibility,
+		&i.Terms,
+		&i.TermsAmount,
+		&i.TermsCap,
+		&i.TermsHeightStart,
+		&i.TermsHeightEnd,
+		&i.TermsOffsetStart,
+		&i.TermsOffsetEnd,
+		&i.CompletionTime,
+	)
+	return i, err
 }
