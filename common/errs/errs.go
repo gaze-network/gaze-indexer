@@ -6,7 +6,11 @@ type ErrorKind string
 
 const (
 	// NotFound is returned when a requested item is not found.
-	NotFound        = ErrorKind("Not Found")
+	NotFound = ErrorKind("Not Found")
+
+	// InternalError is returned when internal logic got error
+	InternalError = ErrorKind("Internal Error")
+
 	OverflowUint64  = ErrorKind("overflow uint64")
 	OverflowUint128 = ErrorKind("overflow uint128")
 )
