@@ -173,5 +173,5 @@ func Stack(key string) slog.Attr {
 // StackSkip returns an slog.Attr for the stack trace similarly to Stack,
 // but also skips the given number of frames from the top of the stacktrace.
 func StackSkip(key string, skip int) slog.Attr {
-	return slog.Any(key, stacktrace.Capture(skip+1).TraceFramesStrings())
+	return slog.Any(key, stacktrace.Capture(skip+1).FramesStrings())
 }
