@@ -9,6 +9,9 @@ import (
 	"github.com/cockroachdb/errors/errbase"
 )
 
+// The maximum number of stackframes to capture.
+var MaxStackDepth = 64
+
 // StackTrace is the type of the data for a call stack.
 // This mirrors the type of the same name in [github.com/cockroachdb/errors/errbase.StackTrace].
 type StackTrace errbase.StackTrace
@@ -24,8 +27,7 @@ func Caller(skip int) *StackTrace {
 // Capture captures a stack trace of the specified depth, skipping
 // the provided number of frames. skip=0 identifies the caller of Capture.
 func Capture(skip int) *StackTrace {
-	const numFrames = 32
-	var pcs [numFrames]uintptr
+	pcs := make([]uintptr, MaxStackDepth)
 	n := runtime.Callers(2+skip, pcs[:])
 	f := make([]errbase.StackFrame, n)
 	for i := 0; i < len(f); i++ {
