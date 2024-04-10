@@ -18,7 +18,7 @@ INSERT INTO bitcoin_transaction_txouts ("tx_hash","tx_idx","pkscript","value") V
 WITH update_txout AS (
 	UPDATE "bitcoin_transaction_txouts"
 	SET "is_spent" = true
-	WHERE "tx_hash" = $3 AND "tx_idx" = $4
+	WHERE "tx_hash" = $3 AND "tx_idx" = $4 AND "is_spent" = false -- TODO: should throw an error if already spent
 	RETURNING "pkscript"
 )
 INSERT INTO bitcoin_transaction_txins ("tx_hash","tx_idx","prevout_tx_hash","prevout_tx_idx","prevout_pkscript","scriptsig","witness","sequence") 
