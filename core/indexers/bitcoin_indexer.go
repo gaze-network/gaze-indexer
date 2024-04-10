@@ -91,7 +91,7 @@ func (i *BitcoinIndexer) Run(ctx context.Context) (err error) {
 				return errors.Wrap(err, "failed to get block")
 			}
 
-			b := types.ParseMsgBlock(block)
+			b := types.ParseMsgBlock(block, endHeight)
 			if err := i.Processor.Process(ctx, []*types.Block{b}); err != nil {
 				return errors.WithStack(err)
 			}
