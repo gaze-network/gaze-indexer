@@ -36,6 +36,14 @@ func Error(err error) slog.Attr {
 	return slog.Any(ErrorKey, err)
 }
 
+// NamedError returns an slog.Attr for an error value with a key.
+func NamedError(key string, err error) slog.Attr {
+	if err == nil {
+		return slog.Attr{}
+	}
+	return slog.Any(key, err)
+}
+
 // String returns an slog.Attr for a string value.
 func String(key, value string) slog.Attr {
 	return slog.String(key, value)
@@ -149,7 +157,7 @@ func ByteString(key string, v []byte) slog.Attr {
 }
 
 // Reflect returns an slog.Attr for an arbitrary object.
-// It uses an encoding-appropriate, reflection-based function to lazily serialize nearly
+// It uses an json encoding, reflection-based function to lazily serialize nearly
 // any object into an slog.Attr, but it's relatively slow and
 // allocation-heavy. Any is always a better choice.
 func Reflect(key string, v interface{}) slog.Attr {
