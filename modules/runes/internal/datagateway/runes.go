@@ -8,13 +8,6 @@ import (
 	"github.com/gaze-network/uint128"
 )
 
-type FlushData struct {
-	RuneEntries      map[runes.RuneId]*runes.RuneEntry
-	OutPointBalances map[wire.OutPoint]map[runes.RuneId]uint128.Uint128
-	Balances         map[string]map[uint64]map[runes.RuneId]uint128.Uint128
-	BlockHeight      uint64
-}
-
 type RunesDataGateway interface {
 	RunesReaderDataGateway
 	RunesWriterDataGateway
