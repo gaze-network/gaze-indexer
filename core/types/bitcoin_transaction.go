@@ -9,6 +9,7 @@ import (
 type Transaction struct {
 	BlockHeight int64
 	BlockHash   chainhash.Hash
+	Index       uint32
 	TxHash      chainhash.Hash
 	Version     int32
 	LockTime    uint32
@@ -30,10 +31,11 @@ type TxOut struct {
 }
 
 // ParseMsgTx parses btcd/wire.MsgTx to Transaction.
-func ParseMsgTx(src *wire.MsgTx, blockHeight int64, blockHash chainhash.Hash) *Transaction {
+func ParseMsgTx(src *wire.MsgTx, blockHeight int64, blockHash chainhash.Hash, index uint32) *Transaction {
 	return &Transaction{
 		BlockHeight: blockHeight,
 		BlockHash:   blockHash,
+		Index:       index,
 		TxHash:      src.TxHash(),
 		Version:     src.Version,
 		LockTime:    src.LockTime,

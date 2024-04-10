@@ -37,6 +37,6 @@ func ParseMsgBlock(src *wire.MsgBlock, height int64) *Block {
 			Bits:       src.Header.Bits,
 			Nonce:      src.Header.Nonce,
 		},
-		Transactions: lo.Map(src.Transactions, func(item *wire.MsgTx, _ int) *Transaction { return ParseMsgTx(item, height, hash) }),
+		Transactions: lo.Map(src.Transactions, func(item *wire.MsgTx, index int) *Transaction { return ParseMsgTx(item, height, hash, uint32(index)) }),
 	}
 }
