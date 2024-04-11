@@ -10,18 +10,22 @@ import (
 	"github.com/gaze-network/indexer-network/modules/runes/internal/runes"
 	"github.com/gaze-network/uint128"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/samber/lo"
 )
 
-func uint128FromNumeric(src pgtype.Numeric) (uint128.Uint128, error) {
+func uint128FromNumeric(src pgtype.Numeric) (*uint128.Uint128, error) {
+	if !src.Valid {
+		return nil, nil
+	}
 	bytes, err := src.MarshalJSON()
 	if err != nil {
-		return uint128.Uint128{}, errors.WithStack(err)
+		return nil, errors.WithStack(err)
 	}
 	result, err := uint128.FromString(string(bytes))
 	if err != nil {
-		return uint128.Uint128{}, errors.WithStack(err)
+		return nil, errors.WithStack(err)
 	}
-	return result, nil
+	return &result, nil
 }
 
 func numericFromUint128(src *uint128.Uint128) (pgtype.Numeric, error) {
@@ -70,14 +74,14 @@ func mapRuneEntryModelToType(src gen.RunesEntry) (runes.RuneEntry, error) {
 			if err != nil {
 				return runes.RuneEntry{}, errors.Wrap(err, "failed to parse terms amount")
 			}
-			terms.Amount = &amount
+			terms.Amount = amount
 		}
 		if src.TermsCap.Valid {
 			cap, err := uint128FromNumeric(src.TermsCap)
 			if err != nil {
 				return runes.RuneEntry{}, errors.Wrap(err, "failed to parse terms cap")
 			}
-			terms.Cap = &cap
+			terms.Cap = cap
 		}
 		if src.TermsHeightStart.Valid {
 			heightStart := uint64(src.TermsHeightStart.Int32)
@@ -99,9 +103,9 @@ func mapRuneEntryModelToType(src gen.RunesEntry) (runes.RuneEntry, error) {
 	return runes.RuneEntry{
 		RuneId:         runeId,
 		SpacedRune:     runes.NewSpacedRune(rune, uint32(src.Spacers)),
-		Mints:          mints,
-		BurnedAmount:   burnedAmount,
-		Premine:        premine,
+		Mints:          lo.FromPtr(mints),
+		BurnedAmount:   lo.FromPtr(burnedAmount),
+		Premine:        lo.FromPtr(premine),
 		Symbol:         src.Symbol,
 		Divisibility:   uint8(src.Divisibility),
 		CompletionTime: completionTime,
@@ -209,7 +213,7 @@ func mapBalanceModelToType(src gen.RunesBalance) (*entity.Balance, error) {
 	return &entity.Balance{
 		PkScript:    pkScript,
 		RuneId:      runeId,
-		Amount:      amount,
+		Amount:      lo.FromPtr(amount),
 		BlockHeight: uint64(src.BlockHeight),
 	}, nil
 }

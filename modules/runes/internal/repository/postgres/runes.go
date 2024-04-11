@@ -59,7 +59,7 @@ func (r *Repository) GetRunesBalancesAtOutPoint(ctx context.Context, outPoint wi
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to parse balance")
 		}
-		result[runeId] = amount
+		result[runeId] = lo.FromPtr(amount)
 	}
 	return result, nil
 }
