@@ -17,9 +17,7 @@ func middlewareError() middleware {
 					err := attr.Value.Any()
 					if err, ok := err.(error); ok && err != nil {
 						rec.AddAttrs(slog.String(slogx.ErrorVerboseKey, fmt.Sprintf("%+v", err)))
-						if st, ok := stacktrace.ParseErrStackTrace(err); ok {
-							rec.AddAttrs(slog.Any(slogx.ErrorStackTraceKey, st.FramesStrings()))
-						}
+						rec.AddAttrs(slog.Any(slogx.ErrorStackTraceKey, stacktrace.ExtractErrorStackTraces(err)))
 					}
 				}
 				return false
@@ -30,12 +28,30 @@ func middlewareError() middleware {
 }
 
 func errorAttrReplacer(groups []string, attr slog.Attr) slog.Attr {
-	if len(groups) == 0 && (attr.Key == slogx.ErrorKey || attr.Key == "err") {
-		if err, ok := attr.Value.Any().(error); ok {
-			if err != nil {
-				return slog.Attr{Key: slogx.ErrorKey, Value: slog.StringValue(err.Error())}
+	if len(groups) == 0 {
+		switch attr.Key {
+		case slogx.ErrorKey, "err":
+			if err, ok := attr.Value.Any().(error); ok {
+				if err != nil {
+					return slog.Attr{Key: slogx.ErrorKey, Value: slog.StringValue(err.Error())}
+				}
+				return slog.Attr{Key: slogx.ErrorKey, Value: slog.StringValue("null")}
 			}
-			return slog.Attr{Key: slogx.ErrorKey, Value: slog.StringValue("null")}
+		case slogx.ErrorStackTraceKey:
+			type stackDetails struct {
+				Error  string   `json:"error"`
+				Stacks []string `json:"stacks"`
+			}
+			if st, ok := attr.Value.Any().(stacktrace.ErrorStackTraces); ok {
+				errsStacks := make([]stackDetails, 0)
+				for _, errStack := range st {
+					errsStacks = append(errsStacks, stackDetails{
+						Error:  errStack.Error(),
+						Stacks: errStack.StackTrace.FramesStrings(),
+					})
+				}
+				return slog.Attr{Key: slogx.ErrorStackTraceKey, Value: slog.AnyValue(errsStacks)}
+			}
 		}
 	}
 	return attr
