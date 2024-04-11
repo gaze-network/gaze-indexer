@@ -9,18 +9,18 @@ import (
 	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/common/errs"
-	"github.com/gaze-network/indexer-network/core"
+	"github.com/gaze-network/indexer-network/core/datasources"
 	"github.com/gaze-network/indexer-network/core/types"
 	"github.com/gaze-network/indexer-network/pkg/logger"
 )
 
 type (
-	BitcoinProcessor  Processor[*types.Block]
-	BitcoinDatasource Datasource[*types.Block]
+	BitcoinProcessor  Processor[[]*types.Block]
+	BitcoinDatasource datasources.Datasource[[]*types.Block]
 )
 
 // Make sure to implement the IndexerWorker interface
-var _ core.IndexerWorker = (*BitcoinIndexer)(nil)
+var _ IndexerWorker = (*BitcoinIndexer)(nil)
 
 // BitcoinIndexer is the polling indexer for sync Bitcoin data to the database.
 type BitcoinIndexer struct {
@@ -49,6 +49,9 @@ func (i *BitcoinIndexer) Run(ctx context.Context) (err error) {
 		case <-ctx.Done():
 			return nil
 		case <-ticker.C:
+
+			// ch, stop, err := i.Datasource.FetchAsync(ctx, i.currentBlock.Height-1, -1)
+
 			// Prepare range of blocks to sync
 			startHeight, endHeight, skip, err := i.prepareRange(i.currentBlock.Height)
 			if err != nil {
