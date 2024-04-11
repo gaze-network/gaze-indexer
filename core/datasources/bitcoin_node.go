@@ -4,12 +4,11 @@ import (
 	"context"
 
 	"github.com/cockroachdb/errors"
-	"github.com/gaze-network/indexer-network/core/indexers"
 	"github.com/gaze-network/indexer-network/core/types"
 )
 
 // Make sure to implement the BitcoinDatasource interface
-var _ indexers.BitcoinDatasource = (*BitcoinNodeDatasource)(nil)
+var _ Datasource[[]*types.Block] = (*BitcoinNodeDatasource)(nil)
 
 // BitcoinNodeDatasource fetch data from Bitcoin node for Bitcoin Indexer
 type BitcoinNodeDatasource struct{}
@@ -19,10 +18,12 @@ type BitcoinNodeDatasource struct{}
 //   - from: block height to start fetching, if -1, it will start from genesis block
 //   - to: block height to stop fetching, if -1, it will fetch until the latest block
 func (d *BitcoinNodeDatasource) Fetch(ctx context.Context, from, to int64) ([]*types.Block, error) {
-	ch, stop, err := d.FetchAsync(ctx, from, to)
+	ch := make(chan []*types.Block)
+	subscription, err := d.FetchAsync(ctx, from, to, ch)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
+	defer subscription.Unsubscribe()
 
 	blocks := make([]*types.Block, 0)
 	for {
@@ -33,7 +34,6 @@ func (d *BitcoinNodeDatasource) Fetch(ctx context.Context, from, to int64) ([]*t
 			}
 			blocks = append(blocks, b...)
 		case <-ctx.Done():
-			stop()
 			return nil, errors.Wrap(ctx.Err(), "context done")
 		}
 	}
@@ -43,8 +43,6 @@ func (d *BitcoinNodeDatasource) Fetch(ctx context.Context, from, to int64) ([]*t
 //
 //   - from: block height to start fetching, if -1, it will start from genesis block
 //   - to: block height to stop fetching, if -1, it will fetch until the latest block
-func (d *BitcoinNodeDatasource) FetchAsync(ctx context.Context, from, to int64) (<-chan []*types.Block, func(), error) {
-	ctx, cancel := context.WithCancel(ctx)
-	_ = ctx
-	return nil, cancel, nil
+func (d *BitcoinNodeDatasource) FetchAsync(ctx context.Context, from, to int64, ch chan<- []*types.Block) (*ClientSubscription[[]*types.Block], error) {
+	return nil, nil
 }
