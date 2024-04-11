@@ -80,7 +80,7 @@ func (q *Queries) GetBalancesByRuneId(ctx context.Context, arg GetBalancesByRune
 }
 
 const getOutPointBalances = `-- name: GetOutPointBalances :many
-SELECT rune_id, tx_hash, tx_idx, amount FROM runes_outpoint_balances WHERE tx_hash = $1 AND tx_idx = $2
+SELECT rune_id, tx_hash, tx_idx, amount, block_height, spent_height FROM runes_outpoint_balances WHERE tx_hash = $1 AND tx_idx = $2
 `
 
 type GetOutPointBalancesParams struct {
@@ -102,6 +102,8 @@ func (q *Queries) GetOutPointBalances(ctx context.Context, arg GetOutPointBalanc
 			&i.TxHash,
 			&i.TxIdx,
 			&i.Amount,
+			&i.BlockHeight,
+			&i.SpentHeight,
 		); err != nil {
 			return nil, err
 		}
@@ -226,10 +228,10 @@ type SetRuneEntryParams struct {
 	Terms            bool
 	TermsAmount      pgtype.Numeric
 	TermsCap         pgtype.Numeric
-	TermsHeightStart pgtype.Numeric
-	TermsHeightEnd   pgtype.Numeric
-	TermsOffsetStart pgtype.Numeric
-	TermsOffsetEnd   pgtype.Numeric
+	TermsHeightStart pgtype.Int4
+	TermsHeightEnd   pgtype.Int4
+	TermsOffsetStart pgtype.Int4
+	TermsOffsetEnd   pgtype.Int4
 	CompletionTime   pgtype.Timestamp
 }
 

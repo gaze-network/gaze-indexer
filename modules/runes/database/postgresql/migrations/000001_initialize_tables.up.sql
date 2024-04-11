@@ -13,15 +13,15 @@ CREATE TABLE IF NOT EXISTS "runes_indexer_stats" (
 CREATE TABLE IF NOT EXISTS "runes_indexer_db_version" (
 	"id" BIGSERIAL PRIMARY KEY,
 	"version" INT NOT NULL,
-	"created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+	"created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE
 );
 INSERT INTO "runes_indexer_db_version" ("version") VALUES (1);
 
 -- Runes data
 
 CREATE TABLE IF NOT EXISTS "runes_processor_state" (
-	"id" SERIAL PRIMARY KEY,
-	"latest_block_height" INT NOT NULL
+	"latest_block_height" INT NOT NULL,
+	"updated_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS "runes_entries" (
@@ -36,10 +36,10 @@ CREATE TABLE IF NOT EXISTS "runes_entries" (
 	"terms" BOOLEAN NOT NULL, -- if true, then minting term exists for this entry
 	"terms_amount" DECIMAL,
 	"terms_cap" DECIMAL,
-	"terms_height_start" DECIMAL, -- using DECIMAL because it is uint64 but postgres only supports up to int64
-	"terms_height_end" DECIMAL,
-	"terms_offset_start" DECIMAL,
-	"terms_offset_end" DECIMAL,
+	"terms_height_start" INT,
+	"terms_height_end" INT,
+	"terms_offset_start" INT,
+	"terms_offset_end" INT,
 	"completion_time" TIMESTAMP NOT NULL
 );
 CREATE UNIQUE INDEX IF NOT EXISTS runes_entries_rune_idx ON "runes_entries" USING BTREE ("rune");
@@ -49,6 +49,8 @@ CREATE TABLE IF NOT EXISTS "runes_outpoint_balances" (
 	"tx_hash" TEXT NOT NULL,
 	"tx_idx" INT NOT NULL, -- output index
 	"amount" DECIMAL NOT NULL,
+	"block_height" INT NOT NULL, -- block height when this output was created
+	"spent_height" INT, -- block height when this output was spent
 	PRIMARY KEY ("rune_id", "tx_hash", "tx_idx")
 );
 

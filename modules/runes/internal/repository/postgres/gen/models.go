@@ -27,10 +27,10 @@ type RunesEntry struct {
 	Terms            bool
 	TermsAmount      pgtype.Numeric
 	TermsCap         pgtype.Numeric
-	TermsHeightStart pgtype.Numeric
-	TermsHeightEnd   pgtype.Numeric
-	TermsOffsetStart pgtype.Numeric
-	TermsOffsetEnd   pgtype.Numeric
+	TermsHeightStart pgtype.Int4
+	TermsHeightEnd   pgtype.Int4
+	TermsOffsetStart pgtype.Int4
+	TermsOffsetEnd   pgtype.Int4
 	CompletionTime   pgtype.Timestamp
 }
 
@@ -49,10 +49,12 @@ type RunesIndexerStat struct {
 }
 
 type RunesOutpointBalance struct {
-	RuneID string
-	TxHash string
-	TxIdx  int32
-	Amount pgtype.Numeric
+	RuneID      string
+	TxHash      string
+	TxIdx       int32
+	Amount      pgtype.Numeric
+	BlockHeight int32
+	SpentHeight pgtype.Int4
 }
 
 type RunesProcessorState struct {

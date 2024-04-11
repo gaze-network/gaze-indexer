@@ -10,7 +10,6 @@ import (
 	"github.com/gaze-network/indexer-network/modules/runes/internal/runes"
 	"github.com/gaze-network/uint128"
 	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/samber/lo"
 )
 
 func uint128FromNumeric(src pgtype.Numeric) (uint128.Uint128, error) {
@@ -81,32 +80,20 @@ func mapRuneEntryModelToType(src gen.RunesEntry) (runes.RuneEntry, error) {
 			terms.Cap = &cap
 		}
 		if src.TermsHeightStart.Valid {
-			heightStart, err := uint128FromNumeric(src.TermsHeightStart)
-			if err != nil {
-				return runes.RuneEntry{}, errors.Wrap(err, "failed to parse terms height start")
-			}
-			terms.HeightStart = lo.ToPtr((heightStart.Uint64()))
+			heightStart := uint64(src.TermsHeightStart.Int32)
+			terms.HeightStart = &heightStart
 		}
 		if src.TermsHeightEnd.Valid {
-			heightEnd, err := uint128FromNumeric(src.TermsHeightEnd)
-			if err != nil {
-				return runes.RuneEntry{}, errors.Wrap(err, "failed to parse terms height end")
-			}
-			terms.HeightEnd = lo.ToPtr((heightEnd.Uint64()))
+			heightEnd := uint64(src.TermsHeightEnd.Int32)
+			terms.HeightEnd = &heightEnd
 		}
 		if src.TermsOffsetStart.Valid {
-			offsetStart, err := uint128FromNumeric(src.TermsOffsetStart)
-			if err != nil {
-				return runes.RuneEntry{}, errors.Wrap(err, "failed to parse terms offset start")
-			}
-			terms.OffsetStart = lo.ToPtr((offsetStart.Uint64()))
+			offsetStart := uint64(src.TermsOffsetStart.Int32)
+			terms.OffsetStart = &offsetStart
 		}
 		if src.TermsOffsetEnd.Valid {
-			offsetEnd, err := uint128FromNumeric(src.TermsOffsetEnd)
-			if err != nil {
-				return runes.RuneEntry{}, errors.Wrap(err, "failed to parse terms offset end")
-			}
-			terms.OffsetEnd = lo.ToPtr((offsetEnd.Uint64()))
+			offsetEnd := uint64(src.TermsOffsetEnd.Int32)
+			terms.OffsetEnd = &offsetEnd
 		}
 	}
 	return runes.RuneEntry{
@@ -144,7 +131,8 @@ func mapRuneEntryTypeToParams(src runes.RuneEntry) (gen.SetRuneEntryParams, erro
 		completionTime.Valid = true
 	}
 	var terms bool
-	var termsAmount, termsCap, termsHeightStart, termsHeightEnd, termsOffsetStart, termsOffsetEnd pgtype.Numeric
+	var termsAmount, termsCap pgtype.Numeric
+	var termsHeightStart, termsHeightEnd, termsOffsetStart, termsOffsetEnd pgtype.Int4
 	if src.Terms != nil {
 		terms = true
 		if src.Terms.Amount != nil {
@@ -160,27 +148,27 @@ func mapRuneEntryTypeToParams(src runes.RuneEntry) (gen.SetRuneEntryParams, erro
 			}
 		}
 		if src.Terms.HeightStart != nil {
-			termsHeightStart, err = numericFromUint128(lo.ToPtr(uint128.From64(*src.Terms.HeightStart)))
-			if err != nil {
-				return gen.SetRuneEntryParams{}, errors.Wrap(err, "failed to parse terms height start")
+			termsHeightStart = pgtype.Int4{
+				Int32: int32(*src.Terms.HeightStart),
+				Valid: true,
 			}
 		}
 		if src.Terms.HeightEnd != nil {
-			termsHeightEnd, err = numericFromUint128(lo.ToPtr(uint128.From64(*src.Terms.HeightEnd)))
-			if err != nil {
-				return gen.SetRuneEntryParams{}, errors.Wrap(err, "failed to parse terms height end")
+			termsHeightEnd = pgtype.Int4{
+				Int32: int32(*src.Terms.HeightEnd),
+				Valid: true,
 			}
 		}
 		if src.Terms.OffsetStart != nil {
-			termsOffsetStart, err = numericFromUint128(lo.ToPtr(uint128.From64(*src.Terms.OffsetStart)))
-			if err != nil {
-				return gen.SetRuneEntryParams{}, errors.Wrap(err, "failed to parse terms offset start")
+			termsOffsetStart = pgtype.Int4{
+				Int32: int32(*src.Terms.OffsetStart),
+				Valid: true,
 			}
 		}
 		if src.Terms.OffsetEnd != nil {
-			termsOffsetEnd, err = numericFromUint128(lo.ToPtr(uint128.From64(*src.Terms.OffsetEnd)))
-			if err != nil {
-				return gen.SetRuneEntryParams{}, errors.Wrap(err, "failed to parse terms offset end")
+			termsOffsetEnd = pgtype.Int4{
+				Int32: int32(*src.Terms.OffsetEnd),
+				Valid: true,
 			}
 		}
 	}
