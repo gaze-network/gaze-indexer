@@ -9,31 +9,23 @@ import (
 	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/common/errs"
+	"github.com/gaze-network/indexer-network/core"
 	"github.com/gaze-network/indexer-network/core/types"
 	"github.com/gaze-network/indexer-network/pkg/logger"
 )
 
-// BitcoinProcessor is indexer processor for Bitcoin Indexer.
-type BitcoinProcessor interface {
-	Processor
+type (
+	BitcoinProcessor  Processor[*types.Block]
+	BitcoinDatasource Datasource[*types.Block]
+)
 
-	// Process processes the input data and indexes it.
-	Process(ctx context.Context, inputs []*types.Block) error
-
-	// CurrentBlock returns the latest indexed block header.
-	CurrentBlock(ctx context.Context) (types.BlockHeader, error)
-
-	// PrepareData fetches the data from the source and prepares it for processing.
-	// TODO: extract PrepareData to a separate interface (e.g. DataFetcher)
-	PrepareData(ctx context.Context, from, to int64) ([]*types.Block, error)
-
-	// RevertData revert synced data to the specified block for re-indexing.
-	RevertData(ctx context.Context, from types.BlockHeader) error
-}
+// Make sure to implement the IndexerWorker interface
+var _ core.IndexerWorker = (*BitcoinIndexer)(nil)
 
 // BitcoinIndexer is the indexer for sync Bitcoin data to the database.
 type BitcoinIndexer struct {
 	Processor    BitcoinProcessor
+	Datasource   BitcoinDatasource
 	btcclient    *rpcclient.Client
 	currentBlock types.BlockHeader
 }

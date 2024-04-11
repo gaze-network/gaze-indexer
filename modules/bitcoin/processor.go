@@ -78,7 +78,7 @@ func (p *Processor) PrepareData(ctx context.Context, from, to int64) ([]*types.B
 	return nil, nil
 }
 
-func (p *Processor) RevertData(ctx context.Context, from types.BlockHeader) error {
+func (p *Processor) RevertData(ctx context.Context, from int64) error {
 	// TODO: revert synced data to the specified block for re-indexing
 	return nil
 }
