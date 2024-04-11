@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS "runes_outpoint_balances" (
 	"rune_id" TEXT NOT NULL,
 	"tx_hash" TEXT NOT NULL,
 	"tx_idx" INT NOT NULL, -- output index
-	"value" DECIMAL NOT NULL,
+	"amount" DECIMAL NOT NULL,
 	PRIMARY KEY ("rune_id", "tx_hash", "tx_idx")
 );
 
@@ -56,7 +56,7 @@ CREATE TABLE IF NOT EXISTS "runes_balances" (
 	"pkscript" TEXT NOT NULL,
 	"block_height" INT NOT NULL,
 	"rune_id" TEXT NOT NULL,
-	"value" DECIMAL NOT NULL,
+	"amount" DECIMAL NOT NULL,
 	PRIMARY KEY ("pkscript", "block_height", "rune_id")
 );
 

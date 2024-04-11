@@ -8,6 +8,7 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/common/errs"
 	"github.com/gaze-network/indexer-network/modules/runes/internal/datagateway"
+	"github.com/gaze-network/indexer-network/modules/runes/internal/entity"
 	"github.com/gaze-network/indexer-network/modules/runes/internal/repository/postgres/gen"
 	"github.com/gaze-network/indexer-network/modules/runes/internal/runes"
 	"github.com/gaze-network/uint128"
@@ -16,6 +17,14 @@ import (
 )
 
 var _ datagateway.RunesDataGateway = (*Repository)(nil)
+
+func (r *Repository) GetLatestBlockHeight(ctx context.Context) (uint64, error) {
+	state, err := r.queries.GetRunesProcessorState(ctx)
+	if err != nil {
+		return 0, errors.Wrap(err, "error during query")
+	}
+	return uint64(state.LatestBlockHeight), nil
+}
 
 func (r *Repository) GetRunesBalancesAtOutPoint(ctx context.Context, outPoint wire.OutPoint) (map[runes.RuneId]uint128.Uint128, error) {
 	balances, err := r.queries.GetOutPointBalances(ctx, gen.GetOutPointBalancesParams{
@@ -32,11 +41,11 @@ func (r *Repository) GetRunesBalancesAtOutPoint(ctx context.Context, outPoint wi
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to parse RuneId")
 		}
-		value, err := uint128FromNumeric(balance.Value)
+		amount, err := uint128FromNumeric(balance.Amount)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to parse balance")
 		}
-		result[runeId] = value
+		result[runeId] = amount
 	}
 	return result, nil
 }
@@ -115,7 +124,7 @@ func (r *Repository) CreateRuneBalancesAtOutPoint(ctx context.Context, outPoint 
 	params := make([]gen.CreateRuneBalancesAtOutPointParams, 0, len(balances))
 	for runeId, balance := range balances {
 		balance := balance
-		value, err := numericFromUint128(&balance)
+		amount, err := numericFromUint128(&balance)
 		if err != nil {
 			return errors.Wrap(err, "failed to convert balance to numeric")
 		}
@@ -123,7 +132,7 @@ func (r *Repository) CreateRuneBalancesAtOutPoint(ctx context.Context, outPoint 
 			RuneID: runeId.String(),
 			TxHash: outPoint.Hash.String(),
 			TxIdx:  int32(outPoint.Index),
-			Value:  value,
+			Amount: amount,
 		})
 	}
 	result := r.queries.CreateRuneBalancesAtOutPoint(ctx, params)
@@ -143,7 +152,7 @@ func (r *Repository) CreateRuneBalancesAtBlock(ctx context.Context, params []dat
 	insertParams := make([]gen.CreateRuneBalanceAtBlockParams, 0, len(params))
 	for _, param := range params {
 		param := param
-		value, err := numericFromUint128(&param.Balance)
+		amount, err := numericFromUint128(&param.Balance)
 		if err != nil {
 			return errors.Wrap(err, "failed to convert balance to numeric")
 		}
@@ -151,7 +160,7 @@ func (r *Repository) CreateRuneBalancesAtBlock(ctx context.Context, params []dat
 			Pkscript:    hex.EncodeToString(param.PkScript),
 			BlockHeight: int32(param.BlockHeight),
 			RuneID:      param.RuneId.String(),
-			Value:       value,
+			Amount:      amount,
 		})
 	}
 	result := r.queries.CreateRuneBalanceAtBlock(ctx, insertParams)
@@ -172,4 +181,44 @@ func (r *Repository) UpdateLatestBlockHeight(ctx context.Context, blockHeight ui
 		return errors.Wrap(err, "error during exec")
 	}
 	return nil
+}
+
+func (r *Repository) GetBalancesByPkScript(ctx context.Context, pkScript []byte, blockHeight uint64) (map[runes.RuneId]*entity.Balance, error) {
+	balances, err := r.queries.GetBalancesByPkScript(ctx, gen.GetBalancesByPkScriptParams{
+		Pkscript:    hex.EncodeToString(pkScript),
+		BlockHeight: int32(blockHeight),
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "error during query")
+	}
+
+	result := make(map[runes.RuneId]*entity.Balance, len(balances))
+	for _, balanceModel := range balances {
+		balance, err := mapBalanceModelToType(balanceModel)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to parse balance model")
+		}
+		result[balance.RuneId] = balance
+	}
+	return result, nil
+}
+
+func (r *Repository) GetBalancesByRuneId(ctx context.Context, runeId runes.RuneId, blockHeight uint64) ([]*entity.Balance, error) {
+	balances, err := r.queries.GetBalancesByRuneId(ctx, gen.GetBalancesByRuneIdParams{
+		RuneID:      runeId.String(),
+		BlockHeight: int32(blockHeight),
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "error during query")
+	}
+
+	result := make([]*entity.Balance, 0, len(balances))
+	for _, balanceModel := range balances {
+		balance, err := mapBalanceModelToType(balanceModel)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to parse balance model")
+		}
+		result = append(result, balance)
+	}
+	return result, nil
 }

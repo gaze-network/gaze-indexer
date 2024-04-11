@@ -18,7 +18,7 @@ var (
 )
 
 const createRuneBalanceAtBlock = `-- name: CreateRuneBalanceAtBlock :batchexec
-INSERT INTO runes_balances (pkscript, block_height, rune_id, value) VALUES ($1, $2, $3, $4)
+INSERT INTO runes_balances (pkscript, block_height, rune_id, amount) VALUES ($1, $2, $3, $4)
 `
 
 type CreateRuneBalanceAtBlockBatchResults struct {
@@ -31,7 +31,7 @@ type CreateRuneBalanceAtBlockParams struct {
 	Pkscript    string
 	BlockHeight int32
 	RuneID      string
-	Value       pgtype.Numeric
+	Amount      pgtype.Numeric
 }
 
 func (q *Queries) CreateRuneBalanceAtBlock(ctx context.Context, arg []CreateRuneBalanceAtBlockParams) *CreateRuneBalanceAtBlockBatchResults {
@@ -41,7 +41,7 @@ func (q *Queries) CreateRuneBalanceAtBlock(ctx context.Context, arg []CreateRune
 			a.Pkscript,
 			a.BlockHeight,
 			a.RuneID,
-			a.Value,
+			a.Amount,
 		}
 		batch.Queue(createRuneBalanceAtBlock, vals...)
 	}
@@ -71,7 +71,7 @@ func (b *CreateRuneBalanceAtBlockBatchResults) Close() error {
 }
 
 const createRuneBalancesAtOutPoint = `-- name: CreateRuneBalancesAtOutPoint :batchexec
-INSERT INTO runes_outpoint_balances (rune_id, tx_hash, tx_idx, value) VALUES ($1, $2, $3, $4)
+INSERT INTO runes_outpoint_balances (rune_id, tx_hash, tx_idx, amount) VALUES ($1, $2, $3, $4)
 `
 
 type CreateRuneBalancesAtOutPointBatchResults struct {
@@ -84,7 +84,7 @@ type CreateRuneBalancesAtOutPointParams struct {
 	RuneID string
 	TxHash string
 	TxIdx  int32
-	Value  pgtype.Numeric
+	Amount pgtype.Numeric
 }
 
 func (q *Queries) CreateRuneBalancesAtOutPoint(ctx context.Context, arg []CreateRuneBalancesAtOutPointParams) *CreateRuneBalancesAtOutPointBatchResults {
@@ -94,7 +94,7 @@ func (q *Queries) CreateRuneBalancesAtOutPoint(ctx context.Context, arg []Create
 			a.RuneID,
 			a.TxHash,
 			a.TxIdx,
-			a.Value,
+			a.Amount,
 		}
 		batch.Queue(createRuneBalancesAtOutPoint, vals...)
 	}

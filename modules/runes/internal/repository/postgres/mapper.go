@@ -1,9 +1,11 @@
 package postgres
 
 import (
+	"encoding/hex"
 	"time"
 
 	"github.com/cockroachdb/errors"
+	"github.com/gaze-network/indexer-network/modules/runes/internal/entity"
 	"github.com/gaze-network/indexer-network/modules/runes/internal/repository/postgres/gen"
 	"github.com/gaze-network/indexer-network/modules/runes/internal/runes"
 	"github.com/gaze-network/uint128"
@@ -200,5 +202,26 @@ func mapRuneEntryTypeToParams(src runes.RuneEntry) (gen.SetRuneEntryParams, erro
 		TermsOffsetStart: termsOffsetStart,
 		TermsOffsetEnd:   termsOffsetEnd,
 		CompletionTime:   completionTime,
+	}, nil
+}
+
+func mapBalanceModelToType(src gen.RunesBalance) (*entity.Balance, error) {
+	runeId, err := runes.NewRuneIdFromString(src.RuneID)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse rune id")
+	}
+	amount, err := uint128FromNumeric(src.Amount)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse balance")
+	}
+	pkScript, err := hex.DecodeString(src.Pkscript)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse pkscript")
+	}
+	return &entity.Balance{
+		PkScript:    pkScript,
+		RuneId:      runeId,
+		Amount:      amount,
+		BlockHeight: uint64(src.BlockHeight),
 	}, nil
 }

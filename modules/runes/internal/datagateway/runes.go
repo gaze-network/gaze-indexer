@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/btcsuite/btcd/wire"
+	"github.com/gaze-network/indexer-network/modules/runes/internal/entity"
 	"github.com/gaze-network/indexer-network/modules/runes/internal/runes"
 	"github.com/gaze-network/uint128"
 )
@@ -14,6 +15,8 @@ type RunesDataGateway interface {
 }
 
 type RunesReaderDataGateway interface {
+	GetLatestBlockHeight(ctx context.Context) (uint64, error)
+
 	GetRunesBalancesAtOutPoint(ctx context.Context, outPoint wire.OutPoint) (map[runes.RuneId]uint128.Uint128, error)
 	// GetRuneEntryByRune returns the RuneEntry for the given rune. Returns errs.NotFound if the rune entry is not found.
 	GetRuneEntryByRune(ctx context.Context, rune runes.Rune) (*runes.RuneEntry, error)
@@ -21,6 +24,12 @@ type RunesReaderDataGateway interface {
 	GetRuneEntryByRuneId(ctx context.Context, runeId runes.RuneId) (*runes.RuneEntry, error)
 	// GetRuneEntryByRuneId returns the RuneEntry for the given runeId. Returns errs.NotFound if the rune entry is not found.
 	GetRuneEntryByRuneIdBatch(ctx context.Context, runeIds []runes.RuneId) (map[runes.RuneId]*runes.RuneEntry, error)
+
+	// GetBalancesByPkScript returns the balances for the given pkScript at the given blockHeight.
+	GetBalancesByPkScript(ctx context.Context, pkScript []byte, blockHeight uint64) (map[runes.RuneId]*entity.Balance, error)
+	// GetBalancesByRuneId returns the balances for the given runeId at the given blockHeight.
+	// Cannot use []byte as map key, so we're returning as slice.
+	GetBalancesByRuneId(ctx context.Context, runeId runes.RuneId, blockHeight uint64) ([]*entity.Balance, error)
 }
 
 type RunesWriterDataGateway interface {

@@ -21,10 +21,13 @@ INSERT INTO runes_entries (rune_id, rune, spacers, burned_amount, mints, premine
   ON CONFLICT (rune_id) DO UPDATE SET (burned_amount, mints, completion_time) = (excluded.burned_amount, excluded.mints, excluded.completion_time);
 
 -- name: CreateRuneBalancesAtOutPoint :batchexec
-INSERT INTO runes_outpoint_balances (rune_id, tx_hash, tx_idx, value) VALUES ($1, $2, $3, $4);
+INSERT INTO runes_outpoint_balances (rune_id, tx_hash, tx_idx, amount) VALUES ($1, $2, $3, $4);
 
 -- name: CreateRuneBalanceAtBlock :batchexec
-INSERT INTO runes_balances (pkscript, block_height, rune_id, value) VALUES ($1, $2, $3, $4);
+INSERT INTO runes_balances (pkscript, block_height, rune_id, amount) VALUES ($1, $2, $3, $4);
+
+-- name: GetRunesProcessorState :one
+SELECT * FROM runes_processor_state;
 
 -- name: UpdateLatestBlockHeight :exec
 UPDATE runes_processor_state SET latest_block_height = $1;

@@ -12,7 +12,7 @@ import (
 )
 
 const getBalancesByPkScript = `-- name: GetBalancesByPkScript :many
-SELECT DISTINCT ON (rune_id) pkscript, block_height, rune_id, value FROM runes_balances WHERE pkscript = $1 AND block_height <= $2 ORDER BY rune_id, block_height DESC
+SELECT DISTINCT ON (rune_id) pkscript, block_height, rune_id, amount FROM runes_balances WHERE pkscript = $1 AND block_height <= $2 ORDER BY rune_id, block_height DESC
 `
 
 type GetBalancesByPkScriptParams struct {
@@ -33,7 +33,7 @@ func (q *Queries) GetBalancesByPkScript(ctx context.Context, arg GetBalancesByPk
 			&i.Pkscript,
 			&i.BlockHeight,
 			&i.RuneID,
-			&i.Value,
+			&i.Amount,
 		); err != nil {
 			return nil, err
 		}
@@ -46,7 +46,7 @@ func (q *Queries) GetBalancesByPkScript(ctx context.Context, arg GetBalancesByPk
 }
 
 const getBalancesByRuneId = `-- name: GetBalancesByRuneId :many
-SELECT DISTINCT ON (pkscript) pkscript, block_height, rune_id, value FROM runes_balances WHERE rune_id = $1 AND block_height <= $2 ORDER BY pkscript, block_height DESC
+SELECT DISTINCT ON (pkscript) pkscript, block_height, rune_id, amount FROM runes_balances WHERE rune_id = $1 AND block_height <= $2 ORDER BY pkscript, block_height DESC
 `
 
 type GetBalancesByRuneIdParams struct {
@@ -67,7 +67,7 @@ func (q *Queries) GetBalancesByRuneId(ctx context.Context, arg GetBalancesByRune
 			&i.Pkscript,
 			&i.BlockHeight,
 			&i.RuneID,
-			&i.Value,
+			&i.Amount,
 		); err != nil {
 			return nil, err
 		}
@@ -80,7 +80,7 @@ func (q *Queries) GetBalancesByRuneId(ctx context.Context, arg GetBalancesByRune
 }
 
 const getOutPointBalances = `-- name: GetOutPointBalances :many
-SELECT rune_id, tx_hash, tx_idx, value FROM runes_outpoint_balances WHERE tx_hash = $1 AND tx_idx = $2
+SELECT rune_id, tx_hash, tx_idx, amount FROM runes_outpoint_balances WHERE tx_hash = $1 AND tx_idx = $2
 `
 
 type GetOutPointBalancesParams struct {
@@ -101,7 +101,7 @@ func (q *Queries) GetOutPointBalances(ctx context.Context, arg GetOutPointBalanc
 			&i.RuneID,
 			&i.TxHash,
 			&i.TxIdx,
-			&i.Value,
+			&i.Amount,
 		); err != nil {
 			return nil, err
 		}
@@ -195,6 +195,17 @@ func (q *Queries) GetRuneEntriesByRunes(ctx context.Context, runes []string) ([]
 		return nil, err
 	}
 	return items, nil
+}
+
+const getRunesProcessorState = `-- name: GetRunesProcessorState :one
+SELECT id, latest_block_height FROM runes_processor_state
+`
+
+func (q *Queries) GetRunesProcessorState(ctx context.Context) (RunesProcessorState, error) {
+	row := q.db.QueryRow(ctx, getRunesProcessorState)
+	var i RunesProcessorState
+	err := row.Scan(&i.Id, &i.LatestBlockHeight)
+	return i, err
 }
 
 const setRuneEntry = `-- name: SetRuneEntry :exec

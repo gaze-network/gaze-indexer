@@ -12,7 +12,7 @@ type RunesBalance struct {
 	Pkscript    string
 	BlockHeight int32
 	RuneID      string
-	Value       pgtype.Numeric
+	Amount      pgtype.Numeric
 }
 
 type RunesEntry struct {
@@ -52,7 +52,7 @@ type RunesOutpointBalance struct {
 	RuneID string
 	TxHash string
 	TxIdx  int32
-	Value  pgtype.Numeric
+	Amount pgtype.Numeric
 }
 
 type RunesProcessorState struct {
