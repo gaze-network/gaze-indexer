@@ -73,9 +73,8 @@ func (p *Processor) CurrentBlock(ctx context.Context) (types.BlockHeader, error)
 	return b, nil
 }
 
-func (p *Processor) PrepareData(ctx context.Context, from, to int64) ([]*types.Block, error) {
-	// TODO: move out to a separate interface (e.g. DataFetcher)
-	return nil, nil
+func (p *Processor) GetIndexedBlock(ctx context.Context, height int64) (types.BlockHeader, error) {
+	return types.BlockHeader{}, nil
 }
 
 func (p *Processor) RevertData(ctx context.Context, from int64) error {
