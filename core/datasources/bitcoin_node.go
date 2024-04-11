@@ -11,6 +11,7 @@ import (
 // Make sure to implement the BitcoinDatasource interface
 var _ indexers.BitcoinDatasource = (*BitcoinNodeDatasource)(nil)
 
+// BitcoinNodeDatasource fetch data from Bitcoin node for Bitcoin Indexer
 type BitcoinNodeDatasource struct{}
 
 func (d *BitcoinNodeDatasource) Fetch(ctx context.Context, from, to int64) ([]*types.Block, error) {
