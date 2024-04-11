@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"time"
 
+	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/modules/runes/internal/entity"
 	"github.com/gaze-network/indexer-network/modules/runes/internal/repository/postgres/gen"
@@ -215,5 +216,35 @@ func mapBalanceModelToType(src gen.RunesBalance) (*entity.Balance, error) {
 		RuneId:      runeId,
 		Amount:      lo.FromPtr(amount),
 		BlockHeight: uint64(src.BlockHeight),
+	}, nil
+}
+
+func mapIndexedBlockModelToType(src gen.RunesIndexedBlock) (*entity.IndexedBlock, error) {
+	hash, err := chainhash.NewHashFromStr(src.Hash)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse block hash")
+	}
+	eventHash, err := chainhash.NewHashFromStr(src.EventHash)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse event hash")
+	}
+	cumulativeEventHash, err := chainhash.NewHashFromStr(src.CumulativeEventHash)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse cumulative event hash")
+	}
+	return &entity.IndexedBlock{
+		Height:              int64(src.Height),
+		Hash:                *hash,
+		EventHash:           *eventHash,
+		CumulativeEventHash: *cumulativeEventHash,
+	}, nil
+}
+
+func mapIndexedBlockTypeToParams(src entity.IndexedBlock) (gen.CreateIndexedBlockParams, error) {
+	return gen.CreateIndexedBlockParams{
+		Height:              int32(src.Height),
+		Hash:                src.Hash.String(),
+		EventHash:           src.EventHash.String(),
+		CumulativeEventHash: src.CumulativeEventHash.String(),
 	}, nil
 }

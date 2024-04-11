@@ -45,6 +45,19 @@ func (p *Processor) CurrentBlock(ctx context.Context) (types.BlockHeader, error)
 	return blockHeader, nil
 }
 
+// warning: GetIndexedBlock currently returns a types.BlockHeader with only Height, Hash fields populated.
+// This is because it is known that all usage of this function only requires these fields. In the future, we may want to populate all fields for type safety.
+func (p *Processor) GetIndexedBlock(ctx context.Context, height int64) (types.BlockHeader, error) {
+	block, err := p.runesDg.GetIndexedBlockByHeight(ctx, height)
+	if err != nil {
+		return types.BlockHeader{}, errors.Wrap(err, "failed to get indexed block")
+	}
+	return types.BlockHeader{
+		Height: block.Height,
+		Hash:   block.Hash,
+	}, nil
+}
+
 func (p *Processor) PrepareData(ctx context.Context, from, to int64) ([]*types.Block, error) {
 	panic("implement me")
 }

@@ -20,6 +20,8 @@ import (
 
 var _ datagateway.RunesDataGateway = (*Repository)(nil)
 
+// warning: GetLatestBlock currently returns a types.BlockHeader with only Height, Hash, and PrevBlock fields populated.
+// This is because it is known that all usage of this function only requires these fields. In the future, we may want to populate all fields for type safety.
 func (r *Repository) GetLatestBlock(ctx context.Context) (types.BlockHeader, error) {
 	state, err := r.queries.GetRunesProcessorState(ctx)
 	if err != nil {
@@ -38,6 +40,19 @@ func (r *Repository) GetLatestBlock(ctx context.Context) (types.BlockHeader, err
 		Hash:      *hash,
 		PrevBlock: *prevHash,
 	}, nil
+}
+
+func (r *Repository) GetIndexedBlockByHeight(ctx context.Context, height int64) (*entity.IndexedBlock, error) {
+	indexedBlockModel, err := r.queries.GetIndexedBlockByHeight(ctx, int32(height))
+	if err != nil {
+		return nil, errors.Wrap(err, "error during query")
+	}
+
+	indexedBlock, err := mapIndexedBlockModelToType(indexedBlockModel)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse indexed block model")
+	}
+	return indexedBlock, nil
 }
 
 func (r *Repository) GetRunesBalancesAtOutPoint(ctx context.Context, outPoint wire.OutPoint) (map[runes.RuneId]uint128.Uint128, error) {
@@ -240,4 +255,25 @@ func (r *Repository) GetBalancesByRuneId(ctx context.Context, runeId runes.RuneI
 		result = append(result, balance)
 	}
 	return result, nil
+}
+
+func (r *Repository) CreateIndexedBlock(ctx context.Context, block *entity.IndexedBlock) error {
+	if block == nil {
+		return nil
+	}
+	params, err := mapIndexedBlockTypeToParams(*block)
+	if err != nil {
+		return errors.Wrap(err, "failed to map indexed block to params")
+	}
+	if err = r.queries.CreateIndexedBlock(ctx, params); err != nil {
+		return errors.Wrap(err, "error during exec")
+	}
+	return nil
+}
+
+func (r *Repository) DeleteIndexedBlockByHash(ctx context.Context, hash chainhash.Hash) error {
+	if err := r.queries.DeleteIndexedBlockByHash(ctx, hash.String()); err != nil {
+		return errors.Wrap(err, "error during exec")
+	}
+	return nil
 }

@@ -3,6 +3,7 @@ package datagateway
 import (
 	"context"
 
+	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/wire"
 	"github.com/gaze-network/indexer-network/core/types"
 	"github.com/gaze-network/indexer-network/modules/runes/internal/entity"
@@ -17,6 +18,7 @@ type RunesDataGateway interface {
 
 type RunesReaderDataGateway interface {
 	GetLatestBlock(ctx context.Context) (types.BlockHeader, error)
+	GetIndexedBlockByHeight(ctx context.Context, height int64) (*entity.IndexedBlock, error)
 
 	GetRunesBalancesAtOutPoint(ctx context.Context, outPoint wire.OutPoint) (map[runes.RuneId]uint128.Uint128, error)
 	// GetRuneEntryByRune returns the RuneEntry for the given rune. Returns errs.NotFound if the rune entry is not found.
@@ -47,6 +49,9 @@ type RunesWriterDataGateway interface {
 	CreateRuneBalancesAtOutPoint(ctx context.Context, outPoint wire.OutPoint, balances map[runes.RuneId]uint128.Uint128) error
 	CreateRuneBalancesAtBlock(ctx context.Context, params []CreateRuneBalancesAtBlockParams) error
 	UpdateLatestBlock(ctx context.Context, blockHeader types.BlockHeader) error
+
+	CreateIndexedBlock(ctx context.Context, block *entity.IndexedBlock) error
+	DeleteIndexedBlockByHash(ctx context.Context, hash chainhash.Hash) error
 }
 
 type CreateRuneBalancesAtBlockParams struct {

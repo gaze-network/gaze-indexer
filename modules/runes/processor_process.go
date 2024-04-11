@@ -33,6 +33,7 @@ func (p *Processor) Process(ctx context.Context, blocks []*types.Block) error {
 				return errors.Wrap(err, "failed to process tx")
 			}
 		}
+		// TODO: create indexed block in db
 	}
 	if err := p.runesDg.Commit(ctx); err != nil {
 		return errors.Wrap(err, "failed to commit transaction")
