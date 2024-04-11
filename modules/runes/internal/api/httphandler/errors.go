@@ -2,6 +2,9 @@ package httphandler
 
 import "github.com/cockroachdb/errors"
 
+// TODO: rewrite entire error handling logic
+// may create new custom error type in errs package for using to return errors to client
+
 type ValidationError struct {
 	errs []error
 }
