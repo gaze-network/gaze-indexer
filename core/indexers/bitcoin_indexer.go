@@ -9,6 +9,7 @@ import (
 	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/common/errs"
+	"github.com/gaze-network/indexer-network/core"
 	"github.com/gaze-network/indexer-network/core/types"
 	"github.com/gaze-network/indexer-network/pkg/logger"
 )
@@ -17,6 +18,9 @@ type (
 	BitcoinProcessor  Processor[*types.Block]
 	BitcoinDatasource Datasource[*types.Block]
 )
+
+// Make sure to implement the IndexerWorker interface
+var _ core.IndexerWorker = (*BitcoinIndexer)(nil)
 
 // BitcoinIndexer is the indexer for sync Bitcoin data to the database.
 type BitcoinIndexer struct {
