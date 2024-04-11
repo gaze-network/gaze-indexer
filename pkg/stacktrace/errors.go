@@ -62,10 +62,13 @@ func ExtractErrorStackTraces(err error) ErrorStackTraces {
 		causeErr := errbase.UnwrapOnce(err)
 		if errStack, ok := err.(errbase.StackTraceProvider); ok {
 			pcs := pkgErrStackTaceToPCs(errStack.StackTrace())
-			result = append(result, ErrorStackTrace{
-				Cause:      err,
-				StackTrace: ParsePCS(pcs),
-			})
+			if len(pcs) > 0 {
+				stacktraces := ParsePCS(pcs)
+				result = append(result, ErrorStackTrace{
+					Cause:      err,
+					StackTrace: stacktraces,
+				})
+			}
 		}
 		err = causeErr
 	}
