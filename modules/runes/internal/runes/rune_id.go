@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/cockroachdb/errors"
-	"github.com/gaze-network/indexer-network/common/errs"
 )
 
 type RuneId struct {
@@ -14,7 +13,7 @@ type RuneId struct {
 	TxIndex     uint32
 }
 
-const ErrRuneIdZeroBlockNonZeroTxIndex = errs.ErrorKind("rune id cannot be zero block height and non-zero tx index")
+var ErrRuneIdZeroBlockNonZeroTxIndex = errors.New("rune id cannot be zero block height and non-zero tx index")
 
 func NewRuneId(blockHeight uint64, txIndex uint32) (RuneId, error) {
 	if blockHeight == 0 && txIndex != 0 {
@@ -27,9 +26,9 @@ func NewRuneId(blockHeight uint64, txIndex uint32) (RuneId, error) {
 }
 
 var (
-	ErrInvalidSeparator       = errs.ErrorKind("invalid rune id: must contain exactly one separator")
-	ErrCannotParseBlockHeight = errs.ErrorKind("invalid rune id: cannot parse block height")
-	ErrCannotParseTxIndex     = errs.ErrorKind("invalid rune id: cannot parse tx index")
+	ErrInvalidSeparator       = errors.New("invalid rune id: must contain exactly one separator")
+	ErrCannotParseBlockHeight = errors.New("invalid rune id: cannot parse block height")
+	ErrCannotParseTxIndex     = errors.New("invalid rune id: cannot parse tx index")
 )
 
 func NewRuneIdFromString(str string) (RuneId, error) {

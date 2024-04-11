@@ -23,7 +23,7 @@ func NewRepository(db postgres.DB) *Repository {
 	}
 }
 
-var ErrTxAlreadyExists = errs.ErrorKind("Transaction already exists. Call Commit() or Rollback() first.")
+var ErrTxAlreadyExists = errors.New("Transaction already exists. Call Commit() or Rollback() first.")
 
 func (r *Repository) Begin(ctx context.Context) (err error) {
 	if r.tx != nil {

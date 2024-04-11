@@ -4,7 +4,7 @@ import (
 	"math"
 	"time"
 
-	"github.com/gaze-network/indexer-network/common/errs"
+	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/uint128"
 )
 
@@ -25,10 +25,10 @@ type RuneEntry struct {
 }
 
 var (
-	ErrUnmintable      = errs.ErrorKind("rune is not mintable")
-	ErrMintCapReached  = errs.ErrorKind("rune mint cap reached")
-	ErrMintBeforeStart = errs.ErrorKind("rune minting has not started")
-	ErrMintAfterEnd    = errs.ErrorKind("rune minting has ended")
+	ErrUnmintable      = errors.New("rune is not mintable")
+	ErrMintCapReached  = errors.New("rune mint cap reached")
+	ErrMintBeforeStart = errors.New("rune minting has not started")
+	ErrMintAfterEnd    = errors.New("rune minting has ended")
 )
 
 func (e *RuneEntry) GetMintableAmount(height uint64) (uint128.Uint128, error) {

@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/cockroachdb/errors"
-	"github.com/gaze-network/indexer-network/common/errs"
 )
 
 type SpacedRune struct {
@@ -21,10 +20,10 @@ func NewSpacedRune(rune Rune, spacers uint32) SpacedRune {
 }
 
 var (
-	ErrLeadingSpacer              = errs.ErrorKind("runes cannot start with a spacer")
-	ErrTrailingSpacer             = errs.ErrorKind("runes cannot end with a spacer")
-	ErrDoubleSpacer               = errs.ErrorKind("runes cannot have more than one spacer between characters")
-	ErrInvalidSpacedRuneCharacter = errs.ErrorKind("invalid spaced rune character: must satisfy regex [A-Z•.]")
+	ErrLeadingSpacer              = errors.New("runes cannot start with a spacer")
+	ErrTrailingSpacer             = errors.New("runes cannot end with a spacer")
+	ErrDoubleSpacer               = errors.New("runes cannot have more than one spacer between characters")
+	ErrInvalidSpacedRuneCharacter = errors.New("invalid spaced rune character: must satisfy regex [A-Z•.]")
 )
 
 func NewSpacedRuneFromString(input string) (SpacedRune, error) {

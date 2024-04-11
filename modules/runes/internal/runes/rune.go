@@ -4,8 +4,8 @@ import (
 	"slices"
 
 	"github.com/Cleverse/go-utilities/utils"
+	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/common"
-	"github.com/gaze-network/indexer-network/common/errs"
 	"github.com/gaze-network/uint128"
 )
 
@@ -23,7 +23,7 @@ func NewRuneFromUint128(value uint128.Uint128) Rune {
 	return Rune(value)
 }
 
-const ErrInvalidBase26 = errs.ErrorKind("invalid base-26 character: must be in the range [A-Z]")
+var ErrInvalidBase26 = errors.New("invalid base-26 character: must be in the range [A-Z]")
 
 // NewRuneFromString creates a new Rune from a string of modified base-26 integer
 func NewRuneFromString(value string) (Rune, error) {
