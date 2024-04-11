@@ -14,6 +14,10 @@ var _ indexers.BitcoinDatasource = (*BitcoinNodeDatasource)(nil)
 // BitcoinNodeDatasource fetch data from Bitcoin node for Bitcoin Indexer
 type BitcoinNodeDatasource struct{}
 
+// Fetch polling blocks from Bitcoin node
+//
+//   - from: block height to start fetching, if -1, it will start from genesis block
+//   - to: block height to stop fetching, if -1, it will fetch until the latest block
 func (d *BitcoinNodeDatasource) Fetch(ctx context.Context, from, to int64) ([]*types.Block, error) {
 	ch, stop, err := d.FetchAsync(ctx, from, to)
 	if err != nil {
@@ -35,6 +39,10 @@ func (d *BitcoinNodeDatasource) Fetch(ctx context.Context, from, to int64) ([]*t
 	}
 }
 
+// FetchAsync polling blocks from Bitcoin node asynchronously (non-blocking)
+//
+//   - from: block height to start fetching, if -1, it will start from genesis block
+//   - to: block height to stop fetching, if -1, it will fetch until the latest block
 func (d *BitcoinNodeDatasource) FetchAsync(ctx context.Context, from, to int64) (<-chan []*types.Block, func(), error) {
 	ctx, cancel := context.WithCancel(ctx)
 	_ = ctx

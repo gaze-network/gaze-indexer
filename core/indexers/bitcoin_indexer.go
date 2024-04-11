@@ -22,7 +22,7 @@ type (
 // Make sure to implement the IndexerWorker interface
 var _ core.IndexerWorker = (*BitcoinIndexer)(nil)
 
-// BitcoinIndexer is the indexer for sync Bitcoin data to the database.
+// BitcoinIndexer is the polling indexer for sync Bitcoin data to the database.
 type BitcoinIndexer struct {
 	Processor    BitcoinProcessor
 	Datasource   BitcoinDatasource
