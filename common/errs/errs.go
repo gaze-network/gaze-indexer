@@ -65,7 +65,10 @@ var (
 // Business Logic errors
 var (
 	// Overflow is returned when an overflow error occurs
-	Overflow = errors.NewWithDepth(depth, "overflow")
+	//
+	// inherited error from InternalError,
+	// so errors.Is(err, InternalError) == true
+	Overflow = errors.WrapWithDepth(depth, InternalError, "overflow")
 
 	// OverflowUint64 is returned when an uint64 overflow error occurs
 	//
