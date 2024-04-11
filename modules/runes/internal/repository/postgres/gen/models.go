@@ -34,10 +34,18 @@ type RunesEntry struct {
 	CompletionTime   pgtype.Timestamp
 }
 
+type RunesIndexedBlock struct {
+	Hash                string
+	Height              int32
+	EventHash           string
+	CumulativeEventHash string
+}
+
 type RunesIndexerDbVersion struct {
-	Id        int64
-	Version   int32
-	CreatedAt pgtype.Timestamptz
+	Id               int64
+	Version          int32
+	EventHashVersion int32
+	CreatedAt        pgtype.Timestamptz
 }
 
 type RunesIndexerStat struct {
@@ -58,6 +66,8 @@ type RunesOutpointBalance struct {
 }
 
 type RunesProcessorState struct {
-	Id                int32
-	LatestBlockHeight int32
+	LatestBlockHeight   int32
+	LatestBlockHash     string
+	LatestPrevBlockHash string
+	UpdatedAt           pgtype.Timestamp
 }

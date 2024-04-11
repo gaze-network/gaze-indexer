@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/btcsuite/btcd/wire"
+	"github.com/gaze-network/indexer-network/core/types"
 	"github.com/gaze-network/indexer-network/modules/runes/internal/entity"
 	"github.com/gaze-network/indexer-network/modules/runes/internal/runes"
 	"github.com/gaze-network/uint128"
@@ -15,7 +16,7 @@ type RunesDataGateway interface {
 }
 
 type RunesReaderDataGateway interface {
-	GetLatestBlockHeight(ctx context.Context) (uint64, error)
+	GetLatestBlock(ctx context.Context) (types.BlockHeader, error)
 
 	GetRunesBalancesAtOutPoint(ctx context.Context, outPoint wire.OutPoint) (map[runes.RuneId]uint128.Uint128, error)
 	// GetRuneEntryByRune returns the RuneEntry for the given rune. Returns errs.NotFound if the rune entry is not found.
@@ -45,7 +46,7 @@ type RunesWriterDataGateway interface {
 	SetRuneEntry(ctx context.Context, entry *runes.RuneEntry) error
 	CreateRuneBalancesAtOutPoint(ctx context.Context, outPoint wire.OutPoint, balances map[runes.RuneId]uint128.Uint128) error
 	CreateRuneBalancesAtBlock(ctx context.Context, params []CreateRuneBalancesAtBlockParams) error
-	UpdateLatestBlockHeight(ctx context.Context, blockHeight uint64) error
+	UpdateLatestBlock(ctx context.Context, blockHeader types.BlockHeader) error
 }
 
 type CreateRuneBalancesAtBlockParams struct {

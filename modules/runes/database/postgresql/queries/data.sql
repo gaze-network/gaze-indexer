@@ -29,5 +29,11 @@ INSERT INTO runes_balances (pkscript, block_height, rune_id, amount) VALUES ($1,
 -- name: GetRunesProcessorState :one
 SELECT * FROM runes_processor_state;
 
--- name: UpdateLatestBlockHeight :exec
-UPDATE runes_processor_state SET latest_block_height = $1;
+-- name: UpdateLatestBlock :exec
+UPDATE runes_processor_state SET latest_block_height = $1, latest_block_hash = $2, latest_prev_block_hash = $3;
+
+-- name: CreateIndexedBlock :exec
+INSERT INTO runes_indexed_blocks (hash, height, event_hash, cumulative_event_hash) VALUES ($1, $2, $3, $4);
+
+-- name: DeleteIndexedBlockByHash :exec
+DELETE FROM runes_indexed_blocks WHERE hash = $1;

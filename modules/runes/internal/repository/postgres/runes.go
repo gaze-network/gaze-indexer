@@ -4,9 +4,11 @@ import (
 	"context"
 	"encoding/hex"
 
+	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/wire"
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/common/errs"
+	"github.com/gaze-network/indexer-network/core/types"
 	"github.com/gaze-network/indexer-network/modules/runes/internal/datagateway"
 	"github.com/gaze-network/indexer-network/modules/runes/internal/entity"
 	"github.com/gaze-network/indexer-network/modules/runes/internal/repository/postgres/gen"
@@ -18,12 +20,24 @@ import (
 
 var _ datagateway.RunesDataGateway = (*Repository)(nil)
 
-func (r *Repository) GetLatestBlockHeight(ctx context.Context) (uint64, error) {
+func (r *Repository) GetLatestBlock(ctx context.Context) (types.BlockHeader, error) {
 	state, err := r.queries.GetRunesProcessorState(ctx)
 	if err != nil {
-		return 0, errors.Wrap(err, "error during query")
+		return types.BlockHeader{}, errors.Wrap(err, "error during query")
 	}
-	return uint64(state.LatestBlockHeight), nil
+	hash, err := chainhash.NewHashFromStr(state.LatestBlockHash)
+	if err != nil {
+		return types.BlockHeader{}, errors.Wrap(err, "failed to parse block hash")
+	}
+	prevHash, err := chainhash.NewHashFromStr(state.LatestPrevBlockHash)
+	if err != nil {
+		return types.BlockHeader{}, errors.Wrap(err, "failed to parse prev block hash")
+	}
+	return types.BlockHeader{
+		Height:    int64(state.LatestBlockHeight),
+		Hash:      *hash,
+		PrevBlock: *prevHash,
+	}, nil
 }
 
 func (r *Repository) GetRunesBalancesAtOutPoint(ctx context.Context, outPoint wire.OutPoint) (map[runes.RuneId]uint128.Uint128, error) {
@@ -176,8 +190,13 @@ func (r *Repository) CreateRuneBalancesAtBlock(ctx context.Context, params []dat
 	return nil
 }
 
-func (r *Repository) UpdateLatestBlockHeight(ctx context.Context, blockHeight uint64) error {
-	if err := r.queries.UpdateLatestBlockHeight(ctx, int32(blockHeight)); err != nil {
+func (r *Repository) UpdateLatestBlock(ctx context.Context, blockHeader types.BlockHeader) error {
+	params := gen.UpdateLatestBlockParams{
+		LatestBlockHeight:   int32(blockHeader.Height),
+		LatestBlockHash:     blockHeader.Hash.String(),
+		LatestPrevBlockHash: blockHeader.PrevBlock.String(),
+	}
+	if err := r.queries.UpdateLatestBlock(ctx, params); err != nil {
 		return errors.Wrap(err, "error during exec")
 	}
 	return nil

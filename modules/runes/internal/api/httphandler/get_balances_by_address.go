@@ -54,10 +54,11 @@ func (h *HttpHandler) GetBalancesByAddress(ctx *fiber.Ctx) (err error) {
 
 	blockHeight := req.BlockHeight
 	if blockHeight == 0 {
-		blockHeight, err = h.usecase.GetLatestBlockHeight(ctx.UserContext())
+		blockHeader, err := h.usecase.GetLatestBlock(ctx.UserContext())
 		if err != nil {
-			return errors.Wrap(err, "error during GetLatestBlockHeight")
+			return errors.Wrap(err, "error during GetLatestBlock")
 		}
+		blockHeight = uint64(blockHeader.Height)
 	}
 
 	balances, err := h.usecase.GetBalancesByPkScript(ctx.UserContext(), pkScript, blockHeight)

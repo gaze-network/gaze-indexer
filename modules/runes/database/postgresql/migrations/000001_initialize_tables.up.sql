@@ -13,7 +13,8 @@ CREATE TABLE IF NOT EXISTS "runes_indexer_stats" (
 CREATE TABLE IF NOT EXISTS "runes_indexer_db_version" (
 	"id" BIGSERIAL PRIMARY KEY,
 	"version" INT NOT NULL,
-	"created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE
+	"event_hash_version" INT NOT NULL,
+	"created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 INSERT INTO "runes_indexer_db_version" ("version") VALUES (1);
 
@@ -21,8 +22,18 @@ INSERT INTO "runes_indexer_db_version" ("version") VALUES (1);
 
 CREATE TABLE IF NOT EXISTS "runes_processor_state" (
 	"latest_block_height" INT NOT NULL,
+	"latest_block_hash" TEXT NOT NULL,
+	"latest_prev_block_hash" TEXT NOT NULL,
 	"updated_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS "runes_indexed_blocks" (
+	"hash" TEXT NOT NULL PRIMARY KEY,
+	"height" INT NOT NULL,
+	"event_hash" TEXT NOT NULL,
+	"cumulative_event_hash" TEXT NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS runes_indexed_blocks_height_idx ON "runes_indexed_blocks" USING BTREE ("height" DESC);
 
 CREATE TABLE IF NOT EXISTS "runes_entries" (
 	"rune_id" TEXT NOT NULL PRIMARY KEY,

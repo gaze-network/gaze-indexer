@@ -3,6 +3,7 @@ package runes
 import (
 	"context"
 
+	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/common"
 	"github.com/gaze-network/indexer-network/core/indexers"
 	"github.com/gaze-network/indexer-network/core/types"
@@ -37,7 +38,11 @@ func (p *Processor) Name() string {
 }
 
 func (p *Processor) CurrentBlock(ctx context.Context) (types.BlockHeader, error) {
-	panic("implement me")
+	blockHeader, err := p.runesDg.GetLatestBlock(ctx)
+	if err != nil {
+		return types.BlockHeader{}, errors.Wrap(err, "failed to get latest block")
+	}
+	return blockHeader, nil
 }
 
 func (p *Processor) PrepareData(ctx context.Context, from, to int64) ([]*types.Block, error) {

@@ -9,6 +9,17 @@ import (
 	"context"
 )
 
+const getCurrenEventHashVersion = `-- name: GetCurrenEventHashVersion :one
+SELECT "event_hash_version" FROM runes_indexer_db_version ORDER BY id DESC LIMIT 1
+`
+
+func (q *Queries) GetCurrenEventHashVersion(ctx context.Context) (int32, error) {
+	row := q.db.QueryRow(ctx, getCurrenEventHashVersion)
+	var event_hash_version int32
+	err := row.Scan(&event_hash_version)
+	return event_hash_version, err
+}
+
 const getCurrentDBVersion = `-- name: GetCurrentDBVersion :one
 SELECT "version" FROM runes_indexer_db_version ORDER BY id DESC LIMIT 1
 `

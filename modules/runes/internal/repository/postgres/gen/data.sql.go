@@ -11,6 +11,36 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const createIndexedBlock = `-- name: CreateIndexedBlock :exec
+INSERT INTO runes_indexed_blocks (hash, height, event_hash, cumulative_event_hash) VALUES ($1, $2, $3, $4)
+`
+
+type CreateIndexedBlockParams struct {
+	Hash                string
+	Height              int32
+	EventHash           string
+	CumulativeEventHash string
+}
+
+func (q *Queries) CreateIndexedBlock(ctx context.Context, arg CreateIndexedBlockParams) error {
+	_, err := q.db.Exec(ctx, createIndexedBlock,
+		arg.Hash,
+		arg.Height,
+		arg.EventHash,
+		arg.CumulativeEventHash,
+	)
+	return err
+}
+
+const deleteIndexedBlockByHash = `-- name: DeleteIndexedBlockByHash :exec
+DELETE FROM runes_indexed_blocks WHERE hash = $1
+`
+
+func (q *Queries) DeleteIndexedBlockByHash(ctx context.Context, hash string) error {
+	_, err := q.db.Exec(ctx, deleteIndexedBlockByHash, hash)
+	return err
+}
+
 const getBalancesByPkScript = `-- name: GetBalancesByPkScript :many
 SELECT DISTINCT ON (rune_id) pkscript, block_height, rune_id, amount FROM runes_balances WHERE pkscript = $1 AND block_height <= $2 ORDER BY rune_id, block_height DESC
 `
@@ -200,13 +230,18 @@ func (q *Queries) GetRuneEntriesByRunes(ctx context.Context, runes []string) ([]
 }
 
 const getRunesProcessorState = `-- name: GetRunesProcessorState :one
-SELECT id, latest_block_height FROM runes_processor_state
+SELECT latest_block_height, latest_block_hash, latest_prev_block_hash, updated_at FROM runes_processor_state
 `
 
 func (q *Queries) GetRunesProcessorState(ctx context.Context) (RunesProcessorState, error) {
 	row := q.db.QueryRow(ctx, getRunesProcessorState)
 	var i RunesProcessorState
-	err := row.Scan(&i.Id, &i.LatestBlockHeight)
+	err := row.Scan(
+		&i.LatestBlockHeight,
+		&i.LatestBlockHash,
+		&i.LatestPrevBlockHash,
+		&i.UpdatedAt,
+	)
 	return i, err
 }
 
@@ -257,11 +292,17 @@ func (q *Queries) SetRuneEntry(ctx context.Context, arg SetRuneEntryParams) erro
 	return err
 }
 
-const updateLatestBlockHeight = `-- name: UpdateLatestBlockHeight :exec
-UPDATE runes_processor_state SET latest_block_height = $1
+const updateLatestBlock = `-- name: UpdateLatestBlock :exec
+UPDATE runes_processor_state SET latest_block_height = $1, latest_block_hash = $2, latest_prev_block_hash = $3
 `
 
-func (q *Queries) UpdateLatestBlockHeight(ctx context.Context, latestBlockHeight int32) error {
-	_, err := q.db.Exec(ctx, updateLatestBlockHeight, latestBlockHeight)
+type UpdateLatestBlockParams struct {
+	LatestBlockHeight   int32
+	LatestBlockHash     string
+	LatestPrevBlockHash string
+}
+
+func (q *Queries) UpdateLatestBlock(ctx context.Context, arg UpdateLatestBlockParams) error {
+	_, err := q.db.Exec(ctx, updateLatestBlock, arg.LatestBlockHeight, arg.LatestBlockHash, arg.LatestPrevBlockHash)
 	return err
 }

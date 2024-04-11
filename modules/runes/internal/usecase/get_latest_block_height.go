@@ -4,12 +4,13 @@ import (
 	"context"
 
 	"github.com/cockroachdb/errors"
+	"github.com/gaze-network/indexer-network/core/types"
 )
 
-func (u *Usecase) GetLatestBlockHeight(ctx context.Context) (uint64, error) {
-	height, err := u.runesDg.GetLatestBlockHeight(ctx)
+func (u *Usecase) GetLatestBlock(ctx context.Context) (types.BlockHeader, error) {
+	blockHeader, err := u.runesDg.GetLatestBlock(ctx)
 	if err != nil {
-		return 0, errors.Wrap(err, "failed to get latest block height")
+		return types.BlockHeader{}, errors.Wrap(err, "failed to get latest block")
 	}
-	return height, nil
+	return blockHeader, nil
 }
