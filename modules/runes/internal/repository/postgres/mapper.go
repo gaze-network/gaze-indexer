@@ -115,7 +115,7 @@ func mapRuneEntryModelToType(src gen.GetRuneEntriesByRuneIdsRow) (runes.RuneEntr
 	}, nil
 }
 
-func mapRuneEntryTypeToParams(src runes.RuneEntry) (gen.CreateRuneEntryParams, gen.CreateRuneEntryStateParams, error) {
+func mapRuneEntryTypeToParams(src runes.RuneEntry, blockHeight uint64) (gen.CreateRuneEntryParams, gen.CreateRuneEntryStateParams, error) {
 	runeId := src.RuneId.String()
 	rune := src.SpacedRune.Rune.String()
 	spacers := int32(src.SpacedRune.Spacers)
@@ -194,6 +194,7 @@ func mapRuneEntryTypeToParams(src runes.RuneEntry) (gen.CreateRuneEntryParams, g
 			TermsOffsetStart: termsOffsetStart,
 			TermsOffsetEnd:   termsOffsetEnd,
 		}, gen.CreateRuneEntryStateParams{
+			BlockHeight:    int32(blockHeight),
 			RuneID:         runeId,
 			Mints:          mints,
 			BurnedAmount:   burnedAmount,

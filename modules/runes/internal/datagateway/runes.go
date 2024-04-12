@@ -46,7 +46,8 @@ type RunesWriterDataGateway interface {
 	// Rollback() must be safe to call even if no transaction is active. Hence, a defer Rollback() is safe, even if Commit() was called prior with non-error conditions.
 	Rollback(ctx context.Context) error
 
-	CreateRuneEntry(ctx context.Context, entry *runes.RuneEntry) error
+	CreateRuneEntry(ctx context.Context, entry *runes.RuneEntry, blockHeight uint64) error
+	CreateRuneEntryState(ctx context.Context, entry *runes.RuneEntry, blockHeight uint64) error
 	CreateRuneBalancesAtOutPoint(ctx context.Context, outPoint wire.OutPoint, balances map[runes.RuneId]uint128.Uint128) error
 	CreateRuneBalancesAtBlock(ctx context.Context, params []CreateRuneBalancesAtBlockParams) error
 	UpdateLatestBlock(ctx context.Context, blockHeader types.BlockHeader) error

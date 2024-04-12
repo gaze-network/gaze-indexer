@@ -133,7 +133,7 @@ func (r *Repository) GetRuneEntryByRuneId(ctx context.Context, runeId runes.Rune
 }
 
 func (r *Repository) GetRuneEntryByRuneIdBatch(ctx context.Context, runeIds []runes.RuneId) (map[runes.RuneId]*runes.RuneEntry, error) {
-	runeEntryModels, err := r.queries.GetRuneEntriesByRuneIds(ctx, lo.Map(runeIds, func(runeId runes.RuneId, _ int) string {
+	rows, err := r.queries.GetRuneEntriesByRuneIds(ctx, lo.Map(runeIds, func(runeId runes.RuneId, _ int) string {
 		return runeId.String()
 	}))
 	if err != nil {
@@ -143,9 +143,9 @@ func (r *Repository) GetRuneEntryByRuneIdBatch(ctx context.Context, runeIds []ru
 		return nil, errors.Wrap(err, "error during query")
 	}
 
-	runeEntries := make(map[runes.RuneId]*runes.RuneEntry, len(runeEntryModels))
+	runeEntries := make(map[runes.RuneId]*runes.RuneEntry, len(rows))
 	var errs []error
-	for i, runeEntryModel := range runeEntryModels {
+	for i, runeEntryModel := range rows {
 		runeEntry, err := mapRuneEntryModelToType(runeEntryModel)
 		if err != nil {
 			errs = append(errs, errors.Wrapf(err, "failed to parse rune entry model index %d", i))
@@ -179,11 +179,11 @@ func (r *Repository) CreateRuneTransaction(ctx context.Context, tx *entity.RuneT
 	return nil
 }
 
-func (r *Repository) CreateRuneEntry(ctx context.Context, entry *runes.RuneEntry) error {
+func (r *Repository) CreateRuneEntry(ctx context.Context, entry *runes.RuneEntry, blockHeight uint64) error {
 	if entry == nil {
 		return nil
 	}
-	createParams, createStateParams, err := mapRuneEntryTypeToParams(*entry)
+	createParams, createStateParams, err := mapRuneEntryTypeToParams(*entry, blockHeight)
 	if err != nil {
 		return errors.Wrap(err, "failed to map rune entry to params")
 	}
@@ -196,11 +196,11 @@ func (r *Repository) CreateRuneEntry(ctx context.Context, entry *runes.RuneEntry
 	return nil
 }
 
-func (r *Repository) CreateRuneEntryState(ctx context.Context, entry *runes.RuneEntry) error {
+func (r *Repository) CreateRuneEntryState(ctx context.Context, entry *runes.RuneEntry, blockHeight uint64) error {
 	if entry == nil {
 		return nil
 	}
-	_, createStateParams, err := mapRuneEntryTypeToParams(*entry)
+	_, createStateParams, err := mapRuneEntryTypeToParams(*entry, blockHeight)
 	if err != nil {
 		return errors.Wrap(err, "failed to map rune entry to params")
 	}

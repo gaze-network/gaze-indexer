@@ -5,11 +5,13 @@ import (
 	"context"
 	"time"
 
+	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/btcsuite/btcd/wire"
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/common/errs"
 	"github.com/gaze-network/indexer-network/core/types"
+	"github.com/gaze-network/indexer-network/modules/runes/internal/entity"
 	"github.com/gaze-network/indexer-network/modules/runes/internal/runes"
 	"github.com/gaze-network/indexer-network/pkg/logger"
 	"github.com/gaze-network/uint128"
@@ -33,7 +35,12 @@ func (p *Processor) Process(ctx context.Context, blocks []*types.Block) error {
 				return errors.Wrap(err, "failed to process tx")
 			}
 		}
-		// TODO: create indexed block in db
+		if err := p.flushNewRuneEntryStates(ctx, uint64(block.Header.Height)); err != nil {
+			return errors.Wrap(err, "failed to flush new rune entry states")
+		}
+		if err := p.createIndexedBlock(ctx, block.Header); err != nil {
+			return errors.Wrap(err, "failed to create indexed block")
+		}
 	}
 	if err := p.runesDg.Commit(ctx); err != nil {
 		return errors.Wrap(err, "failed to commit transaction")
@@ -152,7 +159,7 @@ func (p *Processor) processTx(ctx context.Context, tx *types.Transaction, blockH
 		}
 
 		if etching != nil {
-			if err := p.createRuneEntry(ctx, runestone, etchedRuneId, etchedRune); err != nil {
+			if err := p.createRuneEntry(ctx, runestone, etchedRuneId, etchedRune, uint64(tx.BlockHeight)); err != nil {
 				return errors.Wrap(err, "failed to create rune entry")
 			}
 		}
@@ -215,7 +222,7 @@ func (p *Processor) processTx(ctx context.Context, tx *types.Transaction, blockH
 	}
 
 	// increment burned amounts in rune entries
-	if err := p.updatedBurnedAmount(ctx, burned); err != nil {
+	if err := p.incrementBurnedAmount(ctx, burned); err != nil {
 		return errors.Wrap(err, "failed to update burned amount")
 	}
 	return nil
@@ -252,9 +259,8 @@ func (p *Processor) mint(ctx context.Context, runeId runes.RuneId, height uint64
 		return uint128.Zero, nil
 	}
 
-	runeEntry.Mints = runeEntry.Mints.Add64(1)
-	if err := p.runesDg.SetRuneEntry(ctx, runeEntry); err != nil {
-		return uint128.Uint128{}, errors.Wrap(err, "failed to set rune entry")
+	if err := p.incrementMintCount(ctx, runeId, 1); err != nil {
+		return uint128.Zero, errors.Wrap(err, "failed to increment mint count")
 	}
 	return amount, nil
 }
@@ -360,7 +366,7 @@ func removeAnnexFromWitness(witness [][]byte) [][]byte {
 	return witness
 }
 
-func (p *Processor) createRuneEntry(ctx context.Context, runestone *runes.Runestone, runeId runes.RuneId, rune runes.Rune) error {
+func (p *Processor) createRuneEntry(ctx context.Context, runestone *runes.Runestone, runeId runes.RuneId, rune runes.Rune, blockHeight uint64) error {
 	var runeEntry *runes.RuneEntry
 	if runestone.Cenotaph {
 		runeEntry = &runes.RuneEntry{
@@ -388,26 +394,79 @@ func (p *Processor) createRuneEntry(ctx context.Context, runestone *runes.Runest
 			CompletionTime: time.Time{},
 		}
 	}
-	if err := p.runesDg.SetRuneEntry(ctx, runeEntry); err != nil {
+	if err := p.runesDg.CreateRuneEntry(ctx, runeEntry, blockHeight); err != nil {
 		return errors.Wrap(err, "failed to set rune entry")
 	}
 	return nil
 }
 
-func (p *Processor) updatedBurnedAmount(ctx context.Context, burned map[runes.RuneId]uint128.Uint128) error {
-	runeEntries, err := p.runesDg.GetRuneEntryByRuneIdBatch(ctx, lo.Keys(burned))
-	if err != nil {
-		return errors.Wrap(err, "failed to get rune entry by rune id batch")
+func (p *Processor) incrementMintCount(ctx context.Context, runeId runes.RuneId, count uint64) (err error) {
+	runeEntry, ok := p.newRuneEntryStates[runeId]
+	if !ok {
+		runeEntry, err = p.runesDg.GetRuneEntryByRuneId(ctx, runeId)
+		if err != nil {
+			return errors.Wrap(err, "failed to get rune entry by rune id")
+		}
 	}
+	runeEntry.Mints = runeEntry.Mints.Add64(count)
+	p.newRuneEntryStates[runeId] = runeEntry
+	return nil
+}
+
+func (p *Processor) incrementBurnedAmount(ctx context.Context, burned map[runes.RuneId]uint128.Uint128) (err error) {
+	runeEntries := make(map[runes.RuneId]*runes.RuneEntry)
+	fetchRuneIds := make([]runes.RuneId, 0)
+	for runeId := range burned {
+		runeEntry, ok := p.newRuneEntryStates[runeId]
+		if !ok {
+			fetchRuneIds = append(fetchRuneIds, runeId)
+		} else {
+			runeEntries[runeId] = runeEntry
+		}
+	}
+	if len(fetchRuneIds) > 0 {
+		entries, err := p.runesDg.GetRuneEntryByRuneIdBatch(ctx, fetchRuneIds)
+		if err != nil {
+			return errors.Wrap(err, "failed to get rune entry by rune id batch")
+		}
+		if len(entries) != len(fetchRuneIds) {
+			// there are missing entries, db may be corrupted
+			return errors.Errorf("missing rune entries: expected %d, got %d", len(fetchRuneIds), len(entries))
+		}
+		for runeId, entry := range entries {
+			runeEntries[runeId] = entry
+		}
+	}
+
+	// update rune entries
 	for runeId, amount := range burned {
 		runeEntry, ok := runeEntries[runeId]
 		if !ok {
 			continue
 		}
 		runeEntry.BurnedAmount = runeEntry.BurnedAmount.Add(amount)
-		if err := p.runesDg.SetRuneEntry(ctx, runeEntry); err != nil {
-			return errors.Wrap(err, "failed to set rune entry")
+	}
+	return nil
+}
+
+func (p *Processor) flushNewRuneEntryStates(ctx context.Context, blockHeight uint64) error {
+	for _, runeEntry := range p.newRuneEntryStates {
+		if err := p.runesDg.CreateRuneEntryState(ctx, runeEntry, blockHeight); err != nil {
+			return errors.Wrap(err, "failed to create rune entry state")
 		}
+	}
+	p.newRuneEntryStates = make(map[runes.RuneId]*runes.RuneEntry)
+	return nil
+}
+
+func (p *Processor) createIndexedBlock(ctx context.Context, header types.BlockHeader) error {
+	if err := p.runesDg.CreateIndexedBlock(ctx, &entity.IndexedBlock{
+		Height:              header.Height,
+		Hash:                header.Hash,
+		EventHash:           chainhash.Hash{}, // TODO: calculate event hash
+		CumulativeEventHash: chainhash.Hash{}, // TODO: calculate cumulative event hash
+	}); err != nil {
+		return errors.Wrap(err, "failed to create indexed block")
 	}
 	return nil
 }

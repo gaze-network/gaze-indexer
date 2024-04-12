@@ -9,6 +9,7 @@ import (
 	"github.com/gaze-network/indexer-network/core/types"
 	"github.com/gaze-network/indexer-network/modules/bitcoin/btcclient"
 	"github.com/gaze-network/indexer-network/modules/runes/internal/datagateway"
+	"github.com/gaze-network/indexer-network/modules/runes/internal/runes"
 )
 
 var _ indexers.BitcoinProcessor = (*Processor)(nil)
@@ -18,6 +19,8 @@ type Processor struct {
 	bitcoinClient     btcclient.Contract
 	bitcoinDataSource indexers.BitcoinDatasource
 	network           common.Network
+
+	newRuneEntryStates map[runes.RuneId]*runes.RuneEntry
 }
 
 type NewProcessorParams struct {
@@ -29,10 +32,11 @@ type NewProcessorParams struct {
 
 func NewProcessor(params NewProcessorParams) *Processor {
 	return &Processor{
-		runesDg:           params.RunesDg,
-		bitcoinClient:     params.BitcoinClient,
-		bitcoinDataSource: params.BitcoinDataSource,
-		network:           params.Network,
+		runesDg:            params.RunesDg,
+		bitcoinClient:      params.BitcoinClient,
+		bitcoinDataSource:  params.BitcoinDataSource,
+		network:            params.Network,
+		newRuneEntryStates: make(map[runes.RuneId]*runes.RuneEntry),
 	}
 }
 
