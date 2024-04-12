@@ -251,3 +251,22 @@ func TestCommitment(t *testing.T) {
 	test(NewRune(65535), []byte{255, 255})
 	test(NewRune(65536), []byte{0, 0, 1})
 }
+
+func TestRuneMarshal(t *testing.T) {
+	rune := NewRune(5)
+	bytes, err := rune.MarshalJSON()
+	assert.NoError(t, err)
+	assert.Equal(t, []byte(`"F"`), bytes)
+}
+
+func TestRuneUnmarshal(t *testing.T) {
+	str := `"F"`
+	var rune Rune
+	err := rune.UnmarshalJSON([]byte(str))
+	assert.NoError(t, err)
+	assert.Equal(t, NewRune(5), rune)
+
+	str = `1`
+	err = rune.UnmarshalJSON([]byte(str))
+	assert.Error(t, err)
+}

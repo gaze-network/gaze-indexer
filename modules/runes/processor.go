@@ -14,22 +14,25 @@ import (
 var _ indexers.BitcoinProcessor = (*Processor)(nil)
 
 type Processor struct {
-	runesDg       datagateway.RunesDataGateway
-	bitcoinClient btcclient.Contract
-	network       common.Network
+	runesDg           datagateway.RunesDataGateway
+	bitcoinClient     btcclient.Contract
+	bitcoinDataSource indexers.BitcoinDatasource
+	network           common.Network
 }
 
 type NewProcessorParams struct {
-	RunesDg       datagateway.RunesDataGateway
-	BitcoinClient btcclient.Contract
-	Network       common.Network
+	RunesDg           datagateway.RunesDataGateway
+	BitcoinClient     btcclient.Contract
+	BitcoinDataSource indexers.BitcoinDatasource
+	Network           common.Network
 }
 
 func NewProcessor(params NewProcessorParams) *Processor {
 	return &Processor{
-		runesDg:       params.RunesDg,
-		bitcoinClient: params.BitcoinClient,
-		network:       params.Network,
+		runesDg:           params.RunesDg,
+		bitcoinClient:     params.BitcoinClient,
+		bitcoinDataSource: params.BitcoinDataSource,
+		network:           params.Network,
 	}
 }
 
@@ -56,10 +59,6 @@ func (p *Processor) GetIndexedBlock(ctx context.Context, height int64) (types.Bl
 		Height: block.Height,
 		Hash:   block.Hash,
 	}, nil
-}
-
-func (p *Processor) PrepareData(ctx context.Context, from, to int64) ([]*types.Block, error) {
-	panic("implement me")
 }
 
 func (p *Processor) RevertData(ctx context.Context, from int64) error {

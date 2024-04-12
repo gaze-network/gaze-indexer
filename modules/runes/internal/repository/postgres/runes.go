@@ -55,6 +55,35 @@ func (r *Repository) GetIndexedBlockByHeight(ctx context.Context, height int64) 
 	return indexedBlock, nil
 }
 
+func (r *Repository) GetRuneTransactionsByHeight(ctx context.Context, height uint64) ([]*entity.RuneTransaction, error) {
+	rows, err := r.queries.GetRuneTransactionsByHeight(ctx, int32(height))
+	if err != nil {
+		return nil, errors.Wrap(err, "error during query")
+	}
+
+	runeTxs := make([]*entity.RuneTransaction, 0, len(rows))
+	for _, row := range rows {
+		runeTxModel, runestoneModel, err := extractModelRuneTxAndRunestone(row)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to extract rune transaction and runestone from row")
+		}
+
+		runeTx, err := mapRuneTransactionModelToType(runeTxModel)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to parse rune transaction model")
+		}
+		if runestoneModel != nil {
+			runestone, err := mapRunestoneModelToType(*runestoneModel)
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to parse runestone model")
+			}
+			runeTx.Runestone = &runestone
+		}
+		runeTxs = append(runeTxs, &runeTx)
+	}
+	return runeTxs, nil
+}
+
 func (r *Repository) GetRunesBalancesAtOutPoint(ctx context.Context, outPoint wire.OutPoint) (map[runes.RuneId]uint128.Uint128, error) {
 	balances, err := r.queries.GetOutPointBalances(ctx, gen.GetOutPointBalancesParams{
 		TxHash: outPoint.Hash.String(),
@@ -79,20 +108,16 @@ func (r *Repository) GetRunesBalancesAtOutPoint(ctx context.Context, outPoint wi
 	return result, nil
 }
 
-func (r *Repository) GetRuneEntryByRune(ctx context.Context, rune runes.Rune) (*runes.RuneEntry, error) {
-	runeEntryModels, err := r.queries.GetRuneEntriesByRunes(ctx, []string{rune.String()})
+func (r *Repository) GetRuneIdFromRune(ctx context.Context, rune runes.Rune) (runes.RuneId, error) {
+	runeIdStr, err := r.queries.GetRuneIdFromRune(ctx, rune.String())
 	if err != nil {
-		return nil, errors.Wrap(err, "error during query")
+		return runes.RuneId{}, errors.Wrap(err, "error during query")
 	}
-	if len(runeEntryModels) == 0 {
-		return nil, errors.WithStack(errs.NotFound)
-	}
-
-	runeEntry, err := mapRuneEntryModelToType(runeEntryModels[0])
+	runeId, err := runes.NewRuneIdFromString(runeIdStr)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to parse rune entry model")
+		return runes.RuneId{}, errors.Wrap(err, "failed to parse RuneId")
 	}
-	return &runeEntry, nil
+	return runeId, nil
 }
 
 func (r *Repository) GetRuneEntryByRuneId(ctx context.Context, runeId runes.RuneId) (*runes.RuneEntry, error) {
@@ -135,16 +160,52 @@ func (r *Repository) GetRuneEntryByRuneIdBatch(ctx context.Context, runeIds []ru
 	return runeEntries, nil
 }
 
-func (r *Repository) SetRuneEntry(ctx context.Context, entry *runes.RuneEntry) error {
+func (r *Repository) CreateRuneTransaction(ctx context.Context, tx *entity.RuneTransaction) error {
+	if tx == nil {
+		return nil
+	}
+	txParams, runestoneParams, err := mapRuneTransactionTypeToParams(*tx)
+	if err != nil {
+		return errors.Wrap(err, "failed to map rune transaction to params")
+	}
+	if err = r.queries.CreateRuneTransaction(ctx, txParams); err != nil {
+		return errors.Wrap(err, "error during exec CreateRuneTransaction")
+	}
+	if runestoneParams != nil {
+		if err = r.queries.CreateRunestone(ctx, *runestoneParams); err != nil {
+			return errors.Wrap(err, "error during exec CreateRunestone")
+		}
+	}
+	return nil
+}
+
+func (r *Repository) CreateRuneEntry(ctx context.Context, entry *runes.RuneEntry) error {
 	if entry == nil {
 		return nil
 	}
-	params, err := mapRuneEntryTypeToParams(*entry)
+	createParams, createStateParams, err := mapRuneEntryTypeToParams(*entry)
 	if err != nil {
 		return errors.Wrap(err, "failed to map rune entry to params")
 	}
-	if err = r.queries.SetRuneEntry(ctx, params); err != nil {
-		return errors.Wrap(err, "error during exec")
+	if err = r.queries.CreateRuneEntry(ctx, createParams); err != nil {
+		return errors.Wrap(err, "error during exec CreateRuneEntry")
+	}
+	if err = r.queries.CreateRuneEntryState(ctx, createStateParams); err != nil {
+		return errors.Wrap(err, "error during exec CreateRuneEntryState")
+	}
+	return nil
+}
+
+func (r *Repository) CreateRuneEntryState(ctx context.Context, entry *runes.RuneEntry) error {
+	if entry == nil {
+		return nil
+	}
+	_, createStateParams, err := mapRuneEntryTypeToParams(*entry)
+	if err != nil {
+		return errors.Wrap(err, "failed to map rune entry to params")
+	}
+	if err = r.queries.CreateRuneEntryState(ctx, createStateParams); err != nil {
+		return errors.Wrap(err, "error during exec CreateRuneEntryState")
 	}
 	return nil
 }

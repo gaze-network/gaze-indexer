@@ -9,7 +9,7 @@ require (
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.1.0
 	github.com/btcsuite/btclog v0.0.0-20170628155309-84c8d2346e9f
 	github.com/cockroachdb/errors v1.11.1
-	github.com/gaze-network/uint128 v1.2.0
+	github.com/gaze-network/uint128 v1.3.0
 	github.com/gofiber/fiber/v2 v2.52.4
 	github.com/jackc/pgx/v5 v5.5.5
 	github.com/mcosta74/pgx-slog v0.3.0

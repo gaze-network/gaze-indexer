@@ -81,3 +81,28 @@ func TestNewRuneIdFromString(t *testing.T) {
 		})
 	}
 }
+
+func TestRuneIdMarshal(t *testing.T) {
+	runeId := RuneId{
+		BlockHeight: 1,
+		TxIndex:     2,
+	}
+	bytes, err := runeId.MarshalJSON()
+	assert.NoError(t, err)
+	assert.Equal(t, []byte(`"1:2"`), bytes)
+}
+
+func TestRuneIdUnmarshal(t *testing.T) {
+	str := `"1:2"`
+	var runeId RuneId
+	err := runeId.UnmarshalJSON([]byte(str))
+	assert.NoError(t, err)
+	assert.Equal(t, RuneId{
+		BlockHeight: 1,
+		TxIndex:     2,
+	}, runeId)
+
+	str = `1`
+	err = runeId.UnmarshalJSON([]byte(str))
+	assert.Error(t, err)
+}

@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"time"
 
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
@@ -42,7 +43,7 @@ func numericFromUint128(src *uint128.Uint128) (pgtype.Numeric, error) {
 	return result, nil
 }
 
-func mapRuneEntryModelToType(src gen.RunesEntry) (runes.RuneEntry, error) {
+func mapRuneEntryModelToType(src gen.GetRuneEntriesByRuneIdsRow) (runes.RuneEntry, error) {
 	runeId, err := runes.NewRuneIdFromString(src.RuneID)
 	if err != nil {
 		return runes.RuneEntry{}, errors.Wrap(err, "failed to parse rune id")
@@ -114,21 +115,21 @@ func mapRuneEntryModelToType(src gen.RunesEntry) (runes.RuneEntry, error) {
 	}, nil
 }
 
-func mapRuneEntryTypeToParams(src runes.RuneEntry) (gen.SetRuneEntryParams, error) {
+func mapRuneEntryTypeToParams(src runes.RuneEntry) (gen.CreateRuneEntryParams, gen.CreateRuneEntryStateParams, error) {
 	runeId := src.RuneId.String()
 	rune := src.SpacedRune.Rune.String()
 	spacers := int32(src.SpacedRune.Spacers)
-	burnedAmount, err := numericFromUint128(&src.BurnedAmount)
-	if err != nil {
-		return gen.SetRuneEntryParams{}, errors.Wrap(err, "failed to parse burned amount")
-	}
 	mints, err := numericFromUint128(&src.Mints)
 	if err != nil {
-		return gen.SetRuneEntryParams{}, errors.Wrap(err, "failed to parse mints")
+		return gen.CreateRuneEntryParams{}, gen.CreateRuneEntryStateParams{}, errors.Wrap(err, "failed to parse mints")
+	}
+	burnedAmount, err := numericFromUint128(&src.BurnedAmount)
+	if err != nil {
+		return gen.CreateRuneEntryParams{}, gen.CreateRuneEntryStateParams{}, errors.Wrap(err, "failed to parse burned amount")
 	}
 	premine, err := numericFromUint128(&src.Premine)
 	if err != nil {
-		return gen.SetRuneEntryParams{}, errors.Wrap(err, "failed to parse premine")
+		return gen.CreateRuneEntryParams{}, gen.CreateRuneEntryStateParams{}, errors.Wrap(err, "failed to parse premine")
 	}
 	var completionTime pgtype.Timestamp
 	if !src.CompletionTime.IsZero() {
@@ -143,13 +144,13 @@ func mapRuneEntryTypeToParams(src runes.RuneEntry) (gen.SetRuneEntryParams, erro
 		if src.Terms.Amount != nil {
 			termsAmount, err = numericFromUint128(src.Terms.Amount)
 			if err != nil {
-				return gen.SetRuneEntryParams{}, errors.Wrap(err, "failed to parse terms amount")
+				return gen.CreateRuneEntryParams{}, gen.CreateRuneEntryStateParams{}, errors.Wrap(err, "failed to parse terms amount")
 			}
 		}
 		if src.Terms.Cap != nil {
 			termsCap, err = numericFromUint128(src.Terms.Cap)
 			if err != nil {
-				return gen.SetRuneEntryParams{}, errors.Wrap(err, "failed to parse terms cap")
+				return gen.CreateRuneEntryParams{}, gen.CreateRuneEntryStateParams{}, errors.Wrap(err, "failed to parse terms cap")
 			}
 		}
 		if src.Terms.HeightStart != nil {
@@ -178,24 +179,351 @@ func mapRuneEntryTypeToParams(src runes.RuneEntry) (gen.SetRuneEntryParams, erro
 		}
 	}
 
-	return gen.SetRuneEntryParams{
-		RuneID:           runeId,
-		Rune:             rune,
-		Spacers:          spacers,
-		BurnedAmount:     burnedAmount,
-		Mints:            mints,
-		Premine:          premine,
-		Symbol:           src.Symbol,
-		Divisibility:     int16(src.Divisibility),
-		Terms:            terms,
-		TermsAmount:      termsAmount,
-		TermsCap:         termsCap,
-		TermsHeightStart: termsHeightStart,
-		TermsHeightEnd:   termsHeightEnd,
-		TermsOffsetStart: termsOffsetStart,
-		TermsOffsetEnd:   termsOffsetEnd,
-		CompletionTime:   completionTime,
+	return gen.CreateRuneEntryParams{
+			RuneID:           runeId,
+			Rune:             rune,
+			Spacers:          spacers,
+			Premine:          premine,
+			Symbol:           src.Symbol,
+			Divisibility:     int16(src.Divisibility),
+			Terms:            terms,
+			TermsAmount:      termsAmount,
+			TermsCap:         termsCap,
+			TermsHeightStart: termsHeightStart,
+			TermsHeightEnd:   termsHeightEnd,
+			TermsOffsetStart: termsOffsetStart,
+			TermsOffsetEnd:   termsOffsetEnd,
+		}, gen.CreateRuneEntryStateParams{
+			RuneID:         runeId,
+			Mints:          mints,
+			BurnedAmount:   burnedAmount,
+			CompletionTime: completionTime,
+		}, nil
+}
+
+type outpointBalanceModel struct {
+	PkScript string
+	Id       runes.RuneId
+	Value    uint128.Uint128
+	Index    uint32
+}
+
+func mapOutPointBalanceTypeToModel(src entity.OutPointBalance) outpointBalanceModel {
+	return outpointBalanceModel{
+		PkScript: hex.EncodeToString(src.PkScript),
+		Id:       src.Id,
+		Value:    src.Value,
+		Index:    src.Index,
+	}
+}
+
+// mapRuneTransactionModelToType returns params for creating a new rune transaction and (optionally) a runestone.
+func mapRuneTransactionTypeToParams(src entity.RuneTransaction) (gen.CreateRuneTransactionParams, *gen.CreateRunestoneParams, error) {
+	var timestamp pgtype.Timestamp
+	if !src.Timestamp.IsZero() {
+		timestamp.Time = src.Timestamp
+		timestamp.Valid = true
+	}
+	inputs := lo.Map(src.Inputs, func(input *entity.OutPointBalance, _ int) outpointBalanceModel {
+		return mapOutPointBalanceTypeToModel(*input)
+	})
+	outputs := lo.Map(src.Outputs, func(output *entity.OutPointBalance, _ int) outpointBalanceModel {
+		return mapOutPointBalanceTypeToModel(*output)
+	})
+	mints := lo.Map(src.Mints, func(mint *entity.OutPointBalance, _ int) outpointBalanceModel {
+		return mapOutPointBalanceTypeToModel(*mint)
+	})
+	inputsBytes, err := json.Marshal(inputs)
+	if err != nil {
+		return gen.CreateRuneTransactionParams{}, nil, errors.Wrap(err, "failed to marshal inputs")
+	}
+	outputsBytes, err := json.Marshal(outputs)
+	if err != nil {
+		return gen.CreateRuneTransactionParams{}, nil, errors.Wrap(err, "failed to marshal outputs")
+	}
+	mintsBytes, err := json.Marshal(mints)
+	if err != nil {
+		return gen.CreateRuneTransactionParams{}, nil, errors.Wrap(err, "failed to marshal mints")
+	}
+	burnsBytes, err := json.Marshal(src.Burns)
+	if err != nil {
+		return gen.CreateRuneTransactionParams{}, nil, errors.Wrap(err, "failed to marshal burns")
+	}
+
+	var runestoneParams *gen.CreateRunestoneParams
+	if src.Runestone != nil {
+		params, err := mapRunestoneTypeToParams(*src.Runestone, src.Hash, src.BlockHeight)
+		if err != nil {
+			return gen.CreateRuneTransactionParams{}, nil, errors.Wrap(err, "failed to map runestone to params")
+		}
+		runestoneParams = &params
+	}
+
+	return gen.CreateRuneTransactionParams{
+		Hash:        src.Hash.String(),
+		BlockHeight: int32(src.BlockHeight),
+		Timestamp:   timestamp,
+		Inputs:      inputsBytes,
+		Outputs:     outputsBytes,
+		Mints:       mintsBytes,
+		Burns:       burnsBytes,
+	}, runestoneParams, nil
+}
+
+func extractModelRuneTxAndRunestone(src gen.GetRuneTransactionsByHeightRow) (gen.RunesTransaction, *gen.RunesRunestone, error) {
+	var runestone *gen.RunesRunestone
+	if src.TxHash.Valid {
+		// these fields should never be null
+		if !src.Etching.Valid {
+			return gen.RunesTransaction{}, nil, errors.New("runestone etching bool is null")
+		}
+		if !src.EtchingTerms.Valid {
+			return gen.RunesTransaction{}, nil, errors.New("runestone etching terms bool is null")
+		}
+		if !src.Cenotaph.Valid {
+			return gen.RunesTransaction{}, nil, errors.New("runestone cenotaph is null")
+		}
+		if !src.Flaws.Valid {
+			return gen.RunesTransaction{}, nil, errors.New("runestone flaws is null")
+		}
+		runestone = &gen.RunesRunestone{
+			TxHash:                  src.TxHash.String,
+			BlockHeight:             src.BlockHeight,
+			Etching:                 src.Etching.Bool,
+			EtchingDivisibility:     src.EtchingDivisibility,
+			EtchingPremine:          src.EtchingPremine,
+			EtchingRune:             src.EtchingRune,
+			EtchingSpacers:          src.EtchingSpacers,
+			EtchingSymbol:           src.EtchingSymbol,
+			EtchingTerms:            src.EtchingTerms.Bool,
+			EtchingTermsAmount:      src.EtchingTermsAmount,
+			EtchingTermsCap:         src.EtchingTermsCap,
+			EtchingTermsHeightStart: src.EtchingTermsHeightStart,
+			EtchingTermsHeightEnd:   src.EtchingTermsHeightEnd,
+			EtchingTermsOffsetStart: src.EtchingTermsOffsetStart,
+			EtchingTermsOffsetEnd:   src.EtchingTermsOffsetEnd,
+			Edicts:                  src.Edicts,
+			Mint:                    src.Mint,
+			Pointer:                 src.Pointer,
+			Cenotaph:                src.Cenotaph.Bool,
+			Flaws:                   src.Flaws.Int32,
+		}
+	}
+	return gen.RunesTransaction{
+		Hash:        src.Hash,
+		BlockHeight: src.BlockHeight,
+		Timestamp:   src.Timestamp,
+		Inputs:      src.Inputs,
+		Outputs:     src.Outputs,
+		Mints:       src.Mints,
+		Burns:       src.Burns,
+	}, runestone, nil
+}
+
+func mapRuneTransactionModelToType(src gen.RunesTransaction) (entity.RuneTransaction, error) {
+	hash, err := chainhash.NewHashFromStr(src.Hash)
+	if err != nil {
+		return entity.RuneTransaction{}, errors.Wrap(err, "failed to parse transaction hash")
+	}
+	var timestamp time.Time
+	if src.Timestamp.Valid {
+		timestamp = src.Timestamp.Time
+	}
+	inputs := make([]*entity.OutPointBalance, 0)
+	if err := json.Unmarshal(src.Inputs, &inputs); err != nil {
+		return entity.RuneTransaction{}, errors.Wrap(err, "failed to unmarshal inputs")
+	}
+	outputs := make([]*entity.OutPointBalance, 0)
+	if err := json.Unmarshal(src.Outputs, &outputs); err != nil {
+		return entity.RuneTransaction{}, errors.Wrap(err, "failed to unmarshal outputs")
+	}
+	mints := make([]*entity.OutPointBalance, 0)
+	if err := json.Unmarshal(src.Mints, &mints); err != nil {
+		return entity.RuneTransaction{}, errors.Wrap(err, "failed to unmarshal mints")
+	}
+	burns := make(map[runes.RuneId]uint128.Uint128)
+	if err := json.Unmarshal(src.Burns, &burns); err != nil {
+		return entity.RuneTransaction{}, errors.Wrap(err, "failed to unmarshal burns")
+	}
+
+	return entity.RuneTransaction{
+		Hash:        *hash,
+		BlockHeight: uint64(src.BlockHeight),
+		Timestamp:   timestamp,
+		Inputs:      inputs,
+		Outputs:     outputs,
+		Mints:       mints,
+		Burns:       burns,
 	}, nil
+}
+
+func mapRunestoneTypeToParams(src runes.Runestone, txHash chainhash.Hash, blockHeight uint64) (gen.CreateRunestoneParams, error) {
+	var runestoneParams gen.CreateRunestoneParams
+
+	edictsBytes, err := json.Marshal(src.Edicts)
+	if err != nil {
+		return gen.CreateRunestoneParams{}, errors.Wrap(err, "failed to marshal runestone edicts")
+	}
+	runestoneParams = gen.CreateRunestoneParams{
+		TxHash:      txHash.String(),
+		BlockHeight: int32(blockHeight),
+		Edicts:      edictsBytes,
+		Cenotaph:    src.Cenotaph,
+		Flaws:       int32(src.Flaws),
+	}
+	if src.Etching != nil {
+		runestoneParams.Etching = true
+		etching := *src.Etching
+		if etching.Divisibility != nil {
+			runestoneParams.EtchingDivisibility = pgtype.Int2{Int16: int16(*etching.Divisibility), Valid: true}
+		}
+		if etching.Premine != nil {
+			premine, err := numericFromUint128(etching.Premine)
+			if err != nil {
+				return gen.CreateRunestoneParams{}, errors.Wrap(err, "failed to parse etching premine")
+			}
+			runestoneParams.EtchingPremine = premine
+		}
+		if etching.Rune != nil {
+			runestoneParams.EtchingRune = pgtype.Text{String: etching.Rune.String(), Valid: true}
+		}
+		if etching.Spacers != nil {
+			runestoneParams.EtchingSpacers = pgtype.Int4{Int32: int32(*etching.Spacers), Valid: true}
+		}
+		if etching.Symbol != nil {
+			runestoneParams.EtchingSymbol = pgtype.Int4{Int32: int32(*etching.Symbol), Valid: true}
+		}
+		if etching.Terms != nil {
+			runestoneParams.EtchingTerms = true
+			terms := *etching.Terms
+			if terms.Amount != nil {
+				amount, err := numericFromUint128(terms.Amount)
+				if err != nil {
+					return gen.CreateRunestoneParams{}, errors.Wrap(err, "failed to parse etching terms amount")
+				}
+				runestoneParams.EtchingTermsAmount = amount
+			}
+			if terms.Cap != nil {
+				cap, err := numericFromUint128(terms.Cap)
+				if err != nil {
+					return gen.CreateRunestoneParams{}, errors.Wrap(err, "failed to parse etching terms cap")
+				}
+				runestoneParams.EtchingTermsCap = cap
+			}
+			if terms.HeightStart != nil {
+				runestoneParams.EtchingTermsHeightStart = pgtype.Int4{Int32: int32(*terms.HeightStart), Valid: true}
+			}
+			if terms.HeightEnd != nil {
+				runestoneParams.EtchingTermsHeightEnd = pgtype.Int4{Int32: int32(*terms.HeightEnd), Valid: true}
+			}
+			if terms.OffsetStart != nil {
+				runestoneParams.EtchingTermsOffsetStart = pgtype.Int4{Int32: int32(*terms.OffsetStart), Valid: true}
+			}
+			if terms.OffsetEnd != nil {
+				runestoneParams.EtchingTermsOffsetEnd = pgtype.Int4{Int32: int32(*terms.OffsetEnd), Valid: true}
+			}
+		}
+	}
+	if src.Mint != nil {
+		runestoneParams.Mint = pgtype.Text{String: src.Mint.String(), Valid: true}
+	}
+	if src.Pointer != nil {
+		runestoneParams.Pointer = pgtype.Int4{Int32: int32(*src.Pointer), Valid: true}
+	}
+
+	return runestoneParams, nil
+}
+
+func mapRunestoneModelToType(src gen.RunesRunestone) (runes.Runestone, error) {
+	runestone := runes.Runestone{
+		Cenotaph: src.Cenotaph,
+		Flaws:    runes.Flaws(src.Flaws),
+	}
+	if src.Etching {
+		etching := runes.Etching{}
+		if src.EtchingDivisibility.Valid {
+			divisibility := uint8(src.EtchingDivisibility.Int16)
+			etching.Divisibility = &divisibility
+		}
+		if src.EtchingPremine.Valid {
+			premine, err := uint128FromNumeric(src.EtchingPremine)
+			if err != nil {
+				return runes.Runestone{}, errors.Wrap(err, "failed to parse etching premine")
+			}
+			etching.Premine = premine
+		}
+		if src.EtchingRune.Valid {
+			rune, err := runes.NewRuneFromString(src.EtchingRune.String)
+			if err != nil {
+				return runes.Runestone{}, errors.Wrap(err, "failed to parse etching rune")
+			}
+			etching.Rune = &rune
+		}
+		if src.EtchingSpacers.Valid {
+			spacers := uint32(src.EtchingSpacers.Int32)
+			etching.Spacers = &spacers
+		}
+		if src.EtchingSymbol.Valid {
+			symbol := rune(src.EtchingSymbol.Int32)
+			etching.Symbol = &symbol
+		}
+		if src.EtchingTerms {
+			terms := runes.Terms{}
+			if src.EtchingTermsAmount.Valid {
+				amount, err := uint128FromNumeric(src.EtchingTermsAmount)
+				if err != nil {
+					return runes.Runestone{}, errors.Wrap(err, "failed to parse etching terms amount")
+				}
+				terms.Amount = amount
+			}
+			if src.EtchingTermsCap.Valid {
+				cap, err := uint128FromNumeric(src.EtchingTermsCap)
+				if err != nil {
+					return runes.Runestone{}, errors.Wrap(err, "failed to parse etching terms cap")
+				}
+				terms.Cap = cap
+			}
+			if src.EtchingTermsHeightStart.Valid {
+				heightStart := uint64(src.EtchingTermsHeightStart.Int32)
+				terms.HeightStart = &heightStart
+			}
+			if src.EtchingTermsHeightEnd.Valid {
+				heightEnd := uint64(src.EtchingTermsHeightEnd.Int32)
+				terms.HeightEnd = &heightEnd
+			}
+			if src.EtchingTermsOffsetStart.Valid {
+				offsetStart := uint64(src.EtchingTermsOffsetStart.Int32)
+				terms.OffsetStart = &offsetStart
+			}
+			if src.EtchingTermsOffsetEnd.Valid {
+				offsetEnd := uint64(src.EtchingTermsOffsetEnd.Int32)
+				terms.OffsetEnd = &offsetEnd
+			}
+			etching.Terms = &terms
+		}
+		runestone.Etching = &etching
+	}
+	if src.Mint.Valid {
+		mint, err := runes.NewRuneIdFromString(src.Mint.String)
+		if err != nil {
+			return runes.Runestone{}, errors.Wrap(err, "failed to parse mint")
+		}
+		runestone.Mint = &mint
+	}
+	if src.Pointer.Valid {
+		pointer := uint64(src.Pointer.Int32)
+		runestone.Pointer = &pointer
+	}
+	// Edicts
+	{
+		if err := json.Unmarshal(src.Edicts, &runestone.Edicts); err != nil {
+			return runes.Runestone{}, errors.Wrap(err, "failed to unmarshal edicts")
+		}
+		if len(runestone.Edicts) == 0 {
+			runestone.Edicts = nil
+		}
+	}
+	return runestone, nil
 }
 
 func mapBalanceModelToType(src gen.RunesBalance) (*entity.Balance, error) {

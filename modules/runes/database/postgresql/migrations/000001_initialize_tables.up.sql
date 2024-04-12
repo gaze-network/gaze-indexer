@@ -39,8 +39,6 @@ CREATE TABLE IF NOT EXISTS "runes_entries" (
 	"rune_id" TEXT NOT NULL PRIMARY KEY,
 	"rune" TEXT NOT NULL,
 	"spacers" INT NOT NULL,
-	"burned_amount" DECIMAL NOT NULL,
-	"mints" DECIMAL NOT NULL,
 	"premine" DECIMAL NOT NULL,
 	"symbol" INT NOT NULL,
 	"divisibility" SMALLINT NOT NULL,
@@ -51,9 +49,51 @@ CREATE TABLE IF NOT EXISTS "runes_entries" (
 	"terms_height_end" INT,
 	"terms_offset_start" INT,
 	"terms_offset_end" INT,
-	"completion_time" TIMESTAMP NOT NULL
+	"created_at_block" INT NOT NULL
 );
 CREATE UNIQUE INDEX IF NOT EXISTS runes_entries_rune_idx ON "runes_entries" USING BTREE ("rune");
+
+CREATE TABLE IF NOT EXISTS "runes_entry_states" (
+	"rune_id" TEXT NOT NULL,
+	"block_height" INT NOT NULL,
+	"mints" DECIMAL NOT NULL,
+	"burned_amount" DECIMAL NOT NULL,
+	"completion_time" TIMESTAMP,
+	PRIMARY KEY ("rune_id", "block_height")
+);
+
+CREATE TABLE IF NOT EXISTS "runes_transactions" (
+	"hash" TEXT NOT NULL PRIMARY KEY,
+	"block_height" INT NOT NULL,
+	"timestamp" TIMESTAMP NOT NULL,
+	"inputs" JSONB NOT NULL,
+	"outputs" JSONB NOT NULL,
+	"mints" JSONB NOT NULL,
+	"burns" JSONB NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS "runes_runestones" (
+	"tx_hash" TEXT NOT NULL PRIMARY KEY,
+	"block_height" INT NOT NULL,
+	"etching" BOOLEAN NOT NULL,
+	"etching_divisibility" SMALLINT,
+	"etching_premine" DECIMAL,
+	"etching_rune" TEXT,
+	"etching_spacers" INT,
+	"etching_symbol" INT,
+	"etching_terms" BOOLEAN NOT NULL,
+	"etching_terms_amount" DECIMAL,
+	"etching_terms_cap" DECIMAL,
+	"etching_terms_height_start" INT,
+	"etching_terms_height_end" INT,
+	"etching_terms_offset_start" INT,
+	"etching_terms_offset_end" INT,
+	"edicts" JSONB NOT NULL DEFAULT '[]',
+	"mint" TEXT,
+	"pointer" INT,
+	"cenotaph" BOOLEAN NOT NULL,
+	"flaws" INT NOT NULL
+);
 
 CREATE TABLE IF NOT EXISTS "runes_outpoint_balances" (
 	"rune_id" TEXT NOT NULL,

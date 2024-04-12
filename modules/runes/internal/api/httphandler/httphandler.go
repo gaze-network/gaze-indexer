@@ -76,11 +76,11 @@ func (h *HttpHandler) resolveRuneId(ctx context.Context, id string) (runes.RuneI
 	// attempt to parse as rune
 	rune, err := runes.NewRuneFromString(id)
 	if err == nil {
-		runeEntry, err := h.usecase.GetRuneEntryByRune(ctx, rune)
+		runeId, err := h.usecase.GetRuneIdFromRune(ctx, rune)
 		if err != nil {
 			return runes.RuneId{}, false
 		}
-		return runeEntry.RuneId, true
+		return runeId, true
 	}
 
 	return runes.RuneId{}, false

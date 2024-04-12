@@ -19,8 +19,6 @@ type RunesEntry struct {
 	RuneID           string
 	Rune             string
 	Spacers          int32
-	BurnedAmount     pgtype.Numeric
-	Mints            pgtype.Numeric
 	Premine          pgtype.Numeric
 	Symbol           int32
 	Divisibility     int16
@@ -31,7 +29,15 @@ type RunesEntry struct {
 	TermsHeightEnd   pgtype.Int4
 	TermsOffsetStart pgtype.Int4
 	TermsOffsetEnd   pgtype.Int4
-	CompletionTime   pgtype.Timestamp
+	CreatedAtBlock   int32
+}
+
+type RunesEntryState struct {
+	RuneID         string
+	BlockHeight    int32
+	Mints          pgtype.Numeric
+	BurnedAmount   pgtype.Numeric
+	CompletionTime pgtype.Timestamp
 }
 
 type RunesIndexedBlock struct {
@@ -70,4 +76,37 @@ type RunesProcessorState struct {
 	LatestBlockHash     string
 	LatestPrevBlockHash string
 	UpdatedAt           pgtype.Timestamp
+}
+
+type RunesRunestone struct {
+	TxHash                  string
+	BlockHeight             int32
+	Etching                 bool
+	EtchingDivisibility     pgtype.Int2
+	EtchingPremine          pgtype.Numeric
+	EtchingRune             pgtype.Text
+	EtchingSpacers          pgtype.Int4
+	EtchingSymbol           pgtype.Int4
+	EtchingTerms            bool
+	EtchingTermsAmount      pgtype.Numeric
+	EtchingTermsCap         pgtype.Numeric
+	EtchingTermsHeightStart pgtype.Int4
+	EtchingTermsHeightEnd   pgtype.Int4
+	EtchingTermsOffsetStart pgtype.Int4
+	EtchingTermsOffsetEnd   pgtype.Int4
+	Edicts                  []byte
+	Mint                    pgtype.Text
+	Pointer                 pgtype.Int4
+	Cenotaph                bool
+	Flaws                   int32
+}
+
+type RunesTransaction struct {
+	Hash        string
+	BlockHeight int32
+	Timestamp   pgtype.Timestamp
+	Inputs      []byte
+	Outputs     []byte
+	Mints       []byte
+	Burns       []byte
 }

@@ -19,10 +19,11 @@ type RunesDataGateway interface {
 type RunesReaderDataGateway interface {
 	GetLatestBlock(ctx context.Context) (types.BlockHeader, error)
 	GetIndexedBlockByHeight(ctx context.Context, height int64) (*entity.IndexedBlock, error)
+	GetRuneTransactionsByHeight(ctx context.Context, height uint64) ([]*entity.RuneTransaction, error)
 
 	GetRunesBalancesAtOutPoint(ctx context.Context, outPoint wire.OutPoint) (map[runes.RuneId]uint128.Uint128, error)
-	// GetRuneEntryByRune returns the RuneEntry for the given rune. Returns errs.NotFound if the rune entry is not found.
-	GetRuneEntryByRune(ctx context.Context, rune runes.Rune) (*runes.RuneEntry, error)
+	// GetRuneIdFromRune returns the RuneId for the given rune. Returns errs.NotFound if the rune entry is not found.
+	GetRuneIdFromRune(ctx context.Context, rune runes.Rune) (runes.RuneId, error)
 	// GetRuneEntryByRuneId returns the RuneEntry for the given runeId. Returns errs.NotFound if the rune entry is not found.
 	GetRuneEntryByRuneId(ctx context.Context, runeId runes.RuneId) (*runes.RuneEntry, error)
 	// GetRuneEntryByRuneId returns the RuneEntry for the given runeId. Returns errs.NotFound if the rune entry is not found.
@@ -45,10 +46,12 @@ type RunesWriterDataGateway interface {
 	// Rollback() must be safe to call even if no transaction is active. Hence, a defer Rollback() is safe, even if Commit() was called prior with non-error conditions.
 	Rollback(ctx context.Context) error
 
-	SetRuneEntry(ctx context.Context, entry *runes.RuneEntry) error
+	CreateRuneEntry(ctx context.Context, entry *runes.RuneEntry) error
 	CreateRuneBalancesAtOutPoint(ctx context.Context, outPoint wire.OutPoint, balances map[runes.RuneId]uint128.Uint128) error
 	CreateRuneBalancesAtBlock(ctx context.Context, params []CreateRuneBalancesAtBlockParams) error
 	UpdateLatestBlock(ctx context.Context, blockHeader types.BlockHeader) error
+
+	CreateRuneTransaction(ctx context.Context, tx *entity.RuneTransaction) error
 
 	CreateIndexedBlock(ctx context.Context, block *entity.IndexedBlock) error
 	DeleteIndexedBlockByHash(ctx context.Context, hash chainhash.Hash) error

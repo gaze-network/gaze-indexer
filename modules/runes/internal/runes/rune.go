@@ -153,3 +153,23 @@ func GetReservedRune(blockHeight uint64, txIndex uint32) Rune {
 	delta := uint128.From64(blockHeight).Lsh(32).Or64(uint64(txIndex))
 	return Rune(firstReservedRune.Uint128().Add(delta))
 }
+
+// MarshalJSON implements json.Marshaler
+func (r Rune) MarshalJSON() ([]byte, error) {
+	return []byte(`"` + r.String() + `"`), nil
+}
+
+// UnmarshalJSON implements json.Unmarshaler
+func (r *Rune) UnmarshalJSON(data []byte) error {
+	// data must be quoted
+	if len(data) < 2 || data[0] != '"' || data[len(data)-1] != '"' {
+		return errors.New("must be string")
+	}
+	data = data[1 : len(data)-1]
+	parsed, err := NewRuneFromString(string(data))
+	if err != nil {
+		return errors.WithStack(err)
+	}
+	*r = parsed
+	return nil
+}

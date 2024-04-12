@@ -270,8 +270,8 @@ func (p *Processor) getEtchedRune(ctx context.Context, tx *types.Transaction, ru
 			return nil, runes.RuneId{}, runes.Rune{}, nil
 		}
 
-		_, err := p.runesDg.GetRuneEntryByRune(ctx, *rune)
-		if err != nil && errors.Is(err, errs.NotFound) {
+		_, err := p.runesDg.GetRuneIdFromRune(ctx, *rune)
+		if err != nil && !errors.Is(err, errs.NotFound) {
 			return nil, runes.RuneId{}, runes.Rune{}, errors.Wrap(err, "error during get rune entry by rune")
 		}
 		// if found, then this is duplicate

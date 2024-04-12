@@ -80,3 +80,23 @@ func (r RuneId) Next(blockDelta uint64, txIndexDelta uint32) (RuneId, error) {
 		txIndexDelta,
 	)
 }
+
+// MarshalJSON implements json.Marshaler
+func (r RuneId) MarshalJSON() ([]byte, error) {
+	return []byte(`"` + r.String() + `"`), nil
+}
+
+// UnmarshalJSON implements json.Unmarshaler
+func (r *RuneId) UnmarshalJSON(data []byte) error {
+	// data must be quoted
+	if len(data) < 2 || data[0] != '"' || data[len(data)-1] != '"' {
+		return errors.New("must be string")
+	}
+	data = data[1 : len(data)-1]
+	parsed, err := NewRuneIdFromString(string(data))
+	if err != nil {
+		return errors.WithStack(err)
+	}
+	*r = parsed
+	return nil
+}
