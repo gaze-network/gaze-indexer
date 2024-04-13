@@ -43,7 +43,6 @@ type NewProcessorParams struct {
 }
 
 func NewProcessor(params NewProcessorParams) *Processor {
-	// TODO: check db version and event hash version, as well as seed UNCOMMONGOODS rune if not exists
 	return &Processor{
 		runesDg:            params.RunesDg,
 		bitcoinClient:      params.BitcoinClient,
