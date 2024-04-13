@@ -9,10 +9,12 @@ import (
 )
 
 type OutPointBalance struct {
-	PkScript []byte
-	Id       runes.RuneId
-	Value    uint128.Uint128
-	Index    uint32
+	PkScript       []byte
+	Id             runes.RuneId
+	Value          uint128.Uint128
+	Index          uint32
+	PrevTxHash     chainhash.Hash
+	PrevTxOutIndex uint32
 }
 
 type RuneTransaction struct {
@@ -21,7 +23,7 @@ type RuneTransaction struct {
 	Timestamp   time.Time
 	Inputs      []*OutPointBalance
 	Outputs     []*OutPointBalance
-	Mints       []*OutPointBalance
+	Mints       map[runes.RuneId]uint128.Uint128
 	Burns       map[runes.RuneId]uint128.Uint128
 	Runestone   *runes.Runestone
 }

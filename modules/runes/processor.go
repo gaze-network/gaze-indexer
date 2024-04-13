@@ -34,6 +34,7 @@ type Processor struct {
 
 	newRuneEntryStates map[runes.RuneId]*runes.RuneEntry
 	newBalances        map[string]map[runes.RuneId]uint128.Uint128
+	newRuneTxs         []*entity.RuneTransaction
 }
 
 type NewProcessorParams struct {
@@ -51,6 +52,7 @@ func NewProcessor(params NewProcessorParams) *Processor {
 		network:            params.Network,
 		newRuneEntryStates: make(map[runes.RuneId]*runes.RuneEntry),
 		newBalances:        make(map[string]map[runes.RuneId]uint128.Uint128),
+		newRuneTxs:         make([]*entity.RuneTransaction, 0),
 	}
 }
 

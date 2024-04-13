@@ -236,19 +236,42 @@ func mapRuneEntryTypeToParams(src runes.RuneEntry, blockHeight uint64) (gen.Crea
 }
 
 type outpointBalanceModel struct {
-	PkScript string
-	Id       runes.RuneId
-	Value    uint128.Uint128
-	Index    uint32
+	PkScript       string
+	Id             runes.RuneId
+	Value          uint128.Uint128
+	Index          uint32
+	PrevTxHash     string
+	PrevTxOutIndex uint32
 }
 
 func mapOutPointBalanceTypeToModel(src entity.OutPointBalance) outpointBalanceModel {
 	return outpointBalanceModel{
-		PkScript: hex.EncodeToString(src.PkScript),
-		Id:       src.Id,
-		Value:    src.Value,
-		Index:    src.Index,
+		PkScript:       hex.EncodeToString(src.PkScript),
+		Id:             src.Id,
+		Value:          src.Value,
+		Index:          src.Index,
+		PrevTxHash:     src.PrevTxHash.String(),
+		PrevTxOutIndex: src.PrevTxOutIndex,
 	}
+}
+
+func mapOutPointBalanceModelToType(src outpointBalanceModel) (entity.OutPointBalance, error) {
+	pkScript, err := hex.DecodeString(src.PkScript)
+	if err != nil {
+		return entity.OutPointBalance{}, errors.Wrap(err, "failed to decode pk script")
+	}
+	prevTxHash, err := chainhash.NewHashFromStr(src.PrevTxHash)
+	if err != nil {
+		return entity.OutPointBalance{}, errors.Wrap(err, "failed to parse prev tx hash")
+	}
+	return entity.OutPointBalance{
+		PkScript:       pkScript,
+		Id:             src.Id,
+		Value:          src.Value,
+		Index:          src.Index,
+		PrevTxHash:     *prevTxHash,
+		PrevTxOutIndex: src.PrevTxOutIndex,
+	}, nil
 }
 
 // mapRuneTransactionModelToType returns params for creating a new rune transaction and (optionally) a runestone.
@@ -264,9 +287,6 @@ func mapRuneTransactionTypeToParams(src entity.RuneTransaction) (gen.CreateRuneT
 	outputs := lo.Map(src.Outputs, func(output *entity.OutPointBalance, _ int) outpointBalanceModel {
 		return mapOutPointBalanceTypeToModel(*output)
 	})
-	mints := lo.Map(src.Mints, func(mint *entity.OutPointBalance, _ int) outpointBalanceModel {
-		return mapOutPointBalanceTypeToModel(*mint)
-	})
 	inputsBytes, err := json.Marshal(inputs)
 	if err != nil {
 		return gen.CreateRuneTransactionParams{}, nil, errors.Wrap(err, "failed to marshal inputs")
@@ -274,6 +294,10 @@ func mapRuneTransactionTypeToParams(src entity.RuneTransaction) (gen.CreateRuneT
 	outputsBytes, err := json.Marshal(outputs)
 	if err != nil {
 		return gen.CreateRuneTransactionParams{}, nil, errors.Wrap(err, "failed to marshal outputs")
+	}
+	mints := make(map[string]uint128.Uint128)
+	for key, value := range src.Mints {
+		mints[key.String()] = value
 	}
 	mintsBytes, err := json.Marshal(mints)
 	if err != nil {
@@ -367,18 +391,46 @@ func mapRuneTransactionModelToType(src gen.RunesTransaction) (entity.RuneTransac
 	if src.Timestamp.Valid {
 		timestamp = src.Timestamp.Time
 	}
-	inputs := make([]*entity.OutPointBalance, 0)
-	if err := json.Unmarshal(src.Inputs, &inputs); err != nil {
+
+	inputsRaw := make([]outpointBalanceModel, 0)
+	if err := json.Unmarshal(src.Inputs, &inputsRaw); err != nil {
 		return entity.RuneTransaction{}, errors.Wrap(err, "failed to unmarshal inputs")
 	}
-	outputs := make([]*entity.OutPointBalance, 0)
-	if err := json.Unmarshal(src.Outputs, &outputs); err != nil {
+	inputs := make([]*entity.OutPointBalance, len(inputsRaw))
+	for i, input := range inputsRaw {
+		outpoint, err := mapOutPointBalanceModelToType(input)
+		if err != nil {
+			return entity.RuneTransaction{}, errors.Wrap(err, "failed to parse outpoint balance")
+		}
+		inputs[i] = &outpoint
+	}
+
+	outputsRaw := make([]outpointBalanceModel, 0)
+	if err := json.Unmarshal(src.Outputs, &outputsRaw); err != nil {
 		return entity.RuneTransaction{}, errors.Wrap(err, "failed to unmarshal outputs")
 	}
-	mints := make([]*entity.OutPointBalance, 0)
-	if err := json.Unmarshal(src.Mints, &mints); err != nil {
+	outputs := make([]*entity.OutPointBalance, len(outputsRaw))
+	for i, output := range outputsRaw {
+		outpoint, err := mapOutPointBalanceModelToType(output)
+		if err != nil {
+			return entity.RuneTransaction{}, errors.Wrap(err, "failed to parse outpoint balance")
+		}
+		outputs[i] = &outpoint
+	}
+
+	mintsRaw := make(map[string]uint128.Uint128)
+	if err := json.Unmarshal(src.Mints, &mintsRaw); err != nil {
 		return entity.RuneTransaction{}, errors.Wrap(err, "failed to unmarshal mints")
 	}
+	mints := make(map[runes.RuneId]uint128.Uint128)
+	for key, value := range mintsRaw {
+		runeId, err := runes.NewRuneIdFromString(key)
+		if err != nil {
+			return entity.RuneTransaction{}, errors.Wrap(err, "failed to parse rune id")
+		}
+		mints[runeId] = value
+	}
+
 	burnsRaw := make(map[string]uint128.Uint128)
 	if err := json.Unmarshal(src.Burns, &burnsRaw); err != nil {
 		return entity.RuneTransaction{}, errors.Wrap(err, "failed to unmarshal burns")

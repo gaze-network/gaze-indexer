@@ -57,6 +57,15 @@ func (p *Processor) processTx(ctx context.Context, tx *types.Transaction, blockH
 	if err != nil {
 		return errors.Wrap(err, "failed to get input balances")
 	}
+	txInputsPkScripts, err := p.getTxInputsPkScripts(ctx, tx, lo.Keys(inputBalances))
+	if err != nil {
+		return errors.Wrap(err, "failed to get tx inputs pk scripts")
+	}
+
+	if runestone == nil && len(inputBalances) == 0 {
+		// no runes involved in this tx
+		return nil
+	}
 
 	unallocated := make(map[runes.RuneId]uint128.Uint128)
 	allocated := make(map[int]map[runes.RuneId]uint128.Uint128)
@@ -84,6 +93,7 @@ func (p *Processor) processTx(ctx context.Context, tx *types.Transaction, blockH
 		unallocated[runeId] = unallocated[runeId].Sub(amount)
 	}
 
+	mints := make(map[runes.RuneId]uint128.Uint128)
 	if runestone != nil {
 		if runestone.Mint != nil {
 			mintRuneId := *runestone.Mint
@@ -92,6 +102,7 @@ func (p *Processor) processTx(ctx context.Context, tx *types.Transaction, blockH
 				return errors.Wrap(err, "error during mint")
 			}
 			unallocated[mintRuneId] = unallocated[mintRuneId].Add(amount)
+			mints[mintRuneId] = amount
 		}
 
 		etching, etchedRuneId, etchedRune, err := p.getEtchedRune(ctx, tx, runestone)
@@ -105,6 +116,7 @@ func (p *Processor) processTx(ctx context.Context, tx *types.Transaction, blockH
 				premine := lo.FromPtr(etching.Premine)
 				if !premine.IsZero() {
 					unallocated[etchedRuneId] = unallocated[etchedRuneId].Add(premine)
+					mints[etchedRuneId] = mints[etchedRuneId].Add(premine)
 				}
 			}
 
@@ -172,11 +184,11 @@ func (p *Processor) processTx(ctx context.Context, tx *types.Transaction, blockH
 		}
 	}
 
-	burned := make(map[runes.RuneId]uint128.Uint128)
+	burns := make(map[runes.RuneId]uint128.Uint128)
 	if runestone != nil && runestone.Cenotaph {
 		// all input runes and minted runes in a tx with cenotaph are burned
 		for runeId, amount := range unallocated {
-			burned[runeId] = burned[runeId].Add(amount)
+			burns[runeId] = burns[runeId].Add(amount)
 		}
 	} else {
 		// assign all un-allocated runes to the default output (pointer), or the first non
@@ -205,7 +217,7 @@ func (p *Processor) processTx(ctx context.Context, tx *types.Transaction, blockH
 		} else {
 			// if pointer is still nil, then no output is available. Burn all unallocated runes.
 			for runeId, amount := range unallocated {
-				burned[runeId] = burned[runeId].Add(amount)
+				burns[runeId] = burns[runeId].Add(amount)
 			}
 		}
 	}
@@ -215,7 +227,7 @@ func (p *Processor) processTx(ctx context.Context, tx *types.Transaction, blockH
 		if tx.TxOut[output].IsOpReturn() {
 			// burn all allocated runes to OP_RETURN outputs
 			for runeId, amount := range balances {
-				burned[runeId] = burned[runeId].Add(amount)
+				burns[runeId] = burns[runeId].Add(amount)
 			}
 			continue
 		}
@@ -228,14 +240,51 @@ func (p *Processor) processTx(ctx context.Context, tx *types.Transaction, blockH
 		}
 	}
 
-	if err := p.updateNewBalances(ctx, tx, inputBalances, allocated); err != nil {
+	if err := p.updateNewBalances(ctx, tx, txInputsPkScripts, inputBalances, allocated); err != nil {
 		return errors.Wrap(err, "failed to update new balances")
 	}
 
 	// increment burned amounts in rune entries
-	if err := p.incrementBurnedAmount(ctx, burned); err != nil {
+	if err := p.incrementBurnedAmount(ctx, burns); err != nil {
 		return errors.Wrap(err, "failed to update burned amount")
 	}
+
+	// construct RuneTransaction
+	runeTx := entity.RuneTransaction{
+		Hash:        tx.TxHash,
+		BlockHeight: uint64(blockHeader.Height),
+		Timestamp:   blockHeader.Timestamp,
+		Inputs:      make([]*entity.OutPointBalance, 0),
+		Outputs:     make([]*entity.OutPointBalance, 0),
+		Mints:       mints,
+		Burns:       burns,
+		Runestone:   runestone,
+	}
+	for inputIndex, balances := range inputBalances {
+		for runeId, amount := range balances {
+			pkScript := txInputsPkScripts[inputIndex]
+			runeTx.Inputs = append(runeTx.Inputs, &entity.OutPointBalance{
+				PkScript:       pkScript,
+				Id:             runeId,
+				Value:          amount,
+				Index:          uint32(inputIndex),
+				PrevTxHash:     tx.TxIn[inputIndex].PreviousOutTxHash,
+				PrevTxOutIndex: tx.TxIn[inputIndex].PreviousOutIndex,
+			})
+		}
+	}
+	for outputIndex, balances := range allocated {
+		pkScript := tx.TxOut[outputIndex].PkScript
+		for runeId, amount := range balances {
+			runeTx.Outputs = append(runeTx.Outputs, &entity.OutPointBalance{
+				PkScript: pkScript,
+				Id:       runeId,
+				Value:    amount,
+				Index:    uint32(outputIndex),
+			})
+		}
+	}
+	p.newRuneTxs = append(p.newRuneTxs, &runeTx)
 	return nil
 }
 
@@ -256,21 +305,23 @@ func (p *Processor) getInputBalances(ctx context.Context, txInputs []*types.TxIn
 	return inputBalances, nil
 }
 
-func (p *Processor) updateNewBalances(ctx context.Context, tx *types.Transaction, inputBalances map[int]map[runes.RuneId]uint128.Uint128, allocated map[int]map[runes.RuneId]uint128.Uint128) error {
-	// get pk scripts of inputs
+func (p *Processor) getTxInputsPkScripts(ctx context.Context, tx *types.Transaction, inputIndexes []int) (map[int][]byte, error) {
 	txInPkScripts := make(map[int][]byte)
-	for inputIndex := range inputBalances {
+	for _, inputIndex := range inputIndexes {
 		inputIndex := inputIndex
 		prevTxHash := tx.TxIn[inputIndex].PreviousOutTxHash
 		prevTxOutIndex := tx.TxIn[inputIndex].PreviousOutIndex
 		prevTx, err := p.bitcoinClient.GetTransaction(ctx, prevTxHash)
 		if err != nil {
-			return errors.Wrap(err, "failed to get transaction")
+			return nil, errors.Wrap(err, "failed to get transaction")
 		}
 		pkScript := prevTx.TxOut[prevTxOutIndex].PkScript
 		txInPkScripts[inputIndex] = pkScript
 	}
+	return txInPkScripts, nil
+}
 
+func (p *Processor) updateNewBalances(ctx context.Context, tx *types.Transaction, txInputsPkScripts map[int][]byte, inputBalances map[int]map[runes.RuneId]uint128.Uint128, allocated map[int]map[runes.RuneId]uint128.Uint128) error {
 	// getCurrentBalance returns the current balance of the pkScript and runeId since last flush
 	getCurrentBalance := func(ctx context.Context, pkScript []byte, runeId runes.RuneId) (uint128.Uint128, error) {
 		balance, err := p.runesDg.GetBalancesByPkScriptAndRuneId(ctx, pkScript, runeId, uint64(tx.BlockHeight-1))
@@ -282,7 +333,7 @@ func (p *Processor) updateNewBalances(ctx context.Context, tx *types.Transaction
 
 	// deduct balances used in inputs
 	for inputIndex, balances := range inputBalances {
-		pkScript := txInPkScripts[inputIndex]
+		pkScript := txInputsPkScripts[inputIndex]
 		pkScriptStr := hex.EncodeToString(pkScript)
 		for runeId, amount := range balances {
 			if p.newBalances[pkScriptStr][runeId].Cmp(amount) < 0 {
@@ -548,6 +599,10 @@ func (p *Processor) flushBlock(ctx context.Context, blockHeader types.BlockHeade
 		return errors.Wrap(err, "failed to flush new balances")
 	}
 
+	if err := p.flushNewRuneTxs(ctx); err != nil {
+		return errors.Wrap(err, "failed to flush new rune transactions")
+	}
+
 	if err := p.createIndexedBlock(ctx, blockHeader); err != nil {
 		return errors.Wrap(err, "failed to create indexed block")
 	}
@@ -584,6 +639,16 @@ func (p *Processor) flushNewBalances(ctx context.Context, blockHeight uint64) er
 		return errors.Wrap(err, "failed to create balances at block")
 	}
 	p.newBalances = make(map[string]map[runes.RuneId]uint128.Uint128)
+	return nil
+}
+
+func (p *Processor) flushNewRuneTxs(ctx context.Context) error {
+	for _, runeTx := range p.newRuneTxs {
+		if err := p.runesDg.CreateRuneTransaction(ctx, runeTx); err != nil {
+			return errors.Wrap(err, "failed to create rune transaction")
+		}
+	}
+	p.newRuneTxs = make([]*entity.RuneTransaction, 0)
 	return nil
 }
 
