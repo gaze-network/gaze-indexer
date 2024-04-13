@@ -6,17 +6,16 @@ CREATE TABLE IF NOT EXISTS "runes_indexer_stats" (
 	"id" BIGSERIAL PRIMARY KEY,
 	"client_version" TEXT NOT NULL,
 	"network" TEXT NOT NULL,
-	"latest_block_height" INT NOT NULL,
 	"created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE IF NOT EXISTS "runes_indexer_db_version" (
+CREATE TABLE IF NOT EXISTS "runes_indexer_state" (
 	"id" BIGSERIAL PRIMARY KEY,
-	"version" INT NOT NULL,
+	"db_version" INT NOT NULL,
 	"event_hash_version" INT NOT NULL,
 	"created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
-INSERT INTO "runes_indexer_db_version" ("version") VALUES (1);
+CREATE INDEX IF NOT EXISTS runes_indexer_state_created_at_idx ON "runes_indexer_state" USING BTREE ("created_at" DESC);
 
 -- Runes data
 

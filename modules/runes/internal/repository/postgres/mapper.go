@@ -43,6 +43,25 @@ func numericFromUint128(src *uint128.Uint128) (pgtype.Numeric, error) {
 	return result, nil
 }
 
+func mapIndexerStateModelToType(src gen.RunesIndexerState) entity.IndexerState {
+	var createdAt time.Time
+	if src.CreatedAt.Valid {
+		createdAt = src.CreatedAt.Time
+	}
+	return entity.IndexerState{
+		DBVersion:        src.DbVersion,
+		EventHashVersion: src.EventHashVersion,
+		CreatedAt:        createdAt,
+	}
+}
+
+func mapIndexerStateTypeToParams(src entity.IndexerState) gen.SetIndexerStateParams {
+	return gen.SetIndexerStateParams{
+		DbVersion:        src.DBVersion,
+		EventHashVersion: src.EventHashVersion,
+	}
+}
+
 func mapRuneEntryModelToType(src gen.GetRuneEntriesByRuneIdsRow) (runes.RuneEntry, error) {
 	runeId, err := runes.NewRuneIdFromString(src.RuneID)
 	if err != nil {

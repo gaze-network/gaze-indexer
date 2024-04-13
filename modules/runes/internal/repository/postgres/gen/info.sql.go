@@ -9,28 +9,6 @@ import (
 	"context"
 )
 
-const getCurrenEventHashVersion = `-- name: GetCurrenEventHashVersion :one
-SELECT "event_hash_version" FROM runes_indexer_db_version ORDER BY id DESC LIMIT 1
-`
-
-func (q *Queries) GetCurrenEventHashVersion(ctx context.Context) (int32, error) {
-	row := q.db.QueryRow(ctx, getCurrenEventHashVersion)
-	var event_hash_version int32
-	err := row.Scan(&event_hash_version)
-	return event_hash_version, err
-}
-
-const getCurrentDBVersion = `-- name: GetCurrentDBVersion :one
-SELECT "version" FROM runes_indexer_db_version ORDER BY id DESC LIMIT 1
-`
-
-func (q *Queries) GetCurrentDBVersion(ctx context.Context) (int32, error) {
-	row := q.db.QueryRow(ctx, getCurrentDBVersion)
-	var version int32
-	err := row.Scan(&version)
-	return version, err
-}
-
 const getCurrentIndexerStats = `-- name: GetCurrentIndexerStats :one
 SELECT "client_version", "network" FROM runes_indexer_stats ORDER BY id DESC LIMIT 1
 `
@@ -45,6 +23,36 @@ func (q *Queries) GetCurrentIndexerStats(ctx context.Context) (GetCurrentIndexer
 	var i GetCurrentIndexerStatsRow
 	err := row.Scan(&i.ClientVersion, &i.Network)
 	return i, err
+}
+
+const getLatestIndexerState = `-- name: GetLatestIndexerState :one
+SELECT id, db_version, event_hash_version, created_at FROM runes_indexer_state ORDER BY created_at DESC LIMIT 1
+`
+
+func (q *Queries) GetLatestIndexerState(ctx context.Context) (RunesIndexerState, error) {
+	row := q.db.QueryRow(ctx, getLatestIndexerState)
+	var i RunesIndexerState
+	err := row.Scan(
+		&i.Id,
+		&i.DbVersion,
+		&i.EventHashVersion,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const setIndexerState = `-- name: SetIndexerState :exec
+INSERT INTO runes_indexer_state (db_version, event_hash_version) VALUES ($1, $2)
+`
+
+type SetIndexerStateParams struct {
+	DbVersion        int32
+	EventHashVersion int32
+}
+
+func (q *Queries) SetIndexerState(ctx context.Context, arg SetIndexerStateParams) error {
+	_, err := q.db.Exec(ctx, setIndexerState, arg.DbVersion, arg.EventHashVersion)
+	return err
 }
 
 const updateIndexerStats = `-- name: UpdateIndexerStats :exec

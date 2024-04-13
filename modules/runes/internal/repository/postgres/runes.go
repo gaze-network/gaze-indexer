@@ -21,6 +21,15 @@ import (
 
 var _ datagateway.RunesDataGateway = (*Repository)(nil)
 
+func (r *Repository) GetLatestIndexerState(ctx context.Context) (entity.IndexerState, error) {
+	indexerStateModel, err := r.queries.GetLatestIndexerState(ctx)
+	if err != nil {
+		return entity.IndexerState{}, errors.Wrap(err, "error during query")
+	}
+	indexerState := mapIndexerStateModelToType(indexerStateModel)
+	return indexerState, nil
+}
+
 // warning: GetLatestBlock currently returns a types.BlockHeader with only Height, Hash, and PrevBlock fields populated.
 // This is because it is known that all usage of this function only requires these fields. In the future, we may want to populate all fields for type safety.
 func (r *Repository) GetLatestBlock(ctx context.Context) (types.BlockHeader, error) {
@@ -159,6 +168,14 @@ func (r *Repository) GetRuneEntryByRuneIdBatch(ctx context.Context, runeIds []ru
 	}
 
 	return runeEntries, nil
+}
+
+func (r *Repository) SetIndexerState(ctx context.Context, state entity.IndexerState) error {
+	params := mapIndexerStateTypeToParams(state)
+	if err := r.queries.SetIndexerState(ctx, params); err != nil {
+		return errors.Wrap(err, "error during exec")
+	}
+	return nil
 }
 
 func (r *Repository) CreateRuneTransaction(ctx context.Context, tx *entity.RuneTransaction) error {

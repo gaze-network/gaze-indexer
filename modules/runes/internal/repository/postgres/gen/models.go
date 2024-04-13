@@ -49,19 +49,18 @@ type RunesIndexedBlock struct {
 	CumulativeEventHash string
 }
 
-type RunesIndexerDbVersion struct {
-	Id               int64
-	Version          int32
-	EventHashVersion int32
-	CreatedAt        pgtype.Timestamptz
+type RunesIndexerStat struct {
+	Id            int64
+	ClientVersion string
+	Network       string
+	CreatedAt     pgtype.Timestamptz
 }
 
-type RunesIndexerStat struct {
-	Id                int64
-	ClientVersion     string
-	Network           string
-	LatestBlockHeight int32
-	CreatedAt         pgtype.Timestamptz
+type RunesIndexerState struct {
+	Id               int64
+	DbVersion        int32
+	EventHashVersion int32
+	CreatedAt        pgtype.Timestamptz
 }
 
 type RunesOutpointBalance struct {
