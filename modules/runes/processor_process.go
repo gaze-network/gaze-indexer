@@ -370,30 +370,32 @@ func (p *Processor) createRuneEntry(ctx context.Context, runestone *runes.Runest
 	var runeEntry *runes.RuneEntry
 	if runestone.Cenotaph {
 		runeEntry = &runes.RuneEntry{
-			RuneId:       runeId,
-			SpacedRune:   runes.NewSpacedRune(rune, 0),
-			Mints:        uint128.Zero,
-			BurnedAmount: uint128.Zero,
-			Premine:      uint128.Zero,
-			Symbol:       '¤',
-			Divisibility: 0,
-			Terms:        nil,
-			Turbo:        false,
-			CompletedAt:  time.Time{},
+			RuneId:            runeId,
+			SpacedRune:        runes.NewSpacedRune(rune, 0),
+			Mints:             uint128.Zero,
+			BurnedAmount:      uint128.Zero,
+			Premine:           uint128.Zero,
+			Symbol:            '¤',
+			Divisibility:      0,
+			Terms:             nil,
+			Turbo:             false,
+			CompletedAt:       time.Time{},
+			CompletedAtHeight: nil,
 		}
 	} else {
 		etching := runestone.Etching
 		runeEntry = &runes.RuneEntry{
-			RuneId:       runeId,
-			SpacedRune:   runes.NewSpacedRune(rune, lo.FromPtr(etching.Spacers)),
-			Mints:        uint128.Zero,
-			BurnedAmount: uint128.Zero,
-			Premine:      lo.FromPtr(etching.Premine),
-			Symbol:       lo.FromPtrOr(etching.Symbol, '¤'),
-			Divisibility: lo.FromPtr(etching.Divisibility),
-			Terms:        etching.Terms,
-			Turbo:        etching.Turbo,
-			CompletedAt:  time.Time{},
+			RuneId:            runeId,
+			SpacedRune:        runes.NewSpacedRune(rune, lo.FromPtr(etching.Spacers)),
+			Mints:             uint128.Zero,
+			BurnedAmount:      uint128.Zero,
+			Premine:           lo.FromPtr(etching.Premine),
+			Symbol:            lo.FromPtrOr(etching.Symbol, '¤'),
+			Divisibility:      lo.FromPtr(etching.Divisibility),
+			Terms:             etching.Terms,
+			Turbo:             etching.Turbo,
+			CompletedAt:       time.Time{},
+			CompletedAtHeight: nil,
 		}
 	}
 	if err := p.runesDg.CreateRuneEntry(ctx, runeEntry, blockHeight); err != nil {

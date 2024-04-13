@@ -116,10 +116,11 @@ func (p *Processor) ensureGenesisRune(ctx context.Context) error {
 				OffsetStart: nil,
 				OffsetEnd:   nil,
 			},
-			Turbo:        true,
-			Mints:        uint128.Zero,
-			BurnedAmount: uint128.Zero,
-			CompletedAt:  time.Time{},
+			Turbo:             true,
+			Mints:             uint128.Zero,
+			BurnedAmount:      uint128.Zero,
+			CompletedAt:       time.Time{},
+			CompletedAtHeight: nil,
 		}
 		if err := p.runesDg.CreateRuneEntry(ctx, runeEntry, genesisRuneId.BlockHeight); err != nil {
 			return errors.Wrap(err, "failed to create genesis rune entry")
