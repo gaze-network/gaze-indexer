@@ -37,6 +37,9 @@ func (d *BitcoinNodeDatasource) Fetch(ctx context.Context, from, to int64) ([]*t
 			}
 			blocks = append(blocks, b...)
 		case <-subscription.Done():
+			if err := ctx.Err(); err != nil {
+				return nil, errors.Wrap(err, "context done")
+			}
 			return blocks, nil
 		case err := <-subscription.Err():
 			if err != nil {

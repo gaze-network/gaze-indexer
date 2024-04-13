@@ -120,6 +120,9 @@ func (i *BitcoinIndexer) process(ctx context.Context) (err error) {
 			i.currentBlock = newBlocks[len(newBlocks)-1].Header
 		case <-subscription.Done():
 			// end current round
+			if err := ctx.Err(); err != nil {
+				return errors.Wrap(err, "context done")
+			}
 			return nil
 		case <-ctx.Done():
 			return errors.WithStack(ctx.Err())
