@@ -47,7 +47,10 @@ func (i *BitcoinIndexer) Run(ctx context.Context) (err error) {
 		case <-ctx.Done():
 			return nil
 		case <-ticker.C:
+			ctx = logger.WithContext(ctx, slog.Int64("current_block_height", i.currentBlock.Height))
+
 			if err := i.process(ctx); err != nil {
+				logger.ErrorContext(ctx, "failed to process", err)
 				return errors.Wrap(err, "failed to process")
 			}
 		}
@@ -55,8 +58,6 @@ func (i *BitcoinIndexer) Run(ctx context.Context) (err error) {
 }
 
 func (i *BitcoinIndexer) process(ctx context.Context) (err error) {
-	ctx = logger.WithContext(ctx, slog.Int64("current_block_height", i.currentBlock.Height))
-
 	ch := make(chan []*types.Block)
 	subscription, err := i.Datasource.FetchAsync(ctx, i.currentBlock.Height, -1, ch)
 	if err != nil {
