@@ -78,51 +78,53 @@ func (p *Processor) RevertData(ctx context.Context, from int64) error {
 		}
 	}()
 
+	sinceHeight := uint64(from + 1)
+
 	eg, ectx := errgroup.WithContext(ctx)
 	eg.Go(func() error {
-		if err := p.runesDg.DeleteIndexedBlockSinceHeight(ectx, uint64(from)); err != nil {
+		if err := p.runesDg.DeleteIndexedBlockSinceHeight(ectx, sinceHeight); err != nil {
 			return errors.Wrap(err, "failed to delete indexed blocks")
 		}
 		return nil
 	})
 	eg.Go(func() error {
-		if err := p.runesDg.DeleteRuneEntriesSinceHeight(ectx, uint64(from)); err != nil {
+		if err := p.runesDg.DeleteRuneEntriesSinceHeight(ectx, sinceHeight); err != nil {
 			return errors.Wrap(err, "failed to delete rune entries")
 		}
 		return nil
 	})
 	eg.Go(func() error {
-		if err := p.runesDg.DeleteRuneEntryStatesSinceHeight(ectx, uint64(from)); err != nil {
+		if err := p.runesDg.DeleteRuneEntryStatesSinceHeight(ectx, sinceHeight); err != nil {
 			return errors.Wrap(err, "failed to delete rune entry states")
 		}
 		return nil
 	})
 	eg.Go(func() error {
-		if err := p.runesDg.DeleteRuneTransactionsSinceHeight(ectx, uint64(from)); err != nil {
+		if err := p.runesDg.DeleteRuneTransactionsSinceHeight(ectx, sinceHeight); err != nil {
 			return errors.Wrap(err, "failed to delete rune transactions")
 		}
 		return nil
 	})
 	eg.Go(func() error {
-		if err := p.runesDg.DeleteRunestonesSinceHeight(ectx, uint64(from)); err != nil {
+		if err := p.runesDg.DeleteRunestonesSinceHeight(ectx, sinceHeight); err != nil {
 			return errors.Wrap(err, "failed to delete runestones")
 		}
 		return nil
 	})
 	eg.Go(func() error {
-		if err := p.runesDg.DeleteOutPointBalancesSinceHeight(ectx, uint64(from)); err != nil {
+		if err := p.runesDg.DeleteOutPointBalancesSinceHeight(ectx, sinceHeight); err != nil {
 			return errors.Wrap(err, "failed to delete outpoint balances")
 		}
 		return nil
 	})
 	eg.Go(func() error {
-		if err := p.runesDg.UnspendOutPointBalancesSinceHeight(ectx, uint64(from)); err != nil {
+		if err := p.runesDg.UnspendOutPointBalancesSinceHeight(ectx, sinceHeight); err != nil {
 			return errors.Wrap(err, "failed to unspend outpoint balances")
 		}
 		return nil
 	})
 	eg.Go(func() error {
-		if err := p.runesDg.DeleteRuneBalancesSinceHeight(ectx, uint64(from)); err != nil {
+		if err := p.runesDg.DeleteRuneBalancesSinceHeight(ectx, sinceHeight); err != nil {
 			return errors.Wrap(err, "failed to delete rune balances")
 		}
 		return nil
