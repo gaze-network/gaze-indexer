@@ -84,14 +84,20 @@ func (d *BitcoinNodeDatasource) FetchAsync(ctx context.Context, from, to int64, 
 		blockHeights = append(blockHeights, i)
 	}
 
-	// Close stream when subscription is done or context is canceled
+	// Wait for subscription is done or context is done
 	go func() {
 		defer stream.Close()
-		done := subscription.Done()
+		subDone := subscription.Done()
 		select {
-		case <-done:
+		case <-subDone:
 		case <-ctx.Done():
 		}
+	}()
+
+	// Wait for stream to finish and close out channel
+	go func() {
+		defer close(out)
+		_ = stream.Wait()
 	}()
 
 	// Fan-out blocks to subscription channel
@@ -121,12 +127,6 @@ func (d *BitcoinNodeDatasource) FetchAsync(ctx context.Context, from, to int64, 
 				return
 			}
 		}
-	}()
-
-	// Wait for stream to finish and close out channel
-	go func() {
-		_ = stream.Wait()
-		close(out)
 	}()
 
 	// Parallel fetch blocks from Bitcoin node until complete all block heights
