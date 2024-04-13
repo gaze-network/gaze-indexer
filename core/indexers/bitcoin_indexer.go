@@ -112,12 +112,12 @@ func (i *BitcoinIndexer) process(ctx context.Context) (err error) {
 			}
 
 			// Start processing blocks
-			if err := i.Processor.Process(ctx, blocks[1:]); err != nil {
+			if err := i.Processor.Process(ctx, newBlocks); err != nil {
 				return errors.WithStack(err)
 			}
 
 			// Update current state
-			i.currentBlock = blocks[len(blocks)-1].Header
+			i.currentBlock = newBlocks[len(newBlocks)-1].Header
 		case <-subscription.Done():
 			// end current round
 			return nil
