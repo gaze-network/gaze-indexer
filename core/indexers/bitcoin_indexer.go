@@ -2,16 +2,15 @@ package indexers
 
 import (
 	"context"
-	"log"
 	"log/slog"
 	"time"
 
-	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/common/errs"
 	"github.com/gaze-network/indexer-network/core/datasources"
 	"github.com/gaze-network/indexer-network/core/types"
 	"github.com/gaze-network/indexer-network/pkg/logger"
+	"github.com/gaze-network/indexer-network/pkg/logger/slogx"
 )
 
 type (
@@ -26,7 +25,6 @@ var _ IndexerWorker = (*BitcoinIndexer)(nil)
 type BitcoinIndexer struct {
 	Processor    BitcoinProcessor
 	Datasource   BitcoinDatasource
-	btcclient    *rpcclient.Client
 	currentBlock types.BlockHeader
 }
 
@@ -49,68 +47,89 @@ func (i *BitcoinIndexer) Run(ctx context.Context) (err error) {
 		case <-ctx.Done():
 			return nil
 		case <-ticker.C:
+			ctx = logger.WithContext(ctx, slog.Int64("current_block_height", i.currentBlock.Height))
 
-			// ch, stop, err := i.Datasource.FetchAsync(ctx, i.currentBlock.Height-1, -1)
-
-			// Prepare range of blocks to sync
-			startHeight, endHeight, skip, err := i.prepareRange(i.currentBlock.Height)
-			if err != nil {
-				return errors.Wrap(err, "failed to prepare range")
+			if err := i.process(ctx); err != nil {
+				logger.ErrorContext(ctx, "failed to process", err)
+				return errors.Wrap(err, "failed to process")
 			}
-			if skip {
-				continue
-			}
-
-			logger.InfoContext(ctx, "Syncing blocks from %d to %d\n", startHeight, endHeight)
-
-			// TODO: supports chain reorganization
-
-			/*
-				Concurrent block processing (fetch + process)
-				1. Fetch blocks concurrently
-				2. Process blocks sequentially
-			*/
-
-			blockHash, err := i.btcclient.GetBlockHash(endHeight)
-			if err != nil {
-				return errors.Wrap(err, "failed to get block hash")
-			}
-
-			if endHeight <= i.currentBlock.Height && !blockHash.IsEqual(&i.currentBlock.Hash) {
-				// TODO: Chain reorganization detected, need to re-index
-				log.Println("Chain reorganization detected, need to re-index")
-			}
-
-			block, err := i.btcclient.GetBlock(blockHash)
-			if err != nil {
-				return errors.Wrap(err, "failed to get block")
-			}
-
-			b := types.ParseMsgBlock(block, endHeight)
-			if err := i.Processor.Process(ctx, []*types.Block{b}); err != nil {
-				return errors.WithStack(err)
-			}
-			i.currentBlock = b.Header
 		}
 	}
 }
 
-// Prepare range of blocks to sync
-func (b *BitcoinIndexer) prepareRange(currentBlockHeight int64) (start, end int64, skip bool, err error) {
-	latestBlockHeight, err := b.btcclient.GetBlockCount()
+func (i *BitcoinIndexer) process(ctx context.Context) (err error) {
+	ch := make(chan []*types.Block)
+	subscription, err := i.Datasource.FetchAsync(ctx, i.currentBlock.Height, -1, ch)
 	if err != nil {
-		return -1, -1, false, errors.Wrap(err, "failed to get block count")
+		return errors.Wrap(err, "failed to call fetch async")
 	}
+	defer subscription.Unsubscribe()
 
-	endHeight := latestBlockHeight
-	startHeight := currentBlockHeight + 1
-	if startHeight < 0 {
-		startHeight = 0
+	for {
+		select {
+		case blocks := <-ch:
+			// empty blocks
+			if len(blocks) == 0 {
+				continue
+			}
+
+			// validate reorg from current block
+			if blocks[0].Header.Height == i.currentBlock.Height {
+				currentBlockHeader := blocks[0].Header
+				if !currentBlockHeader.Hash.IsEqual(&i.currentBlock.Hash) {
+					logger.WarnContext(ctx, "reorg detected",
+						slogx.Stringer("current_hash", i.currentBlock.Hash),
+						slogx.Stringer("expected_hash", currentBlockHeader.Hash),
+					)
+
+					// TODO: find start reorg block
+					startReorgHeight := currentBlockHeader.Height // TODO: use start reorg block height
+					if err := i.Processor.RevertData(ctx, startReorgHeight); err != nil {
+						return errors.Wrap(err, "failed to revert data")
+					}
+					i.currentBlock = currentBlockHeader
+					return nil
+				}
+			}
+
+			// remove old block
+			newBlocks := blocks[1:]
+			if len(newBlocks) == 0 {
+				continue
+			}
+
+			// validate is block is continuous and no reorg
+			for i := 1; i < len(newBlocks); i++ {
+				if newBlocks[i].Header.Height != newBlocks[i-1].Header.Height+1 {
+					return errors.Wrapf(errs.InternalError, "block is not continuous, block[%d] height: %d, block[%d] height: %d", i-1, newBlocks[i-1].Header.Height, i, newBlocks[i].Header.Height)
+				}
+
+				if !newBlocks[i].Header.PrevBlock.IsEqual(&newBlocks[i-1].Header.Hash) {
+					logger.WarnContext(ctx, "reorg occurred while batch fetching blocks, need to try to fetch again")
+					// end current round
+					return nil
+				}
+			}
+
+			// Start processing blocks
+			if err := i.Processor.Process(ctx, newBlocks); err != nil {
+				return errors.WithStack(err)
+			}
+
+			// Update current state
+			i.currentBlock = newBlocks[len(newBlocks)-1].Header
+		case <-subscription.Done():
+			// end current round
+			if err := ctx.Err(); err != nil {
+				return errors.Wrap(err, "context done")
+			}
+			return nil
+		case <-ctx.Done():
+			return errors.WithStack(ctx.Err())
+		case err := <-subscription.Err():
+			if err != nil {
+				return errors.Wrap(err, "got error while fetch async")
+			}
+		}
 	}
-
-	if startHeight > latestBlockHeight {
-		return -1, -1, true, nil
-	}
-
-	return startHeight, endHeight, false, nil
 }
