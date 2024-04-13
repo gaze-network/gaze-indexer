@@ -246,6 +246,10 @@ func mapRuneTransactionTypeToParams(src entity.RuneTransaction) (gen.CreateRuneT
 	if err != nil {
 		return gen.CreateRuneTransactionParams{}, nil, errors.Wrap(err, "failed to marshal mints")
 	}
+	burns := make(map[string]uint128.Uint128)
+	for key, value := range src.Burns {
+		burns[key.String()] = value
+	}
 	burnsBytes, err := json.Marshal(src.Burns)
 	if err != nil {
 		return gen.CreateRuneTransactionParams{}, nil, errors.Wrap(err, "failed to marshal burns")
@@ -342,9 +346,17 @@ func mapRuneTransactionModelToType(src gen.RunesTransaction) (entity.RuneTransac
 	if err := json.Unmarshal(src.Mints, &mints); err != nil {
 		return entity.RuneTransaction{}, errors.Wrap(err, "failed to unmarshal mints")
 	}
-	burns := make(map[runes.RuneId]uint128.Uint128)
-	if err := json.Unmarshal(src.Burns, &burns); err != nil {
+	burnsRaw := make(map[string]uint128.Uint128)
+	if err := json.Unmarshal(src.Burns, &burnsRaw); err != nil {
 		return entity.RuneTransaction{}, errors.Wrap(err, "failed to unmarshal burns")
+	}
+	burns := make(map[runes.RuneId]uint128.Uint128)
+	for key, value := range burnsRaw {
+		runeId, err := runes.NewRuneIdFromString(key)
+		if err != nil {
+			return entity.RuneTransaction{}, errors.Wrap(err, "failed to parse rune id")
+		}
+		burns[runeId] = value
 	}
 
 	return entity.RuneTransaction{
@@ -392,7 +404,7 @@ func mapRunestoneTypeToParams(src runes.Runestone, txHash chainhash.Hash, blockH
 			runestoneParams.EtchingSpacers = pgtype.Int4{Int32: int32(*etching.Spacers), Valid: true}
 		}
 		if etching.Symbol != nil {
-			runestoneParams.EtchingSymbol = pgtype.Int4{Int32: int32(*etching.Symbol), Valid: true}
+			runestoneParams.EtchingSymbol = pgtype.Int4{Int32: *etching.Symbol, Valid: true}
 		}
 		if etching.Terms != nil {
 			runestoneParams.EtchingTerms = true
