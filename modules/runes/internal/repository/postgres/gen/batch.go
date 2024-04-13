@@ -17,6 +17,63 @@ var (
 	ErrBatchAlreadyClosed = errors.New("batch already closed")
 )
 
+const createOutPointBalances = `-- name: CreateOutPointBalances :batchexec
+INSERT INTO runes_outpoint_balances (rune_id, tx_hash, tx_idx, amount, block_height, spent_height) VALUES ($1, $2, $3, $4, $5, $6)
+`
+
+type CreateOutPointBalancesBatchResults struct {
+	br     pgx.BatchResults
+	tot    int
+	closed bool
+}
+
+type CreateOutPointBalancesParams struct {
+	RuneID      string
+	TxHash      string
+	TxIdx       int32
+	Amount      pgtype.Numeric
+	BlockHeight int32
+	SpentHeight pgtype.Int4
+}
+
+func (q *Queries) CreateOutPointBalances(ctx context.Context, arg []CreateOutPointBalancesParams) *CreateOutPointBalancesBatchResults {
+	batch := &pgx.Batch{}
+	for _, a := range arg {
+		vals := []interface{}{
+			a.RuneID,
+			a.TxHash,
+			a.TxIdx,
+			a.Amount,
+			a.BlockHeight,
+			a.SpentHeight,
+		}
+		batch.Queue(createOutPointBalances, vals...)
+	}
+	br := q.db.SendBatch(ctx, batch)
+	return &CreateOutPointBalancesBatchResults{br, len(arg), false}
+}
+
+func (b *CreateOutPointBalancesBatchResults) Exec(f func(int, error)) {
+	defer b.br.Close()
+	for t := 0; t < b.tot; t++ {
+		if b.closed {
+			if f != nil {
+				f(t, ErrBatchAlreadyClosed)
+			}
+			continue
+		}
+		_, err := b.br.Exec()
+		if f != nil {
+			f(t, err)
+		}
+	}
+}
+
+func (b *CreateOutPointBalancesBatchResults) Close() error {
+	b.closed = true
+	return b.br.Close()
+}
+
 const createRuneBalanceAtBlock = `-- name: CreateRuneBalanceAtBlock :batchexec
 INSERT INTO runes_balances (pkscript, block_height, rune_id, amount) VALUES ($1, $2, $3, $4)
 `
@@ -66,59 +123,6 @@ func (b *CreateRuneBalanceAtBlockBatchResults) Exec(f func(int, error)) {
 }
 
 func (b *CreateRuneBalanceAtBlockBatchResults) Close() error {
-	b.closed = true
-	return b.br.Close()
-}
-
-const createRuneBalancesAtOutPoint = `-- name: CreateRuneBalancesAtOutPoint :batchexec
-INSERT INTO runes_outpoint_balances (rune_id, tx_hash, tx_idx, amount) VALUES ($1, $2, $3, $4)
-`
-
-type CreateRuneBalancesAtOutPointBatchResults struct {
-	br     pgx.BatchResults
-	tot    int
-	closed bool
-}
-
-type CreateRuneBalancesAtOutPointParams struct {
-	RuneID string
-	TxHash string
-	TxIdx  int32
-	Amount pgtype.Numeric
-}
-
-func (q *Queries) CreateRuneBalancesAtOutPoint(ctx context.Context, arg []CreateRuneBalancesAtOutPointParams) *CreateRuneBalancesAtOutPointBatchResults {
-	batch := &pgx.Batch{}
-	for _, a := range arg {
-		vals := []interface{}{
-			a.RuneID,
-			a.TxHash,
-			a.TxIdx,
-			a.Amount,
-		}
-		batch.Queue(createRuneBalancesAtOutPoint, vals...)
-	}
-	br := q.db.SendBatch(ctx, batch)
-	return &CreateRuneBalancesAtOutPointBatchResults{br, len(arg), false}
-}
-
-func (b *CreateRuneBalancesAtOutPointBatchResults) Exec(f func(int, error)) {
-	defer b.br.Close()
-	for t := 0; t < b.tot; t++ {
-		if b.closed {
-			if f != nil {
-				f(t, ErrBatchAlreadyClosed)
-			}
-			continue
-		}
-		_, err := b.br.Exec()
-		if f != nil {
-			f(t, err)
-		}
-	}
-}
-
-func (b *CreateRuneBalancesAtOutPointBatchResults) Close() error {
 	b.closed = true
 	return b.br.Close()
 }

@@ -582,6 +582,27 @@ func (q *Queries) GetRuneTransactionsByHeight(ctx context.Context, blockHeight i
 	return items, nil
 }
 
+const spendOutPointBalances = `-- name: SpendOutPointBalances :exec
+UPDATE runes_outpoint_balances SET spent_height = $1 WHERE rune_id = $2 AND tx_hash = $3 AND tx_idx = $4
+`
+
+type SpendOutPointBalancesParams struct {
+	SpentHeight pgtype.Int4
+	RuneID      string
+	TxHash      string
+	TxIdx       int32
+}
+
+func (q *Queries) SpendOutPointBalances(ctx context.Context, arg SpendOutPointBalancesParams) error {
+	_, err := q.db.Exec(ctx, spendOutPointBalances,
+		arg.SpentHeight,
+		arg.RuneID,
+		arg.TxHash,
+		arg.TxIdx,
+	)
+	return err
+}
+
 const unspendOutPointBalancesSinceHeight = `-- name: UnspendOutPointBalancesSinceHeight :exec
 UPDATE runes_outpoint_balances SET spent_height = NULL WHERE spent_height >= $1
 `

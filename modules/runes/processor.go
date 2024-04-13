@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/btcsuite/btcd/wire"
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/common"
 	"github.com/gaze-network/indexer-network/common/errs"
@@ -32,9 +33,11 @@ type Processor struct {
 	bitcoinDataSource indexers.BitcoinDatasource
 	network           common.Network
 
-	newRuneEntryStates map[runes.RuneId]*runes.RuneEntry
-	newBalances        map[string]map[runes.RuneId]uint128.Uint128
-	newRuneTxs         []*entity.RuneTransaction
+	newRuneEntryStates  map[runes.RuneId]*runes.RuneEntry
+	newOutPointBalances map[wire.OutPoint]map[runes.RuneId]uint128.Uint128
+	newSpendOutPoints   []wire.OutPoint
+	newBalances         map[string]map[runes.RuneId]uint128.Uint128
+	newRuneTxs          []*entity.RuneTransaction
 }
 
 type NewProcessorParams struct {
@@ -46,13 +49,15 @@ type NewProcessorParams struct {
 
 func NewProcessor(params NewProcessorParams) *Processor {
 	return &Processor{
-		runesDg:            params.RunesDg,
-		bitcoinClient:      params.BitcoinClient,
-		bitcoinDataSource:  params.BitcoinDataSource,
-		network:            params.Network,
-		newRuneEntryStates: make(map[runes.RuneId]*runes.RuneEntry),
-		newBalances:        make(map[string]map[runes.RuneId]uint128.Uint128),
-		newRuneTxs:         make([]*entity.RuneTransaction, 0),
+		runesDg:             params.RunesDg,
+		bitcoinClient:       params.BitcoinClient,
+		bitcoinDataSource:   params.BitcoinDataSource,
+		network:             params.Network,
+		newRuneEntryStates:  make(map[runes.RuneId]*runes.RuneEntry),
+		newOutPointBalances: make(map[wire.OutPoint]map[runes.RuneId]uint128.Uint128),
+		newSpendOutPoints:   make([]wire.OutPoint, 0),
+		newBalances:         make(map[string]map[runes.RuneId]uint128.Uint128),
+		newRuneTxs:          make([]*entity.RuneTransaction, 0),
 	}
 }
 

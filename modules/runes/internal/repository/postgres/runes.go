@@ -224,22 +224,24 @@ func (r *Repository) CreateRuneEntryState(ctx context.Context, entry *runes.Rune
 	return nil
 }
 
-func (r *Repository) CreateRuneBalancesAtOutPoint(ctx context.Context, outPoint wire.OutPoint, balances map[runes.RuneId]uint128.Uint128) error {
-	params := make([]gen.CreateRuneBalancesAtOutPointParams, 0, len(balances))
+func (r *Repository) CreateOutPointBalances(ctx context.Context, outPoint wire.OutPoint, balances map[runes.RuneId]uint128.Uint128, blockHeight uint64) error {
+	params := make([]gen.CreateOutPointBalancesParams, 0, len(balances))
 	for runeId, balance := range balances {
 		balance := balance
 		amount, err := numericFromUint128(&balance)
 		if err != nil {
 			return errors.Wrap(err, "failed to convert balance to numeric")
 		}
-		params = append(params, gen.CreateRuneBalancesAtOutPointParams{
-			RuneID: runeId.String(),
-			TxHash: outPoint.Hash.String(),
-			TxIdx:  int32(outPoint.Index),
-			Amount: amount,
+		params = append(params, gen.CreateOutPointBalancesParams{
+			RuneID:      runeId.String(),
+			TxHash:      outPoint.Hash.String(),
+			TxIdx:       int32(outPoint.Index),
+			Amount:      amount,
+			BlockHeight: int32(blockHeight),
+			SpentHeight: pgtype.Int4{Valid: false},
 		})
 	}
-	result := r.queries.CreateRuneBalancesAtOutPoint(ctx, params)
+	result := r.queries.CreateOutPointBalances(ctx, params)
 	var execErrors []error
 	result.Exec(func(i int, err error) {
 		if err != nil {
@@ -248,6 +250,17 @@ func (r *Repository) CreateRuneBalancesAtOutPoint(ctx context.Context, outPoint 
 	})
 	if len(execErrors) > 0 {
 		return errors.Wrap(errors.Join(execErrors...), "error during exec")
+	}
+	return nil
+}
+
+func (r *Repository) SpendOutPointBalances(ctx context.Context, outPoint wire.OutPoint, blockHeight uint64) error {
+	if err := r.queries.SpendOutPointBalances(ctx, gen.SpendOutPointBalancesParams{
+		TxHash:      outPoint.Hash.String(),
+		TxIdx:       int32(outPoint.Index),
+		SpentHeight: pgtype.Int4{Int32: int32(blockHeight), Valid: true},
+	}); err != nil {
+		return errors.Wrap(err, "error during exec")
 	}
 	return nil
 }

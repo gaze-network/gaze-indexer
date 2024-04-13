@@ -69,9 +69,13 @@ func (p *Processor) processTx(ctx context.Context, tx *types.Transaction, blockH
 
 	unallocated := make(map[runes.RuneId]uint128.Uint128)
 	allocated := make(map[int]map[runes.RuneId]uint128.Uint128)
-	for _, balances := range inputBalances {
+	for inputIndex, balances := range inputBalances {
 		for runeId, amount := range balances {
 			unallocated[runeId] = unallocated[runeId].Add(amount)
+			p.newSpendOutPoints = append(p.newSpendOutPoints, wire.OutPoint{
+				Hash:  tx.TxIn[inputIndex].PreviousOutTxHash,
+				Index: tx.TxIn[inputIndex].PreviousOutIndex,
+			})
 		}
 	}
 
@@ -232,12 +236,10 @@ func (p *Processor) processTx(ctx context.Context, tx *types.Transaction, blockH
 			continue
 		}
 
-		if err := p.runesDg.CreateRuneBalancesAtOutPoint(ctx, wire.OutPoint{
+		p.newOutPointBalances[wire.OutPoint{
 			Hash:  tx.TxHash,
 			Index: uint32(output),
-		}, balances); err != nil {
-			return errors.Wrap(err, "failed to create rune balances at out point")
-		}
+		}] = balances
 	}
 
 	if err := p.updateNewBalances(ctx, tx, txInputsPkScripts, inputBalances, allocated); err != nil {
@@ -291,12 +293,20 @@ func (p *Processor) processTx(ctx context.Context, tx *types.Transaction, blockH
 func (p *Processor) getInputBalances(ctx context.Context, txInputs []*types.TxIn) (map[int]map[runes.RuneId]uint128.Uint128, error) {
 	inputBalances := make(map[int]map[runes.RuneId]uint128.Uint128)
 	for i, txIn := range txInputs {
-		balances, err := p.runesDg.GetRunesBalancesAtOutPoint(ctx, wire.OutPoint{
+		// check balances in p.newOutPointBalances first, since it may use outpoint from txs in the same block
+		balances, ok := p.newOutPointBalances[wire.OutPoint{
 			Hash:  txIn.PreviousOutTxHash,
 			Index: txIn.PreviousOutIndex,
-		})
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to get runes balances at outpoint")
+		}]
+		if !ok {
+			var err error
+			balances, err = p.runesDg.GetRunesBalancesAtOutPoint(ctx, wire.OutPoint{
+				Hash:  txIn.PreviousOutTxHash,
+				Index: txIn.PreviousOutIndex,
+			})
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to get runes balances at outpoint")
+			}
 		}
 		if len(balances) > 0 {
 			inputBalances[i] = balances
@@ -595,6 +605,14 @@ func (p *Processor) flushBlock(ctx context.Context, blockHeader types.BlockHeade
 		return errors.Wrap(err, "failed to flush new rune entry states")
 	}
 
+	if err := p.flushNewOutPointBalances(ctx, uint64(blockHeader.Height)); err != nil {
+		return errors.Wrap(err, "failed to flush new outpoint balances")
+	}
+
+	if err := p.flushNewSpendOutPoints(ctx, uint64(blockHeader.Height)); err != nil {
+		return errors.Wrap(err, "failed to flush new spend outpoints")
+	}
+
 	if err := p.flushNewBalances(ctx, uint64(blockHeader.Height)); err != nil {
 		return errors.Wrap(err, "failed to flush new balances")
 	}
@@ -616,6 +634,26 @@ func (p *Processor) flushNewRuneEntryStates(ctx context.Context, blockHeight uin
 		}
 	}
 	p.newRuneEntryStates = make(map[runes.RuneId]*runes.RuneEntry)
+	return nil
+}
+
+func (p *Processor) flushNewOutPointBalances(ctx context.Context, blockHeight uint64) error {
+	for outPoint, balances := range p.newOutPointBalances {
+		if err := p.runesDg.CreateOutPointBalances(ctx, outPoint, balances, blockHeight); err != nil {
+			return errors.Wrap(err, "failed to create outpoint balances")
+		}
+	}
+	p.newOutPointBalances = make(map[wire.OutPoint]map[runes.RuneId]uint128.Uint128)
+	return nil
+}
+
+func (p *Processor) flushNewSpendOutPoints(ctx context.Context, blockHeight uint64) error {
+	for _, outPoint := range p.newSpendOutPoints {
+		if err := p.runesDg.SpendOutPointBalances(ctx, outPoint, blockHeight); err != nil {
+			return errors.Wrap(err, "failed to create spend outpoint")
+		}
+	}
+	p.newSpendOutPoints = make([]wire.OutPoint, 0)
 	return nil
 }
 

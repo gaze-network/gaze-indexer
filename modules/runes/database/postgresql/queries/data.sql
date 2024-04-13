@@ -41,8 +41,11 @@ INSERT INTO runes_transactions (hash, block_height, timestamp, inputs, outputs, 
 INSERT INTO runes_runestones (tx_hash, block_height, etching, etching_divisibility, etching_premine, etching_rune, etching_spacers, etching_symbol, etching_terms, etching_terms_amount, etching_terms_cap, etching_terms_height_start, etching_terms_height_end, etching_terms_offset_start, etching_terms_offset_end, etching_turbo, edicts, mint, pointer, cenotaph, flaws) 
   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21);
 
--- name: CreateRuneBalancesAtOutPoint :batchexec
-INSERT INTO runes_outpoint_balances (rune_id, tx_hash, tx_idx, amount) VALUES ($1, $2, $3, $4);
+-- name: CreateOutPointBalances :batchexec
+INSERT INTO runes_outpoint_balances (rune_id, tx_hash, tx_idx, amount, block_height, spent_height) VALUES ($1, $2, $3, $4, $5, $6);
+
+-- name: SpendOutPointBalances :exec
+UPDATE runes_outpoint_balances SET spent_height = $1 WHERE rune_id = $2 AND tx_hash = $3 AND tx_idx = $4;
 
 -- name: CreateRuneBalanceAtBlock :batchexec
 INSERT INTO runes_balances (pkscript, block_height, rune_id, amount) VALUES ($1, $2, $3, $4);
