@@ -5,7 +5,6 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/common/errs"
 	"github.com/gaze-network/indexer-network/core/datasources"
@@ -25,7 +24,6 @@ var _ IndexerWorker = (*BitcoinIndexer)(nil)
 type BitcoinIndexer struct {
 	Processor    BitcoinProcessor
 	Datasource   BitcoinDatasource
-	btcclient    *rpcclient.Client
 	currentBlock types.BlockHeader
 }
 
