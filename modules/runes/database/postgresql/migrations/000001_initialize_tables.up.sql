@@ -20,16 +20,10 @@ INSERT INTO "runes_indexer_db_version" ("version") VALUES (1);
 
 -- Runes data
 
-CREATE TABLE IF NOT EXISTS "runes_processor_state" (
-	"latest_block_height" INT NOT NULL,
-	"latest_block_hash" TEXT NOT NULL,
-	"latest_prev_block_hash" TEXT NOT NULL,
-	"updated_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
 CREATE TABLE IF NOT EXISTS "runes_indexed_blocks" (
 	"hash" TEXT NOT NULL PRIMARY KEY,
 	"height" INT NOT NULL,
+	"prev_hash" TEXT NOT NULL,
 	"event_hash" TEXT NOT NULL,
 	"cumulative_event_hash" TEXT NOT NULL
 );

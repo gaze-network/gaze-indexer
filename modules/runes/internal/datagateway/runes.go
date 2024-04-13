@@ -50,7 +50,6 @@ type RunesWriterDataGateway interface {
 	CreateRuneEntryState(ctx context.Context, entry *runes.RuneEntry, blockHeight uint64) error
 	CreateRuneBalancesAtOutPoint(ctx context.Context, outPoint wire.OutPoint, balances map[runes.RuneId]uint128.Uint128) error
 	CreateRuneBalancesAtBlock(ctx context.Context, params []CreateRuneBalancesAtBlockParams) error
-	UpdateLatestBlock(ctx context.Context, blockHeader types.BlockHeader) error
 
 	CreateRuneTransaction(ctx context.Context, tx *entity.RuneTransaction) error
 

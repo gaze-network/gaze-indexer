@@ -23,20 +23,20 @@ var _ datagateway.RunesDataGateway = (*Repository)(nil)
 // warning: GetLatestBlock currently returns a types.BlockHeader with only Height, Hash, and PrevBlock fields populated.
 // This is because it is known that all usage of this function only requires these fields. In the future, we may want to populate all fields for type safety.
 func (r *Repository) GetLatestBlock(ctx context.Context) (types.BlockHeader, error) {
-	state, err := r.queries.GetRunesProcessorState(ctx)
+	block, err := r.queries.GetLatestIndexedBlock(ctx)
 	if err != nil {
 		return types.BlockHeader{}, errors.Wrap(err, "error during query")
 	}
-	hash, err := chainhash.NewHashFromStr(state.LatestBlockHash)
+	hash, err := chainhash.NewHashFromStr(block.Hash)
 	if err != nil {
 		return types.BlockHeader{}, errors.Wrap(err, "failed to parse block hash")
 	}
-	prevHash, err := chainhash.NewHashFromStr(state.LatestPrevBlockHash)
+	prevHash, err := chainhash.NewHashFromStr(block.PrevHash)
 	if err != nil {
 		return types.BlockHeader{}, errors.Wrap(err, "failed to parse prev block hash")
 	}
 	return types.BlockHeader{
-		Height:    int64(state.LatestBlockHeight),
+		Height:    int64(block.Height),
 		Hash:      *hash,
 		PrevBlock: *prevHash,
 	}, nil
@@ -262,18 +262,6 @@ func (r *Repository) CreateRuneBalancesAtBlock(ctx context.Context, params []dat
 	})
 	if len(execErrors) > 0 {
 		return errors.Wrap(errors.Join(execErrors...), "error during exec")
-	}
-	return nil
-}
-
-func (r *Repository) UpdateLatestBlock(ctx context.Context, blockHeader types.BlockHeader) error {
-	params := gen.UpdateLatestBlockParams{
-		LatestBlockHeight:   int32(blockHeader.Height),
-		LatestBlockHash:     blockHeader.Hash.String(),
-		LatestPrevBlockHash: blockHeader.PrevBlock.String(),
-	}
-	if err := r.queries.UpdateLatestBlock(ctx, params); err != nil {
-		return errors.Wrap(err, "error during exec")
 	}
 	return nil
 }

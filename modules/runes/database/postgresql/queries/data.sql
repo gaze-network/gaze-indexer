@@ -44,17 +44,14 @@ INSERT INTO runes_outpoint_balances (rune_id, tx_hash, tx_idx, amount) VALUES ($
 -- name: CreateRuneBalanceAtBlock :batchexec
 INSERT INTO runes_balances (pkscript, block_height, rune_id, amount) VALUES ($1, $2, $3, $4);
 
--- name: GetRunesProcessorState :one
-SELECT * FROM runes_processor_state;
-
--- name: UpdateLatestBlock :exec
-UPDATE runes_processor_state SET latest_block_height = $1, latest_block_hash = $2, latest_prev_block_hash = $3;
+-- name: GetLatestIndexedBlock :one
+SELECT * FROM runes_indexed_blocks ORDER BY height DESC LIMIT 1;
 
 -- name: GetIndexedBlockByHeight :one
 SELECT * FROM runes_indexed_blocks WHERE height = $1;
 
 -- name: CreateIndexedBlock :exec
-INSERT INTO runes_indexed_blocks (hash, height, event_hash, cumulative_event_hash) VALUES ($1, $2, $3, $4);
+INSERT INTO runes_indexed_blocks (hash, height, prev_hash, event_hash, cumulative_event_hash) VALUES ($1, $2, $3, $4, $5);
 
 -- name: DeleteIndexedBlockByHash :exec
 DELETE FROM runes_indexed_blocks WHERE hash = $1;

@@ -12,12 +12,13 @@ import (
 )
 
 const createIndexedBlock = `-- name: CreateIndexedBlock :exec
-INSERT INTO runes_indexed_blocks (hash, height, event_hash, cumulative_event_hash) VALUES ($1, $2, $3, $4)
+INSERT INTO runes_indexed_blocks (hash, height, prev_hash, event_hash, cumulative_event_hash) VALUES ($1, $2, $3, $4, $5)
 `
 
 type CreateIndexedBlockParams struct {
 	Hash                string
 	Height              int32
+	PrevHash            string
 	EventHash           string
 	CumulativeEventHash string
 }
@@ -26,6 +27,7 @@ func (q *Queries) CreateIndexedBlock(ctx context.Context, arg CreateIndexedBlock
 	_, err := q.db.Exec(ctx, createIndexedBlock,
 		arg.Hash,
 		arg.Height,
+		arg.PrevHash,
 		arg.EventHash,
 		arg.CumulativeEventHash,
 	)
@@ -254,7 +256,7 @@ func (q *Queries) GetBalancesByRuneId(ctx context.Context, arg GetBalancesByRune
 }
 
 const getIndexedBlockByHeight = `-- name: GetIndexedBlockByHeight :one
-SELECT hash, height, event_hash, cumulative_event_hash FROM runes_indexed_blocks WHERE height = $1
+SELECT hash, height, prev_hash, event_hash, cumulative_event_hash FROM runes_indexed_blocks WHERE height = $1
 `
 
 func (q *Queries) GetIndexedBlockByHeight(ctx context.Context, height int32) (RunesIndexedBlock, error) {
@@ -263,6 +265,24 @@ func (q *Queries) GetIndexedBlockByHeight(ctx context.Context, height int32) (Ru
 	err := row.Scan(
 		&i.Hash,
 		&i.Height,
+		&i.PrevHash,
+		&i.EventHash,
+		&i.CumulativeEventHash,
+	)
+	return i, err
+}
+
+const getLatestIndexedBlock = `-- name: GetLatestIndexedBlock :one
+SELECT hash, height, prev_hash, event_hash, cumulative_event_hash FROM runes_indexed_blocks ORDER BY height DESC LIMIT 1
+`
+
+func (q *Queries) GetLatestIndexedBlock(ctx context.Context) (RunesIndexedBlock, error) {
+	row := q.db.QueryRow(ctx, getLatestIndexedBlock)
+	var i RunesIndexedBlock
+	err := row.Scan(
+		&i.Hash,
+		&i.Height,
+		&i.PrevHash,
 		&i.EventHash,
 		&i.CumulativeEventHash,
 	)
@@ -470,35 +490,4 @@ func (q *Queries) GetRuneTransactionsByHeight(ctx context.Context, blockHeight i
 		return nil, err
 	}
 	return items, nil
-}
-
-const getRunesProcessorState = `-- name: GetRunesProcessorState :one
-SELECT latest_block_height, latest_block_hash, latest_prev_block_hash, updated_at FROM runes_processor_state
-`
-
-func (q *Queries) GetRunesProcessorState(ctx context.Context) (RunesProcessorState, error) {
-	row := q.db.QueryRow(ctx, getRunesProcessorState)
-	var i RunesProcessorState
-	err := row.Scan(
-		&i.LatestBlockHeight,
-		&i.LatestBlockHash,
-		&i.LatestPrevBlockHash,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
-
-const updateLatestBlock = `-- name: UpdateLatestBlock :exec
-UPDATE runes_processor_state SET latest_block_height = $1, latest_block_hash = $2, latest_prev_block_hash = $3
-`
-
-type UpdateLatestBlockParams struct {
-	LatestBlockHeight   int32
-	LatestBlockHash     string
-	LatestPrevBlockHash string
-}
-
-func (q *Queries) UpdateLatestBlock(ctx context.Context, arg UpdateLatestBlockParams) error {
-	_, err := q.db.Exec(ctx, updateLatestBlock, arg.LatestBlockHeight, arg.LatestBlockHash, arg.LatestPrevBlockHash)
-	return err
 }

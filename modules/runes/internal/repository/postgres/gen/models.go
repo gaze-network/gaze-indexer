@@ -43,6 +43,7 @@ type RunesEntryState struct {
 type RunesIndexedBlock struct {
 	Hash                string
 	Height              int32
+	PrevHash            string
 	EventHash           string
 	CumulativeEventHash string
 }
@@ -69,13 +70,6 @@ type RunesOutpointBalance struct {
 	Amount      pgtype.Numeric
 	BlockHeight int32
 	SpentHeight pgtype.Int4
-}
-
-type RunesProcessorState struct {
-	LatestBlockHeight   int32
-	LatestBlockHash     string
-	LatestPrevBlockHash string
-	UpdatedAt           pgtype.Timestamp
 }
 
 type RunesRunestone struct {
