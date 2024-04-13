@@ -43,7 +43,8 @@ CREATE TABLE IF NOT EXISTS "runes_entries" (
 	"terms_height_end" INT,
 	"terms_offset_start" INT,
 	"terms_offset_end" INT,
-	"created_at_block" INT NOT NULL
+	"turbo" BOOLEAN NOT NULL,
+	"etching_block" INT NOT NULL
 );
 CREATE UNIQUE INDEX IF NOT EXISTS runes_entries_rune_idx ON "runes_entries" USING BTREE ("rune");
 
@@ -82,6 +83,7 @@ CREATE TABLE IF NOT EXISTS "runes_runestones" (
 	"etching_terms_height_end" INT,
 	"etching_terms_offset_start" INT,
 	"etching_terms_offset_end" INT,
+	"etching_turbo" BOOLEAN,
 	"edicts" JSONB NOT NULL DEFAULT '[]',
 	"mint" TEXT,
 	"pointer" INT,

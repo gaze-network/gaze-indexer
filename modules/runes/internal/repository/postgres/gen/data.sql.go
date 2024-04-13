@@ -35,8 +35,8 @@ func (q *Queries) CreateIndexedBlock(ctx context.Context, arg CreateIndexedBlock
 }
 
 const createRuneEntry = `-- name: CreateRuneEntry :exec
-INSERT INTO runes_entries (rune_id, rune, spacers, premine, symbol, divisibility, terms, terms_amount, terms_cap, terms_height_start, terms_height_end, terms_offset_start, terms_offset_end)
-  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+INSERT INTO runes_entries (rune_id, rune, spacers, premine, symbol, divisibility, terms, terms_amount, terms_cap, terms_height_start, terms_height_end, terms_offset_start, terms_offset_end, turbo, etching_block)
+  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
 `
 
 type CreateRuneEntryParams struct {
@@ -53,6 +53,8 @@ type CreateRuneEntryParams struct {
 	TermsHeightEnd   pgtype.Int4
 	TermsOffsetStart pgtype.Int4
 	TermsOffsetEnd   pgtype.Int4
+	Turbo            bool
+	EtchingBlock     int32
 }
 
 func (q *Queries) CreateRuneEntry(ctx context.Context, arg CreateRuneEntryParams) error {
@@ -70,6 +72,8 @@ func (q *Queries) CreateRuneEntry(ctx context.Context, arg CreateRuneEntryParams
 		arg.TermsHeightEnd,
 		arg.TermsOffsetStart,
 		arg.TermsOffsetEnd,
+		arg.Turbo,
+		arg.EtchingBlock,
 	)
 	return err
 }
@@ -125,8 +129,8 @@ func (q *Queries) CreateRuneTransaction(ctx context.Context, arg CreateRuneTrans
 }
 
 const createRunestone = `-- name: CreateRunestone :exec
-INSERT INTO runes_runestones (tx_hash, block_height, etching, etching_divisibility, etching_premine, etching_rune, etching_spacers, etching_symbol, etching_terms, etching_terms_amount, etching_terms_cap, etching_terms_height_start, etching_terms_height_end, etching_terms_offset_start, etching_terms_offset_end, edicts, mint, pointer, cenotaph, flaws) 
-  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+INSERT INTO runes_runestones (tx_hash, block_height, etching, etching_divisibility, etching_premine, etching_rune, etching_spacers, etching_symbol, etching_terms, etching_terms_amount, etching_terms_cap, etching_terms_height_start, etching_terms_height_end, etching_terms_offset_start, etching_terms_offset_end, etching_turbo, edicts, mint, pointer, cenotaph, flaws) 
+  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
 `
 
 type CreateRunestoneParams struct {
@@ -145,6 +149,7 @@ type CreateRunestoneParams struct {
 	EtchingTermsHeightEnd   pgtype.Int4
 	EtchingTermsOffsetStart pgtype.Int4
 	EtchingTermsOffsetEnd   pgtype.Int4
+	EtchingTurbo            pgtype.Bool
 	Edicts                  []byte
 	Mint                    pgtype.Text
 	Pointer                 pgtype.Int4
@@ -169,6 +174,7 @@ func (q *Queries) CreateRunestone(ctx context.Context, arg CreateRunestoneParams
 		arg.EtchingTermsHeightEnd,
 		arg.EtchingTermsOffsetStart,
 		arg.EtchingTermsOffsetEnd,
+		arg.EtchingTurbo,
 		arg.Edicts,
 		arg.Mint,
 		arg.Pointer,
@@ -206,11 +212,11 @@ func (q *Queries) DeleteRuneBalancesSinceHeight(ctx context.Context, blockHeight
 }
 
 const deleteRuneEntriesSinceHeight = `-- name: DeleteRuneEntriesSinceHeight :exec
-DELETE FROM runes_entries WHERE created_at_block >= $1
+DELETE FROM runes_entries WHERE etching_block >= $1
 `
 
-func (q *Queries) DeleteRuneEntriesSinceHeight(ctx context.Context, createdAtBlock int32) error {
-	_, err := q.db.Exec(ctx, deleteRuneEntriesSinceHeight, createdAtBlock)
+func (q *Queries) DeleteRuneEntriesSinceHeight(ctx context.Context, etchingBlock int32) error {
+	_, err := q.db.Exec(ctx, deleteRuneEntriesSinceHeight, etchingBlock)
 	return err
 }
 
@@ -384,7 +390,7 @@ WITH states AS (
   -- select latest state
   SELECT DISTINCT ON (rune_id) rune_id, block_height, mints, burned_amount, completion_time FROM runes_entry_states WHERE rune_id = ANY($1::text[]) ORDER BY rune_id, block_height DESC
 )
-SELECT runes_entries.rune_id, rune, spacers, premine, symbol, divisibility, terms, terms_amount, terms_cap, terms_height_start, terms_height_end, terms_offset_start, terms_offset_end, created_at_block, states.rune_id, block_height, mints, burned_amount, completion_time FROM runes_entries
+SELECT runes_entries.rune_id, rune, spacers, premine, symbol, divisibility, terms, terms_amount, terms_cap, terms_height_start, terms_height_end, terms_offset_start, terms_offset_end, turbo, etching_block, states.rune_id, block_height, mints, burned_amount, completion_time FROM runes_entries
   LEFT JOIN states ON runes_entries.rune_id = states.rune_id
   WHERE rune_id = ANY($1::text[])
 `
@@ -403,7 +409,8 @@ type GetRuneEntriesByRuneIdsRow struct {
 	TermsHeightEnd   pgtype.Int4
 	TermsOffsetStart pgtype.Int4
 	TermsOffsetEnd   pgtype.Int4
-	CreatedAtBlock   int32
+	Turbo            bool
+	EtchingBlock     int32
 	RuneID_2         pgtype.Text
 	BlockHeight      pgtype.Int4
 	Mints            pgtype.Numeric
@@ -434,7 +441,8 @@ func (q *Queries) GetRuneEntriesByRuneIds(ctx context.Context, runeIds []string)
 			&i.TermsHeightEnd,
 			&i.TermsOffsetStart,
 			&i.TermsOffsetEnd,
-			&i.CreatedAtBlock,
+			&i.Turbo,
+			&i.EtchingBlock,
 			&i.RuneID_2,
 			&i.BlockHeight,
 			&i.Mints,
@@ -463,7 +471,7 @@ func (q *Queries) GetRuneIdFromRune(ctx context.Context, rune string) (string, e
 }
 
 const getRuneTransactionsByHeight = `-- name: GetRuneTransactionsByHeight :many
-SELECT hash, runes_transactions.block_height, timestamp, inputs, outputs, mints, burns, tx_hash, runes_runestones.block_height, etching, etching_divisibility, etching_premine, etching_rune, etching_spacers, etching_symbol, etching_terms, etching_terms_amount, etching_terms_cap, etching_terms_height_start, etching_terms_height_end, etching_terms_offset_start, etching_terms_offset_end, edicts, mint, pointer, cenotaph, flaws FROM runes_transactions 
+SELECT hash, runes_transactions.block_height, timestamp, inputs, outputs, mints, burns, tx_hash, runes_runestones.block_height, etching, etching_divisibility, etching_premine, etching_rune, etching_spacers, etching_symbol, etching_terms, etching_terms_amount, etching_terms_cap, etching_terms_height_start, etching_terms_height_end, etching_terms_offset_start, etching_terms_offset_end, etching_turbo, edicts, mint, pointer, cenotaph, flaws FROM runes_transactions 
   LEFT JOIN runes_runestones ON runes_transactions.hash = runes_runestones.tx_hash
   WHERE runes_transactions.block_height = $1
 `
@@ -491,6 +499,7 @@ type GetRuneTransactionsByHeightRow struct {
 	EtchingTermsHeightEnd   pgtype.Int4
 	EtchingTermsOffsetStart pgtype.Int4
 	EtchingTermsOffsetEnd   pgtype.Int4
+	EtchingTurbo            pgtype.Bool
 	Edicts                  []byte
 	Mint                    pgtype.Text
 	Pointer                 pgtype.Int4
@@ -530,6 +539,7 @@ func (q *Queries) GetRuneTransactionsByHeight(ctx context.Context, blockHeight i
 			&i.EtchingTermsHeightEnd,
 			&i.EtchingTermsOffsetStart,
 			&i.EtchingTermsOffsetEnd,
+			&i.EtchingTurbo,
 			&i.Edicts,
 			&i.Mint,
 			&i.Pointer,

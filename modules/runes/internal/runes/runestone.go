@@ -65,6 +65,9 @@ func (r Runestone) Encipher() ([]byte, error) {
 		if etching.Terms != nil {
 			flags.Set(FlagTerms)
 		}
+		if etching.Turbo {
+			flags.Set(FlagTurbo)
+		}
 		encodeTagValues(TagFlags, flags.Uint128())
 
 		if etching.Rune != nil {
@@ -236,6 +239,7 @@ func DecipherRunestone(tx *types.Transaction) (*Runestone, error) {
 			Spacers:      spacers,
 			Symbol:       symbol,
 			Terms:        terms,
+			Turbo:        flags.Take(FlagTurbo),
 		}
 	}
 

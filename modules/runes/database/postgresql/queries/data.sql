@@ -25,8 +25,8 @@ SELECT * FROM runes_transactions
   WHERE runes_transactions.block_height = $1;
 
 -- name: CreateRuneEntry :exec
-INSERT INTO runes_entries (rune_id, rune, spacers, premine, symbol, divisibility, terms, terms_amount, terms_cap, terms_height_start, terms_height_end, terms_offset_start, terms_offset_end)
-  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13);
+INSERT INTO runes_entries (rune_id, rune, spacers, premine, symbol, divisibility, terms, terms_amount, terms_cap, terms_height_start, terms_height_end, terms_offset_start, terms_offset_end, turbo, etching_block)
+  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15);
 
 -- name: CreateRuneEntryState :exec
 INSERT INTO runes_entry_states (rune_id, block_height, mints, burned_amount, completion_time) VALUES ($1, $2, $3, $4, $5);
@@ -35,8 +35,8 @@ INSERT INTO runes_entry_states (rune_id, block_height, mints, burned_amount, com
 INSERT INTO runes_transactions (hash, block_height, timestamp, inputs, outputs, mints, burns) VALUES ($1, $2, $3, $4, $5, $6, $7);
 
 -- name: CreateRunestone :exec
-INSERT INTO runes_runestones (tx_hash, block_height, etching, etching_divisibility, etching_premine, etching_rune, etching_spacers, etching_symbol, etching_terms, etching_terms_amount, etching_terms_cap, etching_terms_height_start, etching_terms_height_end, etching_terms_offset_start, etching_terms_offset_end, edicts, mint, pointer, cenotaph, flaws) 
-  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20);
+INSERT INTO runes_runestones (tx_hash, block_height, etching, etching_divisibility, etching_premine, etching_rune, etching_spacers, etching_symbol, etching_terms, etching_terms_amount, etching_terms_cap, etching_terms_height_start, etching_terms_height_end, etching_terms_offset_start, etching_terms_offset_end, etching_turbo, edicts, mint, pointer, cenotaph, flaws) 
+  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21);
 
 -- name: CreateRuneBalancesAtOutPoint :batchexec
 INSERT INTO runes_outpoint_balances (rune_id, tx_hash, tx_idx, amount) VALUES ($1, $2, $3, $4);
@@ -57,7 +57,7 @@ INSERT INTO runes_indexed_blocks (hash, height, prev_hash, event_hash, cumulativ
 DELETE FROM runes_indexed_blocks WHERE height >= $1;
 
 -- name: DeleteRuneEntriesSinceHeight :exec
-DELETE FROM runes_entries WHERE created_at_block >= $1;
+DELETE FROM runes_entries WHERE etching_block >= $1;
 
 -- name: DeleteRuneEntryStatesSinceHeight :exec
 DELETE FROM runes_entry_states WHERE block_height >= $1;

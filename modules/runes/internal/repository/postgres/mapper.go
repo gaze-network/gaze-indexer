@@ -104,14 +104,15 @@ func mapRuneEntryModelToType(src gen.GetRuneEntriesByRuneIdsRow) (runes.RuneEntr
 	}
 	return runes.RuneEntry{
 		RuneId:         runeId,
+		Divisibility:   uint8(src.Divisibility),
+		Premine:        lo.FromPtr(premine),
 		SpacedRune:     runes.NewSpacedRune(rune, uint32(src.Spacers)),
+		Symbol:         src.Symbol,
+		Terms:          terms,
+		Turbo:          src.Turbo,
 		Mints:          lo.FromPtr(mints),
 		BurnedAmount:   lo.FromPtr(burnedAmount),
-		Premine:        lo.FromPtr(premine),
-		Symbol:         src.Symbol,
-		Divisibility:   uint8(src.Divisibility),
 		CompletionTime: completionTime,
-		Terms:          terms,
 	}, nil
 }
 
@@ -193,6 +194,8 @@ func mapRuneEntryTypeToParams(src runes.RuneEntry, blockHeight uint64) (gen.Crea
 			TermsHeightEnd:   termsHeightEnd,
 			TermsOffsetStart: termsOffsetStart,
 			TermsOffsetEnd:   termsOffsetEnd,
+			Turbo:            src.Turbo,
+			EtchingBlock:     int32(blockHeight),
 		}, gen.CreateRuneEntryStateParams{
 			BlockHeight:    int32(blockHeight),
 			RuneID:         runeId,
@@ -436,6 +439,7 @@ func mapRunestoneTypeToParams(src runes.Runestone, txHash chainhash.Hash, blockH
 				runestoneParams.EtchingTermsOffsetEnd = pgtype.Int4{Int32: int32(*terms.OffsetEnd), Valid: true}
 			}
 		}
+		runestoneParams.EtchingTurbo = pgtype.Bool{Bool: etching.Turbo, Valid: true}
 	}
 	if src.Mint != nil {
 		runestoneParams.Mint = pgtype.Text{String: src.Mint.String(), Valid: true}
@@ -514,6 +518,7 @@ func mapRunestoneModelToType(src gen.RunesRunestone) (runes.Runestone, error) {
 			}
 			etching.Terms = &terms
 		}
+		etching.Turbo = src.EtchingTurbo.Valid && src.EtchingTurbo.Bool
 		runestone.Etching = &etching
 	}
 	if src.Mint.Valid {

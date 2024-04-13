@@ -378,6 +378,7 @@ func (p *Processor) createRuneEntry(ctx context.Context, runestone *runes.Runest
 			Symbol:         '¤',
 			Divisibility:   0,
 			Terms:          nil,
+			Turbo:          false,
 			CompletionTime: time.Time{},
 		}
 	} else {
@@ -391,6 +392,7 @@ func (p *Processor) createRuneEntry(ctx context.Context, runestone *runes.Runest
 			Symbol:         lo.FromPtrOr(etching.Symbol, '¤'),
 			Divisibility:   lo.FromPtr(etching.Divisibility),
 			Terms:          etching.Terms,
+			Turbo:          etching.Turbo,
 			CompletionTime: time.Time{},
 		}
 	}
@@ -450,6 +452,7 @@ func (p *Processor) incrementBurnedAmount(ctx context.Context, burned map[runes.
 }
 
 func (p *Processor) flushNewRuneEntryStates(ctx context.Context, blockHeight uint64) error {
+	// TODO: set completion time
 	for _, runeEntry := range p.newRuneEntryStates {
 		if err := p.runesDg.CreateRuneEntryState(ctx, runeEntry, blockHeight); err != nil {
 			return errors.Wrap(err, "failed to create rune entry state")

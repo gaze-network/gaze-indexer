@@ -29,7 +29,8 @@ type RunesEntry struct {
 	TermsHeightEnd   pgtype.Int4
 	TermsOffsetStart pgtype.Int4
 	TermsOffsetEnd   pgtype.Int4
-	CreatedAtBlock   int32
+	Turbo            bool
+	EtchingBlock     int32
 }
 
 type RunesEntryState struct {
@@ -88,6 +89,7 @@ type RunesRunestone struct {
 	EtchingTermsHeightEnd   pgtype.Int4
 	EtchingTermsOffsetStart pgtype.Int4
 	EtchingTermsOffsetEnd   pgtype.Int4
+	EtchingTurbo            pgtype.Bool
 	Edicts                  []byte
 	Mint                    pgtype.Text
 	Pointer                 pgtype.Int4

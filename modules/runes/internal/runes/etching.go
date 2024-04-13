@@ -24,18 +24,20 @@ type Terms struct {
 }
 
 type Etching struct {
-	// Rune name
-	Rune *Rune
-	// Minting terms. If not provided, the rune is not mintable.
-	Terms *Terms
+	// Number of decimals when displaying the rune
+	Divisibility *uint8
 	// Number of runes to be minted during etching
 	Premine *uint128.Uint128
+	// Rune name
+	Rune *Rune
 	// Bitmap of spacers to be displayed between each letter of the rune name
 	Spacers *uint32
 	// Single Unicode codepoint to represent the rune
 	Symbol *rune
-	// Number of decimals when displaying the rune
-	Divisibility *uint8
+	// Minting terms. If not provided, the rune is not mintable.
+	Terms *Terms
+	// Whether to opt-in to future protocol changes, whatever they may be
+	Turbo bool
 }
 
 const (

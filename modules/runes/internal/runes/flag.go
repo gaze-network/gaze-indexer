@@ -14,6 +14,7 @@ type Flag uint8
 const (
 	FlagEtching  = Flag(0)
 	FlagTerms    = Flag(1)
+	FlagTurbo    = Flag(2)
 	FlagCenotaph = Flag(127)
 )
 
