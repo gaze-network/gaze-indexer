@@ -73,7 +73,7 @@ func (i *BitcoinIndexer) process(ctx context.Context) (err error) {
 				continue
 			}
 
-			// validate reorg from prev current block
+			// validate reorg from current block
 			if blocks[0].Header.Height == i.currentBlock.Height {
 				currentBlockHeader := blocks[0].Header
 				if !currentBlockHeader.Hash.IsEqual(&i.currentBlock.Hash) {
