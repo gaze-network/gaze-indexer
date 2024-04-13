@@ -80,7 +80,7 @@ func (p *Processor) processTx(ctx context.Context, tx *types.Transaction, blockH
 	if runestone != nil {
 		if runestone.Mint != nil {
 			mintRuneId := *runestone.Mint
-			amount, err := p.mint(ctx, mintRuneId, uint64(blockHeader.Height))
+			amount, err := p.mint(ctx, mintRuneId, blockHeader)
 			if err != nil {
 				return errors.Wrap(err, "error during mint")
 			}
@@ -245,7 +245,7 @@ func (p *Processor) getUnallocatedRunes(ctx context.Context, txInputs []*types.T
 	return unallocatedRunes, nil
 }
 
-func (p *Processor) mint(ctx context.Context, runeId runes.RuneId, height uint64) (uint128.Uint128, error) {
+func (p *Processor) mint(ctx context.Context, runeId runes.RuneId, blockHeader types.BlockHeader) (uint128.Uint128, error) {
 	runeEntry, err := p.runesDg.GetRuneEntryByRuneId(ctx, runeId)
 	if err != nil {
 		if errors.Is(err, errs.NotFound) {
@@ -254,12 +254,12 @@ func (p *Processor) mint(ctx context.Context, runeId runes.RuneId, height uint64
 		return uint128.Uint128{}, errors.Wrap(err, "failed to get rune entry by rune id")
 	}
 
-	amount, err := runeEntry.GetMintableAmount(height)
+	amount, err := runeEntry.GetMintableAmount(uint64(blockHeader.Height))
 	if err != nil {
 		return uint128.Zero, nil
 	}
 
-	if err := p.incrementMintCount(ctx, runeId, 1); err != nil {
+	if err := p.incrementMintCount(ctx, runeId, blockHeader); err != nil {
 		return uint128.Zero, errors.Wrap(err, "failed to increment mint count")
 	}
 	return amount, nil
@@ -370,30 +370,30 @@ func (p *Processor) createRuneEntry(ctx context.Context, runestone *runes.Runest
 	var runeEntry *runes.RuneEntry
 	if runestone.Cenotaph {
 		runeEntry = &runes.RuneEntry{
-			RuneId:         runeId,
-			SpacedRune:     runes.NewSpacedRune(rune, 0),
-			Mints:          uint128.Zero,
-			BurnedAmount:   uint128.Zero,
-			Premine:        uint128.Zero,
-			Symbol:         '¤',
-			Divisibility:   0,
-			Terms:          nil,
-			Turbo:          false,
-			CompletionTime: time.Time{},
+			RuneId:       runeId,
+			SpacedRune:   runes.NewSpacedRune(rune, 0),
+			Mints:        uint128.Zero,
+			BurnedAmount: uint128.Zero,
+			Premine:      uint128.Zero,
+			Symbol:       '¤',
+			Divisibility: 0,
+			Terms:        nil,
+			Turbo:        false,
+			CompletedAt:  time.Time{},
 		}
 	} else {
 		etching := runestone.Etching
 		runeEntry = &runes.RuneEntry{
-			RuneId:         runeId,
-			SpacedRune:     runes.NewSpacedRune(rune, lo.FromPtr(etching.Spacers)),
-			Mints:          uint128.Zero,
-			BurnedAmount:   uint128.Zero,
-			Premine:        lo.FromPtr(etching.Premine),
-			Symbol:         lo.FromPtrOr(etching.Symbol, '¤'),
-			Divisibility:   lo.FromPtr(etching.Divisibility),
-			Terms:          etching.Terms,
-			Turbo:          etching.Turbo,
-			CompletionTime: time.Time{},
+			RuneId:       runeId,
+			SpacedRune:   runes.NewSpacedRune(rune, lo.FromPtr(etching.Spacers)),
+			Mints:        uint128.Zero,
+			BurnedAmount: uint128.Zero,
+			Premine:      lo.FromPtr(etching.Premine),
+			Symbol:       lo.FromPtrOr(etching.Symbol, '¤'),
+			Divisibility: lo.FromPtr(etching.Divisibility),
+			Terms:        etching.Terms,
+			Turbo:        etching.Turbo,
+			CompletedAt:  time.Time{},
 		}
 	}
 	if err := p.runesDg.CreateRuneEntry(ctx, runeEntry, blockHeight); err != nil {
@@ -402,7 +402,7 @@ func (p *Processor) createRuneEntry(ctx context.Context, runestone *runes.Runest
 	return nil
 }
 
-func (p *Processor) incrementMintCount(ctx context.Context, runeId runes.RuneId, count uint64) (err error) {
+func (p *Processor) incrementMintCount(ctx context.Context, runeId runes.RuneId, blockHeader types.BlockHeader) (err error) {
 	runeEntry, ok := p.newRuneEntryStates[runeId]
 	if !ok {
 		runeEntry, err = p.runesDg.GetRuneEntryByRuneId(ctx, runeId)
@@ -410,7 +410,11 @@ func (p *Processor) incrementMintCount(ctx context.Context, runeId runes.RuneId,
 			return errors.Wrap(err, "failed to get rune entry by rune id")
 		}
 	}
-	runeEntry.Mints = runeEntry.Mints.Add64(count)
+	runeEntry.Mints = runeEntry.Mints.Add64(1)
+	if runeEntry.Mints == lo.FromPtr(runeEntry.Terms.Cap) {
+		runeEntry.CompletedAt = blockHeader.Timestamp
+		runeEntry.CompletedAtHeight = lo.ToPtr(uint64(blockHeader.Height))
+	}
 	p.newRuneEntryStates[runeId] = runeEntry
 	return nil
 }
@@ -452,7 +456,6 @@ func (p *Processor) incrementBurnedAmount(ctx context.Context, burned map[runes.
 }
 
 func (p *Processor) flushNewRuneEntryStates(ctx context.Context, blockHeight uint64) error {
-	// TODO: set completion time
 	for _, runeEntry := range p.newRuneEntryStates {
 		if err := p.runesDg.CreateRuneEntryState(ctx, runeEntry, blockHeight); err != nil {
 			return errors.Wrap(err, "failed to create rune entry state")

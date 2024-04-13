@@ -34,11 +34,12 @@ type RunesEntry struct {
 }
 
 type RunesEntryState struct {
-	RuneID         string
-	BlockHeight    int32
-	Mints          pgtype.Numeric
-	BurnedAmount   pgtype.Numeric
-	CompletionTime pgtype.Timestamp
+	RuneID            string
+	BlockHeight       int32
+	Mints             pgtype.Numeric
+	BurnedAmount      pgtype.Numeric
+	CompletedAt       pgtype.Timestamp
+	CompletedAtHeight pgtype.Int4
 }
 
 type RunesIndexedBlock struct {

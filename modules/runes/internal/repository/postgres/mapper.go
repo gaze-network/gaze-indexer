@@ -83,9 +83,13 @@ func mapRuneEntryModelToType(src gen.GetRuneEntriesByRuneIdsRow) (runes.RuneEntr
 	if err != nil {
 		return runes.RuneEntry{}, errors.Wrap(err, "failed to parse premine")
 	}
-	var completionTime time.Time
-	if src.CompletionTime.Valid {
-		completionTime = src.CompletionTime.Time
+	var completedAt time.Time
+	if src.CompletedAt.Valid {
+		completedAt = src.CompletedAt.Time
+	}
+	var completedAtHeight *uint64
+	if src.CompletedAtHeight.Valid {
+		completedAtHeight = lo.ToPtr(uint64(src.CompletedAtHeight.Int32))
 	}
 	var terms *runes.Terms
 	if src.Terms {
@@ -122,16 +126,17 @@ func mapRuneEntryModelToType(src gen.GetRuneEntriesByRuneIdsRow) (runes.RuneEntr
 		}
 	}
 	return runes.RuneEntry{
-		RuneId:         runeId,
-		Divisibility:   uint8(src.Divisibility),
-		Premine:        lo.FromPtr(premine),
-		SpacedRune:     runes.NewSpacedRune(rune, uint32(src.Spacers)),
-		Symbol:         src.Symbol,
-		Terms:          terms,
-		Turbo:          src.Turbo,
-		Mints:          lo.FromPtr(mints),
-		BurnedAmount:   lo.FromPtr(burnedAmount),
-		CompletionTime: completionTime,
+		RuneId:            runeId,
+		Divisibility:      uint8(src.Divisibility),
+		Premine:           lo.FromPtr(premine),
+		SpacedRune:        runes.NewSpacedRune(rune, uint32(src.Spacers)),
+		Symbol:            src.Symbol,
+		Terms:             terms,
+		Turbo:             src.Turbo,
+		Mints:             lo.FromPtr(mints),
+		BurnedAmount:      lo.FromPtr(burnedAmount),
+		CompletedAt:       completedAt,
+		CompletedAtHeight: completedAtHeight,
 	}, nil
 }
 
@@ -151,10 +156,15 @@ func mapRuneEntryTypeToParams(src runes.RuneEntry, blockHeight uint64) (gen.Crea
 	if err != nil {
 		return gen.CreateRuneEntryParams{}, gen.CreateRuneEntryStateParams{}, errors.Wrap(err, "failed to parse premine")
 	}
-	var completionTime pgtype.Timestamp
-	if !src.CompletionTime.IsZero() {
-		completionTime.Time = src.CompletionTime
-		completionTime.Valid = true
+	var completedAt pgtype.Timestamp
+	if !src.CompletedAt.IsZero() {
+		completedAt.Time = src.CompletedAt
+		completedAt.Valid = true
+	}
+	var completedAtHeight pgtype.Int4
+	if src.CompletedAtHeight != nil {
+		completedAtHeight.Int32 = int32(*src.CompletedAtHeight)
+		completedAtHeight.Valid = true
 	}
 	var terms bool
 	var termsAmount, termsCap pgtype.Numeric
@@ -216,11 +226,12 @@ func mapRuneEntryTypeToParams(src runes.RuneEntry, blockHeight uint64) (gen.Crea
 			Turbo:            src.Turbo,
 			EtchingBlock:     int32(blockHeight),
 		}, gen.CreateRuneEntryStateParams{
-			BlockHeight:    int32(blockHeight),
-			RuneID:         runeId,
-			Mints:          mints,
-			BurnedAmount:   burnedAmount,
-			CompletionTime: completionTime,
+			BlockHeight:       int32(blockHeight),
+			RuneID:            runeId,
+			Mints:             mints,
+			BurnedAmount:      burnedAmount,
+			CompletedAt:       completedAt,
+			CompletedAtHeight: completedAtHeight,
 		}, nil
 }
 

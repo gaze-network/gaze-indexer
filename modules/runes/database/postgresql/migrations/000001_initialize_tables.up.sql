@@ -52,7 +52,8 @@ CREATE TABLE IF NOT EXISTS "runes_entry_states" (
 	"block_height" INT NOT NULL,
 	"mints" DECIMAL NOT NULL,
 	"burned_amount" DECIMAL NOT NULL,
-	"completion_time" TIMESTAMP,
+	"completed_at" TIMESTAMP,
+	"completed_at_height" INT,
 	PRIMARY KEY ("rune_id", "block_height")
 );
 

@@ -79,15 +79,16 @@ func (q *Queries) CreateRuneEntry(ctx context.Context, arg CreateRuneEntryParams
 }
 
 const createRuneEntryState = `-- name: CreateRuneEntryState :exec
-INSERT INTO runes_entry_states (rune_id, block_height, mints, burned_amount, completion_time) VALUES ($1, $2, $3, $4, $5)
+INSERT INTO runes_entry_states (rune_id, block_height, mints, burned_amount, completed_at, completed_at_height) VALUES ($1, $2, $3, $4, $5, $6)
 `
 
 type CreateRuneEntryStateParams struct {
-	RuneID         string
-	BlockHeight    int32
-	Mints          pgtype.Numeric
-	BurnedAmount   pgtype.Numeric
-	CompletionTime pgtype.Timestamp
+	RuneID            string
+	BlockHeight       int32
+	Mints             pgtype.Numeric
+	BurnedAmount      pgtype.Numeric
+	CompletedAt       pgtype.Timestamp
+	CompletedAtHeight pgtype.Int4
 }
 
 func (q *Queries) CreateRuneEntryState(ctx context.Context, arg CreateRuneEntryStateParams) error {
@@ -96,7 +97,8 @@ func (q *Queries) CreateRuneEntryState(ctx context.Context, arg CreateRuneEntryS
 		arg.BlockHeight,
 		arg.Mints,
 		arg.BurnedAmount,
-		arg.CompletionTime,
+		arg.CompletedAt,
+		arg.CompletedAtHeight,
 	)
 	return err
 }
@@ -388,34 +390,35 @@ func (q *Queries) GetOutPointBalances(ctx context.Context, arg GetOutPointBalanc
 const getRuneEntriesByRuneIds = `-- name: GetRuneEntriesByRuneIds :many
 WITH states AS (
   -- select latest state
-  SELECT DISTINCT ON (rune_id) rune_id, block_height, mints, burned_amount, completion_time FROM runes_entry_states WHERE rune_id = ANY($1::text[]) ORDER BY rune_id, block_height DESC
+  SELECT DISTINCT ON (rune_id) rune_id, block_height, mints, burned_amount, completed_at, completed_at_height FROM runes_entry_states WHERE rune_id = ANY($1::text[]) ORDER BY rune_id, block_height DESC
 )
-SELECT runes_entries.rune_id, rune, spacers, premine, symbol, divisibility, terms, terms_amount, terms_cap, terms_height_start, terms_height_end, terms_offset_start, terms_offset_end, turbo, etching_block, states.rune_id, block_height, mints, burned_amount, completion_time FROM runes_entries
+SELECT runes_entries.rune_id, rune, spacers, premine, symbol, divisibility, terms, terms_amount, terms_cap, terms_height_start, terms_height_end, terms_offset_start, terms_offset_end, turbo, etching_block, states.rune_id, block_height, mints, burned_amount, completed_at, completed_at_height FROM runes_entries
   LEFT JOIN states ON runes_entries.rune_id = states.rune_id
   WHERE rune_id = ANY($1::text[])
 `
 
 type GetRuneEntriesByRuneIdsRow struct {
-	RuneID           string
-	Rune             string
-	Spacers          int32
-	Premine          pgtype.Numeric
-	Symbol           int32
-	Divisibility     int16
-	Terms            bool
-	TermsAmount      pgtype.Numeric
-	TermsCap         pgtype.Numeric
-	TermsHeightStart pgtype.Int4
-	TermsHeightEnd   pgtype.Int4
-	TermsOffsetStart pgtype.Int4
-	TermsOffsetEnd   pgtype.Int4
-	Turbo            bool
-	EtchingBlock     int32
-	RuneID_2         pgtype.Text
-	BlockHeight      pgtype.Int4
-	Mints            pgtype.Numeric
-	BurnedAmount     pgtype.Numeric
-	CompletionTime   pgtype.Timestamp
+	RuneID            string
+	Rune              string
+	Spacers           int32
+	Premine           pgtype.Numeric
+	Symbol            int32
+	Divisibility      int16
+	Terms             bool
+	TermsAmount       pgtype.Numeric
+	TermsCap          pgtype.Numeric
+	TermsHeightStart  pgtype.Int4
+	TermsHeightEnd    pgtype.Int4
+	TermsOffsetStart  pgtype.Int4
+	TermsOffsetEnd    pgtype.Int4
+	Turbo             bool
+	EtchingBlock      int32
+	RuneID_2          pgtype.Text
+	BlockHeight       pgtype.Int4
+	Mints             pgtype.Numeric
+	BurnedAmount      pgtype.Numeric
+	CompletedAt       pgtype.Timestamp
+	CompletedAtHeight pgtype.Int4
 }
 
 func (q *Queries) GetRuneEntriesByRuneIds(ctx context.Context, runeIds []string) ([]GetRuneEntriesByRuneIdsRow, error) {
@@ -447,7 +450,8 @@ func (q *Queries) GetRuneEntriesByRuneIds(ctx context.Context, runeIds []string)
 			&i.BlockHeight,
 			&i.Mints,
 			&i.BurnedAmount,
-			&i.CompletionTime,
+			&i.CompletedAt,
+			&i.CompletedAtHeight,
 		); err != nil {
 			return nil, err
 		}

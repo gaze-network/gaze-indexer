@@ -21,8 +21,10 @@ type RuneEntry struct {
 	// Mints is the number of times that this rune has been minted.
 	Mints        uint128.Uint128
 	BurnedAmount uint128.Uint128
-	// CompletionTime is the time when the rune was fully minted.
-	CompletionTime time.Time
+	// CompletedAt is the time when the rune was fully minted.
+	CompletedAt time.Time
+	// CompletedAtHeight is the block height when the rune was fully minted.
+	CompletedAtHeight *uint64
 }
 
 var (
