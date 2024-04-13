@@ -250,7 +250,7 @@ func mapRuneTransactionTypeToParams(src entity.RuneTransaction) (gen.CreateRuneT
 	for key, value := range src.Burns {
 		burns[key.String()] = value
 	}
-	burnsBytes, err := json.Marshal(src.Burns)
+	burnsBytes, err := json.Marshal(burns)
 	if err != nil {
 		return gen.CreateRuneTransactionParams{}, nil, errors.Wrap(err, "failed to marshal burns")
 	}
@@ -477,7 +477,7 @@ func mapRunestoneModelToType(src gen.RunesRunestone) (runes.Runestone, error) {
 			etching.Spacers = &spacers
 		}
 		if src.EtchingSymbol.Valid {
-			symbol := rune(src.EtchingSymbol.Int32)
+			var symbol rune = src.EtchingSymbol.Int32
 			etching.Symbol = &symbol
 		}
 		if src.EtchingTerms {
