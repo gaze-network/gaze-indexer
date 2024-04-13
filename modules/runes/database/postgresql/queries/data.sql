@@ -53,5 +53,26 @@ SELECT * FROM runes_indexed_blocks WHERE height = $1;
 -- name: CreateIndexedBlock :exec
 INSERT INTO runes_indexed_blocks (hash, height, prev_hash, event_hash, cumulative_event_hash) VALUES ($1, $2, $3, $4, $5);
 
--- name: DeleteIndexedBlockByHash :exec
-DELETE FROM runes_indexed_blocks WHERE hash = $1;
+-- name: DeleteIndexedBlockSinceHeight :exec
+DELETE FROM runes_indexed_blocks WHERE height >= $1;
+
+-- name: DeleteRuneEntriesSinceHeight :exec
+DELETE FROM runes_entries WHERE created_at_block >= $1;
+
+-- name: DeleteRuneEntryStatesSinceHeight :exec
+DELETE FROM runes_entry_states WHERE block_height >= $1;
+
+-- name: DeleteRuneTransactionsSinceHeight :exec
+DELETE FROM runes_transactions WHERE block_height >= $1;
+
+-- name: DeleteRunestonesSinceHeight :exec
+DELETE FROM runes_runestones WHERE block_height >= $1;
+
+-- name: DeleteOutPointBalancesSinceHeight :exec
+DELETE FROM runes_outpoint_balances WHERE block_height >= $1;
+
+-- name: UnspendOutPointBalancesSinceHeight :exec
+UPDATE runes_outpoint_balances SET spent_height = NULL WHERE spent_height >= $1;
+
+-- name: DeleteRuneBalancesSinceHeight :exec
+DELETE FROM runes_balances WHERE block_height >= $1;

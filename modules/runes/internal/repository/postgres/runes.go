@@ -15,6 +15,7 @@ import (
 	"github.com/gaze-network/indexer-network/modules/runes/internal/runes"
 	"github.com/gaze-network/uint128"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/samber/lo"
 )
 
@@ -320,8 +321,57 @@ func (r *Repository) CreateIndexedBlock(ctx context.Context, block *entity.Index
 	return nil
 }
 
-func (r *Repository) DeleteIndexedBlockByHash(ctx context.Context, hash chainhash.Hash) error {
-	if err := r.queries.DeleteIndexedBlockByHash(ctx, hash.String()); err != nil {
+func (r *Repository) DeleteIndexedBlockSinceHeight(ctx context.Context, height uint64) error {
+	if err := r.queries.DeleteIndexedBlockSinceHeight(ctx, int32(height)); err != nil {
+		return errors.Wrap(err, "error during exec")
+	}
+	return nil
+}
+
+func (r *Repository) DeleteRuneEntriesSinceHeight(ctx context.Context, height uint64) error {
+	if err := r.queries.DeleteRuneEntriesSinceHeight(ctx, int32(height)); err != nil {
+		return errors.Wrap(err, "error during exec")
+	}
+	return nil
+}
+
+func (r *Repository) DeleteRuneEntryStatesSinceHeight(ctx context.Context, height uint64) error {
+	if err := r.queries.DeleteRuneEntryStatesSinceHeight(ctx, int32(height)); err != nil {
+		return errors.Wrap(err, "error during exec")
+	}
+	return nil
+}
+
+func (r *Repository) DeleteRuneTransactionsSinceHeight(ctx context.Context, height uint64) error {
+	if err := r.queries.DeleteRuneTransactionsSinceHeight(ctx, int32(height)); err != nil {
+		return errors.Wrap(err, "error during exec")
+	}
+	return nil
+}
+
+func (r *Repository) DeleteRunestonesSinceHeight(ctx context.Context, height uint64) error {
+	if err := r.queries.DeleteRunestonesSinceHeight(ctx, int32(height)); err != nil {
+		return errors.Wrap(err, "error during exec")
+	}
+	return nil
+}
+
+func (r *Repository) DeleteOutPointBalancesSinceHeight(ctx context.Context, height uint64) error {
+	if err := r.queries.DeleteOutPointBalancesSinceHeight(ctx, int32(height)); err != nil {
+		return errors.Wrap(err, "error during exec")
+	}
+	return nil
+}
+
+func (r *Repository) UnspendOutPointBalancesSinceHeight(ctx context.Context, height uint64) error {
+	if err := r.queries.UnspendOutPointBalancesSinceHeight(ctx, pgtype.Int4{Int32: int32(height), Valid: true}); err != nil {
+		return errors.Wrap(err, "error during exec")
+	}
+	return nil
+}
+
+func (r *Repository) DeleteRuneBalancesSinceHeight(ctx context.Context, height uint64) error {
+	if err := r.queries.DeleteRuneBalancesSinceHeight(ctx, int32(height)); err != nil {
 		return errors.Wrap(err, "error during exec")
 	}
 	return nil

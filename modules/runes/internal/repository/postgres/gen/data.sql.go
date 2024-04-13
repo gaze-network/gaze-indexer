@@ -178,12 +178,66 @@ func (q *Queries) CreateRunestone(ctx context.Context, arg CreateRunestoneParams
 	return err
 }
 
-const deleteIndexedBlockByHash = `-- name: DeleteIndexedBlockByHash :exec
-DELETE FROM runes_indexed_blocks WHERE hash = $1
+const deleteIndexedBlockSinceHeight = `-- name: DeleteIndexedBlockSinceHeight :exec
+DELETE FROM runes_indexed_blocks WHERE height >= $1
 `
 
-func (q *Queries) DeleteIndexedBlockByHash(ctx context.Context, hash string) error {
-	_, err := q.db.Exec(ctx, deleteIndexedBlockByHash, hash)
+func (q *Queries) DeleteIndexedBlockSinceHeight(ctx context.Context, height int32) error {
+	_, err := q.db.Exec(ctx, deleteIndexedBlockSinceHeight, height)
+	return err
+}
+
+const deleteOutPointBalancesSinceHeight = `-- name: DeleteOutPointBalancesSinceHeight :exec
+DELETE FROM runes_outpoint_balances WHERE block_height >= $1
+`
+
+func (q *Queries) DeleteOutPointBalancesSinceHeight(ctx context.Context, blockHeight int32) error {
+	_, err := q.db.Exec(ctx, deleteOutPointBalancesSinceHeight, blockHeight)
+	return err
+}
+
+const deleteRuneBalancesSinceHeight = `-- name: DeleteRuneBalancesSinceHeight :exec
+DELETE FROM runes_balances WHERE block_height >= $1
+`
+
+func (q *Queries) DeleteRuneBalancesSinceHeight(ctx context.Context, blockHeight int32) error {
+	_, err := q.db.Exec(ctx, deleteRuneBalancesSinceHeight, blockHeight)
+	return err
+}
+
+const deleteRuneEntriesSinceHeight = `-- name: DeleteRuneEntriesSinceHeight :exec
+DELETE FROM runes_entries WHERE created_at_block >= $1
+`
+
+func (q *Queries) DeleteRuneEntriesSinceHeight(ctx context.Context, createdAtBlock int32) error {
+	_, err := q.db.Exec(ctx, deleteRuneEntriesSinceHeight, createdAtBlock)
+	return err
+}
+
+const deleteRuneEntryStatesSinceHeight = `-- name: DeleteRuneEntryStatesSinceHeight :exec
+DELETE FROM runes_entry_states WHERE block_height >= $1
+`
+
+func (q *Queries) DeleteRuneEntryStatesSinceHeight(ctx context.Context, blockHeight int32) error {
+	_, err := q.db.Exec(ctx, deleteRuneEntryStatesSinceHeight, blockHeight)
+	return err
+}
+
+const deleteRuneTransactionsSinceHeight = `-- name: DeleteRuneTransactionsSinceHeight :exec
+DELETE FROM runes_transactions WHERE block_height >= $1
+`
+
+func (q *Queries) DeleteRuneTransactionsSinceHeight(ctx context.Context, blockHeight int32) error {
+	_, err := q.db.Exec(ctx, deleteRuneTransactionsSinceHeight, blockHeight)
+	return err
+}
+
+const deleteRunestonesSinceHeight = `-- name: DeleteRunestonesSinceHeight :exec
+DELETE FROM runes_runestones WHERE block_height >= $1
+`
+
+func (q *Queries) DeleteRunestonesSinceHeight(ctx context.Context, blockHeight int32) error {
+	_, err := q.db.Exec(ctx, deleteRunestonesSinceHeight, blockHeight)
 	return err
 }
 
@@ -490,4 +544,13 @@ func (q *Queries) GetRuneTransactionsByHeight(ctx context.Context, blockHeight i
 		return nil, err
 	}
 	return items, nil
+}
+
+const unspendOutPointBalancesSinceHeight = `-- name: UnspendOutPointBalancesSinceHeight :exec
+UPDATE runes_outpoint_balances SET spent_height = NULL WHERE spent_height >= $1
+`
+
+func (q *Queries) UnspendOutPointBalancesSinceHeight(ctx context.Context, spentHeight pgtype.Int4) error {
+	_, err := q.db.Exec(ctx, unspendOutPointBalancesSinceHeight, spentHeight)
+	return err
 }

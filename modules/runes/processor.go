@@ -10,6 +10,8 @@ import (
 	"github.com/gaze-network/indexer-network/modules/bitcoin/btcclient"
 	"github.com/gaze-network/indexer-network/modules/runes/internal/datagateway"
 	"github.com/gaze-network/indexer-network/modules/runes/internal/runes"
+	"github.com/gaze-network/indexer-network/pkg/logger"
+	"golang.org/x/sync/errgroup"
 )
 
 var _ indexers.BitcoinProcessor = (*Processor)(nil)
@@ -66,5 +68,71 @@ func (p *Processor) GetIndexedBlock(ctx context.Context, height int64) (types.Bl
 }
 
 func (p *Processor) RevertData(ctx context.Context, from int64) error {
-	panic("implement me")
+	err := p.runesDg.Begin(ctx)
+	if err != nil {
+		return errors.Wrap(err, "failed to begin transaction")
+	}
+	defer func() {
+		if err := p.runesDg.Rollback(ctx); err != nil {
+			logger.ErrorContext(ctx, "failed to rollback transaction", err)
+		}
+	}()
+
+	eg, ectx := errgroup.WithContext(ctx)
+	eg.Go(func() error {
+		if err := p.runesDg.DeleteIndexedBlockSinceHeight(ectx, uint64(from)); err != nil {
+			return errors.Wrap(err, "failed to delete indexed blocks")
+		}
+		return nil
+	})
+	eg.Go(func() error {
+		if err := p.runesDg.DeleteRuneEntriesSinceHeight(ectx, uint64(from)); err != nil {
+			return errors.Wrap(err, "failed to delete rune entries")
+		}
+		return nil
+	})
+	eg.Go(func() error {
+		if err := p.runesDg.DeleteRuneEntryStatesSinceHeight(ectx, uint64(from)); err != nil {
+			return errors.Wrap(err, "failed to delete rune entry states")
+		}
+		return nil
+	})
+	eg.Go(func() error {
+		if err := p.runesDg.DeleteRuneTransactionsSinceHeight(ectx, uint64(from)); err != nil {
+			return errors.Wrap(err, "failed to delete rune transactions")
+		}
+		return nil
+	})
+	eg.Go(func() error {
+		if err := p.runesDg.DeleteRunestonesSinceHeight(ectx, uint64(from)); err != nil {
+			return errors.Wrap(err, "failed to delete runestones")
+		}
+		return nil
+	})
+	eg.Go(func() error {
+		if err := p.runesDg.DeleteOutPointBalancesSinceHeight(ectx, uint64(from)); err != nil {
+			return errors.Wrap(err, "failed to delete outpoint balances")
+		}
+		return nil
+	})
+	eg.Go(func() error {
+		if err := p.runesDg.UnspendOutPointBalancesSinceHeight(ectx, uint64(from)); err != nil {
+			return errors.Wrap(err, "failed to unspend outpoint balances")
+		}
+		return nil
+	})
+	eg.Go(func() error {
+		if err := p.runesDg.DeleteRuneBalancesSinceHeight(ectx, uint64(from)); err != nil {
+			return errors.Wrap(err, "failed to delete rune balances")
+		}
+		return nil
+	})
+	if err := eg.Wait(); err != nil {
+		return errors.Wrap(err, "failed to revert data")
+	}
+
+	if err := p.runesDg.Commit(ctx); err != nil {
+		return errors.Wrap(err, "failed to commit transaction")
+	}
+	return nil
 }

@@ -3,7 +3,6 @@ package datagateway
 import (
 	"context"
 
-	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/wire"
 	"github.com/gaze-network/indexer-network/core/types"
 	"github.com/gaze-network/indexer-network/modules/runes/internal/entity"
@@ -50,11 +49,18 @@ type RunesWriterDataGateway interface {
 	CreateRuneEntryState(ctx context.Context, entry *runes.RuneEntry, blockHeight uint64) error
 	CreateRuneBalancesAtOutPoint(ctx context.Context, outPoint wire.OutPoint, balances map[runes.RuneId]uint128.Uint128) error
 	CreateRuneBalancesAtBlock(ctx context.Context, params []CreateRuneBalancesAtBlockParams) error
-
 	CreateRuneTransaction(ctx context.Context, tx *entity.RuneTransaction) error
-
 	CreateIndexedBlock(ctx context.Context, block *entity.IndexedBlock) error
-	DeleteIndexedBlockByHash(ctx context.Context, hash chainhash.Hash) error
+
+	// TODO: collapse these into a single function (ResetStateToHeight)?
+	DeleteIndexedBlockSinceHeight(ctx context.Context, height uint64) error
+	DeleteRuneEntriesSinceHeight(ctx context.Context, height uint64) error
+	DeleteRuneEntryStatesSinceHeight(ctx context.Context, height uint64) error
+	DeleteRuneTransactionsSinceHeight(ctx context.Context, height uint64) error
+	DeleteRunestonesSinceHeight(ctx context.Context, height uint64) error
+	DeleteOutPointBalancesSinceHeight(ctx context.Context, height uint64) error
+	UnspendOutPointBalancesSinceHeight(ctx context.Context, height uint64) error
+	DeleteRuneBalancesSinceHeight(ctx context.Context, height uint64) error
 }
 
 type CreateRuneBalancesAtBlockParams struct {
