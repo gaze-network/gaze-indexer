@@ -33,6 +33,7 @@ type Processor struct {
 	network           common.Network
 
 	newRuneEntryStates map[runes.RuneId]*runes.RuneEntry
+	newBalances        map[string]map[runes.RuneId]uint128.Uint128
 }
 
 type NewProcessorParams struct {
@@ -49,6 +50,7 @@ func NewProcessor(params NewProcessorParams) *Processor {
 		bitcoinDataSource:  params.BitcoinDataSource,
 		network:            params.Network,
 		newRuneEntryStates: make(map[runes.RuneId]*runes.RuneEntry),
+		newBalances:        make(map[string]map[runes.RuneId]uint128.Uint128),
 	}
 }
 

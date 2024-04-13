@@ -34,6 +34,8 @@ type RunesReaderDataGateway interface {
 	// GetBalancesByRuneId returns the balances for the given runeId at the given blockHeight.
 	// Cannot use []byte as map key, so we're returning as slice.
 	GetBalancesByRuneId(ctx context.Context, runeId runes.RuneId, blockHeight uint64) ([]*entity.Balance, error)
+	// GetBalancesByPkScriptAndRuneId returns the balance for the given pkScript and runeId at the given blockHeight.
+	GetBalancesByPkScriptAndRuneId(ctx context.Context, pkScript []byte, runeId runes.RuneId, blockHeight uint64) (*entity.Balance, error)
 }
 
 type RunesWriterDataGateway interface {
@@ -51,7 +53,7 @@ type RunesWriterDataGateway interface {
 	CreateRuneEntry(ctx context.Context, entry *runes.RuneEntry, blockHeight uint64) error
 	CreateRuneEntryState(ctx context.Context, entry *runes.RuneEntry, blockHeight uint64) error
 	CreateRuneBalancesAtOutPoint(ctx context.Context, outPoint wire.OutPoint, balances map[runes.RuneId]uint128.Uint128) error
-	CreateRuneBalancesAtBlock(ctx context.Context, params []CreateRuneBalancesAtBlockParams) error
+	CreateRuneBalances(ctx context.Context, params []CreateRuneBalancesParams) error
 	CreateRuneTransaction(ctx context.Context, tx *entity.RuneTransaction) error
 	CreateIndexedBlock(ctx context.Context, block *entity.IndexedBlock) error
 
@@ -66,7 +68,7 @@ type RunesWriterDataGateway interface {
 	DeleteRuneBalancesSinceHeight(ctx context.Context, height uint64) error
 }
 
-type CreateRuneBalancesAtBlockParams struct {
+type CreateRuneBalancesParams struct {
 	PkScript    []byte
 	RuneId      runes.RuneId
 	Balance     uint128.Uint128

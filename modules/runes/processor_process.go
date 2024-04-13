@@ -3,6 +3,7 @@ package runes
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"time"
 
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
@@ -11,6 +12,7 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/common/errs"
 	"github.com/gaze-network/indexer-network/core/types"
+	"github.com/gaze-network/indexer-network/modules/runes/internal/datagateway"
 	"github.com/gaze-network/indexer-network/modules/runes/internal/entity"
 	"github.com/gaze-network/indexer-network/modules/runes/internal/runes"
 	"github.com/gaze-network/indexer-network/pkg/logger"
@@ -35,11 +37,8 @@ func (p *Processor) Process(ctx context.Context, blocks []*types.Block) error {
 				return errors.Wrap(err, "failed to process tx")
 			}
 		}
-		if err := p.flushNewRuneEntryStates(ctx, uint64(block.Header.Height)); err != nil {
-			return errors.Wrap(err, "failed to flush new rune entry states")
-		}
-		if err := p.createIndexedBlock(ctx, block.Header); err != nil {
-			return errors.Wrap(err, "failed to create indexed block")
+		if err := p.flushBlock(ctx, block.Header); err != nil {
+			return errors.Wrap(err, "failed to flush block")
 		}
 	}
 	if err := p.runesDg.Commit(ctx); err != nil {
@@ -54,11 +53,19 @@ func (p *Processor) processTx(ctx context.Context, tx *types.Transaction, blockH
 		return errors.Wrap(err, "failed to decipher runestone")
 	}
 
-	unallocated, err := p.getUnallocatedRunes(ctx, tx.TxIn)
-	allocated := make(map[int]map[runes.RuneId]uint128.Uint128)
+	inputBalances, err := p.getInputBalances(ctx, tx.TxIn)
 	if err != nil {
-		return errors.Wrap(err, "failed to get unallocated runes")
+		return errors.Wrap(err, "failed to get input balances")
 	}
+
+	unallocated := make(map[runes.RuneId]uint128.Uint128)
+	allocated := make(map[int]map[runes.RuneId]uint128.Uint128)
+	for _, balances := range inputBalances {
+		for runeId, amount := range balances {
+			unallocated[runeId] = unallocated[runeId].Add(amount)
+		}
+	}
+
 	allocate := func(output int, runeId runes.RuneId, amount uint128.Uint128) {
 		if _, ok := unallocated[runeId]; !ok {
 			return
@@ -221,6 +228,10 @@ func (p *Processor) processTx(ctx context.Context, tx *types.Transaction, blockH
 		}
 	}
 
+	if err := p.updateNewBalances(ctx, tx, inputBalances, allocated); err != nil {
+		return errors.Wrap(err, "failed to update new balances")
+	}
+
 	// increment burned amounts in rune entries
 	if err := p.incrementBurnedAmount(ctx, burned); err != nil {
 		return errors.Wrap(err, "failed to update burned amount")
@@ -228,21 +239,90 @@ func (p *Processor) processTx(ctx context.Context, tx *types.Transaction, blockH
 	return nil
 }
 
-func (p *Processor) getUnallocatedRunes(ctx context.Context, txInputs []*types.TxIn) (map[runes.RuneId]uint128.Uint128, error) {
-	unallocatedRunes := make(map[runes.RuneId]uint128.Uint128)
-	for _, txIn := range txInputs {
+func (p *Processor) getInputBalances(ctx context.Context, txInputs []*types.TxIn) (map[int]map[runes.RuneId]uint128.Uint128, error) {
+	inputBalances := make(map[int]map[runes.RuneId]uint128.Uint128)
+	for i, txIn := range txInputs {
 		balances, err := p.runesDg.GetRunesBalancesAtOutPoint(ctx, wire.OutPoint{
 			Hash:  txIn.PreviousOutTxHash,
 			Index: txIn.PreviousOutIndex,
 		})
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to get runes balances in ")
+			return nil, errors.Wrap(err, "failed to get runes balances at outpoint")
 		}
-		for runeId, balance := range balances {
-			unallocatedRunes[runeId] = unallocatedRunes[runeId].Add(balance)
+		if len(balances) > 0 {
+			inputBalances[i] = balances
 		}
 	}
-	return unallocatedRunes, nil
+	return inputBalances, nil
+}
+
+func (p *Processor) updateNewBalances(ctx context.Context, tx *types.Transaction, inputBalances map[int]map[runes.RuneId]uint128.Uint128, allocated map[int]map[runes.RuneId]uint128.Uint128) error {
+	// get pk scripts of inputs
+	txInPkScripts := make(map[int][]byte)
+	for inputIndex := range inputBalances {
+		inputIndex := inputIndex
+		prevTxHash := tx.TxIn[inputIndex].PreviousOutTxHash
+		prevTxOutIndex := tx.TxIn[inputIndex].PreviousOutIndex
+		prevTx, err := p.bitcoinClient.GetTransaction(ctx, prevTxHash)
+		if err != nil {
+			return errors.Wrap(err, "failed to get transaction")
+		}
+		pkScript := prevTx.TxOut[prevTxOutIndex].PkScript
+		txInPkScripts[inputIndex] = pkScript
+	}
+
+	// getCurrentBalance returns the current balance of the pkScript and runeId since last flush
+	getCurrentBalance := func(ctx context.Context, pkScript []byte, runeId runes.RuneId) (uint128.Uint128, error) {
+		balance, err := p.runesDg.GetBalancesByPkScriptAndRuneId(ctx, pkScript, runeId, uint64(tx.BlockHeight-1))
+		if err != nil {
+			return uint128.Uint128{}, errors.Wrap(err, "failed to get balance by pk script and rune id")
+		}
+		return balance.Amount, nil
+	}
+
+	// deduct balances used in inputs
+	for inputIndex, balances := range inputBalances {
+		pkScript := txInPkScripts[inputIndex]
+		pkScriptStr := hex.EncodeToString(pkScript)
+		for runeId, amount := range balances {
+			if p.newBalances[pkScriptStr][runeId].Cmp(amount) < 0 {
+				// total pkScript's balance is less that balance in input. This is impossible. Something is wrong.
+				return errors.Errorf("current balance is less than balance in input: %s", runeId)
+			}
+			if _, ok := p.newBalances[pkScriptStr]; !ok {
+				p.newBalances[pkScriptStr] = make(map[runes.RuneId]uint128.Uint128)
+			}
+			if _, ok := p.newBalances[pkScriptStr][runeId]; !ok {
+				balance, err := getCurrentBalance(ctx, pkScript, runeId)
+				if err != nil {
+					return errors.WithStack(err)
+				}
+				p.newBalances[pkScriptStr][runeId] = balance
+			}
+			p.newBalances[pkScriptStr][runeId] = p.newBalances[pkScriptStr][runeId].Sub(amount)
+		}
+	}
+
+	// add balances allocated in outputs
+	for outputIndex, balances := range allocated {
+		pkScript := tx.TxOut[outputIndex].PkScript
+		pkScriptStr := hex.EncodeToString(pkScript)
+		for runeId, amount := range balances {
+			if _, ok := p.newBalances[pkScriptStr]; !ok {
+				p.newBalances[pkScriptStr] = make(map[runes.RuneId]uint128.Uint128)
+			}
+			if _, ok := p.newBalances[pkScriptStr][runeId]; !ok {
+				balance, err := getCurrentBalance(ctx, pkScript, runeId)
+				if err != nil {
+					return errors.WithStack(err)
+				}
+				p.newBalances[pkScriptStr][runeId] = balance
+			}
+			p.newBalances[pkScriptStr][runeId] = p.newBalances[pkScriptStr][runeId].Add(amount)
+		}
+	}
+
+	return nil
 }
 
 func (p *Processor) mint(ctx context.Context, runeId runes.RuneId, blockHeader types.BlockHeader) (uint128.Uint128, error) {
@@ -423,23 +503,23 @@ func (p *Processor) incrementMintCount(ctx context.Context, runeId runes.RuneId,
 
 func (p *Processor) incrementBurnedAmount(ctx context.Context, burned map[runes.RuneId]uint128.Uint128) (err error) {
 	runeEntries := make(map[runes.RuneId]*runes.RuneEntry)
-	fetchRuneIds := make([]runes.RuneId, 0)
+	runeIdsToFetch := make([]runes.RuneId, 0)
 	for runeId := range burned {
 		runeEntry, ok := p.newRuneEntryStates[runeId]
 		if !ok {
-			fetchRuneIds = append(fetchRuneIds, runeId)
+			runeIdsToFetch = append(runeIdsToFetch, runeId)
 		} else {
 			runeEntries[runeId] = runeEntry
 		}
 	}
-	if len(fetchRuneIds) > 0 {
-		entries, err := p.runesDg.GetRuneEntryByRuneIdBatch(ctx, fetchRuneIds)
+	if len(runeIdsToFetch) > 0 {
+		entries, err := p.runesDg.GetRuneEntryByRuneIdBatch(ctx, runeIdsToFetch)
 		if err != nil {
 			return errors.Wrap(err, "failed to get rune entry by rune id batch")
 		}
-		if len(entries) != len(fetchRuneIds) {
+		if len(entries) != len(runeIdsToFetch) {
 			// there are missing entries, db may be corrupted
-			return errors.Errorf("missing rune entries: expected %d, got %d", len(fetchRuneIds), len(entries))
+			return errors.Errorf("missing rune entries: expected %d, got %d", len(runeIdsToFetch), len(entries))
 		}
 		for runeId, entry := range entries {
 			runeEntries[runeId] = entry
@@ -453,6 +533,23 @@ func (p *Processor) incrementBurnedAmount(ctx context.Context, burned map[runes.
 			continue
 		}
 		runeEntry.BurnedAmount = runeEntry.BurnedAmount.Add(amount)
+		p.newRuneEntryStates[runeId] = runeEntry
+	}
+	return nil
+}
+
+func (p *Processor) flushBlock(ctx context.Context, blockHeader types.BlockHeader) error {
+	// TODO: calculate event hash
+	if err := p.flushNewRuneEntryStates(ctx, uint64(blockHeader.Height)); err != nil {
+		return errors.Wrap(err, "failed to flush new rune entry states")
+	}
+
+	if err := p.flushNewBalances(ctx, uint64(blockHeader.Height)); err != nil {
+		return errors.Wrap(err, "failed to flush new balances")
+	}
+
+	if err := p.createIndexedBlock(ctx, blockHeader); err != nil {
+		return errors.Wrap(err, "failed to create indexed block")
 	}
 	return nil
 }
@@ -464,6 +561,29 @@ func (p *Processor) flushNewRuneEntryStates(ctx context.Context, blockHeight uin
 		}
 	}
 	p.newRuneEntryStates = make(map[runes.RuneId]*runes.RuneEntry)
+	return nil
+}
+
+func (p *Processor) flushNewBalances(ctx context.Context, blockHeight uint64) error {
+	params := make([]datagateway.CreateRuneBalancesParams, 0)
+	for pkScriptStr, balances := range p.newBalances {
+		pkScript, err := hex.DecodeString(pkScriptStr)
+		if err != nil {
+			return errors.Wrap(err, "failed to decode pk script")
+		}
+		for runeId, balance := range balances {
+			params = append(params, datagateway.CreateRuneBalancesParams{
+				PkScript:    pkScript,
+				RuneId:      runeId,
+				Balance:     balance,
+				BlockHeight: blockHeight,
+			})
+		}
+	}
+	if err := p.runesDg.CreateRuneBalances(ctx, params); err != nil {
+		return errors.Wrap(err, "failed to create balances at block")
+	}
+	p.newBalances = make(map[string]map[runes.RuneId]uint128.Uint128)
 	return nil
 }
 

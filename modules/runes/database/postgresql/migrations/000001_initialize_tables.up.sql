@@ -106,7 +106,7 @@ CREATE TABLE IF NOT EXISTS "runes_balances" (
 	"block_height" INT NOT NULL,
 	"rune_id" TEXT NOT NULL,
 	"amount" DECIMAL NOT NULL,
-	PRIMARY KEY ("pkscript", "block_height", "rune_id")
+	PRIMARY KEY ("pkscript", "rune_id", "block_height")
 );
 
 COMMIT;

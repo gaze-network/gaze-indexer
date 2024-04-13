@@ -249,6 +249,28 @@ func (q *Queries) DeleteRunestonesSinceHeight(ctx context.Context, blockHeight i
 	return err
 }
 
+const getBalanceByPkScriptAndRuneId = `-- name: GetBalanceByPkScriptAndRuneId :one
+SELECT pkscript, block_height, rune_id, amount FROM runes_balances WHERE pkscript = $1 AND rune_id = $2 AND block_height <= $3 ORDER BY block_height DESC LIMIT 1
+`
+
+type GetBalanceByPkScriptAndRuneIdParams struct {
+	Pkscript    string
+	RuneID      string
+	BlockHeight int32
+}
+
+func (q *Queries) GetBalanceByPkScriptAndRuneId(ctx context.Context, arg GetBalanceByPkScriptAndRuneIdParams) (RunesBalance, error) {
+	row := q.db.QueryRow(ctx, getBalanceByPkScriptAndRuneId, arg.Pkscript, arg.RuneID, arg.BlockHeight)
+	var i RunesBalance
+	err := row.Scan(
+		&i.Pkscript,
+		&i.BlockHeight,
+		&i.RuneID,
+		&i.Amount,
+	)
+	return i, err
+}
+
 const getBalancesByPkScript = `-- name: GetBalancesByPkScript :many
 SELECT DISTINCT ON (rune_id) pkscript, block_height, rune_id, amount FROM runes_balances WHERE pkscript = $1 AND block_height <= $2 ORDER BY rune_id, block_height DESC
 `

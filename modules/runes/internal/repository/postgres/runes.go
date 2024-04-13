@@ -14,7 +14,6 @@ import (
 	"github.com/gaze-network/indexer-network/modules/runes/internal/repository/postgres/gen"
 	"github.com/gaze-network/indexer-network/modules/runes/internal/runes"
 	"github.com/gaze-network/uint128"
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/samber/lo"
 )
@@ -147,9 +146,6 @@ func (r *Repository) GetRuneEntryByRuneIdBatch(ctx context.Context, runeIds []ru
 		return runeId.String()
 	}))
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, errors.WithStack(errs.NotFound)
-		}
 		return nil, errors.Wrap(err, "error during query")
 	}
 
@@ -256,7 +252,7 @@ func (r *Repository) CreateRuneBalancesAtOutPoint(ctx context.Context, outPoint 
 	return nil
 }
 
-func (r *Repository) CreateRuneBalancesAtBlock(ctx context.Context, params []datagateway.CreateRuneBalancesAtBlockParams) error {
+func (r *Repository) CreateRuneBalances(ctx context.Context, params []datagateway.CreateRuneBalancesParams) error {
 	insertParams := make([]gen.CreateRuneBalanceAtBlockParams, 0, len(params))
 	for _, param := range params {
 		param := param
@@ -320,6 +316,23 @@ func (r *Repository) GetBalancesByRuneId(ctx context.Context, runeId runes.RuneI
 			return nil, errors.Wrap(err, "failed to parse balance model")
 		}
 		result = append(result, balance)
+	}
+	return result, nil
+}
+
+func (r *Repository) GetBalancesByPkScriptAndRuneId(ctx context.Context, pkScript []byte, runeId runes.RuneId, blockHeight uint64) (*entity.Balance, error) {
+	balance, err := r.queries.GetBalanceByPkScriptAndRuneId(ctx, gen.GetBalanceByPkScriptAndRuneIdParams{
+		Pkscript:    hex.EncodeToString(pkScript),
+		RuneID:      runeId.String(),
+		BlockHeight: int32(blockHeight),
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "error during query")
+	}
+
+	result, err := mapBalanceModelToType(balance)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse balance model")
 	}
 	return result, nil
 }
