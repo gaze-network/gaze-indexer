@@ -10,6 +10,7 @@ import (
 	"github.com/gaze-network/indexer-network/core/datasources"
 	"github.com/gaze-network/indexer-network/core/types"
 	"github.com/gaze-network/indexer-network/pkg/logger"
+	"github.com/gaze-network/indexer-network/pkg/logger/slogx"
 )
 
 type (
@@ -54,11 +55,14 @@ func (i *BitcoinIndexer) Run(ctx context.Context) (err error) {
 }
 
 func (i *BitcoinIndexer) process(ctx context.Context) (err error) {
+	ctx = logger.WithContext(ctx, slog.Int64("current_block_height", i.currentBlock.Height))
+
 	ch := make(chan []*types.Block)
-	subscription, err := i.Datasource.FetchAsync(ctx, i.currentBlock.Height-1, -1, ch)
+	subscription, err := i.Datasource.FetchAsync(ctx, i.currentBlock.Height, -1, ch)
 	if err != nil {
 		return errors.Wrap(err, "failed to call fetch async")
 	}
+	defer subscription.Unsubscribe()
 
 	for {
 		select {
@@ -68,17 +72,55 @@ func (i *BitcoinIndexer) process(ctx context.Context) (err error) {
 				continue
 			}
 
-			if err := i.Processor.Process(ctx, blocks); err != nil {
+			// validate reorg from prev current block
+			if blocks[0].Header.Height == i.currentBlock.Height {
+				currentBlockHeader := blocks[0].Header
+				if !currentBlockHeader.Hash.IsEqual(&i.currentBlock.Hash) {
+					logger.WarnContext(ctx, "reorg detected",
+						slogx.Stringer("current_hash", i.currentBlock.Hash),
+						slogx.Stringer("expected_hash", currentBlockHeader.Hash),
+					)
+
+					// TODO: find start reorg block
+					startReorgHeight := currentBlockHeader.Height // TODO: use start reorg block height
+					if err := i.Processor.RevertData(ctx, startReorgHeight); err != nil {
+						return errors.Wrap(err, "failed to revert data")
+					}
+					i.currentBlock = currentBlockHeader
+					return nil
+				}
+			}
+
+			// remove old block
+			newBlocks := blocks[1:]
+			if len(newBlocks) == 0 {
+				continue
+			}
+
+			// validate is block is continuous and no reorg
+			for i := 1; i < len(newBlocks); i++ {
+				if newBlocks[i].Header.Height != newBlocks[i-1].Header.Height+1 {
+					return errors.Wrapf(errs.InternalError, "block is not continuous, block[%d] height: %d, block[%d] height: %d", i-1, newBlocks[i-1].Header.Height, i, newBlocks[i].Header.Height)
+				}
+
+				if !newBlocks[i].Header.PrevBlock.IsEqual(&newBlocks[i-1].Header.Hash) {
+					logger.WarnContext(ctx, "reorg occurred while batch fetching blocks, need to try to fetch again")
+					// end current round
+					return nil
+				}
+			}
+
+			// Start processing blocks
+			if err := i.Processor.Process(ctx, blocks[1:]); err != nil {
 				return errors.WithStack(err)
 			}
 
 			// Update current state
 			i.currentBlock = blocks[len(blocks)-1].Header
 		case <-subscription.Done():
-			// end current loop
+			// end current round
 			return nil
 		case <-ctx.Done():
-			subscription.Unsubscribe()
 			return errors.WithStack(ctx.Err())
 		case err := <-subscription.Err():
 			if err != nil {
