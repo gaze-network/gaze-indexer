@@ -50,7 +50,10 @@ func (i *BitcoinIndexer) Run(ctx context.Context) (err error) {
 			return nil
 		case <-ticker.C:
 
-			// ch, stop, err := i.Datasource.FetchAsync(ctx, i.currentBlock.Height-1, -1)
+			subscription, err := i.Datasource.FetchAsync(ctx, i.currentBlock.Height-1, -1)
+			if err != nil {
+				return errors.Wrap(err, "failed to call fetch async")
+			}
 
 			// Prepare range of blocks to sync
 			startHeight, endHeight, skip, err := i.prepareRange(i.currentBlock.Height)
