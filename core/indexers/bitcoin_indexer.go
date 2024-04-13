@@ -49,10 +49,37 @@ func (i *BitcoinIndexer) Run(ctx context.Context) (err error) {
 		case <-ctx.Done():
 			return nil
 		case <-ticker.C:
-
-			subscription, err := i.Datasource.FetchAsync(ctx, i.currentBlock.Height-1, -1)
+			ch := make(chan []*types.Block)
+			subscription, err := i.Datasource.FetchAsync(ctx, i.currentBlock.Height-1, -1, ch)
 			if err != nil {
 				return errors.Wrap(err, "failed to call fetch async")
+			}
+
+			for {
+				select {
+				case blocks := <-ch:
+					// empty blocks
+					if len(blocks) == 0 {
+						continue
+					}
+
+					if err := i.Processor.Process(ctx, blocks); err != nil {
+						return errors.WithStack(err)
+					}
+
+					// Update current state
+					i.currentBlock = blocks[len(blocks)-1].Header
+				case <-subscription.Done():
+					// end current loop
+					break
+				case <-ctx.Done():
+					subscription.Unsubscribe()
+					return errors.WithStack(ctx.Err())
+				case err := <-subscription.Err():
+					if err != nil {
+						return errors.Wrap(err, "got error while fetch async")
+					}
+				}
 			}
 
 			// Prepare range of blocks to sync
@@ -96,24 +123,4 @@ func (i *BitcoinIndexer) Run(ctx context.Context) (err error) {
 			i.currentBlock = b.Header
 		}
 	}
-}
-
-// Prepare range of blocks to sync
-func (b *BitcoinIndexer) prepareRange(currentBlockHeight int64) (start, end int64, skip bool, err error) {
-	latestBlockHeight, err := b.btcclient.GetBlockCount()
-	if err != nil {
-		return -1, -1, false, errors.Wrap(err, "failed to get block count")
-	}
-
-	endHeight := latestBlockHeight
-	startHeight := currentBlockHeight + 1
-	if startHeight < 0 {
-		startHeight = 0
-	}
-
-	if startHeight > latestBlockHeight {
-		return -1, -1, true, nil
-	}
-
-	return startHeight, endHeight, false, nil
 }

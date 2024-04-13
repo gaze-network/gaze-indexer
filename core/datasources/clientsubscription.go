@@ -16,7 +16,7 @@ var ClientSubscriptionBufferSize = 8
 // It has two channels: one for values, and one for errors.
 type ClientSubscription[T any] struct {
 	// The channel which the subscription sends values.
-	channel chan T
+	channel chan<- T
 
 	// The in channel receives values from client dispatcher.
 	in chan T
@@ -32,7 +32,7 @@ type ClientSubscription[T any] struct {
 	quitDone chan struct{}
 }
 
-func newClientSubscription[T any](channel chan T) *ClientSubscription[T] {
+func newClientSubscription[T any](channel chan<- T) *ClientSubscription[T] {
 	return &ClientSubscription[T]{
 		channel:  channel,
 		in:       make(chan T, ClientSubscriptionBufferSize),
@@ -63,6 +63,21 @@ func (c *ClientSubscription[T]) Err() <-chan error {
 	return c.err
 }
 
+// Done returns the done channel of the subscription
+func (c *ClientSubscription[T]) Done() <-chan struct{} {
+	return c.quitDone
+}
+
+// IsClosed returns status of the subscription
+func (c *ClientSubscription[T]) IsClosed() bool {
+	select {
+	case <-c.quitDone:
+		return true
+	default:
+		return false
+	}
+}
+
 // send sends a value to the subscription channel. If the subscription is closed, it returns an error.
 func (c *ClientSubscription[T]) send(ctx context.Context, value T) error {
 	select {
@@ -89,7 +104,6 @@ func (c *ClientSubscription[T]) sendError(ctx context.Context, err error) error 
 
 // run starts the forwarding loop for the subscription.
 func (c *ClientSubscription[T]) run() {
-	defer close(c.err)
 	defer close(c.quitDone)
 
 	for {
