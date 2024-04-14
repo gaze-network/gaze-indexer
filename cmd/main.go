@@ -8,38 +8,30 @@ import (
 	"syscall"
 
 	"github.com/btcsuite/btcd/rpcclient"
-	"github.com/btcsuite/btclog"
+	"github.com/gaze-network/indexer-network/internal/config"
 	"github.com/gaze-network/indexer-network/pkg/logger"
 	"github.com/gaze-network/indexer-network/pkg/logger/slogx"
 )
 
-var (
-	logbackend = btclog.NewBackend(os.Stdout)
-	log        = logbackend.Logger("local")
-)
-
-func init() {
-	rpcclient.UseLogger(logbackend.Logger("rpcclient"))
-}
+var conf = config.LoadConfig()
 
 func main() {
 	// Initialize context
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	if err := logger.Init(logger.Config{
-		Output: "text",
-		Debug:  true,
-	}); err != nil {
-		logger.Panic("Failed to initialize logger: %v", slogx.Error(err))
+	// Initialize logger
+	if err := logger.Init(conf.Logger); err != nil {
+		logger.Panic("Failed to initialize logger: %v", slogx.Error(err), slog.Any("config", conf.Logger))
 	}
 
+	// Initialize Bitcoin Core RPC Client
 	client, err := rpcclient.New(&rpcclient.ConnConfig{
-		Host:         os.Getenv("BITCOIN_HOST"),
-		User:         "user",
-		Pass:         "pass",
+		Host:         conf.BitcoinNode.Host,
+		User:         conf.BitcoinNode.User,
+		Pass:         conf.BitcoinNode.Pass,
+		DisableTLS:   conf.BitcoinNode.DisableTLS,
 		HTTPPostMode: true,
-		// DisableTLS:   true,
 	}, nil)
 	if err != nil {
 		logger.Panic("Failed to create Bitcoin Core RPC Client", slogx.Error(err))
@@ -59,5 +51,5 @@ func main() {
 
 	// Wait for interrupt signal to gracefully stop the server with
 	<-ctx.Done()
-	log.Info("Shutting down server")
+	logger.Info("Shutting down server")
 }

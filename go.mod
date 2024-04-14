@@ -7,9 +7,11 @@ require (
 	github.com/btcsuite/btcd v0.24.0
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.1.0
 	github.com/btcsuite/btclog v0.0.0-20170628155309-84c8d2346e9f
+	github.com/caarlos0/env/v10 v10.0.0
 	github.com/cockroachdb/errors v1.11.1
 	github.com/gaze-network/uint128 v1.2.0
 	github.com/jackc/pgx/v5 v5.5.5
+	github.com/joho/godotenv v1.5.1
 	github.com/mcosta74/pgx-slog v0.3.0
 	github.com/planxnx/concurrent-stream v0.1.3
 	github.com/samber/lo v1.39.0
