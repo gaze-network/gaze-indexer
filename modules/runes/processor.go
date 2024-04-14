@@ -4,6 +4,8 @@ import (
 	"context"
 	"time"
 
+	"github.com/Cleverse/go-utilities/utils"
+	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/wire"
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/common"
@@ -142,9 +144,21 @@ func (p *Processor) Name() string {
 	return "Runes"
 }
 
+var startingBlockHeader = map[common.Network]types.BlockHeader{
+	// TODO: add starting block header for mainnet after block 840,000 is mined
+	common.NetworkMainnet: {},
+	common.NetworkTestnet: {
+		Height: common.HalvingInterval*12 - 1,
+		Hash:   *utils.Must(chainhash.NewHashFromStr("000000000006f45c16402f05d9075db49d3571cf5273cf4cbeaa2aa295f7c833")),
+	},
+}
+
 func (p *Processor) CurrentBlock(ctx context.Context) (types.BlockHeader, error) {
 	blockHeader, err := p.runesDg.GetLatestBlock(ctx)
 	if err != nil {
+		if errors.Is(err, errs.NotFound) {
+			return startingBlockHeader[p.network], nil
+		}
 		return types.BlockHeader{}, errors.Wrap(err, "failed to get latest block")
 	}
 	return blockHeader, nil
