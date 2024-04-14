@@ -11,6 +11,7 @@ require (
 	github.com/gaze-network/uint128 v1.2.0
 	github.com/jackc/pgx/v5 v5.5.5
 	github.com/mcosta74/pgx-slog v0.3.0
+	github.com/planxnx/concurrent-stream v0.1.2
 	github.com/samber/lo v1.39.0
 	github.com/stretchr/testify v1.8.1
 )
@@ -34,7 +35,6 @@ require (
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
-	github.com/planxnx/concurrent-stream v0.1.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rogpeppe/go-internal v1.9.0 // indirect
 	golang.org/x/crypto v0.17.0 // indirect
