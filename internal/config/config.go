@@ -24,8 +24,11 @@ var (
 
 type Config struct {
 	Logger      logger.Config     `envPrefix:"LOGGER_"`
-	Postgres    postgres.Config   `envPrefix:"POSTGRES_"`
 	BitcoinNode BitcoinNodeClient `envPrefix:"BITCOIN_NODE_"`
+
+	// Protocols configuration
+	ModuleBitcoin Module `envPrefix:"MODULE_BITCOIN_"`
+	ModuleRunes   Module `envPrefix:"MODULE_RUNES_"`
 }
 
 type BitcoinNodeClient struct {
@@ -33,6 +36,10 @@ type BitcoinNodeClient struct {
 	User       string `env:"USER" default:"user"`
 	Pass       string `env:"PASS" default:"pass"`
 	DisableTLS bool   `env:"DISABLE_TLS" default:"false"`
+}
+
+type Module struct {
+	Postgres postgres.Config `envPrefix:"POSTGRES_"`
 }
 
 // LoadConfig loads the configuration from environment variables

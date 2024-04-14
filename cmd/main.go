@@ -47,30 +47,25 @@ func main() {
 		logger.PanicContext(ctx, "Failed to ping Bitcoin Core RPC Server", slogx.Error(err))
 	}
 
-	pg, err := postgres.NewPool(ctx, conf.Postgres)
-	if err != nil {
-		logger.PanicContext(ctx, "Failed to create Postgres connection pool", slogx.Error(err))
-	}
-	defer pg.Close()
-
-	// Initialize Datasources
-	bitcoinNodeDatasource := datasources.NewBitcoinNode(client)
-
-	// Initialize Repositories
-	bitcoinRepository := btcpostgres.NewRepository(pg)
-
-	// Initialize Indexer Processors
-	bitcoinProcessor := bitcoin.NewProcessor(bitcoinRepository)
-
-	// Initialize Indexers
-	bitcoinIndexer := indexers.NewBitcoinIndexer(bitcoinProcessor, bitcoinNodeDatasource)
-
-	// Run Indexers
-	go func() {
-		if err := bitcoinIndexer.Run(ctx); err != nil {
-			logger.ErrorContext(ctx, "Failed to run Bitcoin Indexer", slogx.Error(err))
+	// Initialize Bitcoin Indexer
+	{
+		pg, err := postgres.NewPool(ctx, conf.ModuleBitcoin.Postgres)
+		if err != nil {
+			logger.PanicContext(ctx, "Failed to create Postgres connection pool", slogx.Error(err))
 		}
-	}()
+		defer pg.Close()
+		bitcoinRepository := btcpostgres.NewRepository(pg)
+		bitcoinProcessor := bitcoin.NewProcessor(bitcoinRepository)
+		bitcoinNodeDatasource := datasources.NewBitcoinNode(client)
+		bitcoinIndexer := indexers.NewBitcoinIndexer(bitcoinProcessor, bitcoinNodeDatasource)
+
+		// Run Indexers
+		go func() {
+			if err := bitcoinIndexer.Run(ctx); err != nil {
+				logger.ErrorContext(ctx, "Failed to run Bitcoin Indexer", slogx.Error(err))
+			}
+		}()
+	}
 
 	// Wait for interrupt signal to gracefully stop the server with
 	<-ctx.Done()
