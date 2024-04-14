@@ -11,7 +11,7 @@ require (
 	github.com/gaze-network/uint128 v1.2.0
 	github.com/jackc/pgx/v5 v5.5.5
 	github.com/mcosta74/pgx-slog v0.3.0
-	github.com/planxnx/concurrent-stream v0.1.2
+	github.com/planxnx/concurrent-stream v0.1.3
 	github.com/samber/lo v1.39.0
 	github.com/stretchr/testify v1.8.1
 )
