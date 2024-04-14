@@ -268,7 +268,7 @@ func (p *Processor) processTx(ctx context.Context, tx *types.Transaction, blockH
 			runeTx.Inputs = append(runeTx.Inputs, &entity.OutPointBalance{
 				PkScript:       pkScript,
 				Id:             runeId,
-				Value:          amount,
+				Amount:         amount,
 				Index:          uint32(inputIndex),
 				PrevTxHash:     tx.TxIn[inputIndex].PreviousOutTxHash,
 				PrevTxOutIndex: tx.TxIn[inputIndex].PreviousOutIndex,
@@ -281,7 +281,7 @@ func (p *Processor) processTx(ctx context.Context, tx *types.Transaction, blockH
 			runeTx.Outputs = append(runeTx.Outputs, &entity.OutPointBalance{
 				PkScript: pkScript,
 				Id:       runeId,
-				Value:    amount,
+				Amount:   amount,
 				Index:    uint32(outputIndex),
 			})
 		}

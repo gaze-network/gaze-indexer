@@ -238,7 +238,7 @@ func mapRuneEntryTypeToParams(src runes.RuneEntry, blockHeight uint64) (gen.Crea
 type outpointBalanceModel struct {
 	PkScript       string
 	Id             runes.RuneId
-	Value          uint128.Uint128
+	Amount         uint128.Uint128
 	Index          uint32
 	PrevTxHash     string
 	PrevTxOutIndex uint32
@@ -248,7 +248,7 @@ func mapOutPointBalanceTypeToModel(src entity.OutPointBalance) outpointBalanceMo
 	return outpointBalanceModel{
 		PkScript:       hex.EncodeToString(src.PkScript),
 		Id:             src.Id,
-		Value:          src.Value,
+		Amount:         src.Amount,
 		Index:          src.Index,
 		PrevTxHash:     src.PrevTxHash.String(),
 		PrevTxOutIndex: src.PrevTxOutIndex,
@@ -267,7 +267,7 @@ func mapOutPointBalanceModelToType(src outpointBalanceModel) (entity.OutPointBal
 	return entity.OutPointBalance{
 		PkScript:       pkScript,
 		Id:             src.Id,
-		Value:          src.Value,
+		Amount:         src.Amount,
 		Index:          src.Index,
 		PrevTxHash:     *prevTxHash,
 		PrevTxOutIndex: src.PrevTxOutIndex,

@@ -11,7 +11,7 @@ import (
 type OutPointBalance struct {
 	PkScript       []byte
 	Id             runes.RuneId
-	Value          uint128.Uint128
+	Amount         uint128.Uint128
 	Index          uint32
 	PrevTxHash     chainhash.Hash
 	PrevTxOutIndex uint32
