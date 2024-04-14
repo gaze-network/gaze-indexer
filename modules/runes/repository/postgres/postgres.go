@@ -5,7 +5,7 @@ import (
 
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/internal/postgres"
-	"github.com/gaze-network/indexer-network/modules/runes/internal/repository/postgres/gen"
+	"github.com/gaze-network/indexer-network/modules/runes/repository/postgres/gen"
 	"github.com/jackc/pgx/v5"
 )
 
