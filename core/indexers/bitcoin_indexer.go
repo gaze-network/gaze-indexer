@@ -37,7 +37,11 @@ func NewBitcoinIndexer(processor BitcoinProcessor, datasource BitcoinDatasource)
 }
 
 func (i *BitcoinIndexer) Run(ctx context.Context) (err error) {
-	ctx = logger.WithContext(ctx, slog.String("module", i.Processor.Name()))
+	ctx = logger.WithContext(ctx,
+		slog.String("indexer", "bitcoin"),
+		slog.String("processor", i.Processor.Name()),
+		slog.String("datasource", i.Datasource.Name()),
+	)
 
 	// set to -1 to start from genesis block
 	i.currentBlock, err = i.Processor.CurrentBlock(ctx)
