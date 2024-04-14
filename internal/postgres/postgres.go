@@ -20,18 +20,18 @@ const (
 )
 
 type Config struct {
-	Host     string `env:"HOST"`     // Default is 127.0.0.1
-	Port     string `env:"PORT"`     // Default is 5432
-	User     string `env:"USER"`     // Default is empty
-	Password string `env:"PASSWORD"` // Default is empty
-	DBName   string `env:"DBNAME"`   // Default is postgres
-	SSLMode  string `env:"SSLMODE"`  // Default is prefer
-	URL      string `env:"URL"`      // If URL is provided, other fields are ignored
+	Host     string `mapstructure:"host"`     // Default is 127.0.0.1
+	Port     string `mapstructure:"port"`     // Default is 5432
+	User     string `mapstructure:"user"`     // Default is empty
+	Password string `mapstructure:"password"` // Default is empty
+	DBName   string `mapstructure:"db_name"`  // Default is postgres
+	SSLMode  string `mapstructure:"ssl_mode"` // Default is prefer
+	URL      string `mapstructure:"url"`      // If URL is provided, other fields are ignored
 
-	MaxConns int32 `env:"MAX_CONNS"` // Default is 16
-	MinConns int32 `env:"MIN_CONNS"` // Default is 0
+	MaxConns int32 `mapstructure:"max_conns"` // Default is 16
+	MinConns int32 `mapstructure:"min_conns"` // Default is 0
 
-	Debug bool `env:"DEBUG"`
+	Debug bool `mapstructure:"debug"`
 }
 
 // New creates a new connection to the database
