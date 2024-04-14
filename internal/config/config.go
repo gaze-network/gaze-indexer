@@ -13,10 +13,6 @@ import (
 	"github.com/spf13/viper"
 )
 
-const (
-	DefaultENVPath = "./.env" // Default path to the .env file
-)
-
 var (
 	configOnce sync.Once
 	config     = &Config{
