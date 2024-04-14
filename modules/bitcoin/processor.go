@@ -27,7 +27,7 @@ func NewProcessor(bitcoinDg datagateway.BitcoinDataGateway) *Processor {
 	}
 }
 
-func (p *Processor) Name() string {
+func (p Processor) Name() string {
 	return "Bitcoin"
 }
 

@@ -27,6 +27,10 @@ func NewBitcoinNode(btcclient *rpcclient.Client) *BitcoinNodeDatasource {
 	}
 }
 
+func (p BitcoinNodeDatasource) Name() string {
+	return "BitcoinNode"
+}
+
 // Fetch polling blocks from Bitcoin node
 //
 //   - from: block height to start fetching, if -1, it will start from genesis block
