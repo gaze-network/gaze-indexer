@@ -28,6 +28,14 @@ type BitcoinIndexer struct {
 	currentBlock types.BlockHeader
 }
 
+// NewBitcoinIndexer create new BitcoinIndexer
+func NewBitcoinIndexer(processor BitcoinProcessor, datasource BitcoinDatasource) *BitcoinIndexer {
+	return &BitcoinIndexer{
+		Processor:  processor,
+		Datasource: datasource,
+	}
+}
+
 func (i *BitcoinIndexer) Run(ctx context.Context) (err error) {
 	ctx = logger.WithContext(ctx, slog.String("module", i.Processor.Name()))
 

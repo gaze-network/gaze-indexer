@@ -20,6 +20,13 @@ type BitcoinNodeDatasource struct {
 	btcclient *rpcclient.Client
 }
 
+// NewBitcoinNode create new BitcoinNodeDatasource	with Bitcoin Core RPC Client
+func NewBitcoinNode(btcclient *rpcclient.Client) *BitcoinNodeDatasource {
+	return &BitcoinNodeDatasource{
+		btcclient: btcclient,
+	}
+}
+
 // Fetch polling blocks from Bitcoin node
 //
 //   - from: block height to start fetching, if -1, it will start from genesis block

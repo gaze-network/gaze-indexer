@@ -21,6 +21,12 @@ type Processor struct {
 	bitcoinDg datagateway.BitcoinDataGateway
 }
 
+func NewProcessor(bitcoinDg datagateway.BitcoinDataGateway) *Processor {
+	return &Processor{
+		bitcoinDg: bitcoinDg,
+	}
+}
+
 func (p *Processor) Name() string {
 	return "Bitcoin"
 }
