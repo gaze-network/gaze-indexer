@@ -7,6 +7,7 @@ import (
 
 	"github.com/Cleverse/go-utilities/utils"
 	"github.com/caarlos0/env/v10"
+	"github.com/gaze-network/indexer-network/internal/postgres"
 	"github.com/gaze-network/indexer-network/pkg/logger"
 	"github.com/gaze-network/indexer-network/pkg/logger/slogx"
 	"github.com/joho/godotenv"
@@ -23,6 +24,7 @@ var (
 
 type Config struct {
 	Logger      logger.Config     `envPrefix:"LOGGER_"`
+	Postgres    postgres.Config   `envPrefix:"POSTGRES_"`
 	BitcoinNode BitcoinNodeClient `envPrefix:"BITCOIN_NODE_"`
 }
 

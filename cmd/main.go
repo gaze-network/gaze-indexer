@@ -8,7 +8,12 @@ import (
 	"syscall"
 
 	"github.com/btcsuite/btcd/rpcclient"
+	"github.com/gaze-network/indexer-network/core/datasources"
+	"github.com/gaze-network/indexer-network/core/indexers"
 	"github.com/gaze-network/indexer-network/internal/config"
+	"github.com/gaze-network/indexer-network/internal/postgres"
+	"github.com/gaze-network/indexer-network/modules/bitcoin"
+	btcpostgres "github.com/gaze-network/indexer-network/modules/bitcoin/repository/postgres"
 	"github.com/gaze-network/indexer-network/pkg/logger"
 	"github.com/gaze-network/indexer-network/pkg/logger/slogx"
 )
@@ -42,12 +47,30 @@ func main() {
 		logger.PanicContext(ctx, "Failed to ping Bitcoin Core RPC Server", slogx.Error(err))
 	}
 
-	peerInfo, err := client.GetPeerInfo()
+	pg, err := postgres.NewPool(ctx, conf.Postgres)
 	if err != nil {
-		logger.PanicContext(ctx, "Failed to get peer info", slogx.Error(err))
+		logger.PanicContext(ctx, "Failed to create Postgres connection pool", slogx.Error(err))
 	}
+	defer pg.Close()
 
-	logger.InfoContext(ctx, "Connected to Bitcoin Core RPC Server", slog.Int("peers", len(peerInfo)))
+	// Initialize Datasources
+	bitcoinNodeDatasource := datasources.NewBitcoinNode(client)
+
+	// Initialize Repositories
+	bitcoinRepository := btcpostgres.NewRepository(pg)
+
+	// Initialize Indexer Processors
+	bitcoinProcessor := bitcoin.NewProcessor(bitcoinRepository)
+
+	// Initialize Indexers
+	bitcoinIndexer := indexers.NewBitcoinIndexer(bitcoinProcessor, bitcoinNodeDatasource)
+
+	// Run Indexers
+	go func() {
+		if err := bitcoinIndexer.Run(ctx); err != nil {
+			logger.ErrorContext(ctx, "Failed to run Bitcoin Indexer", slogx.Error(err))
+		}
+	}()
 
 	// Wait for interrupt signal to gracefully stop the server with
 	<-ctx.Done()
