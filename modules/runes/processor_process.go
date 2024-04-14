@@ -267,12 +267,12 @@ func (p *Processor) processTx(ctx context.Context, tx *types.Transaction, blockH
 		for runeId, amount := range balances {
 			pkScript := txInputsPkScripts[inputIndex]
 			runeTx.Inputs = append(runeTx.Inputs, &entity.OutPointBalance{
-				PkScript:       pkScript,
-				Id:             runeId,
-				Amount:         amount,
-				Index:          uint32(inputIndex),
-				PrevTxHash:     tx.TxIn[inputIndex].PreviousOutTxHash,
-				PrevTxOutIndex: tx.TxIn[inputIndex].PreviousOutIndex,
+				PkScript:   pkScript,
+				Id:         runeId,
+				Amount:     amount,
+				Index:      uint32(inputIndex),
+				TxHash:     tx.TxIn[inputIndex].PreviousOutTxHash,
+				TxOutIndex: tx.TxIn[inputIndex].PreviousOutIndex,
 			})
 		}
 	}
@@ -601,7 +601,11 @@ func (p *Processor) incrementBurnedAmount(ctx context.Context, burned map[runes.
 }
 
 func (p *Processor) flushBlock(ctx context.Context, blockHeader types.BlockHeader) error {
-	// TODO: calculate event hash
+	// createdIndexedBlock must be called before other flush methods to correctly calculate event hash
+	if err := p.createIndexedBlock(ctx, blockHeader); err != nil {
+		return errors.Wrap(err, "failed to create indexed block")
+	}
+
 	if err := p.flushNewRuneEntryStates(ctx, uint64(blockHeader.Height)); err != nil {
 		return errors.Wrap(err, "failed to flush new rune entry states")
 	}
@@ -620,10 +624,6 @@ func (p *Processor) flushBlock(ctx context.Context, blockHeader types.BlockHeade
 
 	if err := p.flushNewRuneTxs(ctx); err != nil {
 		return errors.Wrap(err, "failed to flush new rune transactions")
-	}
-
-	if err := p.createIndexedBlock(ctx, blockHeader); err != nil {
-		return errors.Wrap(err, "failed to create indexed block")
 	}
 	return nil
 }
@@ -692,11 +692,24 @@ func (p *Processor) flushNewRuneTxs(ctx context.Context) error {
 }
 
 func (p *Processor) createIndexedBlock(ctx context.Context, header types.BlockHeader) error {
+	eventHash, err := p.calculateEventHash(header)
+	if err != nil {
+		return errors.Wrap(err, "failed to calculate event hash")
+	}
+	indexedBlock, err := p.runesDg.GetIndexedBlockByHeight(ctx, header.Height)
+	if err != nil {
+		if errors.Is(err, errs.NotFound) {
+			return errors.Errorf("indexed block not found for height %d. Indexed block must be created for every Bitcoin block", header.Height)
+		}
+		return errors.Wrap(err, "failed to get indexed block by height")
+	}
+	cumulativeEventHash := chainhash.DoubleHashH(append(indexedBlock.CumulativeEventHash[:], eventHash[:]...))
+
 	if err := p.runesDg.CreateIndexedBlock(ctx, &entity.IndexedBlock{
 		Height:              header.Height,
 		Hash:                header.Hash,
-		EventHash:           chainhash.Hash{}, // TODO: calculate event hash
-		CumulativeEventHash: chainhash.Hash{}, // TODO: calculate cumulative event hash
+		EventHash:           eventHash,
+		CumulativeEventHash: cumulativeEventHash,
 	}); err != nil {
 		return errors.Wrap(err, "failed to create indexed block")
 	}

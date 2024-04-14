@@ -14,12 +14,12 @@ import (
 
 func TestOutPointBalanceJSON(t *testing.T) {
 	ob := OutPointBalance{
-		PkScript:       utils.Must(hex.DecodeString("51203daaca9b82a51aca960c1491588246029d7e0fc49e0abdbcc8fd17574be5c74b")),
-		Id:             runes.RuneId{BlockHeight: 1, TxIndex: 2},
-		Amount:         uint128.From64(100),
-		Index:          1,
-		PrevTxHash:     *utils.Must(chainhash.NewHashFromStr("3ea1b497b25993adf3f2c8dae1470721316a45c82600798c14d0425039c410ad")),
-		PrevTxOutIndex: 2,
+		PkScript:   utils.Must(hex.DecodeString("51203daaca9b82a51aca960c1491588246029d7e0fc49e0abdbcc8fd17574be5c74b")),
+		Id:         runes.RuneId{BlockHeight: 1, TxIndex: 2},
+		Amount:     uint128.From64(100),
+		Index:      1,
+		TxHash:     *utils.Must(chainhash.NewHashFromStr("3ea1b497b25993adf3f2c8dae1470721316a45c82600798c14d0425039c410ad")),
+		TxOutIndex: 2,
 	}
 	bytes, err := json.Marshal(ob)
 	assert.NoError(t, err)

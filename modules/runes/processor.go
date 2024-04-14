@@ -36,7 +36,7 @@ type Processor struct {
 	newRuneEntryStates  map[runes.RuneId]*runes.RuneEntry
 	newOutPointBalances map[wire.OutPoint]map[runes.RuneId]uint128.Uint128
 	newSpendOutPoints   []wire.OutPoint
-	newBalances         map[string]map[runes.RuneId]uint128.Uint128
+	newBalances         map[string]map[runes.RuneId]uint128.Uint128 // pkScript(hex) -> runeId -> amount
 	newRuneTxs          []*entity.RuneTransaction
 }
 

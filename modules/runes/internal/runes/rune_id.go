@@ -55,6 +55,15 @@ func (r RuneId) String() string {
 	return fmt.Sprintf("%d:%d", r.BlockHeight, r.TxIndex)
 }
 
+// Cmp compares two RuneIds. It returns -1 if r is less than other, 0 if r is equal to other, and 1 if r is greater than other.
+// RuneIds are compared first by block height and then by tx index in ascending order.
+func (r RuneId) Cmp(other RuneId) int {
+	if r.BlockHeight != other.BlockHeight {
+		return int(r.BlockHeight - other.BlockHeight)
+	}
+	return int(r.TxIndex - other.TxIndex)
+}
+
 // Delta calculates the delta encoding between two RuneIds. If the two RuneIds are in the same block, then the block delta is 0 and the tx index delta is the difference between the two tx indices.
 // If the two RuneIds are in different blocks, then the block delta is the difference between the two block indices and the tx index delta is the tx index in the other block.
 func (r RuneId) Delta(next RuneId) (uint64, uint32) {
