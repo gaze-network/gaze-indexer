@@ -8,8 +8,6 @@ import (
 	"runtime"
 	"strings"
 	"time"
-
-	"github.com/gaze-network/indexer-network/pkg/logger/slogx"
 )
 
 const (
@@ -86,8 +84,8 @@ func Warn(msg string, args ...any) {
 }
 
 // Error logs at [LevelError] with an error.
-func Error(msg string, err error, args ...any) {
-	log(context.Background(), logger, slog.LevelError, msg, append(args, slogx.Error(err))...)
+func Error(msg string, args ...any) {
+	log(context.Background(), logger, slog.LevelError, msg, args...)
 }
 
 // Panic logs at [LevelPanic] and then panics.

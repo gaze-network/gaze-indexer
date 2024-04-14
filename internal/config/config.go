@@ -8,6 +8,7 @@ import (
 	"github.com/Cleverse/go-utilities/utils"
 	"github.com/caarlos0/env/v10"
 	"github.com/gaze-network/indexer-network/pkg/logger"
+	"github.com/gaze-network/indexer-network/pkg/logger/slogx"
 	"github.com/joho/godotenv"
 )
 
@@ -57,7 +58,7 @@ func LoadConfig() Config {
 
 		// Parse environment variables
 		if err := env.ParseWithOptions(config, opts); err != nil {
-			logger.Error("failed to parse environment variables", slog.Any("error", err))
+			logger.Error("failed to parse environment variables", slogx.Error(err))
 			panic(err)
 		}
 

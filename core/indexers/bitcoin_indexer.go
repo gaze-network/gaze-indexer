@@ -58,7 +58,7 @@ func (i *BitcoinIndexer) Run(ctx context.Context) (err error) {
 			ctx = logger.WithContext(ctx, slog.Int64("current_block_height", i.currentBlock.Height))
 
 			if err := i.process(ctx); err != nil {
-				logger.ErrorContext(ctx, "failed to process", err)
+				logger.ErrorContext(ctx, "failed to process", slogx.Error(err))
 				return errors.Wrap(err, "failed to process")
 			}
 		}
