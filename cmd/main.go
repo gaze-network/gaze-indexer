@@ -22,7 +22,7 @@ func main() {
 
 	// Initialize logger
 	if err := logger.Init(conf.Logger); err != nil {
-		logger.Panic("Failed to initialize logger: %v", slogx.Error(err), slog.Any("config", conf.Logger))
+		logger.PanicContext(ctx, "Failed to initialize logger: %v", slogx.Error(err), slog.Any("config", conf.Logger))
 	}
 
 	// Initialize Bitcoin Core RPC Client
@@ -34,22 +34,22 @@ func main() {
 		HTTPPostMode: true,
 	}, nil)
 	if err != nil {
-		logger.Panic("Failed to create Bitcoin Core RPC Client", slogx.Error(err))
+		logger.PanicContext(ctx, "Failed to create Bitcoin Core RPC Client", slogx.Error(err))
 	}
 	defer client.Shutdown()
 
 	if err := client.Ping(); err != nil {
-		logger.Panic("Failed to ping Bitcoin Core RPC Server", slogx.Error(err))
+		logger.PanicContext(ctx, "Failed to ping Bitcoin Core RPC Server", slogx.Error(err))
 	}
 
 	peerInfo, err := client.GetPeerInfo()
 	if err != nil {
-		logger.Panic("Failed to get peer info", slogx.Error(err))
+		logger.PanicContext(ctx, "Failed to get peer info", slogx.Error(err))
 	}
 
-	logger.Info("Connected to Bitcoin Core RPC Server", slog.Int("peers", len(peerInfo)))
+	logger.InfoContext(ctx, "Connected to Bitcoin Core RPC Server", slog.Int("peers", len(peerInfo)))
 
 	// Wait for interrupt signal to gracefully stop the server with
 	<-ctx.Done()
-	logger.Info("Shutting down server")
+	logger.InfoContext(ctx, "Shutting down server")
 }
