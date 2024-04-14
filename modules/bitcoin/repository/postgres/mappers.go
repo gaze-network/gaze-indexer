@@ -7,7 +7,7 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/common/errs"
 	"github.com/gaze-network/indexer-network/core/types"
-	"github.com/gaze-network/indexer-network/modules/bitcoin/internal/repository/postgres/gen"
+	"github.com/gaze-network/indexer-network/modules/bitcoin/repository/postgres/gen"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
