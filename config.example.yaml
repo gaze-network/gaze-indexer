@@ -17,5 +17,5 @@ modules:
       port: 5432
       user: "postgres"
       password: "password"
-      dbname: "postgres"
+      db_name: "postgres"
       # url: "postgres://postgres:password@localhost:5432/postgres?sslmode=prefer" # [Optional] This will override other database connection configurations
