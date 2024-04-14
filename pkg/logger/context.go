@@ -4,8 +4,6 @@ import (
 	"context"
 	"log/slog"
 	"os"
-
-	"github.com/gaze-network/indexer-network/pkg/logger/slogx"
 )
 
 type loggerKey struct{}
@@ -58,8 +56,8 @@ func WarnContext(ctx context.Context, msg string, args ...any) {
 }
 
 // ErrorContext logs at [LevelError] from logger in the given context.
-func ErrorContext(ctx context.Context, msg string, err error, args ...any) {
-	log(ctx, FromContext(ctx), slog.LevelError, msg, append(args, slogx.Error(err))...)
+func ErrorContext(ctx context.Context, msg string, args ...any) {
+	log(ctx, FromContext(ctx), slog.LevelError, msg, args...)
 }
 
 // PanicContext logs at [LevelPanic] and then panics from logger in the given context.

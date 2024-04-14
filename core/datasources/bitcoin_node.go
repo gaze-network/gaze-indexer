@@ -20,6 +20,17 @@ type BitcoinNodeDatasource struct {
 	btcclient *rpcclient.Client
 }
 
+// NewBitcoinNode create new BitcoinNodeDatasource	with Bitcoin Core RPC Client
+func NewBitcoinNode(btcclient *rpcclient.Client) *BitcoinNodeDatasource {
+	return &BitcoinNodeDatasource{
+		btcclient: btcclient,
+	}
+}
+
+func (p BitcoinNodeDatasource) Name() string {
+	return "BitcoinNode"
+}
+
 // Fetch polling blocks from Bitcoin node
 //
 //   - from: block height to start fetching, if -1, it will start from genesis block
@@ -108,7 +119,8 @@ func (d *BitcoinNodeDatasource) FetchAsync(ctx context.Context, from, to int64, 
 
 				// send blocks to subscription channel
 				if err := subscription.send(ctx, data); err != nil {
-					logger.ErrorContext(ctx, "failed while dispatch block", err,
+					logger.ErrorContext(ctx, "failed while dispatch block",
+						slogx.Error(err),
 						slogx.Int64("start", data[0].Header.Height),
 						slogx.Int64("end", data[len(data)-1].Header.Height),
 					)
@@ -139,17 +151,17 @@ func (d *BitcoinNodeDatasource) FetchAsync(ctx context.Context, from, to int64, 
 					for _, height := range chunk {
 						hash, err := d.btcclient.GetBlockHash(height)
 						if err != nil {
-							logger.ErrorContext(ctx, "failed to get block hash", err, slogx.Int64("height", height))
+							logger.ErrorContext(ctx, "failed to get block hash", slogx.Error(err), slogx.Int64("height", height))
 							if err := subscription.sendError(ctx, errors.Wrapf(err, "failed to get block hash: height: %d", height)); err != nil {
-								logger.ErrorContext(ctx, "failed to send error", err)
+								logger.ErrorContext(ctx, "failed to send error", slogx.Error(err))
 							}
 						}
 
 						block, err := d.btcclient.GetBlock(hash)
 						if err != nil {
-							logger.ErrorContext(ctx, "failed to get block", err, slogx.Int64("height", height))
+							logger.ErrorContext(ctx, "failed to get block", slogx.Error(err), slogx.Int64("height", height))
 							if err := subscription.sendError(ctx, errors.Wrapf(err, "failed to get block: height: %d, hash: %s", height, hash)); err != nil {
-								logger.ErrorContext(ctx, "failed to send error", err)
+								logger.ErrorContext(ctx, "failed to send error", slogx.Error(err))
 							}
 						}
 

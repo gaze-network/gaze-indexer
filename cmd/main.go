@@ -8,56 +8,66 @@ import (
 	"syscall"
 
 	"github.com/btcsuite/btcd/rpcclient"
-	"github.com/btcsuite/btclog"
+	"github.com/gaze-network/indexer-network/core/datasources"
+	"github.com/gaze-network/indexer-network/core/indexers"
+	"github.com/gaze-network/indexer-network/internal/config"
+	"github.com/gaze-network/indexer-network/internal/postgres"
+	"github.com/gaze-network/indexer-network/modules/bitcoin"
+	btcpostgres "github.com/gaze-network/indexer-network/modules/bitcoin/repository/postgres"
 	"github.com/gaze-network/indexer-network/pkg/logger"
 	"github.com/gaze-network/indexer-network/pkg/logger/slogx"
 )
 
-var (
-	logbackend = btclog.NewBackend(os.Stdout)
-	log        = logbackend.Logger("local")
-)
-
-func init() {
-	rpcclient.UseLogger(logbackend.Logger("rpcclient"))
-}
-
 func main() {
+	conf := config.LoadConfig()
+
 	// Initialize context
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	if err := logger.Init(logger.Config{
-		Output: "text",
-		Debug:  true,
-	}); err != nil {
-		logger.Panic("Failed to initialize logger: %v", slogx.Error(err))
+	// Initialize logger
+	if err := logger.Init(conf.Logger); err != nil {
+		logger.PanicContext(ctx, "Failed to initialize logger: %v", slogx.Error(err), slog.Any("config", conf.Logger))
 	}
 
+	// Initialize Bitcoin Core RPC Client
 	client, err := rpcclient.New(&rpcclient.ConnConfig{
-		Host:         os.Getenv("BITCOIN_HOST"),
-		User:         "user",
-		Pass:         "pass",
+		Host:         conf.BitcoinNode.Host,
+		User:         conf.BitcoinNode.User,
+		Pass:         conf.BitcoinNode.Pass,
+		DisableTLS:   conf.BitcoinNode.DisableTLS,
 		HTTPPostMode: true,
-		// DisableTLS:   true,
 	}, nil)
 	if err != nil {
-		logger.Panic("Failed to create Bitcoin Core RPC Client", slogx.Error(err))
+		logger.PanicContext(ctx, "Failed to create Bitcoin Core RPC Client", slogx.Error(err))
 	}
 	defer client.Shutdown()
 
 	if err := client.Ping(); err != nil {
-		logger.Panic("Failed to ping Bitcoin Core RPC Server", slogx.Error(err))
+		logger.PanicContext(ctx, "Failed to ping Bitcoin Core RPC Server", slogx.Error(err))
 	}
 
-	peerInfo, err := client.GetPeerInfo()
-	if err != nil {
-		logger.Panic("Failed to get peer info", slogx.Error(err))
-	}
+	// Initialize Bitcoin Indexer
+	{
+		pg, err := postgres.NewPool(ctx, conf.Modules["bitcoin"].Postgres)
+		if err != nil {
+			logger.PanicContext(ctx, "Failed to create Postgres connection pool", slogx.Error(err))
+		}
+		defer pg.Close()
+		bitcoinRepository := btcpostgres.NewRepository(pg)
+		bitcoinProcessor := bitcoin.NewProcessor(bitcoinRepository)
+		bitcoinNodeDatasource := datasources.NewBitcoinNode(client)
+		bitcoinIndexer := indexers.NewBitcoinIndexer(bitcoinProcessor, bitcoinNodeDatasource)
 
-	logger.Info("Connected to Bitcoin Core RPC Server", slog.Int("peers", len(peerInfo)))
+		// Run Indexers
+		go func() {
+			if err := bitcoinIndexer.Run(ctx); err != nil {
+				logger.ErrorContext(ctx, "Failed to run Bitcoin Indexer", slogx.Error(err))
+			}
+		}()
+	}
 
 	// Wait for interrupt signal to gracefully stop the server with
 	<-ctx.Done()
-	log.Info("Shutting down server")
+	logger.InfoContext(ctx, "Shutting down server")
 }

@@ -28,8 +28,20 @@ type BitcoinIndexer struct {
 	currentBlock types.BlockHeader
 }
 
+// NewBitcoinIndexer create new BitcoinIndexer
+func NewBitcoinIndexer(processor BitcoinProcessor, datasource BitcoinDatasource) *BitcoinIndexer {
+	return &BitcoinIndexer{
+		Processor:  processor,
+		Datasource: datasource,
+	}
+}
+
 func (i *BitcoinIndexer) Run(ctx context.Context) (err error) {
-	ctx = logger.WithContext(ctx, slog.String("module", i.Processor.Name()))
+	ctx = logger.WithContext(ctx,
+		slog.String("indexer", "bitcoin"),
+		slog.String("processor", i.Processor.Name()),
+		slog.String("datasource", i.Datasource.Name()),
+	)
 
 	// set to -1 to start from genesis block
 	i.currentBlock, err = i.Processor.CurrentBlock(ctx)
@@ -50,7 +62,7 @@ func (i *BitcoinIndexer) Run(ctx context.Context) (err error) {
 			ctx = logger.WithContext(ctx, slog.Int64("current_block_height", i.currentBlock.Height))
 
 			if err := i.process(ctx); err != nil {
-				logger.ErrorContext(ctx, "failed to process", err)
+				logger.ErrorContext(ctx, "failed to process", slogx.Error(err))
 				return errors.Wrap(err, "failed to process")
 			}
 		}

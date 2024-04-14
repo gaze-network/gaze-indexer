@@ -8,8 +8,6 @@ import (
 	"runtime"
 	"strings"
 	"time"
-
-	"github.com/gaze-network/indexer-network/pkg/logger/slogx"
 )
 
 const (
@@ -86,8 +84,8 @@ func Warn(msg string, args ...any) {
 }
 
 // Error logs at [LevelError] with an error.
-func Error(msg string, err error, args ...any) {
-	log(context.Background(), logger, slog.LevelError, msg, append(args, slogx.Error(err))...)
+func Error(msg string, args ...any) {
+	log(context.Background(), logger, slog.LevelError, msg, args...)
 }
 
 // Panic logs at [LevelPanic] and then panics.
@@ -121,10 +119,10 @@ type Config struct {
 	//  - Text (default)
 	//  - JSON
 	//  - GCP: Output format for Stackdriver Logging/Cloud Logging or others GCP services.
-	Output string `env:"OUTPUT" envDefault:"TEXT"`
+	Output string `mapstructure:"output"`
 
 	// Debug is enabled logger level debug. (default: false)
-	Debug bool `env:"DEBUG" envDefault:"false"`
+	Debug bool `mapstructure:"debug"`
 }
 
 var (
