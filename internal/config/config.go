@@ -37,7 +37,7 @@ type BitcoinNodeClient struct {
 //   - ENV_PATH: relative path to the .env file (default: .env)
 //   - ENV_PREFIX: prefix for environment variables (default is empty), e.g. "APP_" will look for "APP_ENV" instead of "ENV"
 func LoadConfig() Config {
-	logger := logger.With(slog.String("module", "config"))
+	logger := logger.With(slog.String("package", "config"))
 	configOnce.Do(func() {
 		// Load environment variables from .env file
 		envPath := utils.Default(os.Getenv("ENV_PATH"), DefaultENVPath)
