@@ -12,6 +12,7 @@ require (
 	github.com/mcosta74/pgx-slog v0.3.0
 	github.com/planxnx/concurrent-stream v0.1.3
 	github.com/samber/lo v1.39.0
+	github.com/spf13/cobra v1.8.0
 	github.com/spf13/viper v1.18.2
 	github.com/stretchr/testify v1.8.4
 )
@@ -31,6 +32,7 @@ require (
 	github.com/getsentry/sentry-go v0.18.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
+	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20221227161230-091c0ba34f0a // indirect
 	github.com/jackc/pgx v3.6.2+incompatible // indirect
