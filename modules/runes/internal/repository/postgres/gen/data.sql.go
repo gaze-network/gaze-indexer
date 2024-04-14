@@ -104,12 +104,13 @@ func (q *Queries) CreateRuneEntryState(ctx context.Context, arg CreateRuneEntryS
 }
 
 const createRuneTransaction = `-- name: CreateRuneTransaction :exec
-INSERT INTO runes_transactions (hash, block_height, timestamp, inputs, outputs, mints, burns) VALUES ($1, $2, $3, $4, $5, $6, $7)
+INSERT INTO runes_transactions (hash, block_height, index, timestamp, inputs, outputs, mints, burns) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 `
 
 type CreateRuneTransactionParams struct {
 	Hash        string
 	BlockHeight int32
+	Index       int32
 	Timestamp   pgtype.Timestamp
 	Inputs      []byte
 	Outputs     []byte
@@ -121,6 +122,7 @@ func (q *Queries) CreateRuneTransaction(ctx context.Context, arg CreateRuneTrans
 	_, err := q.db.Exec(ctx, createRuneTransaction,
 		arg.Hash,
 		arg.BlockHeight,
+		arg.Index,
 		arg.Timestamp,
 		arg.Inputs,
 		arg.Outputs,
@@ -497,7 +499,7 @@ func (q *Queries) GetRuneIdFromRune(ctx context.Context, rune string) (string, e
 }
 
 const getRuneTransactionsByHeight = `-- name: GetRuneTransactionsByHeight :many
-SELECT hash, runes_transactions.block_height, timestamp, inputs, outputs, mints, burns, tx_hash, runes_runestones.block_height, etching, etching_divisibility, etching_premine, etching_rune, etching_spacers, etching_symbol, etching_terms, etching_terms_amount, etching_terms_cap, etching_terms_height_start, etching_terms_height_end, etching_terms_offset_start, etching_terms_offset_end, etching_turbo, edicts, mint, pointer, cenotaph, flaws FROM runes_transactions 
+SELECT hash, runes_transactions.block_height, index, timestamp, inputs, outputs, mints, burns, tx_hash, runes_runestones.block_height, etching, etching_divisibility, etching_premine, etching_rune, etching_spacers, etching_symbol, etching_terms, etching_terms_amount, etching_terms_cap, etching_terms_height_start, etching_terms_height_end, etching_terms_offset_start, etching_terms_offset_end, etching_turbo, edicts, mint, pointer, cenotaph, flaws FROM runes_transactions 
   LEFT JOIN runes_runestones ON runes_transactions.hash = runes_runestones.tx_hash
   WHERE runes_transactions.block_height = $1
 `
@@ -505,6 +507,7 @@ SELECT hash, runes_transactions.block_height, timestamp, inputs, outputs, mints,
 type GetRuneTransactionsByHeightRow struct {
 	Hash                    string
 	BlockHeight             int32
+	Index                   int32
 	Timestamp               pgtype.Timestamp
 	Inputs                  []byte
 	Outputs                 []byte
@@ -545,6 +548,7 @@ func (q *Queries) GetRuneTransactionsByHeight(ctx context.Context, blockHeight i
 		if err := rows.Scan(
 			&i.Hash,
 			&i.BlockHeight,
+			&i.Index,
 			&i.Timestamp,
 			&i.Inputs,
 			&i.Outputs,

@@ -60,6 +60,7 @@ CREATE TABLE IF NOT EXISTS "runes_entry_states" (
 CREATE TABLE IF NOT EXISTS "runes_transactions" (
 	"hash" TEXT NOT NULL PRIMARY KEY,
 	"block_height" INT NOT NULL,
+	"index" INT NOT NULL,
 	"timestamp" TIMESTAMP NOT NULL,
 	"inputs" JSONB NOT NULL,
 	"outputs" JSONB NOT NULL,

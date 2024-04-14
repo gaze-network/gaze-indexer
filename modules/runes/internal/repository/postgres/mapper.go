@@ -279,6 +279,7 @@ func mapRuneTransactionTypeToParams(src entity.RuneTransaction) (gen.CreateRuneT
 	return gen.CreateRuneTransactionParams{
 		Hash:        src.Hash.String(),
 		BlockHeight: int32(src.BlockHeight),
+		Index:       int32(src.Index),
 		Timestamp:   timestamp,
 		Inputs:      inputsBytes,
 		Outputs:     outputsBytes,
@@ -329,6 +330,7 @@ func extractModelRuneTxAndRunestone(src gen.GetRuneTransactionsByHeightRow) (gen
 	return gen.RunesTransaction{
 		Hash:        src.Hash,
 		BlockHeight: src.BlockHeight,
+		Index:       src.Index,
 		Timestamp:   src.Timestamp,
 		Inputs:      src.Inputs,
 		Outputs:     src.Outputs,
@@ -384,6 +386,7 @@ func mapRuneTransactionModelToType(src gen.RunesTransaction) (entity.RuneTransac
 	return entity.RuneTransaction{
 		Hash:        *hash,
 		BlockHeight: uint64(src.BlockHeight),
+		Index:       uint32(src.Index),
 		Timestamp:   timestamp,
 		Inputs:      inputs,
 		Outputs:     outputs,

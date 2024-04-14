@@ -65,6 +65,7 @@ func (o *OutPointBalance) UnmarshalJSON(data []byte) error {
 type RuneTransaction struct {
 	Hash        chainhash.Hash
 	BlockHeight uint64
+	Index       uint32
 	Timestamp   time.Time
 	Inputs      []*OutPointBalance
 	Outputs     []*OutPointBalance

@@ -100,6 +100,7 @@ type RunesRunestone struct {
 type RunesTransaction struct {
 	Hash        string
 	BlockHeight int32
+	Index       int32
 	Timestamp   pgtype.Timestamp
 	Inputs      []byte
 	Outputs     []byte

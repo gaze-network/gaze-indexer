@@ -255,6 +255,7 @@ func (p *Processor) processTx(ctx context.Context, tx *types.Transaction, blockH
 	runeTx := entity.RuneTransaction{
 		Hash:        tx.TxHash,
 		BlockHeight: uint64(blockHeader.Height),
+		Index:       tx.Index,
 		Timestamp:   blockHeader.Timestamp,
 		Inputs:      make([]*entity.OutPointBalance, 0),
 		Outputs:     make([]*entity.OutPointBalance, 0),
