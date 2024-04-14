@@ -78,7 +78,6 @@ func main() {
 
 	// Initialize Runes Indexer
 	{
-		logger.Info("Initializing Runes Indexer...", slogx.Any("postgres", conf.Modules["runes"].Postgres))
 		pg, err := postgres.NewPool(ctx, conf.Modules["runes"].Postgres)
 		if err != nil {
 			logger.PanicContext(ctx, "Failed to create Postgres connection pool", slogx.Error(err))
