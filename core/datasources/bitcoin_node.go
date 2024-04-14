@@ -84,16 +84,6 @@ func (d *BitcoinNodeDatasource) FetchAsync(ctx context.Context, from, to int64, 
 		blockHeights = append(blockHeights, i)
 	}
 
-	// Wait for subscription is done or context is done
-	go func() {
-		defer stream.Close()
-		subDone := subscription.Done()
-		select {
-		case <-subDone:
-		case <-ctx.Done():
-		}
-	}()
-
 	// Wait for stream to finish and close out channel
 	go func() {
 		defer close(out)
@@ -132,12 +122,15 @@ func (d *BitcoinNodeDatasource) FetchAsync(ctx context.Context, from, to int64, 
 	// Parallel fetch blocks from Bitcoin node until complete all block heights
 	// or subscription is done.
 	go func() {
+		defer stream.Close()
 		done := subscription.Done()
 		chunks := lo.Chunk(blockHeights, 100)
 		for _, chunk := range chunks {
 			chunk := chunk
 			select {
 			case <-done:
+				return
+			case <-ctx.Done():
 				return
 			default:
 				stream.Go(func() []*types.Block {
