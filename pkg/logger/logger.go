@@ -119,10 +119,10 @@ type Config struct {
 	//  - Text (default)
 	//  - JSON
 	//  - GCP: Output format for Stackdriver Logging/Cloud Logging or others GCP services.
-	Output string `env:"OUTPUT" envDefault:"TEXT"`
+	Output string `mapstructure:"output"`
 
 	// Debug is enabled logger level debug. (default: false)
-	Debug bool `env:"DEBUG" envDefault:"false"`
+	Debug bool `mapstructure:"debug"`
 }
 
 var (

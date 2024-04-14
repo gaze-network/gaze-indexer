@@ -18,9 +18,9 @@ import (
 	"github.com/gaze-network/indexer-network/pkg/logger/slogx"
 )
 
-var conf = config.LoadConfig()
-
 func main() {
+	conf := config.LoadConfig()
+
 	// Initialize context
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
@@ -49,7 +49,7 @@ func main() {
 
 	// Initialize Bitcoin Indexer
 	{
-		pg, err := postgres.NewPool(ctx, conf.ModuleBitcoin.Postgres)
+		pg, err := postgres.NewPool(ctx, conf.Modules["bitcoin"].Postgres)
 		if err != nil {
 			logger.PanicContext(ctx, "Failed to create Postgres connection pool", slogx.Error(err))
 		}

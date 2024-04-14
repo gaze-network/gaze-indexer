@@ -1,16 +1,16 @@
 package config
 
 import (
+	"context"
 	"log/slog"
-	"os"
+	"strings"
 	"sync"
 
-	"github.com/Cleverse/go-utilities/utils"
-	"github.com/caarlos0/env/v10"
+	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/internal/postgres"
 	"github.com/gaze-network/indexer-network/pkg/logger"
 	"github.com/gaze-network/indexer-network/pkg/logger/slogx"
-	"github.com/joho/godotenv"
+	"github.com/spf13/viper"
 )
 
 const (
@@ -19,59 +19,58 @@ const (
 
 var (
 	configOnce sync.Once
-	config     = &Config{}
+	config     = &Config{
+		Logger: logger.Config{
+			Output: "TEXT",
+		},
+		BitcoinNode: BitcoinNodeClient{
+			User: "user",
+			Pass: "pass",
+		},
+	}
 )
 
 type Config struct {
-	Logger      logger.Config     `envPrefix:"LOGGER_"`
-	BitcoinNode BitcoinNodeClient `envPrefix:"BITCOIN_NODE_"`
-
-	// Protocols configuration
-	ModuleBitcoin Module `envPrefix:"MODULE_BITCOIN_"`
-	ModuleRunes   Module `envPrefix:"MODULE_RUNES_"`
+	Logger      logger.Config     `mapstructure:"logger"`
+	BitcoinNode BitcoinNodeClient `mapstructure:"bitcoin_node"`
+	Modules     map[string]Module `mapstructure:"modules"`
 }
 
 type BitcoinNodeClient struct {
-	Host       string `env:"HOST"`
-	User       string `env:"USER" default:"user"`
-	Pass       string `env:"PASS" default:"pass"`
-	DisableTLS bool   `env:"DISABLE_TLS" default:"false"`
+	Host       string `mapstructure:"host"`
+	User       string `mapstructure:"user"`
+	Pass       string `mapstructure:"pass"`
+	DisableTLS bool   `mapstructure:"disable_tls"`
 }
 
 type Module struct {
-	Postgres postgres.Config `envPrefix:"POSTGRES_"`
+	Postgres postgres.Config `mapstructure:"postgres"`
 }
 
 // LoadConfig loads the configuration from environment variables
-//
-//   - ENV_PATH: relative path to the .env file (default: .env)
-//   - ENV_PREFIX: prefix for environment variables (default is empty), e.g. "APP_" will look for "APP_ENV" instead of "ENV"
 func LoadConfig() Config {
-	logger := logger.With(slog.String("package", "config"))
+	ctx := logger.WithContext(context.Background(), slog.String("package", "config"))
 	configOnce.Do(func() {
-		// Load environment variables from .env file
-		envPath := utils.Default(os.Getenv("ENV_PATH"), DefaultENVPath)
-		if err := godotenv.Load(envPath); err != nil {
-			logger.Warn("failed to load .env file, using environment variables directly",
-				slog.Any("error", err),
-				slog.String("path", envPath),
-			)
+		// TODO: Get config file from Args: viper.SetConfigFile("./config.yaml")
+		viper.AddConfigPath("./")
+		viper.SetConfigName("config")
+
+		viper.AutomaticEnv()
+		viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+		if err := viper.ReadInConfig(); err != nil {
+			var errNotfound viper.ConfigFileNotFoundError
+			if errors.As(err, &errNotfound) {
+				logger.WarnContext(ctx, "config file not found, use default value", slogx.Error(err))
+			} else {
+				logger.PanicContext(ctx, "invalid config file", slogx.Error(err))
+			}
 		}
 
-		// Env parser options
-		opts := env.Options{
-			Prefix:                utils.Default(os.Getenv("ENV_PREFIX"), ""),
-			UseFieldNameByDefault: true,
-			RequiredIfNoDef:       false,
+		if err := viper.Unmarshal(&config); err != nil {
+			logger.PanicContext(ctx, "failed to unmarshal config", slogx.Error(err))
 		}
-
-		// Parse environment variables
-		if err := env.ParseWithOptions(config, opts); err != nil {
-			logger.Error("failed to parse environment variables", slogx.Error(err))
-			panic(err)
-		}
-
-		logger.Info("loaded config from environment variables successfully")
+		logger.InfoContext(ctx, "loaded config from environment variables successfully")
 	})
+
 	return *config
 }
