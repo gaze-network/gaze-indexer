@@ -14,6 +14,8 @@ import (
 	"github.com/gaze-network/indexer-network/internal/postgres"
 	"github.com/gaze-network/indexer-network/modules/bitcoin"
 	btcpostgres "github.com/gaze-network/indexer-network/modules/bitcoin/repository/postgres"
+	"github.com/gaze-network/indexer-network/modules/runes"
+	runespostgres "github.com/gaze-network/indexer-network/modules/runes/repository/postgres"
 	"github.com/gaze-network/indexer-network/pkg/logger"
 	"github.com/gaze-network/indexer-network/pkg/logger/slogx"
 )
@@ -70,6 +72,33 @@ func main() {
 		go func() {
 			if err := bitcoinIndexer.Run(ctx); err != nil {
 				logger.ErrorContext(ctx, "Failed to run Bitcoin Indexer", slogx.Error(err))
+			}
+		}()
+	}
+
+	// Initialize Runes Indexer
+	{
+		logger.Info("Initializing Runes Indexer...", slogx.Any("postgres", conf.Modules["runes"].Postgres))
+		pg, err := postgres.NewPool(ctx, conf.Modules["runes"].Postgres)
+		if err != nil {
+			logger.PanicContext(ctx, "Failed to create Postgres connection pool", slogx.Error(err))
+		}
+		defer pg.Close()
+
+		runesRepository := runespostgres.NewRepository(pg)
+		bitcoinNodeDatasource := datasources.NewBitcoinNode(client)
+		runesProcessor := runes.NewProcessor(runesRepository, bitcoinNodeDatasource, bitcoinNodeDatasource, conf.Network)
+		runesIndexer := indexers.NewBitcoinIndexer(runesProcessor, bitcoinNodeDatasource)
+
+		if err := runesProcessor.Init(ctx); err != nil {
+			logger.PanicContext(ctx, "Failed to initialize Runes Processor", slogx.Error(err))
+		}
+
+		// Run Indexer
+		go func() {
+			logger.InfoContext(ctx, "Starting Runes Indexer...")
+			if err := runesIndexer.Run(ctx); err != nil {
+				logger.ErrorContext(ctx, "Failed to run Runes Indexer", slogx.Error(err))
 			}
 		}()
 	}

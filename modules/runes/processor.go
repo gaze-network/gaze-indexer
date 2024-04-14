@@ -42,19 +42,12 @@ type Processor struct {
 	newRuneTxs          []*entity.RuneTransaction
 }
 
-type NewProcessorParams struct {
-	RunesDg           datagateway.RunesDataGateway
-	BitcoinClient     btcclient.Contract
-	BitcoinDataSource indexers.BitcoinDatasource
-	Network           common.Network
-}
-
-func NewProcessor(params NewProcessorParams) *Processor {
+func NewProcessor(runesDg datagateway.RunesDataGateway, bitcoinClient btcclient.Contract, bitcoinDataSource indexers.BitcoinDatasource, network common.Network) *Processor {
 	return &Processor{
-		runesDg:             params.RunesDg,
-		bitcoinClient:       params.BitcoinClient,
-		bitcoinDataSource:   params.BitcoinDataSource,
-		network:             params.Network,
+		runesDg:             runesDg,
+		bitcoinClient:       bitcoinClient,
+		bitcoinDataSource:   bitcoinDataSource,
+		network:             network,
 		newRuneEntryStates:  make(map[runes.RuneId]*runes.RuneEntry),
 		newOutPointBalances: make(map[wire.OutPoint]map[runes.RuneId]uint128.Uint128),
 		newSpendOutPoints:   make([]wire.OutPoint, 0),
