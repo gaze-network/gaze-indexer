@@ -304,10 +304,12 @@ func (p *Processor) processTx(ctx context.Context, tx *types.Transaction, blockH
 		pkScript := tx.TxOut[outputIndex].PkScript
 		for runeId, amount := range balances {
 			runeTx.Outputs = append(runeTx.Outputs, &entity.OutPointBalance{
-				PkScript: pkScript,
-				Id:       runeId,
-				Amount:   amount,
-				Index:    uint32(outputIndex),
+				PkScript:   pkScript,
+				Id:         runeId,
+				Amount:     amount,
+				Index:      uint32(outputIndex),
+				TxHash:     tx.TxHash,
+				TxOutIndex: uint32(outputIndex),
 			})
 		}
 	}
