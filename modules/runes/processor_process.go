@@ -55,6 +55,10 @@ func (p *Processor) Process(ctx context.Context, blocks []*types.Block) error {
 }
 
 func (p *Processor) processTx(ctx context.Context, tx *types.Transaction, blockHeader types.BlockHeader) error {
+	if tx.BlockHeight < int64(runes.FirstRuneHeight(p.network)) {
+		// prevent processing txs before the activation height
+		return nil
+	}
 	runestone, err := runes.DecipherRunestone(tx)
 	if err != nil {
 		return errors.Wrap(err, "failed to decipher runestone")
