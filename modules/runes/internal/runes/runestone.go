@@ -11,8 +11,6 @@ import (
 	"github.com/gaze-network/indexer-network/common/errs"
 	"github.com/gaze-network/indexer-network/core/types"
 	"github.com/gaze-network/indexer-network/pkg/leb128"
-	"github.com/gaze-network/indexer-network/pkg/logger"
-	"github.com/gaze-network/indexer-network/pkg/logger/slogx"
 	"github.com/gaze-network/uint128"
 	"github.com/samber/lo"
 )
@@ -253,15 +251,23 @@ func DecipherRunestone(tx *types.Transaction) (*Runestone, error) {
 		mintRuneIdTx := lo.FromPtr(fields.Take(TagMint))
 		if mintRuneIdBlock.IsUint64() && mintRuneIdTx.IsUint32() {
 			runeId, err := NewRuneId(mintRuneIdBlock.Uint64(), mintRuneIdTx.Uint32())
-			if err == nil {
+			if err != nil {
+				// invalid mint
+				flaws |= FlawFlagUnrecognizedEvenTag.Mask()
+			} else {
 				mint = &runeId
 			}
 		}
 	}
 	var pointer *uint64
 	pointerU128 := fields.Take(TagPointer)
-	if pointerU128 != nil && pointerU128.Cmp64(uint64(len(tx.TxOut))) < 0 {
-		pointer = lo.ToPtr(pointerU128.Uint64())
+	if pointerU128 != nil {
+		if pointerU128.Cmp64(uint64(len(tx.TxOut))) < 0 {
+			pointer = lo.ToPtr(pointerU128.Uint64())
+		} else {
+			// invalid pointer
+			flaws |= FlawFlagUnrecognizedEvenTag.Mask()
+		}
 	}
 
 	if etching != nil {
@@ -346,7 +352,6 @@ func runestonePayloadFromTx(tx *types.Transaction) ([]byte, Flaws) {
 			}
 			data := tokenizer.Data()
 			if data == nil {
-				logger.Debug("data is nil: got opcode", slogx.Uint8("opcode", tokenizer.Opcode()))
 				return nil, FlawFlagOpCode.Mask()
 			}
 			payload = append(payload, data...)

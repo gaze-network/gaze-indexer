@@ -76,7 +76,7 @@ func MessageFromIntegers(tx *types.Transaction, payload []uint128.Uint128) Messa
 
 		// append tag value to fields
 		if i+1 >= len(payload) {
-			flaws |= Flaws(FlawFlagTruncatedField)
+			flaws |= FlawFlagTruncatedField.Mask()
 			break
 		}
 		value := payload[i+1]
