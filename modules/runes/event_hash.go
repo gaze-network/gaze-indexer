@@ -3,7 +3,6 @@ package runes
 import (
 	"bytes"
 	"encoding/hex"
-	"log/slog"
 	"slices"
 	"strconv"
 	"strings"
@@ -14,8 +13,6 @@ import (
 	"github.com/gaze-network/indexer-network/core/types"
 	"github.com/gaze-network/indexer-network/modules/runes/internal/entity"
 	"github.com/gaze-network/indexer-network/modules/runes/internal/runes"
-	"github.com/gaze-network/indexer-network/pkg/logger"
-	"github.com/gaze-network/indexer-network/pkg/logger/slogx"
 	"github.com/gaze-network/uint128"
 	"github.com/samber/lo"
 )
@@ -69,7 +66,6 @@ func (p *Processor) getHashPayload(header types.BlockHeader) ([]byte, error) {
 		}
 		sb.Write(bytes)
 	}
-	logger.Debug("event hash payload", slog.Int("height", int(header.Height)), slogx.String("payload", sb.String()))
 	return []byte(sb.String()), nil
 }
 
