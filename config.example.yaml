@@ -8,12 +8,14 @@ bitcoin_node:
   pass: "pass"
   disable_tls: false
 
+network: mainnet
+
 modules:
   bitcoin:
-    postgresql:
+    postgres:
       host: "localhost"
       port: 5432
       user: "postgres"
-      pass: "password"
-      db: "postgres"
+      password: "password"
+      db_name: "postgres"
       # url: "postgres://postgres:password@localhost:5432/postgres?sslmode=prefer" # [Optional] This will override other database connection configurations

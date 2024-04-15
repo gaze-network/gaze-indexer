@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/cockroachdb/errors"
+	"github.com/gaze-network/indexer-network/common"
 	"github.com/gaze-network/indexer-network/internal/postgres"
 	"github.com/gaze-network/indexer-network/pkg/logger"
 	"github.com/gaze-network/indexer-network/pkg/logger/slogx"
@@ -29,6 +30,7 @@ var (
 type Config struct {
 	Logger      logger.Config     `mapstructure:"logger"`
 	BitcoinNode BitcoinNodeClient `mapstructure:"bitcoin_node"`
+	Network     common.Network    `mapstructure:"network"`
 	Modules     map[string]Module `mapstructure:"modules"`
 }
 

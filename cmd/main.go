@@ -43,8 +43,15 @@ func main() {
 	}
 	defer client.Shutdown()
 
+	logger.InfoContext(ctx, "Connecting to Bitcoin Core RPC Server...", slogx.String("host", conf.BitcoinNode.Host))
 	if err := client.Ping(); err != nil {
 		logger.PanicContext(ctx, "Failed to ping Bitcoin Core RPC Server", slogx.Error(err))
+	}
+	logger.InfoContext(ctx, "Connected to Bitcoin Core RPC Server", slogx.String("host", conf.BitcoinNode.Host))
+
+	// Validate network
+	if !conf.Network.IsSupported() {
+		logger.PanicContext(ctx, "Unsupported network", slogx.String("network", conf.Network.String()))
 	}
 
 	// Initialize Bitcoin Indexer
@@ -59,7 +66,7 @@ func main() {
 		bitcoinNodeDatasource := datasources.NewBitcoinNode(client)
 		bitcoinIndexer := indexers.NewBitcoinIndexer(bitcoinProcessor, bitcoinNodeDatasource)
 
-		// Run Indexers
+		// Run Indexer
 		go func() {
 			if err := bitcoinIndexer.Run(ctx); err != nil {
 				logger.ErrorContext(ctx, "Failed to run Bitcoin Indexer", slogx.Error(err))

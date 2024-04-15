@@ -3,6 +3,7 @@ package datasources
 import (
 	"context"
 
+	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/core/types"
@@ -164,6 +165,7 @@ func (d *BitcoinNodeDatasource) FetchAsync(ctx context.Context, from, to int64, 
 								logger.ErrorContext(ctx, "failed to send error", slogx.Error(err))
 							}
 						}
+						logger.DebugContext(ctx, "[BitcoinNodeDatasource] Fetched block", slogx.Int64("height", height), slogx.String("hash", hash.String()))
 
 						blocks = append(blocks, types.ParseMsgBlock(block, height))
 					}
@@ -204,4 +206,14 @@ func (d *BitcoinNodeDatasource) prepareRange(fromHeight, toHeight int64) (start,
 	}
 
 	return start, end, false, nil
+}
+
+// GetTransaction fetch transaction from Bitcoin node
+func (d *BitcoinNodeDatasource) GetTransaction(ctx context.Context, txHash chainhash.Hash) (*types.Transaction, error) {
+	rawTx, err := d.btcclient.GetRawTransaction(&txHash)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get raw transaction")
+	}
+	msgTx := rawTx.MsgTx()
+	return types.ParseMsgTx(msgTx, 0, chainhash.Hash{}, 0), nil
 }
