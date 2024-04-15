@@ -7,6 +7,8 @@ import (
 	"syscall"
 
 	"github.com/btcsuite/btcd/rpcclient"
+	"github.com/cockroachdb/errors"
+	"github.com/gaze-network/indexer-network/common/errs"
 	"github.com/gaze-network/indexer-network/core/datasources"
 	"github.com/gaze-network/indexer-network/core/indexers"
 	"github.com/gaze-network/indexer-network/internal/config"
@@ -20,15 +22,8 @@ import (
 )
 
 type runCmdOptions struct {
-	ProtocolDatasource string // Datasource to fetch bitcoin data for Meta-Protocol e.g. `bitcoin-node` | `database`
-	Bitcoin            struct {
-		Enabled  bool
-		Database string // DB to store bitcoin data e.g. `postgres` | `bigtable` | `leveldb`
-	}
-	Runes struct {
-		Enabled  bool
-		Database string // DB to store bitcoin data e.g. `postgres` | `bigtable` | `leveldb`
-	}
+	Bitcoin bool
+	Runes   bool
 }
 
 func NewRunCommand() *cobra.Command {
@@ -38,23 +33,30 @@ func NewRunCommand() *cobra.Command {
 	runCmd := &cobra.Command{
 		Use:   "run",
 		Short: "Start indexer-network service",
-		Run: func(cmd *cobra.Command, args []string) {
-			runHandler(opts, cmd, args)
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runHandler(opts, cmd, args)
 		},
 	}
 
+	// TODO: separate flags and bind flags to each module cmd package.
+
 	// Add local flags
 	flags := runCmd.Flags()
-	flags.StringVar(&opts.ProtocolDatasource, "protocol-datasource", "bitcoin-node", `Datasource to fetch bitcoin data for Meta-Protocol. current supported datasources: "bitcoin-node" | "database"`)
-	flags.BoolVar(&opts.Bitcoin.Enabled, "bitcoin", false, "Enable Bitcoin indexer module")
-	flags.StringVar(&opts.Bitcoin.Database, "bitcoin-db", "postgres", `Database to store bitcoin data. current supported databases: "postgres"`)
-	flags.BoolVar(&opts.Runes.Enabled, "runes", false, "Enable Runes indexer module")
-	flags.StringVar(&opts.Runes.Database, "runes-db", "postgres", `Database to store runes data. current supported databases: "postgres"`)
+	flags.BoolVar(&opts.Bitcoin, "bitcoin", false, "Enable Bitcoin indexer module")
+	flags.String("bitcoin-db", "postgres", `Database to store bitcoin data. current supported databases: "postgres"`)
+	flags.BoolVar(&opts.Runes, "runes", false, "Enable Runes indexer module")
+	flags.String("runes-db", "postgres", `Database to store runes data. current supported databases: "postgres"`)
+	flags.String("runes-datasource", "bitcoin-node", `Datasource to fetch bitcoin data for processing Meta-Protocol data. current supported datasources: "bitcoin-node" | "database"`)
+
+	// Bind flags to configuration
+	config.BindPFlag("modules.bitcoin.database", flags.Lookup("bitcoin-db"))
+	config.BindPFlag("modules.runes.database", flags.Lookup("runes-db"))
+	config.BindPFlag("modules.runes.datasource", flags.Lookup("runes-datasource"))
 
 	return runCmd
 }
 
-func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) {
+func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 	conf := config.Load()
 
 	// Initialize context
@@ -85,25 +87,25 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) {
 
 	// Validate network
 	if !conf.Network.IsSupported() {
-		logger.PanicContext(ctx, "Unsupported network", slogx.String("network", conf.Network.String()))
+		return errors.Wrapf(errs.Unsupported, "%q network is not supported", conf.Network.String())
 	}
 
 	// TODO: create module command package.
 	// each module should have its own command package and main package will routing the command to the module command package.
 
 	// Initialize Bitcoin Indexer
-	if opts.Bitcoin.Enabled {
+	if opts.Bitcoin {
 		var db btcdatagateway.BitcoinDataGateway
-		switch strings.ToLower(opts.Bitcoin.Database) {
+		switch strings.ToLower(conf.Modules.Bitcoin.Database) {
 		case "postgres", "pg":
-			pg, err := postgres.NewPool(ctx, conf.Modules["bitcoin"].Postgres)
+			pg, err := postgres.NewPool(ctx, conf.Modules.Bitcoin.Postgres)
 			if err != nil {
 				logger.PanicContext(ctx, "Failed to create Postgres connection pool", slogx.Error(err))
 			}
 			defer pg.Close()
 			db = btcpostgres.NewRepository(pg)
 		default:
-			logger.PanicContext(ctx, "Unsupported database", slogx.String("database", opts.Bitcoin.Database))
+			return errors.Wrapf(errs.Unsupported, "%q database is not supported", conf.Modules.Bitcoin.Database)
 		}
 		bitcoinProcessor := bitcoin.NewProcessor(db)
 		bitcoinNodeDatasource := datasources.NewBitcoinNode(client)
@@ -121,4 +123,5 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) {
 	// Wait for interrupt signal to gracefully stop the server with
 	<-ctx.Done()
 	logger.InfoContext(ctx, "Shutting down server")
+	return nil
 }
