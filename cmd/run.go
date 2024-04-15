@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"context"
 	"os"
 	"os/signal"
 	"syscall"
@@ -18,11 +17,38 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func (c *CommandHandlers) RunHandler(cmd *cobra.Command, args []string) {
+type runCmdOptions struct {
+	// Modules to enable
+	Modules struct {
+		Bitcoin bool
+		Runes   bool
+	}
+}
+
+func NewRunCommand() *cobra.Command {
+	opts := &runCmdOptions{}
+
+	// Create command
+	runCmd := &cobra.Command{
+		Use:   "run",
+		Short: "Start indexer-network service",
+		Run: func(cmd *cobra.Command, args []string) {
+			runHandler(opts, cmd, args)
+		},
+	}
+
+	// Add local flags
+	runCmd.Flags().BoolVar(&opts.Modules.Bitcoin, "bitcoin", false, "Enable Bitcoin indexer module")
+	runCmd.Flags().BoolVar(&opts.Modules.Runes, "runes", false, "Enable Runes indexer module")
+
+	return runCmd
+}
+
+func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) {
 	conf := config.Load()
 
 	// Initialize context
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+	ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
 	// Add logger context
@@ -45,7 +71,7 @@ func (c *CommandHandlers) RunHandler(cmd *cobra.Command, args []string) {
 	if err := client.Ping(); err != nil {
 		logger.PanicContext(ctx, "Failed to ping Bitcoin Core RPC Server", slogx.Error(err))
 	}
-	logger.InfoContext(ctx, "Connected to Bitcoin Core RPC Server", slogx.String("host", conf.BitcoinNode.Host))
+	logger.InfoContext(ctx, "Connected to Bitcoin Core RPC Server")
 
 	// Validate network
 	if !conf.Network.IsSupported() {
@@ -53,7 +79,7 @@ func (c *CommandHandlers) RunHandler(cmd *cobra.Command, args []string) {
 	}
 
 	// Initialize Bitcoin Indexer
-	{
+	if opts.Modules.Bitcoin {
 		pg, err := postgres.NewPool(ctx, conf.Modules["bitcoin"].Postgres)
 		if err != nil {
 			logger.PanicContext(ctx, "Failed to create Postgres connection pool", slogx.Error(err))

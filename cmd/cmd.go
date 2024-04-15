@@ -9,16 +9,22 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// CommandHandlers holds common dependencies for command handlers
-type CommandHandlers struct{}
+var (
+	// root command
+	cmd = &cobra.Command{
+		Use:  "gaze",
+		Long: `Description of gaze indexer`,
+	}
 
-// root command
-var cmd = &cobra.Command{
-	Use:  "gaze",
-	Long: `Description of gaze indexer`,
-}
+	// sub-commands
+	cmds = []*cobra.Command{
+		NewVersionCommand(),
+		NewRunCommand(),
+	}
+)
 
-func init() {
+// Execute runs the root command
+func Execute() {
 	var configFile string
 
 	// Add global flags
@@ -39,29 +45,12 @@ func init() {
 			logger.Panic("Failed to initialize logger: %v", slogx.Error(err), slog.Any("config", config.Logger))
 		}
 	})
-}
 
-// Execute runs the root command
-func Execute() {
-	// Initialize command handlers
-	cmds := &CommandHandlers{}
-
-	// Register sub-commands and handlers
-	cmd.AddCommand(
-		&cobra.Command{
-			Use:   "version",
-			Short: "Show indexer-network version",
-			Run:   cmds.VersionHandler,
-		},
-		&cobra.Command{
-			Use:   "run",
-			Short: "Start indexer-network service",
-			Run:   cmds.RunHandler,
-		},
-	)
+	// Register sub-commands
+	cmd.AddCommand(cmds...)
 
 	// Execute command
 	if err := cmd.Execute(); err != nil {
-		logger.Panic("Failed to execute root command")
+		logger.Panic("Failed to execute root command", slogx.Error(err))
 	}
 }
