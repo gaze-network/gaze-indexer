@@ -563,4 +563,123 @@ func TestDecipherRunestone(t *testing.T) {
 			},
 		)
 	})
+	t.Run("runestone_with_output_over_max_is_cenotaph", func(t *testing.T) {
+		testDecipherInteger(
+			t,
+			[]uint128.Uint128{
+				TagBody.Uint128(),
+				uint128.From64(1),
+				uint128.From64(1),
+				uint128.From64(2),
+				uint128.From64(2),
+			},
+			&Runestone{
+				Cenotaph: true,
+				Flaws:    FlawFlagEdictOutput.Mask(),
+			},
+		)
+	})
+	t.Run("tag_with_no_value_is_cenotaph", func(t *testing.T) {
+		testDecipherInteger(
+			t,
+			[]uint128.Uint128{
+				TagFlags.Uint128(),
+				uint128.From64(1),
+				TagFlags.Uint128(),
+			},
+			&Runestone{
+				Cenotaph: true,
+				Flaws:    FlawFlagTruncatedField.Mask(),
+			},
+		)
+	})
+	t.Run("trailing_integers_in_body_is_cenotaph", func(t *testing.T) {
+		integers := []uint128.Uint128{
+			TagBody.Uint128(),
+			uint128.From64(1),
+			uint128.From64(1),
+			uint128.From64(2),
+			uint128.From64(0),
+		}
+		for i := 0; i < 4; i++ {
+			if i == 0 {
+				testDecipherInteger(t, integers, &Runestone{
+					Edicts: []Edict{
+						{
+							Id:     RuneId{1, 1},
+							Amount: uint128.From64(2),
+							Output: 0,
+						},
+					},
+				})
+			} else {
+				testDecipherInteger(t, integers, &Runestone{
+					Cenotaph: true,
+					Flaws:    FlawFlagTrailingIntegers.Mask(),
+				})
+			}
+			integers = append(integers, uint128.Zero)
+		}
+	})
+	t.Run("decipher_etching_with_divisibility", func(t *testing.T) {
+		testDecipherInteger(
+			t,
+			[]uint128.Uint128{
+				TagFlags.Uint128(),
+				FlagEtching.Mask().Uint128(),
+				TagRune.Uint128(),
+				uint128.From64(4),
+				TagDivisibility.Uint128(),
+				uint128.From64(5),
+				TagBody.Uint128(),
+				uint128.From64(1),
+				uint128.From64(1),
+				uint128.From64(2),
+				uint128.From64(0),
+			},
+			&Runestone{
+				Edicts: []Edict{
+					{
+						Id:     RuneId{1, 1},
+						Amount: uint128.From64(2),
+						Output: 0,
+					},
+				},
+				Etching: &Etching{
+					Rune:         lo.ToPtr(NewRune(4)),
+					Divisibility: lo.ToPtr(uint8(5)),
+				},
+			},
+		)
+	})
+	t.Run("divisibility_above_max_is_ignored", func(t *testing.T) {
+		testDecipherInteger(
+			t,
+			[]uint128.Uint128{
+				TagFlags.Uint128(),
+				FlagEtching.Mask().Uint128(),
+				TagRune.Uint128(),
+				uint128.From64(4),
+				TagDivisibility.Uint128(),
+				uint128.From64(uint64(maxDivisibility + 1)),
+				TagBody.Uint128(),
+				uint128.From64(1),
+				uint128.From64(1),
+				uint128.From64(2),
+				uint128.From64(0),
+			},
+			&Runestone{
+				Edicts: []Edict{
+					{
+						Id:     RuneId{1, 1},
+						Amount: uint128.From64(2),
+						Output: 0,
+					},
+				},
+				Etching: &Etching{
+					Rune: lo.ToPtr(NewRune(4)),
+				},
+			},
+		)
+	})
 }
