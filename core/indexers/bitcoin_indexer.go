@@ -43,10 +43,6 @@ func (i *BitcoinIndexer) Run(ctx context.Context) (err error) {
 		slog.String("datasource", i.Datasource.Name()),
 	)
 
-	if ctx != nil {
-		return nil
-	}
-
 	// set to -1 to start from genesis block
 	i.currentBlock, err = i.Processor.CurrentBlock(ctx)
 	if err != nil {
