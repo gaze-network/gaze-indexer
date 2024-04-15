@@ -299,7 +299,7 @@ func serializeRunestoneForEventHash(r *runes.Runestone) []byte {
 		sb.WriteString("edicts:")
 		// don't sort edicts, order must be kept the same because of delta encoding
 		for _, edict := range r.Edicts {
-			sb.WriteString(edict.Id.String() + edict.Amount.String() + strconv.Itoa(int(edict.Output)) + ";")
+			sb.WriteString(edict.Id.String() + edict.Amount.String() + strconv.Itoa(edict.Output) + ";")
 		}
 	}
 	if r.Mint != nil {
