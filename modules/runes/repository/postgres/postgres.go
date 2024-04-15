@@ -62,3 +62,10 @@ func (r *Repository) Rollback(ctx context.Context) error {
 	r.tx = nil
 	return nil
 }
+
+func (r *Repository) getQueries() *gen.Queries {
+	if r.tx != nil {
+		return r.queries.WithTx(r.tx)
+	}
+	return r.queries
+}
