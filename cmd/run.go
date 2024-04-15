@@ -88,6 +88,9 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) {
 		logger.PanicContext(ctx, "Unsupported network", slogx.String("network", conf.Network.String()))
 	}
 
+	// TODO: create module command package.
+	// each module should have its own command package and main package will routing the command to the module command package.
+
 	// Initialize Bitcoin Indexer
 	if opts.Bitcoin.Enabled {
 		var db btcdatagateway.BitcoinDataGateway
