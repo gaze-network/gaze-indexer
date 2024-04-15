@@ -10,9 +10,7 @@ import (
 )
 
 // CommandHandlers holds common dependencies for command handlers
-type CommandHandlers struct {
-	// Share common dependencies here
-}
+type CommandHandlers struct{}
 
 // root command
 var cmd = &cobra.Command{
