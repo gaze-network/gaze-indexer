@@ -517,12 +517,11 @@ func (p *Processor) txCommitsToRune(ctx context.Context, tx *types.Transaction, 
 }
 
 func extractTapScript(witness [][]byte) (txscript.ScriptTokenizer, bool) {
-	var script []byte
-
 	witness = removeAnnexFromWitness(witness)
 	if len(witness) < 2 {
 		return txscript.ScriptTokenizer{}, false
 	}
+	script := witness[len(witness)-2]
 
 	return txscript.MakeScriptTokenizer(0, script), true
 }
