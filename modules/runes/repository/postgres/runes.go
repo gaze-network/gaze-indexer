@@ -14,6 +14,7 @@ import (
 	"github.com/gaze-network/indexer-network/modules/runes/internal/runes"
 	"github.com/gaze-network/indexer-network/modules/runes/repository/postgres/gen"
 	"github.com/gaze-network/uint128"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/samber/lo"
 )
@@ -23,6 +24,9 @@ var _ datagateway.RunesDataGateway = (*Repository)(nil)
 func (r *Repository) GetLatestIndexerState(ctx context.Context) (entity.IndexerState, error) {
 	indexerStateModel, err := r.queries.GetLatestIndexerState(ctx)
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return entity.IndexerState{}, errors.WithStack(errs.NotFound)
+		}
 		return entity.IndexerState{}, errors.Wrap(err, "error during query")
 	}
 	indexerState := mapIndexerStateModelToType(indexerStateModel)
@@ -34,6 +38,9 @@ func (r *Repository) GetLatestIndexerState(ctx context.Context) (entity.IndexerS
 func (r *Repository) GetLatestBlock(ctx context.Context) (types.BlockHeader, error) {
 	block, err := r.queries.GetLatestIndexedBlock(ctx)
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return types.BlockHeader{}, errors.WithStack(errs.NotFound)
+		}
 		return types.BlockHeader{}, errors.Wrap(err, "error during query")
 	}
 	hash, err := chainhash.NewHashFromStr(block.Hash)
