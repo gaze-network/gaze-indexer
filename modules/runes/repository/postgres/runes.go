@@ -219,7 +219,7 @@ func (r *Repository) GetBalancesByRuneId(ctx context.Context, runeId runes.RuneI
 	return result, nil
 }
 
-func (r *Repository) GetBalancesByPkScriptAndRuneId(ctx context.Context, pkScript []byte, runeId runes.RuneId, blockHeight uint64) (*entity.Balance, error) {
+func (r *Repository) GetBalanceByPkScriptAndRuneId(ctx context.Context, pkScript []byte, runeId runes.RuneId, blockHeight uint64) (*entity.Balance, error) {
 	balance, err := r.queries.GetBalanceByPkScriptAndRuneId(ctx, gen.GetBalanceByPkScriptAndRuneIdParams{
 		Pkscript:    hex.EncodeToString(pkScript),
 		RuneID:      runeId.String(),

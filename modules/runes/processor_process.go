@@ -360,8 +360,11 @@ func (p *Processor) getTxInputsPkScripts(ctx context.Context, tx *types.Transact
 func (p *Processor) updateNewBalances(ctx context.Context, tx *types.Transaction, txInputsPkScripts map[int][]byte, inputBalances map[int]map[runes.RuneId]uint128.Uint128, allocated map[int]map[runes.RuneId]uint128.Uint128) error {
 	// getCurrentBalance returns the current balance of the pkScript and runeId since last flush
 	getCurrentBalance := func(ctx context.Context, pkScript []byte, runeId runes.RuneId) (uint128.Uint128, error) {
-		balance, err := p.runesDg.GetBalancesByPkScriptAndRuneId(ctx, pkScript, runeId, uint64(tx.BlockHeight-1))
+		balance, err := p.runesDg.GetBalanceByPkScriptAndRuneId(ctx, pkScript, runeId, uint64(tx.BlockHeight-1))
 		if err != nil {
+			if errors.Is(err, errs.NotFound) {
+				return uint128.Zero, nil
+			}
 			return uint128.Uint128{}, errors.Wrap(err, "failed to get balance by pk script and rune id")
 		}
 		return balance.Amount, nil
