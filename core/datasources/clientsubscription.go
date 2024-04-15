@@ -33,13 +33,17 @@ type ClientSubscription[T any] struct {
 }
 
 func newClientSubscription[T any](channel chan<- T) *ClientSubscription[T] {
-	return &ClientSubscription[T]{
+	subscription := &ClientSubscription[T]{
 		channel:  channel,
 		in:       make(chan T, ClientSubscriptionBufferSize),
 		err:      make(chan error, ClientSubscriptionBufferSize),
 		quit:     make(chan struct{}),
 		quitDone: make(chan struct{}),
 	}
+	go func() {
+		subscription.run()
+	}()
+	return subscription
 }
 
 func (c *ClientSubscription[T]) Unsubscribe() {
