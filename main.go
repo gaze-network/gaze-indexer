@@ -19,7 +19,7 @@ import (
 )
 
 func main() {
-	conf := config.LoadConfig()
+	conf := config.Load()
 
 	// Initialize context
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
