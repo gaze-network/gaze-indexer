@@ -592,9 +592,7 @@ func (p *Processor) createRuneEntry(ctx context.Context, runestone *runes.Runest
 			EtchingTxHash:     tx.TxHash,
 		}
 	}
-	if err := p.runesDg.CreateRuneEntry(ctx, runeEntry, uint64(tx.BlockHeight)); err != nil {
-		return errors.Wrap(err, "failed to create rune entry")
-	}
+	p.newRuneEntries = append(p.newRuneEntries, runeEntry)
 	p.newRuneEntryStates[runeId] = runeEntry
 	logger.DebugContext(ctx, "[RunesProcessor] created RuneEntry", slogx.Any("runeEntry", runeEntry))
 	return nil
@@ -661,6 +659,10 @@ func (p *Processor) flushBlock(ctx context.Context, blockHeader types.BlockHeade
 		return errors.Wrap(err, "failed to create indexed block")
 	}
 
+	if err := p.flushNewRuneEntries(ctx, uint64(blockHeader.Height)); err != nil {
+		return errors.Wrap(err, "failed to flush new rune entries")
+	}
+
 	if err := p.flushNewRuneEntryStates(ctx, uint64(blockHeader.Height)); err != nil {
 		return errors.Wrap(err, "failed to flush new rune entry states")
 	}
@@ -681,6 +683,16 @@ func (p *Processor) flushBlock(ctx context.Context, blockHeader types.BlockHeade
 		return errors.Wrap(err, "failed to flush new rune transactions")
 	}
 	logger.InfoContext(ctx, "[RunesProcessor] block flushed")
+	return nil
+}
+
+func (p *Processor) flushNewRuneEntries(ctx context.Context, blockHeight uint64) error {
+	for _, runeEntry := range p.newRuneEntries {
+		if err := p.runesDg.CreateRuneEntry(ctx, runeEntry, blockHeight); err != nil {
+			return errors.Wrap(err, "failed to create rune entry")
+		}
+	}
+	p.newRuneEntries = make([]*runes.RuneEntry, 0)
 	return nil
 }
 

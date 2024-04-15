@@ -35,6 +35,7 @@ type Processor struct {
 	bitcoinDataSource indexers.BitcoinDatasource
 	network           common.Network
 
+	newRuneEntries      []*runes.RuneEntry
 	newRuneEntryStates  map[runes.RuneId]*runes.RuneEntry
 	newOutPointBalances map[wire.OutPoint]map[runes.RuneId]uint128.Uint128
 	newSpendOutPoints   []wire.OutPoint
@@ -48,6 +49,7 @@ func NewProcessor(runesDg datagateway.RunesDataGateway, bitcoinClient btcclient.
 		bitcoinClient:       bitcoinClient,
 		bitcoinDataSource:   bitcoinDataSource,
 		network:             network,
+		newRuneEntries:      make([]*runes.RuneEntry, 0),
 		newRuneEntryStates:  make(map[runes.RuneId]*runes.RuneEntry),
 		newOutPointBalances: make(map[wire.OutPoint]map[runes.RuneId]uint128.Uint128),
 		newSpendOutPoints:   make([]wire.OutPoint, 0),

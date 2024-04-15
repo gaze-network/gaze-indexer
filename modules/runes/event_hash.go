@@ -32,6 +32,16 @@ func (p *Processor) getHashPayload(header types.BlockHeader) ([]byte, error) {
 	sb.WriteString("blockHash:")
 	sb.Write(header.Hash[:])
 
+	// serialize new rune entries
+	{
+		runeEntries := p.newRuneEntries
+		slices.SortFunc(runeEntries, func(t1, t2 *runes.RuneEntry) int {
+			return int(t1.Number) - int(t2.Number)
+		})
+		for _, entry := range runeEntries {
+			sb.Write(serializeNewRunEntry(entry))
+		}
+	}
 	// serialize new rune entry states
 	{
 		runeIds := lo.Keys(p.newRuneEntryStates)
@@ -67,6 +77,45 @@ func (p *Processor) getHashPayload(header types.BlockHeader) ([]byte, error) {
 		sb.Write(bytes)
 	}
 	return []byte(sb.String()), nil
+}
+
+func serializeNewRunEntry(entry *runes.RuneEntry) []byte {
+	var sb strings.Builder
+	sb.WriteString("newRuneEntry:")
+	sb.WriteString("runeId:" + entry.RuneId.String())
+	sb.WriteString("number:" + strconv.Itoa(int(entry.Number)))
+	sb.WriteString("divisibility:" + strconv.Itoa(int(entry.Divisibility)))
+	sb.WriteString("premine:" + entry.Premine.String())
+	sb.WriteString("rune:" + entry.SpacedRune.Rune.String())
+	sb.WriteString("spacers:" + strconv.Itoa(int(entry.SpacedRune.Spacers)))
+	sb.WriteString("symbol:" + string(entry.Symbol))
+	if entry.Terms != nil {
+		sb.WriteString("terms:")
+		terms := entry.Terms
+		if terms.Amount != nil {
+			sb.WriteString("amount:" + terms.Amount.String())
+		}
+		if terms.Cap != nil {
+			sb.WriteString("cap:" + terms.Cap.String())
+		}
+		if terms.HeightStart != nil {
+			sb.WriteString("heightStart:" + strconv.Itoa(int(*terms.HeightStart)))
+		}
+		if terms.HeightEnd != nil {
+			sb.WriteString("heightEnd:" + strconv.Itoa(int(*terms.HeightEnd)))
+		}
+		if terms.OffsetStart != nil {
+			sb.WriteString("offsetStart:" + strconv.Itoa(int(*terms.OffsetStart)))
+		}
+		if terms.OffsetEnd != nil {
+			sb.WriteString("offsetEnd:" + strconv.Itoa(int(*terms.OffsetEnd)))
+		}
+	}
+	sb.WriteString("turbo:" + strconv.FormatBool(entry.Turbo))
+	sb.WriteString("etchingBlock:" + strconv.Itoa(int(entry.EtchingBlock)))
+	sb.WriteString("etchingTxHash:" + entry.EtchingTxHash.String())
+	sb.WriteString(";")
+	return []byte(sb.String())
 }
 
 func serializeNewRuneEntryState(entry *runes.RuneEntry) []byte {
