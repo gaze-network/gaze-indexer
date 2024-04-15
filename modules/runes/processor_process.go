@@ -721,18 +721,28 @@ func (p *Processor) createIndexedBlock(ctx context.Context, header types.BlockHe
 	if err != nil {
 		return errors.Wrap(err, "failed to calculate event hash")
 	}
-	indexedBlock, err := p.runesDg.GetIndexedBlockByHeight(ctx, header.Height)
+	prevIndexedBlock, err := p.runesDg.GetIndexedBlockByHeight(ctx, header.Height-1)
+	if err != nil && errors.Is(err, errs.NotFound) && header.Height-1 == startingBlockHeader[p.network].Height {
+		prevIndexedBlock = &entity.IndexedBlock{
+			Height:              startingBlockHeader[p.network].Height,
+			Hash:                startingBlockHeader[p.network].Hash,
+			EventHash:           chainhash.Hash{},
+			CumulativeEventHash: chainhash.Hash{},
+		}
+		err = nil
+	}
 	if err != nil {
 		if errors.Is(err, errs.NotFound) {
 			return errors.Errorf("indexed block not found for height %d. Indexed block must be created for every Bitcoin block", header.Height)
 		}
 		return errors.Wrap(err, "failed to get indexed block by height")
 	}
-	cumulativeEventHash := chainhash.DoubleHashH(append(indexedBlock.CumulativeEventHash[:], eventHash[:]...))
+	cumulativeEventHash := chainhash.DoubleHashH(append(prevIndexedBlock.CumulativeEventHash[:], eventHash[:]...))
 
 	if err := p.runesDg.CreateIndexedBlock(ctx, &entity.IndexedBlock{
 		Height:              header.Height,
 		Hash:                header.Hash,
+		PrevHash:            header.PrevBlock,
 		EventHash:           eventHash,
 		CumulativeEventHash: cumulativeEventHash,
 	}); err != nil {

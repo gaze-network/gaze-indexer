@@ -592,6 +592,10 @@ func mapIndexedBlockModelToType(src gen.RunesIndexedBlock) (*entity.IndexedBlock
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to parse block hash")
 	}
+	prevBlockHash, err := chainhash.NewHashFromStr(src.PrevHash)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse prev block hash")
+	}
 	eventHash, err := chainhash.NewHashFromStr(src.EventHash)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to parse event hash")
@@ -603,6 +607,7 @@ func mapIndexedBlockModelToType(src gen.RunesIndexedBlock) (*entity.IndexedBlock
 	return &entity.IndexedBlock{
 		Height:              int64(src.Height),
 		Hash:                *hash,
+		PrevHash:            *prevBlockHash,
 		EventHash:           *eventHash,
 		CumulativeEventHash: *cumulativeEventHash,
 	}, nil
@@ -612,6 +617,7 @@ func mapIndexedBlockTypeToParams(src entity.IndexedBlock) (gen.CreateIndexedBloc
 	return gen.CreateIndexedBlockParams{
 		Height:              int32(src.Height),
 		Hash:                src.Hash.String(),
+		PrevHash:            src.PrevHash.String(),
 		EventHash:           src.EventHash.String(),
 		CumulativeEventHash: src.CumulativeEventHash.String(),
 	}, nil
