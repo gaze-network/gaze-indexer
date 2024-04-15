@@ -3,8 +3,8 @@ package runes
 import (
 	"fmt"
 	"log"
-	"math"
 	"slices"
+	"unicode/utf8"
 
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/cockroachdb/errors"
@@ -191,7 +191,7 @@ func DecipherRunestone(tx *types.Transaction) (*Runestone, error) {
 			spacersU128 = nil
 		}
 		symbolU128 := fields.Take(TagSymbol)
-		if symbolU128 != nil && symbolU128.Cmp64(math.MaxInt32) > 0 {
+		if symbolU128 != nil && symbolU128.Cmp64(utf8.MaxRune) > 0 {
 			symbolU128 = nil
 		}
 

@@ -3,6 +3,7 @@ package runes
 import (
 	"math"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/Cleverse/go-utilities/utils"
 	"github.com/btcsuite/btcd/txscript"
@@ -678,6 +679,63 @@ func TestDecipherRunestone(t *testing.T) {
 				},
 				Etching: &Etching{
 					Rune: lo.ToPtr(NewRune(4)),
+				},
+			},
+		)
+	})
+	t.Run("symbol_above_max_is_ignored", func(t *testing.T) {
+		testDecipherInteger(
+			t,
+			[]uint128.Uint128{
+				TagFlags.Uint128(),
+				FlagEtching.Mask().Uint128(),
+				TagSymbol.Uint128(),
+				uint128.From64(utf8.MaxRune + 1),
+				TagBody.Uint128(),
+				uint128.From64(1),
+				uint128.From64(1),
+				uint128.From64(2),
+				uint128.From64(0),
+			},
+			&Runestone{
+				Edicts: []Edict{
+					{
+						Id:     RuneId{1, 1},
+						Amount: uint128.From64(2),
+						Output: 0,
+					},
+				},
+				Etching: &Etching{},
+			},
+		)
+	})
+	t.Run("decipher_etching_with_symbol", func(t *testing.T) {
+		testDecipherInteger(
+			t,
+			[]uint128.Uint128{
+				TagFlags.Uint128(),
+				FlagEtching.Mask().Uint128(),
+				TagRune.Uint128(),
+				uint128.From64(4),
+				TagSymbol.Uint128(),
+				uint128.From64('a'),
+				TagBody.Uint128(),
+				uint128.From64(1),
+				uint128.From64(1),
+				uint128.From64(2),
+				uint128.From64(0),
+			},
+			&Runestone{
+				Edicts: []Edict{
+					{
+						Id:     RuneId{1, 1},
+						Amount: uint128.From64(2),
+						Output: 0,
+					},
+				},
+				Etching: &Etching{
+					Rune:   lo.ToPtr(NewRune(4)),
+					Symbol: lo.ToPtr('a'),
 				},
 			},
 		)
