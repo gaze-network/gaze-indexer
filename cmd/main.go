@@ -73,6 +73,8 @@ func main() {
 			if err := bitcoinIndexer.Run(ctx); err != nil {
 				logger.ErrorContext(ctx, "Failed to run Bitcoin Indexer", slogx.Error(err))
 			}
+			// stop main if indexer failed
+			stop()
 		}()
 	}
 
@@ -99,6 +101,8 @@ func main() {
 			if err := runesIndexer.Run(ctx); err != nil {
 				logger.ErrorContext(ctx, "Failed to run Runes Indexer", slogx.Error(err))
 			}
+			// stop main if indexer failed
+			stop()
 		}()
 	}
 
