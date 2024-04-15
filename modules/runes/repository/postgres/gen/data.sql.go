@@ -35,8 +35,8 @@ func (q *Queries) CreateIndexedBlock(ctx context.Context, arg CreateIndexedBlock
 }
 
 const createRuneEntry = `-- name: CreateRuneEntry :exec
-INSERT INTO runes_entries (rune_id, rune, spacers, premine, symbol, divisibility, terms, terms_amount, terms_cap, terms_height_start, terms_height_end, terms_offset_start, terms_offset_end, turbo, etching_block)
-  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+INSERT INTO runes_entries (rune_id, rune, spacers, premine, symbol, divisibility, terms, terms_amount, terms_cap, terms_height_start, terms_height_end, terms_offset_start, terms_offset_end, turbo, etching_block, etching_tx_hash)
+  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
 `
 
 type CreateRuneEntryParams struct {
@@ -55,6 +55,7 @@ type CreateRuneEntryParams struct {
 	TermsOffsetEnd   pgtype.Int4
 	Turbo            bool
 	EtchingBlock     int32
+	EtchingTxHash    string
 }
 
 func (q *Queries) CreateRuneEntry(ctx context.Context, arg CreateRuneEntryParams) error {
@@ -74,6 +75,7 @@ func (q *Queries) CreateRuneEntry(ctx context.Context, arg CreateRuneEntryParams
 		arg.TermsOffsetEnd,
 		arg.Turbo,
 		arg.EtchingBlock,
+		arg.EtchingTxHash,
 	)
 	return err
 }
@@ -416,7 +418,7 @@ WITH states AS (
   -- select latest state
   SELECT DISTINCT ON (rune_id) rune_id, block_height, mints, burned_amount, completed_at, completed_at_height FROM runes_entry_states WHERE rune_id = ANY($1::text[]) ORDER BY rune_id, block_height DESC
 )
-SELECT runes_entries.rune_id, rune, spacers, premine, symbol, divisibility, terms, terms_amount, terms_cap, terms_height_start, terms_height_end, terms_offset_start, terms_offset_end, turbo, etching_block, states.rune_id, block_height, mints, burned_amount, completed_at, completed_at_height FROM runes_entries
+SELECT runes_entries.rune_id, rune, spacers, premine, symbol, divisibility, terms, terms_amount, terms_cap, terms_height_start, terms_height_end, terms_offset_start, terms_offset_end, turbo, etching_block, etching_tx_hash, states.rune_id, block_height, mints, burned_amount, completed_at, completed_at_height FROM runes_entries
   LEFT JOIN states ON runes_entries.rune_id = states.rune_id
   WHERE rune_id = ANY($1::text[])
 `
@@ -437,6 +439,7 @@ type GetRuneEntriesByRuneIdsRow struct {
 	TermsOffsetEnd    pgtype.Int4
 	Turbo             bool
 	EtchingBlock      int32
+	EtchingTxHash     string
 	RuneID_2          pgtype.Text
 	BlockHeight       pgtype.Int4
 	Mints             pgtype.Numeric
@@ -470,6 +473,7 @@ func (q *Queries) GetRuneEntriesByRuneIds(ctx context.Context, runeIds []string)
 			&i.TermsOffsetEnd,
 			&i.Turbo,
 			&i.EtchingBlock,
+			&i.EtchingTxHash,
 			&i.RuneID_2,
 			&i.BlockHeight,
 			&i.Mints,

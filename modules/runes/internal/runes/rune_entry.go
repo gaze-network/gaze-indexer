@@ -4,6 +4,7 @@ import (
 	"math"
 	"time"
 
+	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/uint128"
 )
@@ -25,6 +26,8 @@ type RuneEntry struct {
 	CompletedAt time.Time
 	// CompletedAtHeight is the block height when the rune was fully minted.
 	CompletedAtHeight *uint64
+	EtchingBlock      uint64
+	EtchingTxHash     chainhash.Hash
 }
 
 var (

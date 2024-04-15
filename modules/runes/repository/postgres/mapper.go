@@ -125,6 +125,10 @@ func mapRuneEntryModelToType(src gen.GetRuneEntriesByRuneIdsRow) (runes.RuneEntr
 			terms.OffsetEnd = &offsetEnd
 		}
 	}
+	etchingTxHash, err := chainhash.NewHashFromStr(src.EtchingTxHash)
+	if err != nil {
+		return runes.RuneEntry{}, errors.Wrap(err, "failed to parse etching tx hash")
+	}
 	return runes.RuneEntry{
 		RuneId:            runeId,
 		Divisibility:      uint8(src.Divisibility),
@@ -137,6 +141,8 @@ func mapRuneEntryModelToType(src gen.GetRuneEntriesByRuneIdsRow) (runes.RuneEntr
 		BurnedAmount:      lo.FromPtr(burnedAmount),
 		CompletedAt:       completedAt,
 		CompletedAtHeight: completedAtHeight,
+		EtchingBlock:      uint64(src.EtchingBlock),
+		EtchingTxHash:     *etchingTxHash,
 	}, nil
 }
 
@@ -224,7 +230,8 @@ func mapRuneEntryTypeToParams(src runes.RuneEntry, blockHeight uint64) (gen.Crea
 			TermsOffsetStart: termsOffsetStart,
 			TermsOffsetEnd:   termsOffsetEnd,
 			Turbo:            src.Turbo,
-			EtchingBlock:     int32(blockHeight),
+			EtchingBlock:     int32(src.EtchingBlock),
+			EtchingTxHash:    src.EtchingTxHash.String(),
 		}, gen.CreateRuneEntryStateParams{
 			BlockHeight:       int32(blockHeight),
 			RuneID:            runeId,

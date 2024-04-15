@@ -31,6 +31,7 @@ type RunesEntry struct {
 	TermsOffsetEnd   pgtype.Int4
 	Turbo            bool
 	EtchingBlock     int32
+	EtchingTxHash    string
 }
 
 type RunesEntryState struct {

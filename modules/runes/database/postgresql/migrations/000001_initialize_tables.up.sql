@@ -42,7 +42,8 @@ CREATE TABLE IF NOT EXISTS "runes_entries" (
 	"terms_offset_start" INT,
 	"terms_offset_end" INT,
 	"turbo" BOOLEAN NOT NULL,
-	"etching_block" INT NOT NULL
+	"etching_block" INT NOT NULL,
+	"etching_tx_hash" TEXT NOT NULL
 );
 CREATE UNIQUE INDEX IF NOT EXISTS runes_entries_rune_idx ON "runes_entries" USING BTREE ("rune");
 
