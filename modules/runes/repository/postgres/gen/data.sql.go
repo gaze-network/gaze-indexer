@@ -342,15 +342,15 @@ func (q *Queries) GetBalancesByRuneId(ctx context.Context, arg GetBalancesByRune
 }
 
 const getIndexedBlockByHeight = `-- name: GetIndexedBlockByHeight :one
-SELECT hash, height, prev_hash, event_hash, cumulative_event_hash FROM runes_indexed_blocks WHERE height = $1
+SELECT height, hash, prev_hash, event_hash, cumulative_event_hash FROM runes_indexed_blocks WHERE height = $1
 `
 
 func (q *Queries) GetIndexedBlockByHeight(ctx context.Context, height int32) (RunesIndexedBlock, error) {
 	row := q.db.QueryRow(ctx, getIndexedBlockByHeight, height)
 	var i RunesIndexedBlock
 	err := row.Scan(
-		&i.Hash,
 		&i.Height,
+		&i.Hash,
 		&i.PrevHash,
 		&i.EventHash,
 		&i.CumulativeEventHash,
@@ -359,15 +359,15 @@ func (q *Queries) GetIndexedBlockByHeight(ctx context.Context, height int32) (Ru
 }
 
 const getLatestIndexedBlock = `-- name: GetLatestIndexedBlock :one
-SELECT hash, height, prev_hash, event_hash, cumulative_event_hash FROM runes_indexed_blocks ORDER BY height DESC LIMIT 1
+SELECT height, hash, prev_hash, event_hash, cumulative_event_hash FROM runes_indexed_blocks ORDER BY height DESC LIMIT 1
 `
 
 func (q *Queries) GetLatestIndexedBlock(ctx context.Context) (RunesIndexedBlock, error) {
 	row := q.db.QueryRow(ctx, getLatestIndexedBlock)
 	var i RunesIndexedBlock
 	err := row.Scan(
-		&i.Hash,
 		&i.Height,
+		&i.Hash,
 		&i.PrevHash,
 		&i.EventHash,
 		&i.CumulativeEventHash,

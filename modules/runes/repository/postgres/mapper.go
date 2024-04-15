@@ -507,7 +507,7 @@ func mapRunestoneModelToType(src gen.RunesRunestone) (runes.Runestone, error) {
 			var symbol rune = src.EtchingSymbol.Int32
 			etching.Symbol = &symbol
 		}
-		if src.EtchingTerms.Valid && src.EtchingTerms.Valid {
+		if src.EtchingTerms.Valid && src.EtchingTerms.Bool {
 			terms := runes.Terms{}
 			if src.EtchingTermsAmount.Valid {
 				amount, err := uint128FromNumeric(src.EtchingTermsAmount)

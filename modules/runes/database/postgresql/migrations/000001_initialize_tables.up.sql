@@ -20,13 +20,12 @@ CREATE INDEX IF NOT EXISTS runes_indexer_state_created_at_idx ON "runes_indexer_
 -- Runes data
 
 CREATE TABLE IF NOT EXISTS "runes_indexed_blocks" (
-	"hash" TEXT NOT NULL PRIMARY KEY,
-	"height" INT NOT NULL,
+	"height" INT NOT NULL PRIMARY KEY,
+	"hash" TEXT NOT NULL,
 	"prev_hash" TEXT NOT NULL,
 	"event_hash" TEXT NOT NULL,
 	"cumulative_event_hash" TEXT NOT NULL
 );
-CREATE UNIQUE INDEX IF NOT EXISTS runes_indexed_blocks_height_idx ON "runes_indexed_blocks" USING BTREE ("height" DESC);
 
 CREATE TABLE IF NOT EXISTS "runes_entries" (
 	"rune_id" TEXT NOT NULL PRIMARY KEY,

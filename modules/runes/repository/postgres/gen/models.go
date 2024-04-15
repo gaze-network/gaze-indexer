@@ -43,8 +43,8 @@ type RunesEntryState struct {
 }
 
 type RunesIndexedBlock struct {
-	Hash                string
 	Height              int32
+	Hash                string
 	PrevHash            string
 	EventHash           string
 	CumulativeEventHash string
