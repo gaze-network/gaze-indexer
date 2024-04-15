@@ -332,7 +332,7 @@ func (p *Processor) getInputBalances(ctx context.Context, txInputs []*types.TxIn
 		}]
 		if !ok {
 			var err error
-			balances, err = p.runesDg.GetRunesBalancesAtOutPoint(ctx, wire.OutPoint{
+			balances, err = p.getRunesBalancesAtOutPoint(ctx, wire.OutPoint{
 				Hash:  txIn.PreviousOutTxHash,
 				Index: txIn.PreviousOutIndex,
 			})
@@ -364,8 +364,8 @@ func (p *Processor) getTxInputsPkScripts(ctx context.Context, tx *types.Transact
 }
 
 func (p *Processor) updateNewBalances(ctx context.Context, tx *types.Transaction, txInputsPkScripts map[int][]byte, inputBalances map[int]map[runes.RuneId]uint128.Uint128, allocated map[int]map[runes.RuneId]uint128.Uint128) error {
-	// getCurrentBalance returns the current balance of the pkScript and runeId since last flush
-	getCurrentBalance := func(ctx context.Context, pkScript []byte, runeId runes.RuneId) (uint128.Uint128, error) {
+	// getBalanceFromDg returns the current balance of the pkScript and runeId since last flush
+	getBalanceFromDg := func(ctx context.Context, pkScript []byte, runeId runes.RuneId) (uint128.Uint128, error) {
 		balance, err := p.runesDg.GetBalanceByPkScriptAndRuneId(ctx, pkScript, runeId, uint64(tx.BlockHeight-1))
 		if err != nil {
 			if errors.Is(err, errs.NotFound) {
@@ -385,7 +385,7 @@ func (p *Processor) updateNewBalances(ctx context.Context, tx *types.Transaction
 				p.newBalances[pkScriptStr] = make(map[runes.RuneId]uint128.Uint128)
 			}
 			if _, ok := p.newBalances[pkScriptStr][runeId]; !ok {
-				balance, err := getCurrentBalance(ctx, pkScript, runeId)
+				balance, err := getBalanceFromDg(ctx, pkScript, runeId)
 				if err != nil {
 					return errors.WithStack(err)
 				}
@@ -408,7 +408,7 @@ func (p *Processor) updateNewBalances(ctx context.Context, tx *types.Transaction
 				p.newBalances[pkScriptStr] = make(map[runes.RuneId]uint128.Uint128)
 			}
 			if _, ok := p.newBalances[pkScriptStr][runeId]; !ok {
-				balance, err := getCurrentBalance(ctx, pkScript, runeId)
+				balance, err := getBalanceFromDg(ctx, pkScript, runeId)
 				if err != nil {
 					return errors.WithStack(err)
 				}
@@ -422,7 +422,7 @@ func (p *Processor) updateNewBalances(ctx context.Context, tx *types.Transaction
 }
 
 func (p *Processor) mint(ctx context.Context, runeId runes.RuneId, blockHeader types.BlockHeader) (uint128.Uint128, error) {
-	runeEntry, err := p.runesDg.GetRuneEntryByRuneId(ctx, runeId)
+	runeEntry, err := p.getRuneEntryByRuneId(ctx, runeId)
 	if err != nil {
 		if errors.Is(err, errs.NotFound) {
 			return uint128.Zero, nil
@@ -458,12 +458,11 @@ func (p *Processor) getEtchedRune(ctx context.Context, tx *types.Transaction, ru
 			return nil, runes.RuneId{}, runes.Rune{}, nil
 		}
 
-		_, err := p.runesDg.GetRuneIdFromRune(ctx, *rune)
-		if err != nil && !errors.Is(err, errs.NotFound) {
-			return nil, runes.RuneId{}, runes.Rune{}, errors.Wrap(err, "error during get rune entry by rune")
+		ok, err := p.isRuneExists(ctx, *rune)
+		if err != nil {
+			return nil, runes.RuneId{}, runes.Rune{}, errors.Wrap(err, "error during check rune existence")
 		}
-		// if found, then this is duplicate
-		if err == nil {
+		if ok {
 			logger.DebugContext(ctx, "invalid etching: rune already exists", slogx.Any("rune", rune))
 			return nil, runes.RuneId{}, runes.Rune{}, nil
 		}
@@ -592,20 +591,15 @@ func (p *Processor) createRuneEntry(ctx context.Context, runestone *runes.Runest
 			EtchingTxHash:     tx.TxHash,
 		}
 	}
-	p.newRuneEntries = append(p.newRuneEntries, runeEntry)
+	p.newRuneEntries[runeId] = runeEntry
 	p.newRuneEntryStates[runeId] = runeEntry
 	logger.DebugContext(ctx, "[RunesProcessor] created RuneEntry", slogx.Any("runeEntry", runeEntry))
 	return nil
 }
 
 func (p *Processor) incrementMintCount(ctx context.Context, runeId runes.RuneId, blockHeader types.BlockHeader) (err error) {
-	runeEntry, ok := p.newRuneEntryStates[runeId]
-	if !ok {
-		runeEntry, err = p.runesDg.GetRuneEntryByRuneId(ctx, runeId)
-		if err != nil {
-			return errors.Wrap(err, "failed to get rune entry by rune id")
-		}
-	}
+	runeEntry, err := p.getRuneEntryByRuneId(ctx, runeId)
+
 	runeEntry.Mints = runeEntry.Mints.Add64(1)
 	if runeEntry.Mints == lo.FromPtr(runeEntry.Terms.Cap) {
 		runeEntry.CompletedAt = blockHeader.Timestamp
@@ -627,16 +621,15 @@ func (p *Processor) incrementBurnedAmount(ctx context.Context, burned map[runes.
 		}
 	}
 	if len(runeIdsToFetch) > 0 {
-		entries, err := p.runesDg.GetRuneEntryByRuneIdBatch(ctx, runeIdsToFetch)
-		if err != nil {
-			return errors.Wrap(err, "failed to get rune entry by rune id batch")
-		}
-		if len(entries) != len(runeIdsToFetch) {
-			// there are missing entries, db may be corrupted
-			return errors.Errorf("missing rune entries: expected %d, got %d", len(runeIdsToFetch), len(entries))
-		}
-		for runeId, entry := range entries {
-			runeEntries[runeId] = entry
+		for _, runeId := range runeIdsToFetch {
+			runeEntry, err := p.getRuneEntryByRuneId(ctx, runeId)
+			if err != nil {
+				if errors.Is(err, errs.NotFound) {
+					return errors.Wrap(err, "rune entry not found")
+				}
+				return errors.Wrap(err, "failed to get rune entry by rune id")
+			}
+			runeEntries[runeId] = runeEntry
 		}
 	}
 
@@ -651,6 +644,49 @@ func (p *Processor) incrementBurnedAmount(ctx context.Context, burned map[runes.
 		p.newRuneEntryStates[runeId] = runeEntry
 	}
 	return nil
+}
+
+func (p *Processor) getRuneEntryByRuneId(ctx context.Context, runeId runes.RuneId) (*runes.RuneEntry, error) {
+	runeEntry, ok := p.newRuneEntryStates[runeId]
+	if ok {
+		return runeEntry, nil
+	}
+	// not checking from p.newRuneEntries since new rune entries add to p.newRuneEntryStates as well
+
+	runeEntry, err := p.runesDg.GetRuneEntryByRuneId(ctx, runeId)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get rune entry by rune id")
+	}
+	return runeEntry, nil
+}
+
+func (p *Processor) isRuneExists(ctx context.Context, rune runes.Rune) (bool, error) {
+	for _, runeEntry := range p.newRuneEntries {
+		if runeEntry.SpacedRune.Rune == rune {
+			return true, nil
+		}
+	}
+
+	_, err := p.runesDg.GetRuneIdFromRune(ctx, rune)
+	if err != nil {
+		if errors.Is(err, errs.NotFound) {
+			return false, nil
+		}
+		return false, errors.Wrap(err, "failed to get rune id from rune")
+	}
+	return true, nil
+}
+
+func (p *Processor) getRunesBalancesAtOutPoint(ctx context.Context, outPoint wire.OutPoint) (map[runes.RuneId]uint128.Uint128, error) {
+	balances, ok := p.newOutPointBalances[outPoint]
+	if ok {
+		return balances, nil
+	}
+	balances, err := p.runesDg.GetRunesBalancesAtOutPoint(ctx, outPoint)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get runes balances at outpoint")
+	}
+	return balances, nil
 }
 
 func (p *Processor) flushBlock(ctx context.Context, blockHeader types.BlockHeader) error {
@@ -692,7 +728,7 @@ func (p *Processor) flushNewRuneEntries(ctx context.Context, blockHeight uint64)
 			return errors.Wrap(err, "failed to create rune entry")
 		}
 	}
-	p.newRuneEntries = make([]*runes.RuneEntry, 0)
+	p.newRuneEntries = make(map[runes.RuneId]*runes.RuneEntry)
 	return nil
 }
 

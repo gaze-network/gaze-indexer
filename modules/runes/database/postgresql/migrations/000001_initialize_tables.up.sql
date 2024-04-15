@@ -47,6 +47,7 @@ CREATE TABLE IF NOT EXISTS "runes_entries" (
 	"etching_tx_hash" TEXT NOT NULL
 );
 CREATE UNIQUE INDEX IF NOT EXISTS runes_entries_rune_idx ON "runes_entries" USING BTREE ("rune");
+CREATE UNIQUE INDEX IF NOT EXISTS runes_entries_number_idx ON "runes_entries" USING BTREE ("number");
 
 CREATE TABLE IF NOT EXISTS "runes_entry_states" (
 	"rune_id" TEXT NOT NULL,

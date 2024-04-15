@@ -34,7 +34,7 @@ func (p *Processor) getHashPayload(header types.BlockHeader) ([]byte, error) {
 
 	// serialize new rune entries
 	{
-		runeEntries := p.newRuneEntries
+		runeEntries := lo.Values(p.newRuneEntries)
 		slices.SortFunc(runeEntries, func(t1, t2 *runes.RuneEntry) int {
 			return int(t1.Number) - int(t2.Number)
 		})
