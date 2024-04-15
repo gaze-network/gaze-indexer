@@ -179,6 +179,66 @@ func (r *Repository) GetRuneEntryByRuneIdBatch(ctx context.Context, runeIds []ru
 	return runeEntries, nil
 }
 
+func (r *Repository) GetBalancesByPkScript(ctx context.Context, pkScript []byte, blockHeight uint64) (map[runes.RuneId]*entity.Balance, error) {
+	balances, err := r.queries.GetBalancesByPkScript(ctx, gen.GetBalancesByPkScriptParams{
+		Pkscript:    hex.EncodeToString(pkScript),
+		BlockHeight: int32(blockHeight),
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "error during query")
+	}
+
+	result := make(map[runes.RuneId]*entity.Balance, len(balances))
+	for _, balanceModel := range balances {
+		balance, err := mapBalanceModelToType(balanceModel)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to parse balance model")
+		}
+		result[balance.RuneId] = balance
+	}
+	return result, nil
+}
+
+func (r *Repository) GetBalancesByRuneId(ctx context.Context, runeId runes.RuneId, blockHeight uint64) ([]*entity.Balance, error) {
+	balances, err := r.queries.GetBalancesByRuneId(ctx, gen.GetBalancesByRuneIdParams{
+		RuneID:      runeId.String(),
+		BlockHeight: int32(blockHeight),
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "error during query")
+	}
+
+	result := make([]*entity.Balance, 0, len(balances))
+	for _, balanceModel := range balances {
+		balance, err := mapBalanceModelToType(balanceModel)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to parse balance model")
+		}
+		result = append(result, balance)
+	}
+	return result, nil
+}
+
+func (r *Repository) GetBalancesByPkScriptAndRuneId(ctx context.Context, pkScript []byte, runeId runes.RuneId, blockHeight uint64) (*entity.Balance, error) {
+	balance, err := r.queries.GetBalanceByPkScriptAndRuneId(ctx, gen.GetBalanceByPkScriptAndRuneIdParams{
+		Pkscript:    hex.EncodeToString(pkScript),
+		RuneID:      runeId.String(),
+		BlockHeight: int32(blockHeight),
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, errors.WithStack(errs.NotFound)
+		}
+		return nil, errors.Wrap(err, "error during query")
+	}
+
+	result, err := mapBalanceModelToType(balance)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse balance model")
+	}
+	return result, nil
+}
+
 func (r *Repository) SetIndexerState(ctx context.Context, state entity.IndexerState) error {
 	params := mapIndexerStateTypeToParams(state)
 	if err := r.queries.SetIndexerState(ctx, params); err != nil {
@@ -304,63 +364,6 @@ func (r *Repository) CreateRuneBalances(ctx context.Context, params []datagatewa
 		return errors.Wrap(errors.Join(execErrors...), "error during exec")
 	}
 	return nil
-}
-
-func (r *Repository) GetBalancesByPkScript(ctx context.Context, pkScript []byte, blockHeight uint64) (map[runes.RuneId]*entity.Balance, error) {
-	balances, err := r.queries.GetBalancesByPkScript(ctx, gen.GetBalancesByPkScriptParams{
-		Pkscript:    hex.EncodeToString(pkScript),
-		BlockHeight: int32(blockHeight),
-	})
-	if err != nil {
-		return nil, errors.Wrap(err, "error during query")
-	}
-
-	result := make(map[runes.RuneId]*entity.Balance, len(balances))
-	for _, balanceModel := range balances {
-		balance, err := mapBalanceModelToType(balanceModel)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to parse balance model")
-		}
-		result[balance.RuneId] = balance
-	}
-	return result, nil
-}
-
-func (r *Repository) GetBalancesByRuneId(ctx context.Context, runeId runes.RuneId, blockHeight uint64) ([]*entity.Balance, error) {
-	balances, err := r.queries.GetBalancesByRuneId(ctx, gen.GetBalancesByRuneIdParams{
-		RuneID:      runeId.String(),
-		BlockHeight: int32(blockHeight),
-	})
-	if err != nil {
-		return nil, errors.Wrap(err, "error during query")
-	}
-
-	result := make([]*entity.Balance, 0, len(balances))
-	for _, balanceModel := range balances {
-		balance, err := mapBalanceModelToType(balanceModel)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to parse balance model")
-		}
-		result = append(result, balance)
-	}
-	return result, nil
-}
-
-func (r *Repository) GetBalancesByPkScriptAndRuneId(ctx context.Context, pkScript []byte, runeId runes.RuneId, blockHeight uint64) (*entity.Balance, error) {
-	balance, err := r.queries.GetBalanceByPkScriptAndRuneId(ctx, gen.GetBalanceByPkScriptAndRuneIdParams{
-		Pkscript:    hex.EncodeToString(pkScript),
-		RuneID:      runeId.String(),
-		BlockHeight: int32(blockHeight),
-	})
-	if err != nil {
-		return nil, errors.Wrap(err, "error during query")
-	}
-
-	result, err := mapBalanceModelToType(balance)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to parse balance model")
-	}
-	return result, nil
 }
 
 func (r *Repository) CreateIndexedBlock(ctx context.Context, block *entity.IndexedBlock) error {
