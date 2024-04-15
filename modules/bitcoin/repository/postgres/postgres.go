@@ -2,7 +2,7 @@ package postgres
 
 import (
 	"github.com/gaze-network/indexer-network/internal/postgres"
-	"github.com/gaze-network/indexer-network/modules/bitcoin/internal/datagateway"
+	"github.com/gaze-network/indexer-network/modules/bitcoin/datagateway"
 	"github.com/gaze-network/indexer-network/modules/bitcoin/repository/postgres/gen"
 )
 

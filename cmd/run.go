@@ -3,6 +3,7 @@ package cmd
 import (
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/btcsuite/btcd/rpcclient"
@@ -11,6 +12,7 @@ import (
 	"github.com/gaze-network/indexer-network/internal/config"
 	"github.com/gaze-network/indexer-network/internal/postgres"
 	"github.com/gaze-network/indexer-network/modules/bitcoin"
+	btcdatagateway "github.com/gaze-network/indexer-network/modules/bitcoin/datagateway"
 	btcpostgres "github.com/gaze-network/indexer-network/modules/bitcoin/repository/postgres"
 	"github.com/gaze-network/indexer-network/pkg/logger"
 	"github.com/gaze-network/indexer-network/pkg/logger/slogx"
@@ -88,13 +90,19 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) {
 
 	// Initialize Bitcoin Indexer
 	if opts.Bitcoin.Enabled {
-		pg, err := postgres.NewPool(ctx, conf.Modules["bitcoin"].Postgres)
-		if err != nil {
-			logger.PanicContext(ctx, "Failed to create Postgres connection pool", slogx.Error(err))
+		var db btcdatagateway.BitcoinDataGateway
+		switch strings.ToLower(opts.Bitcoin.Database) {
+		case "postgres", "pg":
+			pg, err := postgres.NewPool(ctx, conf.Modules["bitcoin"].Postgres)
+			if err != nil {
+				logger.PanicContext(ctx, "Failed to create Postgres connection pool", slogx.Error(err))
+			}
+			defer pg.Close()
+			db = btcpostgres.NewRepository(pg)
+		default:
+			logger.PanicContext(ctx, "Unsupported database", slogx.String("database", opts.Bitcoin.Database))
 		}
-		defer pg.Close()
-		bitcoinRepository := btcpostgres.NewRepository(pg)
-		bitcoinProcessor := bitcoin.NewProcessor(bitcoinRepository)
+		bitcoinProcessor := bitcoin.NewProcessor(db)
 		bitcoinNodeDatasource := datasources.NewBitcoinNode(client)
 		bitcoinIndexer := indexers.NewBitcoinIndexer(bitcoinProcessor, bitcoinNodeDatasource)
 
