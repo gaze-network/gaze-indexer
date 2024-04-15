@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
+	"log/slog"
 	"time"
 
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
@@ -16,6 +17,7 @@ import (
 	"github.com/gaze-network/indexer-network/modules/runes/internal/entity"
 	"github.com/gaze-network/indexer-network/modules/runes/internal/runes"
 	"github.com/gaze-network/indexer-network/pkg/logger"
+	"github.com/gaze-network/indexer-network/pkg/logger/slogx"
 	"github.com/gaze-network/uint128"
 	"github.com/samber/lo"
 )
@@ -32,6 +34,7 @@ func (p *Processor) Process(ctx context.Context, blocks []*types.Block) error {
 	}()
 
 	for _, block := range blocks {
+		logger.DebugContext(ctx, "[RunesProcessor] Processing block", slog.Int("height", int(block.Header.Height)), slog.Int("txs", len(block.Transactions)))
 		for _, tx := range block.Transactions {
 			if err := p.processTx(ctx, tx, block.Header); err != nil {
 				return errors.Wrap(err, "failed to process tx")
@@ -76,6 +79,12 @@ func (p *Processor) processTx(ctx context.Context, tx *types.Transaction, blockH
 				Hash:  tx.TxIn[inputIndex].PreviousOutTxHash,
 				Index: tx.TxIn[inputIndex].PreviousOutIndex,
 			})
+			logger.DebugContext(ctx, "[RunesProcessor] Found runes in tx input",
+				slogx.Any("runeId", runeId),
+				slogx.Stringer("amount", amount),
+				slogx.Stringer("txHash", tx.TxHash),
+				slog.Int("blockHeight", int(tx.BlockHeight)),
+			)
 		}
 	}
 
@@ -95,6 +104,13 @@ func (p *Processor) processTx(ctx context.Context, tx *types.Transaction, blockH
 		}
 		allocated[output][runeId] = allocated[output][runeId].Add(amount)
 		unallocated[runeId] = unallocated[runeId].Sub(amount)
+		logger.DebugContext(ctx, "[RunesProcessor] Allocated runes to tx output",
+			slogx.Any("runeId", runeId),
+			slogx.Stringer("amount", amount),
+			slog.Int("output", output),
+			slogx.Stringer("txHash", tx.TxHash),
+			slog.Int("blockHeight", int(tx.BlockHeight)),
+		)
 	}
 
 	mints := make(map[runes.RuneId]uint128.Uint128)
@@ -121,6 +137,7 @@ func (p *Processor) processTx(ctx context.Context, tx *types.Transaction, blockH
 				if !premine.IsZero() {
 					unallocated[etchedRuneId] = unallocated[etchedRuneId].Add(premine)
 					mints[etchedRuneId] = mints[etchedRuneId].Add(premine)
+					logger.DebugContext(ctx, "[RunesProcessor] Minted premine", slogx.Any("runeId", etchedRuneId), slogx.Stringer("amount", premine))
 				}
 			}
 
@@ -193,6 +210,7 @@ func (p *Processor) processTx(ctx context.Context, tx *types.Transaction, blockH
 		// all input runes and minted runes in a tx with cenotaph are burned
 		for runeId, amount := range unallocated {
 			burns[runeId] = burns[runeId].Add(amount)
+			logger.DebugContext(ctx, "[RunesProcessor] Burned runes in cenotaph", slogx.Any("runeId", runeId), slogx.Stringer("amount", amount))
 		}
 	} else {
 		// assign all un-allocated runes to the default output (pointer), or the first non
@@ -222,6 +240,7 @@ func (p *Processor) processTx(ctx context.Context, tx *types.Transaction, blockH
 			// if pointer is still nil, then no output is available. Burn all unallocated runes.
 			for runeId, amount := range unallocated {
 				burns[runeId] = burns[runeId].Add(amount)
+				logger.DebugContext(ctx, "[RunesProcessor] Burned runes to no output", slogx.Any("runeId", runeId), slogx.Stringer("amount", amount))
 			}
 		}
 	}
@@ -232,6 +251,7 @@ func (p *Processor) processTx(ctx context.Context, tx *types.Transaction, blockH
 			// burn all allocated runes to OP_RETURN outputs
 			for runeId, amount := range balances {
 				burns[runeId] = burns[runeId].Add(amount)
+				logger.DebugContext(ctx, "[RunesProcessor] Burned runes to OP_RETURN output", slogx.Any("runeId", runeId), slogx.Stringer("amount", amount))
 			}
 			continue
 		}
@@ -288,6 +308,7 @@ func (p *Processor) processTx(ctx context.Context, tx *types.Transaction, blockH
 		}
 	}
 	p.newRuneTxs = append(p.newRuneTxs, &runeTx)
+	logger.DebugContext(ctx, "[RunesProcessor] created RuneTransaction", slogx.Any("runeTx", runeTx))
 	return nil
 }
 
@@ -404,6 +425,7 @@ func (p *Processor) mint(ctx context.Context, runeId runes.RuneId, blockHeader t
 	if err := p.incrementMintCount(ctx, runeId, blockHeader); err != nil {
 		return uint128.Zero, errors.Wrap(err, "failed to increment mint count")
 	}
+	logger.DebugContext(ctx, "[RunesProcessor] Minted rune", slogx.Any("runeId", runeId), slogx.Stringer("amount", amount), slogx.Stringer("mintCount", runeEntry.Mints), slogx.Stringer("cap", runeEntry.Terms.Cap))
 	return amount, nil
 }
 
@@ -543,6 +565,7 @@ func (p *Processor) createRuneEntry(ctx context.Context, runestone *runes.Runest
 	if err := p.runesDg.CreateRuneEntry(ctx, runeEntry, blockHeight); err != nil {
 		return errors.Wrap(err, "failed to set rune entry")
 	}
+	logger.DebugContext(ctx, "[RunesProcessor] created RuneEntry", slogx.Any("runeEntry", runeEntry))
 	return nil
 }
 
@@ -595,6 +618,7 @@ func (p *Processor) incrementBurnedAmount(ctx context.Context, burned map[runes.
 			continue
 		}
 		runeEntry.BurnedAmount = runeEntry.BurnedAmount.Add(amount)
+		logger.DebugContext(ctx, "[RunesProcessor] burned amount incremented", slogx.Any("runeId", runeId), slogx.Any("amount", amount))
 		p.newRuneEntryStates[runeId] = runeEntry
 	}
 	return nil
@@ -625,6 +649,7 @@ func (p *Processor) flushBlock(ctx context.Context, blockHeader types.BlockHeade
 	if err := p.flushNewRuneTxs(ctx); err != nil {
 		return errors.Wrap(err, "failed to flush new rune transactions")
 	}
+	logger.InfoContext(ctx, "[RunesProcessor] block flushed", "height", blockHeader.Height)
 	return nil
 }
 
