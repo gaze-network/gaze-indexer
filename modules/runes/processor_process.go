@@ -375,10 +375,6 @@ func (p *Processor) updateNewBalances(ctx context.Context, tx *types.Transaction
 		pkScript := txInputsPkScripts[inputIndex]
 		pkScriptStr := hex.EncodeToString(pkScript)
 		for runeId, amount := range balances {
-			if p.newBalances[pkScriptStr][runeId].Cmp(amount) < 0 {
-				// total pkScript's balance is less that balance in input. This is impossible. Something is wrong.
-				return errors.Errorf("current balance is less than balance in input: %s", runeId)
-			}
 			if _, ok := p.newBalances[pkScriptStr]; !ok {
 				p.newBalances[pkScriptStr] = make(map[runes.RuneId]uint128.Uint128)
 			}
@@ -388,6 +384,10 @@ func (p *Processor) updateNewBalances(ctx context.Context, tx *types.Transaction
 					return errors.WithStack(err)
 				}
 				p.newBalances[pkScriptStr][runeId] = balance
+			}
+			if p.newBalances[pkScriptStr][runeId].Cmp(amount) < 0 {
+				// total pkScript's balance is less that balance in input. This is impossible. Something is wrong.
+				return errors.Errorf("current balance is less than balance in input: %s", runeId)
 			}
 			p.newBalances[pkScriptStr][runeId] = p.newBalances[pkScriptStr][runeId].Sub(amount)
 		}
