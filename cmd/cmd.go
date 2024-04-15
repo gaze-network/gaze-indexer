@@ -9,8 +9,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
-type CommandHandlers struct{}
+// CommandHandlers holds common dependencies for command handlers
+type CommandHandlers struct {
+	// Share common dependencies here
+}
 
+// root command
 var cmd = &cobra.Command{
 	Use:  "gaze",
 	Long: `Description of gaze indexer`,
@@ -39,6 +43,7 @@ func init() {
 	})
 }
 
+// Execute runs the root command
 func Execute() {
 	// Initialize command handlers
 	cmds := &CommandHandlers{}
