@@ -51,7 +51,7 @@ func (e *RuneEntry) GetMintableAmount(height uint64) (uint128.Uint128, error) {
 	if e.Terms.Cap != nil {
 		cap = *e.Terms.Cap
 	}
-	if e.Mints.Cmp(cap) > 0 {
+	if e.Mints.Cmp(cap) >= 0 {
 		return uint128.Uint128{}, ErrMintCapReached
 	}
 	var amount uint128.Uint128
