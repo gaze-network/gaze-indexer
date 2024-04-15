@@ -507,4 +507,60 @@ func TestDecipherRunestone(t *testing.T) {
 			},
 		)
 	})
+	t.Run("runestone_with_edict_id_with_zero_block_and_nonzero_tx_is_cenotaph", func(t *testing.T) {
+		testDecipherInteger(
+			t,
+			[]uint128.Uint128{
+				TagBody.Uint128(),
+				uint128.From64(0),
+				uint128.From64(1),
+				uint128.From64(2),
+				uint128.From64(0),
+			},
+			&Runestone{
+				Cenotaph: true,
+				Flaws:    FlawFlagEdictRuneId.Mask(),
+			},
+		)
+	})
+	t.Run("runestone_with_overflowing_edict_id_delta_is_cenotaph_1", func(t *testing.T) {
+		testDecipherInteger(
+			t,
+			[]uint128.Uint128{
+				TagBody.Uint128(),
+				uint128.From64(1),
+				uint128.From64(0),
+				uint128.From64(0),
+				uint128.From64(0),
+				uint128.From64(math.MaxUint64),
+				uint128.From64(0),
+				uint128.From64(0),
+				uint128.From64(0),
+			},
+			&Runestone{
+				Cenotaph: true,
+				Flaws:    FlawFlagEdictRuneId.Mask(),
+			},
+		)
+	})
+	t.Run("runestone_with_overflowing_edict_id_delta_is_cenotaph_2", func(t *testing.T) {
+		testDecipherInteger(
+			t,
+			[]uint128.Uint128{
+				TagBody.Uint128(),
+				uint128.From64(1),
+				uint128.From64(1),
+				uint128.From64(0),
+				uint128.From64(0),
+				uint128.From64(0),
+				uint128.From64(math.MaxUint64),
+				uint128.From64(0),
+				uint128.From64(0),
+			},
+			&Runestone{
+				Cenotaph: true,
+				Flaws:    FlawFlagEdictRuneId.Mask(),
+			},
+		)
+	})
 }

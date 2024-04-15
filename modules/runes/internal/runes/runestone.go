@@ -173,6 +173,7 @@ func DecipherRunestone(tx *types.Transaction) (*Runestone, error) {
 	}
 	message := MessageFromIntegers(tx, integers)
 	edicts, fields := message.Edicts, message.Fields
+	flaws |= message.Flaws
 
 	flags, err := ParseFlags(lo.FromPtr(fields.Take(TagFlags)))
 	if err != nil {

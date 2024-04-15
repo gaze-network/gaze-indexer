@@ -2,10 +2,12 @@ package runes
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 
 	"github.com/cockroachdb/errors"
+	"github.com/gaze-network/indexer-network/common/errs"
 )
 
 type RuneId struct {
@@ -79,10 +81,16 @@ func (r RuneId) Delta(next RuneId) (uint64, uint32) {
 // Next calculates the next RuneId given a block delta and tx index delta.
 func (r RuneId) Next(blockDelta uint64, txIndexDelta uint32) (RuneId, error) {
 	if blockDelta == 0 {
+		if math.MaxUint32-r.TxIndex < txIndexDelta {
+			return RuneId{}, errs.OverflowUint32
+		}
 		return NewRuneId(
 			r.BlockHeight,
 			r.TxIndex+txIndexDelta,
 		)
+	}
+	if math.MaxUint64-r.BlockHeight < blockDelta {
+		return RuneId{}, errs.OverflowUint64
 	}
 	return NewRuneId(
 		r.BlockHeight+blockDelta,
