@@ -440,7 +440,12 @@ func (p *Processor) getEtchedRune(ctx context.Context, tx *types.Transaction, ru
 	rune := runestone.Etching.Rune
 	if rune != nil {
 		minimumRune := runes.MinimumRuneAtHeight(p.network, uint64(tx.BlockHeight))
-		if rune.Cmp(minimumRune) < 0 || rune.IsReserved() {
+		if rune.Cmp(minimumRune) < 0 {
+			logger.DebugContext(ctx, "invalid etching: rune is lower than minimum rune at this height", slogx.Any("rune", rune), slogx.Any("minimumRune", minimumRune))
+			return nil, runes.RuneId{}, runes.Rune{}, nil
+		}
+		if rune.IsReserved() {
+			logger.DebugContext(ctx, "invalid etching: rune is reserved", slogx.Any("rune", rune))
 			return nil, runes.RuneId{}, runes.Rune{}, nil
 		}
 
@@ -450,6 +455,7 @@ func (p *Processor) getEtchedRune(ctx context.Context, tx *types.Transaction, ru
 		}
 		// if found, then this is duplicate
 		if err == nil {
+			logger.DebugContext(ctx, "invalid etching: rune already exists", slogx.Any("rune", rune))
 			return nil, runes.RuneId{}, runes.Rune{}, nil
 		}
 
@@ -459,6 +465,7 @@ func (p *Processor) getEtchedRune(ctx context.Context, tx *types.Transaction, ru
 			return nil, runes.RuneId{}, runes.Rune{}, errors.Wrap(err, "error during check tx commits to rune")
 		}
 		if !commit {
+			logger.DebugContext(ctx, "invalid etching: tx does not commit to the rune", slogx.Any("rune", rune))
 			return nil, runes.RuneId{}, runes.Rune{}, nil
 		}
 	} else {
@@ -566,7 +573,7 @@ func (p *Processor) createRuneEntry(ctx context.Context, runestone *runes.Runest
 		}
 	}
 	if err := p.runesDg.CreateRuneEntry(ctx, runeEntry, blockHeight); err != nil {
-		return errors.Wrap(err, "failed to set rune entry")
+		return errors.Wrap(err, "failed to create rune entry")
 	}
 	logger.DebugContext(ctx, "[RunesProcessor] created RuneEntry", slogx.Any("runeEntry", runeEntry))
 	return nil
