@@ -740,4 +740,245 @@ func TestDecipherRunestone(t *testing.T) {
 			},
 		)
 	})
+	t.Run("decipher_etching_with_all_etching_tags", func(t *testing.T) {
+		testDecipherInteger(
+			t,
+			[]uint128.Uint128{
+				TagFlags.Uint128(),
+				FlagEtching.Mask().Or(FlagTerms.Mask()).Or(FlagTurbo.Mask()).Uint128(),
+				TagRune.Uint128(),
+				uint128.From64(4),
+				TagDivisibility.Uint128(),
+				uint128.From64(1),
+				TagSpacers.Uint128(),
+				uint128.From64(5),
+				TagSymbol.Uint128(),
+				uint128.From64('a'),
+				TagOffsetEnd.Uint128(),
+				uint128.From64(2),
+				TagAmount.Uint128(),
+				uint128.From64(3),
+				TagPremine.Uint128(),
+				uint128.From64(8),
+				TagCap.Uint128(),
+				uint128.From64(9),
+				TagPointer.Uint128(),
+				uint128.From64(0),
+				TagMint.Uint128(),
+				uint128.From64(1),
+				TagMint.Uint128(),
+				uint128.From64(1),
+				TagBody.Uint128(),
+				uint128.From64(1),
+				uint128.From64(1),
+				uint128.From64(2),
+				uint128.From64(0),
+			},
+			&Runestone{
+				Edicts: []Edict{
+					{
+						Id:     RuneId{1, 1},
+						Amount: uint128.From64(2),
+						Output: 0,
+					},
+				},
+				Etching: &Etching{
+					Divisibility: lo.ToPtr(uint8(1)),
+					Premine:      lo.ToPtr(uint128.From64(8)),
+					Rune:         lo.ToPtr(NewRune(4)),
+					Spacers:      lo.ToPtr(uint32(5)),
+					Symbol:       lo.ToPtr('a'),
+					Terms: &Terms{
+						Amount:    lo.ToPtr(uint128.From64(3)),
+						Cap:       lo.ToPtr(uint128.From64(9)),
+						OffsetEnd: lo.ToPtr(uint64(2)),
+					},
+					Turbo: true,
+				},
+				Pointer: lo.ToPtr(uint64(0)),
+				Mint:    lo.ToPtr(RuneId{1, 1}),
+			},
+		)
+	})
+	t.Run("recognized_even_etching_fields_produce_cenotaph_if_etching_flag_is_not_set", func(t *testing.T) {
+		testDecipherInteger(
+			t,
+			[]uint128.Uint128{
+				TagRune.Uint128(),
+				uint128.From64(4),
+			},
+			&Runestone{
+				Cenotaph: true,
+				Flaws:    FlawFlagUnrecognizedEvenTag.Mask(),
+			},
+		)
+	})
+	t.Run("decipher_etching_with_divisibility_and_symbol", func(t *testing.T) {
+		testDecipherInteger(
+			t,
+			[]uint128.Uint128{
+				TagFlags.Uint128(),
+				FlagEtching.Mask().Uint128(),
+				TagRune.Uint128(),
+				uint128.From64(4),
+				TagDivisibility.Uint128(),
+				uint128.From64(1),
+				TagSymbol.Uint128(),
+				uint128.From64('a'),
+				TagBody.Uint128(),
+				uint128.From64(1),
+				uint128.From64(1),
+				uint128.From64(2),
+				uint128.From64(0),
+			},
+			&Runestone{
+				Edicts: []Edict{
+					{
+						Id:     RuneId{1, 1},
+						Amount: uint128.From64(2),
+						Output: 0,
+					},
+				},
+				Etching: &Etching{
+					Rune:         lo.ToPtr(NewRune(4)),
+					Divisibility: lo.ToPtr(uint8(1)),
+					Symbol:       lo.ToPtr('a'),
+				},
+			},
+		)
+	})
+	t.Run("tag_values_are_not_parsed_as_tags", func(t *testing.T) {
+		testDecipherInteger(
+			t,
+			[]uint128.Uint128{
+				TagFlags.Uint128(),
+				FlagEtching.Mask().Uint128(),
+				TagDivisibility.Uint128(),
+				TagBody.Uint128(),
+				TagBody.Uint128(),
+				uint128.From64(1),
+				uint128.From64(1),
+				uint128.From64(2),
+				uint128.From64(0),
+			},
+			&Runestone{
+				Edicts: []Edict{
+					{
+						Id:     RuneId{1, 1},
+						Amount: uint128.From64(2),
+						Output: 0,
+					},
+				},
+				Etching: &Etching{
+					Divisibility: lo.ToPtr(uint8(0)),
+				},
+			},
+		)
+	})
+	t.Run("runestone_may_contain_multiple_edicts", func(t *testing.T) {
+		testDecipherInteger(
+			t,
+			[]uint128.Uint128{
+				TagBody.Uint128(),
+				uint128.From64(1),
+				uint128.From64(1),
+				uint128.From64(2),
+				uint128.From64(0),
+				uint128.From64(0),
+				uint128.From64(3),
+				uint128.From64(5),
+				uint128.From64(0),
+			},
+			&Runestone{
+				Edicts: []Edict{
+					{
+						Id:     RuneId{1, 1},
+						Amount: uint128.From64(2),
+						Output: 0,
+					},
+					{
+						Id:     RuneId{1, 4},
+						Amount: uint128.From64(5),
+						Output: 0,
+					},
+				},
+			},
+		)
+	})
+	t.Run("runestones_with_invalid_rune_id_blocks_are_cenotaph", func(t *testing.T) {
+		testDecipherInteger(
+			t,
+			[]uint128.Uint128{
+				TagBody.Uint128(),
+				uint128.From64(1),
+				uint128.From64(1),
+				uint128.From64(2),
+				uint128.From64(0),
+				uint128.Max,
+				uint128.From64(1),
+				uint128.From64(0),
+				uint128.From64(0),
+			},
+			&Runestone{
+				Cenotaph: true,
+				Flaws:    FlawFlagEdictRuneId.Mask(),
+			},
+		)
+	})
+	t.Run("runestones_with_invalid_rune_id_txs_are_cenotaph", func(t *testing.T) {
+		testDecipherInteger(
+			t,
+			[]uint128.Uint128{
+				TagBody.Uint128(),
+				uint128.From64(1),
+				uint128.From64(1),
+				uint128.From64(2),
+				uint128.From64(0),
+				uint128.From64(1),
+				uint128.Max,
+				uint128.From64(0),
+				uint128.From64(0),
+			},
+			&Runestone{
+				Cenotaph: true,
+				Flaws:    FlawFlagEdictRuneId.Mask(),
+			},
+		)
+	})
+	t.Run("payload_pushes_are_concatenated", func(t *testing.T) {
+		// cannot use txscript.ScriptBuilder because ScriptBuilder.AddData transforms data with low value into small integer opcodes
+		pkScript := []byte{
+			txscript.OP_RETURN,
+			RUNESTONE_PAYLOAD_MAGIC_NUMBER,
+		}
+		addData := func(data []byte) {
+			pkScript = append(pkScript, txscript.OP_DATA_1-1+byte(len(data)))
+			pkScript = append(pkScript, data...)
+		}
+		addData(leb128.EncodeUint128(TagFlags.Uint128()))
+		addData(leb128.EncodeUint128(FlagEtching.Mask().Uint128()))
+		addData(leb128.EncodeUint128(TagDivisibility.Uint128()))
+		addData(leb128.EncodeUint128(uint128.From64(5)))
+		addData(leb128.EncodeUint128(TagBody.Uint128()))
+		addData(leb128.EncodeUint128(uint128.From64(1)))
+		addData(leb128.EncodeUint128(uint128.From64(1)))
+		addData(leb128.EncodeUint128(uint128.From64(2)))
+		addData(leb128.EncodeUint128(uint128.From64(0)))
+		testDecipherPkScript(
+			t,
+			pkScript,
+			&Runestone{
+				Edicts: []Edict{
+					{
+						Id:     RuneId{1, 1},
+						Amount: uint128.From64(2),
+						Output: 0,
+					},
+				},
+				Etching: &Etching{
+					Divisibility: lo.ToPtr(uint8(5)),
+				},
+			},
+		)
+	})
 }

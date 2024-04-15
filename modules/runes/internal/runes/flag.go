@@ -33,6 +33,10 @@ func (f Flags) And(other Flags) Flags {
 	return Flags(f.Uint128().And(other.Uint128()))
 }
 
+func (f Flags) Or(other Flags) Flags {
+	return Flags(f.Uint128().Or(other.Uint128()))
+}
+
 func ParseFlags(input interface{}) (Flags, error) {
 	switch input := input.(type) {
 	case Flags:

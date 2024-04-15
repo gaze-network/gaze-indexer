@@ -11,6 +11,8 @@ import (
 	"github.com/gaze-network/indexer-network/common/errs"
 	"github.com/gaze-network/indexer-network/core/types"
 	"github.com/gaze-network/indexer-network/pkg/leb128"
+	"github.com/gaze-network/indexer-network/pkg/logger"
+	"github.com/gaze-network/indexer-network/pkg/logger/slogx"
 	"github.com/gaze-network/uint128"
 	"github.com/samber/lo"
 )
@@ -344,6 +346,7 @@ func runestonePayloadFromTx(tx *types.Transaction) ([]byte, Flaws) {
 			}
 			data := tokenizer.Data()
 			if data == nil {
+				logger.Debug("data is nil: got opcode", slogx.Uint8("opcode", tokenizer.Opcode()))
 				return nil, FlawFlagOpCode.Mask()
 			}
 			payload = append(payload, data...)

@@ -51,7 +51,7 @@ func MessageFromIntegers(tx *types.Transaction, payload []uint128.Uint128) Messa
 					break
 				}
 				blockDelta, txIndexDelta, amount, output := chunk[0], chunk[1], chunk[2], chunk[3]
-				if blockDelta.Cmp64(math.MaxUint64) > 0 || blockDelta.Cmp64(math.MaxUint32) > 0 {
+				if blockDelta.Cmp64(math.MaxUint64) > 0 || txIndexDelta.Cmp64(math.MaxUint32) > 0 {
 					flaws |= FlawFlagEdictRuneId.Mask()
 					break
 				}
