@@ -584,6 +584,7 @@ func (p *Processor) createRuneEntry(ctx context.Context, runestone *runes.Runest
 	if err := p.runesDg.CreateRuneEntry(ctx, runeEntry, uint64(tx.BlockHeight)); err != nil {
 		return errors.Wrap(err, "failed to create rune entry")
 	}
+	p.newRuneEntryStates[runeId] = runeEntry
 	logger.DebugContext(ctx, "[RunesProcessor] created RuneEntry", slogx.Any("runeEntry", runeEntry))
 	return nil
 }

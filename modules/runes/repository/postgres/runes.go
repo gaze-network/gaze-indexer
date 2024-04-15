@@ -270,15 +270,12 @@ func (r *Repository) CreateRuneEntry(ctx context.Context, entry *runes.RuneEntry
 	if entry == nil {
 		return nil
 	}
-	createParams, createStateParams, err := mapRuneEntryTypeToParams(*entry, blockHeight)
+	createParams, _, err := mapRuneEntryTypeToParams(*entry, blockHeight)
 	if err != nil {
 		return errors.Wrap(err, "failed to map rune entry to params")
 	}
 	if err = r.getQueries().CreateRuneEntry(ctx, createParams); err != nil {
 		return errors.Wrap(err, "error during exec CreateRuneEntry")
-	}
-	if err = r.getQueries().CreateRuneEntryState(ctx, createStateParams); err != nil {
-		return errors.Wrap(err, "error during exec CreateRuneEntryState")
 	}
 	return nil
 }
