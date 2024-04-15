@@ -141,8 +141,9 @@ var startingBlockHeader = map[common.Network]types.BlockHeader{
 	// TODO: add starting block header for mainnet after block 840,000 is mined
 	common.NetworkMainnet: {},
 	common.NetworkTestnet: {
-		Height: common.HalvingInterval*12 - 1,
-		Hash:   *utils.Must(chainhash.NewHashFromStr("000000000006f45c16402f05d9075db49d3571cf5273cf4cbeaa2aa295f7c833")),
+		Height:    2583200,
+		Hash:      *utils.Must(chainhash.NewHashFromStr("000000000006c5f0dfcd9e0e81f27f97a87aef82087ffe69cd3c390325bb6541")),
+		PrevBlock: *utils.Must(chainhash.NewHashFromStr("00000000000668f3bafac992f53424774515440cb47e1cb9e73af3f496139e28")),
 	},
 }
 
