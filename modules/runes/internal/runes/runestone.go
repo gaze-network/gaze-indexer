@@ -309,7 +309,10 @@ func runestonePayloadFromTx(tx *types.Transaction) ([]byte, Flaws) {
 		tokenizer := txscript.MakeScriptTokenizer(0, output.PkScript)
 
 		// payload must start with OP_RETURN
-		tokenizer.Next()
+		if ok := tokenizer.Next(); !ok {
+			// script ended
+			continue
+		}
 		if err := tokenizer.Err(); err != nil {
 			continue
 		}
@@ -318,7 +321,10 @@ func runestonePayloadFromTx(tx *types.Transaction) ([]byte, Flaws) {
 		}
 
 		// next opcode must be the magic number
-		tokenizer.Next()
+		if ok := tokenizer.Next(); !ok {
+			// script ended
+			continue
+		}
 		if err := tokenizer.Err(); err != nil {
 			fmt.Println(err.Error())
 			continue
