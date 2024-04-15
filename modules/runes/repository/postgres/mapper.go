@@ -313,7 +313,7 @@ func extractModelRuneTxAndRunestone(src gen.GetRuneTransactionsByHeightRow) (gen
 			EtchingRune:             src.EtchingRune,
 			EtchingSpacers:          src.EtchingSpacers,
 			EtchingSymbol:           src.EtchingSymbol,
-			EtchingTerms:            src.EtchingTerms.Bool,
+			EtchingTerms:            src.EtchingTerms,
 			EtchingTermsAmount:      src.EtchingTermsAmount,
 			EtchingTermsCap:         src.EtchingTermsCap,
 			EtchingTermsHeightStart: src.EtchingTermsHeightStart,
@@ -398,6 +398,7 @@ func mapRuneTransactionModelToType(src gen.RunesTransaction) (entity.RuneTransac
 func mapRunestoneTypeToParams(src runes.Runestone, txHash chainhash.Hash, blockHeight uint64) (gen.CreateRunestoneParams, error) {
 	var runestoneParams gen.CreateRunestoneParams
 
+	// TODO: optimize serialized edicts
 	edictsBytes, err := json.Marshal(src.Edicts)
 	if err != nil {
 		return gen.CreateRunestoneParams{}, errors.Wrap(err, "failed to marshal runestone edicts")
@@ -432,7 +433,7 @@ func mapRunestoneTypeToParams(src runes.Runestone, txHash chainhash.Hash, blockH
 			runestoneParams.EtchingSymbol = pgtype.Int4{Int32: *etching.Symbol, Valid: true}
 		}
 		if etching.Terms != nil {
-			runestoneParams.EtchingTerms = true
+			runestoneParams.EtchingTerms = pgtype.Bool{Bool: true, Valid: true}
 			terms := *etching.Terms
 			if terms.Amount != nil {
 				amount, err := numericFromUint128(terms.Amount)
@@ -506,7 +507,7 @@ func mapRunestoneModelToType(src gen.RunesRunestone) (runes.Runestone, error) {
 			var symbol rune = src.EtchingSymbol.Int32
 			etching.Symbol = &symbol
 		}
-		if src.EtchingTerms {
+		if src.EtchingTerms.Valid && src.EtchingTerms.Valid {
 			terms := runes.Terms{}
 			if src.EtchingTermsAmount.Valid {
 				amount, err := uint128FromNumeric(src.EtchingTermsAmount)

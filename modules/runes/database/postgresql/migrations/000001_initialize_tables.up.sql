@@ -77,7 +77,7 @@ CREATE TABLE IF NOT EXISTS "runes_runestones" (
 	"etching_rune" TEXT,
 	"etching_spacers" INT,
 	"etching_symbol" INT,
-	"etching_terms" BOOLEAN NOT NULL,
+	"etching_terms" BOOLEAN,
 	"etching_terms_amount" DECIMAL,
 	"etching_terms_cap" DECIMAL,
 	"etching_terms_height_start" INT,

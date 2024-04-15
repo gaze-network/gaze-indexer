@@ -82,7 +82,7 @@ type RunesRunestone struct {
 	EtchingRune             pgtype.Text
 	EtchingSpacers          pgtype.Int4
 	EtchingSymbol           pgtype.Int4
-	EtchingTerms            bool
+	EtchingTerms            pgtype.Bool
 	EtchingTermsAmount      pgtype.Numeric
 	EtchingTermsCap         pgtype.Numeric
 	EtchingTermsHeightStart pgtype.Int4

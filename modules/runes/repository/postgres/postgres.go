@@ -6,6 +6,7 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/internal/postgres"
 	"github.com/gaze-network/indexer-network/modules/runes/repository/postgres/gen"
+	"github.com/gaze-network/indexer-network/pkg/logger"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -54,6 +55,9 @@ func (r *Repository) Rollback(ctx context.Context) error {
 	err := r.tx.Rollback(ctx)
 	if err != nil && !errors.Is(err, pgx.ErrTxClosed) {
 		return errors.Wrap(err, "failed to rollback transaction")
+	}
+	if err == nil {
+		logger.InfoContext(ctx, "rolled back transaction")
 	}
 	r.tx = nil
 	return nil
