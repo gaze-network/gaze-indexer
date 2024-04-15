@@ -434,7 +434,7 @@ func (p *Processor) mint(ctx context.Context, runeId runes.RuneId, blockHeader t
 	if err := p.incrementMintCount(ctx, runeId, blockHeader); err != nil {
 		return uint128.Zero, errors.Wrap(err, "failed to increment mint count")
 	}
-	logger.DebugContext(ctx, "[RunesProcessor] Minted rune", slogx.Any("runeId", runeId), slogx.Stringer("amount", amount), slogx.Stringer("mintCount", runeEntry.Mints), slogx.Stringer("cap", runeEntry.Terms.Cap))
+	logger.DebugContext(ctx, "[RunesProcessor] Minted rune", slogx.Any("runeId", runeId), slogx.Stringer("amount", amount), slogx.Stringer("mintCount", runeEntry.Mints), slogx.Stringer("cap", lo.FromPtr(runeEntry.Terms.Cap)))
 	return amount, nil
 }
 
