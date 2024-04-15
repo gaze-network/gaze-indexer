@@ -51,6 +51,7 @@ func Execute() {
 
 	// Execute command
 	if err := cmd.Execute(); err != nil {
-		logger.Panic("Failed to execute root command", slogx.Error(err))
+		// use cobra to log error message by default
+		logger.Debug("Failed to execute root command", slogx.Error(err))
 	}
 }
