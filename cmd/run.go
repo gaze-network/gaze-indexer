@@ -18,10 +18,14 @@ import (
 )
 
 type runCmdOptions struct {
-	// Modules to enable
-	Modules struct {
-		Bitcoin bool
-		Runes   bool
+	ProtocolDatasource string // Datasource to fetch bitcoin data for Meta-Protocol e.g. `bitcoin-node` | `database`
+	Bitcoin            struct {
+		Enabled  bool
+		Database string // DB to store bitcoin data e.g. `postgres` | `bigtable` | `leveldb`
+	}
+	Runes struct {
+		Enabled  bool
+		Database string // DB to store bitcoin data e.g. `postgres` | `bigtable` | `leveldb`
 	}
 }
 
@@ -38,8 +42,12 @@ func NewRunCommand() *cobra.Command {
 	}
 
 	// Add local flags
-	runCmd.Flags().BoolVar(&opts.Modules.Bitcoin, "bitcoin", false, "Enable Bitcoin indexer module")
-	runCmd.Flags().BoolVar(&opts.Modules.Runes, "runes", false, "Enable Runes indexer module")
+	flags := runCmd.Flags()
+	flags.StringVar(&opts.ProtocolDatasource, "protocol-datasource", "bitcoin-node", `Datasource to fetch bitcoin data for Meta-Protocol. current supported datasources: "bitcoin-node" | "database"`)
+	flags.BoolVar(&opts.Bitcoin.Enabled, "bitcoin", false, "Enable Bitcoin indexer module")
+	flags.StringVar(&opts.Bitcoin.Database, "bitcoin-db", "postgres", `Database to store bitcoin data. current supported databases: "postgres"`)
+	flags.BoolVar(&opts.Runes.Enabled, "runes", false, "Enable Runes indexer module")
+	flags.StringVar(&opts.Runes.Database, "runes-db", "postgres", `Database to store runes data. current supported databases: "postgres"`)
 
 	return runCmd
 }
@@ -79,7 +87,7 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) {
 	}
 
 	// Initialize Bitcoin Indexer
-	if opts.Modules.Bitcoin {
+	if opts.Bitcoin.Enabled {
 		pg, err := postgres.NewPool(ctx, conf.Modules["bitcoin"].Postgres)
 		if err != nil {
 			logger.PanicContext(ctx, "Failed to create Postgres connection pool", slogx.Error(err))
