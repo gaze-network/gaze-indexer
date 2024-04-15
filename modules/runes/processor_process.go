@@ -33,8 +33,12 @@ func (p *Processor) Process(ctx context.Context, blocks []*types.Block) error {
 		}
 	}()
 
+	logger.DebugContext(ctx, "[RunesProcessor] Received blocks", slogx.Any("blocks", lo.Map(blocks, func(b *types.Block, _ int) int64 {
+		return b.Header.Height
+	})))
 	for _, block := range blocks {
-		logger.DebugContext(ctx, "[RunesProcessor] Processing block", slog.Int("height", int(block.Header.Height)), slog.Int("txs", len(block.Transactions)))
+		ctx := logger.WithContext(ctx, slog.Int("block_height", int(block.Header.Height)))
+		logger.DebugContext(ctx, "[RunesProcessor] Processing block", slog.Int("txs", len(block.Transactions)))
 		for _, tx := range block.Transactions {
 			if err := p.processTx(ctx, tx, block.Header); err != nil {
 				return errors.Wrap(err, "failed to process tx")
@@ -649,7 +653,7 @@ func (p *Processor) flushBlock(ctx context.Context, blockHeader types.BlockHeade
 	if err := p.flushNewRuneTxs(ctx); err != nil {
 		return errors.Wrap(err, "failed to flush new rune transactions")
 	}
-	logger.InfoContext(ctx, "[RunesProcessor] block flushed", "height", blockHeader.Height)
+	logger.InfoContext(ctx, "[RunesProcessor] block flushed")
 	return nil
 }
 
