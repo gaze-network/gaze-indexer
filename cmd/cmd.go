@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"log/slog"
 
 	"github.com/gaze-network/indexer-network/internal/config"
@@ -24,7 +25,7 @@ var (
 )
 
 // Execute runs the root command
-func Execute() {
+func Execute(ctx context.Context) {
 	var configFile string
 
 	// Add global flags
@@ -50,7 +51,7 @@ func Execute() {
 	cmd.AddCommand(cmds...)
 
 	// Execute command
-	if err := cmd.Execute(); err != nil {
+	if err := cmd.ExecuteContext(ctx); err != nil {
 		// use cobra to log error message by default
 		logger.Debug("Failed to execute root command", slogx.Error(err))
 	}
