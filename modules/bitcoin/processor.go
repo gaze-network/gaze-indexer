@@ -9,7 +9,7 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/core/indexers"
 	"github.com/gaze-network/indexer-network/core/types"
-	"github.com/gaze-network/indexer-network/modules/bitcoin/internal/datagateway"
+	"github.com/gaze-network/indexer-network/modules/bitcoin/datagateway"
 	"github.com/gaze-network/indexer-network/pkg/logger"
 	"github.com/gaze-network/indexer-network/pkg/logger/slogx"
 )
