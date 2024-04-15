@@ -61,6 +61,9 @@ func (r *Repository) GetLatestBlock(ctx context.Context) (types.BlockHeader, err
 func (r *Repository) GetIndexedBlockByHeight(ctx context.Context, height int64) (*entity.IndexedBlock, error) {
 	indexedBlockModel, err := r.queries.GetIndexedBlockByHeight(ctx, int32(height))
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, errors.WithStack(errs.NotFound)
+		}
 		return nil, errors.Wrap(err, "error during query")
 	}
 
@@ -127,6 +130,9 @@ func (r *Repository) GetRunesBalancesAtOutPoint(ctx context.Context, outPoint wi
 func (r *Repository) GetRuneIdFromRune(ctx context.Context, rune runes.Rune) (runes.RuneId, error) {
 	runeIdStr, err := r.queries.GetRuneIdFromRune(ctx, rune.String())
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return runes.RuneId{}, errors.WithStack(errs.NotFound)
+		}
 		return runes.RuneId{}, errors.Wrap(err, "error during query")
 	}
 	runeId, err := runes.NewRuneIdFromString(runeIdStr)
