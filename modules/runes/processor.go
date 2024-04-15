@@ -108,6 +108,7 @@ func (p *Processor) ensureGenesisRune(ctx context.Context) error {
 	if errors.Is(err, errs.NotFound) {
 		runeEntry := &runes.RuneEntry{
 			RuneId:       genesisRuneId,
+			Number:       0,
 			Divisibility: 0,
 			Premine:      uint128.Zero,
 			SpacedRune:   runes.NewSpacedRune(runes.NewRune(2055900680524219742), 0b10000000),

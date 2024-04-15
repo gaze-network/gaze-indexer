@@ -11,6 +11,7 @@ import (
 
 type RuneEntry struct {
 	RuneId       RuneId
+	Number       uint64
 	Divisibility uint8
 	// Premine is the amount of the rune that was premined.
 	Premine    uint128.Uint128

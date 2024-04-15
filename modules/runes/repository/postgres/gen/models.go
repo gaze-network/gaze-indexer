@@ -17,6 +17,7 @@ type RunesBalance struct {
 
 type RunesEntry struct {
 	RuneID           string
+	Number           int64
 	Rune             string
 	Spacers          int32
 	Premine          pgtype.Numeric

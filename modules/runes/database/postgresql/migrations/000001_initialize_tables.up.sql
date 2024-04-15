@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS "runes_indexed_blocks" (
 
 CREATE TABLE IF NOT EXISTS "runes_entries" (
 	"rune_id" TEXT NOT NULL PRIMARY KEY,
+	"number" BIGINT NOT NULL, -- sequential number of the rune starting from 0
 	"rune" TEXT NOT NULL,
 	"spacers" INT NOT NULL,
 	"premine" DECIMAL NOT NULL,

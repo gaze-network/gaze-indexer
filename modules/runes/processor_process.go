@@ -550,10 +550,16 @@ func removeAnnexFromWitness(witness [][]byte) [][]byte {
 }
 
 func (p *Processor) createRuneEntry(ctx context.Context, runestone *runes.Runestone, runeId runes.RuneId, rune runes.Rune, tx *types.Transaction) error {
+	count, err := p.runesDg.CountRuneEntries(ctx)
+	if err != nil {
+		return errors.Wrap(err, "failed to count rune entries")
+	}
+
 	var runeEntry *runes.RuneEntry
 	if runestone.Cenotaph {
 		runeEntry = &runes.RuneEntry{
 			RuneId:            runeId,
+			Number:            count,
 			SpacedRune:        runes.NewSpacedRune(rune, 0),
 			Mints:             uint128.Zero,
 			BurnedAmount:      uint128.Zero,
@@ -571,6 +577,7 @@ func (p *Processor) createRuneEntry(ctx context.Context, runestone *runes.Runest
 		etching := runestone.Etching
 		runeEntry = &runes.RuneEntry{
 			RuneId:            runeId,
+			Number:            count,
 			SpacedRune:        runes.NewSpacedRune(rune, lo.FromPtr(etching.Spacers)),
 			Mints:             uint128.Zero,
 			BurnedAmount:      uint128.Zero,

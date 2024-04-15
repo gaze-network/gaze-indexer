@@ -179,6 +179,14 @@ func (r *Repository) GetRuneEntryByRuneIdBatch(ctx context.Context, runeIds []ru
 	return runeEntries, nil
 }
 
+func (r *Repository) CountRuneEntries(ctx context.Context) (uint64, error) {
+	count, err := r.getQueries().CountRuneEntries(ctx)
+	if err != nil {
+		return 0, errors.Wrap(err, "error during query")
+	}
+	return uint64(count), nil
+}
+
 func (r *Repository) GetBalancesByPkScript(ctx context.Context, pkScript []byte, blockHeight uint64) (map[runes.RuneId]*entity.Balance, error) {
 	balances, err := r.getQueries().GetBalancesByPkScript(ctx, gen.GetBalancesByPkScriptParams{
 		Pkscript:    hex.EncodeToString(pkScript),

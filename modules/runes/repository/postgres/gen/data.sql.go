@@ -11,6 +11,17 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const countRuneEntries = `-- name: CountRuneEntries :one
+SELECT COUNT(*) FROM runes_entries
+`
+
+func (q *Queries) CountRuneEntries(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, countRuneEntries)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createIndexedBlock = `-- name: CreateIndexedBlock :exec
 INSERT INTO runes_indexed_blocks (hash, height, prev_hash, event_hash, cumulative_event_hash) VALUES ($1, $2, $3, $4, $5)
 `
@@ -35,13 +46,14 @@ func (q *Queries) CreateIndexedBlock(ctx context.Context, arg CreateIndexedBlock
 }
 
 const createRuneEntry = `-- name: CreateRuneEntry :exec
-INSERT INTO runes_entries (rune_id, rune, spacers, premine, symbol, divisibility, terms, terms_amount, terms_cap, terms_height_start, terms_height_end, terms_offset_start, terms_offset_end, turbo, etching_block, etching_tx_hash)
-  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+INSERT INTO runes_entries (rune_id, rune, number, spacers, premine, symbol, divisibility, terms, terms_amount, terms_cap, terms_height_start, terms_height_end, terms_offset_start, terms_offset_end, turbo, etching_block, etching_tx_hash)
+  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
 `
 
 type CreateRuneEntryParams struct {
 	RuneID           string
 	Rune             string
+	Number           int64
 	Spacers          int32
 	Premine          pgtype.Numeric
 	Symbol           int32
@@ -62,6 +74,7 @@ func (q *Queries) CreateRuneEntry(ctx context.Context, arg CreateRuneEntryParams
 	_, err := q.db.Exec(ctx, createRuneEntry,
 		arg.RuneID,
 		arg.Rune,
+		arg.Number,
 		arg.Spacers,
 		arg.Premine,
 		arg.Symbol,
@@ -418,13 +431,14 @@ WITH states AS (
   -- select latest state
   SELECT DISTINCT ON (rune_id) rune_id, block_height, mints, burned_amount, completed_at, completed_at_height FROM runes_entry_states WHERE rune_id = ANY($1::text[]) ORDER BY rune_id, block_height DESC
 )
-SELECT runes_entries.rune_id, rune, spacers, premine, symbol, divisibility, terms, terms_amount, terms_cap, terms_height_start, terms_height_end, terms_offset_start, terms_offset_end, turbo, etching_block, etching_tx_hash, states.rune_id, block_height, mints, burned_amount, completed_at, completed_at_height FROM runes_entries
+SELECT runes_entries.rune_id, number, rune, spacers, premine, symbol, divisibility, terms, terms_amount, terms_cap, terms_height_start, terms_height_end, terms_offset_start, terms_offset_end, turbo, etching_block, etching_tx_hash, states.rune_id, block_height, mints, burned_amount, completed_at, completed_at_height FROM runes_entries
   LEFT JOIN states ON runes_entries.rune_id = states.rune_id
   WHERE runes_entries.rune_id = ANY($1::text[])
 `
 
 type GetRuneEntriesByRuneIdsRow struct {
 	RuneID            string
+	Number            int64
 	Rune              string
 	Spacers           int32
 	Premine           pgtype.Numeric
@@ -459,6 +473,7 @@ func (q *Queries) GetRuneEntriesByRuneIds(ctx context.Context, runeIds []string)
 		var i GetRuneEntriesByRuneIdsRow
 		if err := rows.Scan(
 			&i.RuneID,
+			&i.Number,
 			&i.Rune,
 			&i.Spacers,
 			&i.Premine,

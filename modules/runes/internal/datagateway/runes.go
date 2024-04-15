@@ -28,6 +28,8 @@ type RunesReaderDataGateway interface {
 	GetRuneEntryByRuneId(ctx context.Context, runeId runes.RuneId) (*runes.RuneEntry, error)
 	// GetRuneEntryByRuneId returns the RuneEntry for the given runeId. Returns errs.NotFound if the rune entry is not found.
 	GetRuneEntryByRuneIdBatch(ctx context.Context, runeIds []runes.RuneId) (map[runes.RuneId]*runes.RuneEntry, error)
+	// CountRuneEntries returns the number of existing rune entries.
+	CountRuneEntries(ctx context.Context) (uint64, error)
 
 	// GetBalancesByPkScript returns the balances for the given pkScript at the given blockHeight.
 	GetBalancesByPkScript(ctx context.Context, pkScript []byte, blockHeight uint64) (map[runes.RuneId]*entity.Balance, error)

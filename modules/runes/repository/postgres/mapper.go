@@ -131,6 +131,7 @@ func mapRuneEntryModelToType(src gen.GetRuneEntriesByRuneIdsRow) (runes.RuneEntr
 	}
 	return runes.RuneEntry{
 		RuneId:            runeId,
+		Number:            uint64(src.Number),
 		Divisibility:      uint8(src.Divisibility),
 		Premine:           lo.FromPtr(premine),
 		SpacedRune:        runes.NewSpacedRune(rune, uint32(src.Spacers)),
@@ -218,6 +219,7 @@ func mapRuneEntryTypeToParams(src runes.RuneEntry, blockHeight uint64) (gen.Crea
 	return gen.CreateRuneEntryParams{
 			RuneID:           runeId,
 			Rune:             rune,
+			Number:           int64(src.Number),
 			Spacers:          spacers,
 			Premine:          premine,
 			Symbol:           src.Symbol,
