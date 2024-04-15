@@ -420,7 +420,7 @@ WITH states AS (
 )
 SELECT runes_entries.rune_id, rune, spacers, premine, symbol, divisibility, terms, terms_amount, terms_cap, terms_height_start, terms_height_end, terms_offset_start, terms_offset_end, turbo, etching_block, etching_tx_hash, states.rune_id, block_height, mints, burned_amount, completed_at, completed_at_height FROM runes_entries
   LEFT JOIN states ON runes_entries.rune_id = states.rune_id
-  WHERE rune_id = ANY($1::text[])
+  WHERE runes_entries.rune_id = ANY($1::text[])
 `
 
 type GetRuneEntriesByRuneIdsRow struct {

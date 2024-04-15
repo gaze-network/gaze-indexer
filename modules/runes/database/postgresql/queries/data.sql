@@ -17,7 +17,7 @@ WITH states AS (
 )
 SELECT * FROM runes_entries
   LEFT JOIN states ON runes_entries.rune_id = states.rune_id
-  WHERE rune_id = ANY(@rune_ids::text[]);
+  WHERE runes_entries.rune_id = ANY(@rune_ids::text[]);
 
 -- name: GetRuneIdFromRune :one
 SELECT rune_id FROM runes_entries WHERE rune = $1;
