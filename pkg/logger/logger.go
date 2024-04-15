@@ -167,8 +167,6 @@ func Init(cfg Config) error {
 
 	logger = slog.New(newChainHandlers(handler, defaultMiddleware...))
 	slog.SetDefault(logger)
-
-	logger.Info("logger initialized", slog.String("log_output", cfg.Output))
 	return nil
 }
 
