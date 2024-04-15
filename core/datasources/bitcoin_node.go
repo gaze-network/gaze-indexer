@@ -165,6 +165,7 @@ func (d *BitcoinNodeDatasource) FetchAsync(ctx context.Context, from, to int64, 
 								logger.ErrorContext(ctx, "failed to send error", slogx.Error(err))
 							}
 						}
+						logger.DebugContext(ctx, "[BitcoinNodeDatasource] Fetched block", slogx.Int64("height", height), slogx.String("hash", hash.String()))
 
 						blocks = append(blocks, types.ParseMsgBlock(block, height))
 					}
