@@ -13,7 +13,7 @@ type BitcoinDataGateway interface {
 
 type BitcoinWriterDataDataGateway interface {
 	InsertBlock(context.Context, *types.Block) error
-	ReverBlocks(context.Context, int64) error
+	RevertBlocks(context.Context, int64) error
 }
 
 type BitcoinReaderDataDataGateway interface {

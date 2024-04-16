@@ -84,6 +84,8 @@ func (p *Processor) GetIndexedBlock(ctx context.Context, height int64) (types.Bl
 }
 
 func (p *Processor) RevertData(ctx context.Context, from int64) error {
-	// TODO: revert synced data to the specified block for re-indexing
+	if err := p.bitcoinDg.RevertBlocks(ctx, from); err != nil {
+		return errors.WithStack(err)
+	}
 	return nil
 }
