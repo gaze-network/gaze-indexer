@@ -1,4 +1,4 @@
-package datasources
+package subscription
 
 import (
 	"context"
@@ -8,13 +8,13 @@ import (
 	"github.com/gaze-network/indexer-network/common/errs"
 )
 
-// ClientSubscriptionBufferSize is the buffer size of the subscription channel.
+// SubscriptionBufferSize is the buffer size of the subscription channel.
 // It is used to prevent blocking the client dispatcher when the client is slow to consume values.
-var ClientSubscriptionBufferSize = 8
+var SubscriptionBufferSize = 8
 
-// ClientSubscription is a subscription to a stream of values from the client dispatcher.
+// Subscription is a subscription to a stream of values from the client dispatcher.
 // It has two channels: one for values, and one for errors.
-type ClientSubscription[T any] struct {
+type Subscription[T any] struct {
 	// The channel which the subscription sends values.
 	channel chan<- T
 
@@ -32,11 +32,11 @@ type ClientSubscription[T any] struct {
 	quitDone chan struct{}
 }
 
-func newClientSubscription[T any](channel chan<- T) *ClientSubscription[T] {
-	subscription := &ClientSubscription[T]{
+func NewSubscription[T any](channel chan<- T) *Subscription[T] {
+	subscription := &Subscription[T]{
 		channel:  channel,
-		in:       make(chan T, ClientSubscriptionBufferSize),
-		err:      make(chan error, ClientSubscriptionBufferSize),
+		in:       make(chan T, SubscriptionBufferSize),
+		err:      make(chan error, SubscriptionBufferSize),
 		quit:     make(chan struct{}),
 		quitDone: make(chan struct{}),
 	}
@@ -46,15 +46,15 @@ func newClientSubscription[T any](channel chan<- T) *ClientSubscription[T] {
 	return subscription
 }
 
-func (c *ClientSubscription[T]) Unsubscribe() {
-	_ = c.UnsubscribeWithContext(context.Background())
+func (s *Subscription[T]) Unsubscribe() {
+	_ = s.UnsubscribeWithContext(context.Background())
 }
 
-func (c *ClientSubscription[T]) UnsubscribeWithContext(ctx context.Context) (err error) {
-	c.quiteOnce.Do(func() {
+func (s *Subscription[T]) UnsubscribeWithContext(ctx context.Context) (err error) {
+	s.quiteOnce.Do(func() {
 		select {
-		case c.quit <- struct{}{}:
-			<-c.quitDone
+		case s.quit <- struct{}{}:
+			<-s.quitDone
 		case <-ctx.Done():
 			err = ctx.Err()
 		}
@@ -62,31 +62,38 @@ func (c *ClientSubscription[T]) UnsubscribeWithContext(ctx context.Context) (err
 	return errors.WithStack(err)
 }
 
+// Client returns a client subscription for this subscription.
+func (s *Subscription[T]) Client() *ClientSubscription[T] {
+	return &ClientSubscription[T]{
+		subscription: s,
+	}
+}
+
 // Err returns the error channel of the subscription.
-func (c *ClientSubscription[T]) Err() <-chan error {
-	return c.err
+func (s *Subscription[T]) Err() <-chan error {
+	return s.err
 }
 
 // Done returns the done channel of the subscription
-func (c *ClientSubscription[T]) Done() <-chan struct{} {
-	return c.quitDone
+func (s *Subscription[T]) Done() <-chan struct{} {
+	return s.quitDone
 }
 
 // IsClosed returns status of the subscription
-func (c *ClientSubscription[T]) IsClosed() bool {
+func (s *Subscription[T]) IsClosed() bool {
 	select {
-	case <-c.quitDone:
+	case <-s.quitDone:
 		return true
 	default:
 		return false
 	}
 }
 
-// send sends a value to the subscription channel. If the subscription is closed, it returns an error.
-func (c *ClientSubscription[T]) send(ctx context.Context, value T) error {
+// Send sends a value to the subscription channel. If the subscription is closed, it returns an error.
+func (s *Subscription[T]) Send(ctx context.Context, value T) error {
 	select {
-	case c.in <- value:
-	case <-c.quitDone:
+	case s.in <- value:
+	case <-s.quitDone:
 		return errors.Wrap(errs.InternalError, "subscription is closed")
 	case <-ctx.Done():
 		return errors.WithStack(ctx.Err())
@@ -94,11 +101,11 @@ func (c *ClientSubscription[T]) send(ctx context.Context, value T) error {
 	return nil
 }
 
-// sendError sends an error to the subscription error channel. If the subscription is closed, it returns an error.
-func (c *ClientSubscription[T]) sendError(ctx context.Context, err error) error {
+// SendError sends an error to the subscription error channel. If the subscription is closed, it returns an error.
+func (s *Subscription[T]) SendError(ctx context.Context, err error) error {
 	select {
-	case c.err <- err:
-	case <-c.quitDone:
+	case s.err <- err:
+	case <-s.quitDone:
 		return errors.Wrap(errs.InternalError, "subscription is closed")
 	case <-ctx.Done():
 		return errors.WithStack(ctx.Err())
@@ -107,17 +114,17 @@ func (c *ClientSubscription[T]) sendError(ctx context.Context, err error) error 
 }
 
 // run starts the forwarding loop for the subscription.
-func (c *ClientSubscription[T]) run() {
-	defer close(c.quitDone)
+func (s *Subscription[T]) run() {
+	defer close(s.quitDone)
 
 	for {
 		select {
-		case <-c.quit:
+		case <-s.quit:
 			return
-		case value := <-c.in:
+		case value := <-s.in:
 			select {
-			case c.channel <- value:
-			case <-c.quit:
+			case s.channel <- value:
+			case <-s.quit:
 				return
 			}
 		}
