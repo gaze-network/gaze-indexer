@@ -179,18 +179,20 @@ func (p *Processor) processTx(ctx context.Context, tx *types.Transaction, blockH
 						}
 					}
 
-					if edict.Amount.IsZero() {
-						// if amount is zero, divide ALL unallocated amount to all destinations
-						amount, remainder := unallocated[edict.Id].QuoRem64(uint64(len(destinations)))
-						for i, dest := range destinations {
-							// if i < remainder, then add 1 to amount
-							allocate(dest, edict.Id, lo.Ternary(i < int(remainder), amount.Add64(1), amount))
-						}
-					} else {
-						// if amount is not zero, allocate the amount to all destinations, sequentially.
-						// If there is no more amount to allocate the rest of outputs, then no more will be allocated.
-						for _, dest := range destinations {
-							allocate(dest, edict.Id, edict.Amount)
+					if len(destinations) > 0 {
+						if edict.Amount.IsZero() {
+							// if amount is zero, divide ALL unallocated amount to all destinations
+							amount, remainder := unallocated[edict.Id].QuoRem64(uint64(len(destinations)))
+							for i, dest := range destinations {
+								// if i < remainder, then add 1 to amount
+								allocate(dest, edict.Id, lo.Ternary(i < int(remainder), amount.Add64(1), amount))
+							}
+						} else {
+							// if amount is not zero, allocate the amount to all destinations, sequentially.
+							// If there is no more amount to allocate the rest of outputs, then no more will be allocated.
+							for _, dest := range destinations {
+								allocate(dest, edict.Id, edict.Amount)
+							}
 						}
 					}
 				} else {
