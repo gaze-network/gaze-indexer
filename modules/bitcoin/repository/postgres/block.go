@@ -81,6 +81,19 @@ func (r *Repository) RevertBlocks(ctx context.Context, from int64) error {
 	return nil
 }
 
+func (r *Repository) GetBlockHeaderByHeight(ctx context.Context, blockHeight int64) (types.BlockHeader, error) {
+	blockModel, err := r.queries.GetBlockByHeight(ctx, int32(blockHeight))
+	if err != nil {
+		return types.BlockHeader{}, errors.Wrap(err, "failed to get block by height")
+	}
+
+	data, err := mapBlockHeaderModelToType(blockModel)
+	if err != nil {
+		return types.BlockHeader{}, errors.Wrap(err, "failed to map block header model to type")
+	}
+	return data, nil
+}
+
 func (r *Repository) GetBlocksByHeightRange(ctx context.Context, from int64, to int64) ([]*types.Block, error) {
 	blocks, err := r.queries.GetBlocksByHeightRange(ctx, gen.GetBlocksByHeightRangeParams{
 		FromHeight: int32(from),

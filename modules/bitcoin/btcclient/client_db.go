@@ -167,7 +167,11 @@ func (c *ClientDatabase) FetchAsync(ctx context.Context, from, to int64, ch chan
 }
 
 func (c *ClientDatabase) GetBlockHeader(ctx context.Context, height int64) (types.BlockHeader, error) {
-	return types.BlockHeader{}, nil
+	header, err := c.bitcoinDg.GetBlockHeaderByHeight(ctx, height)
+	if err != nil {
+		return types.BlockHeader{}, errors.WithStack(err)
+	}
+	return header, nil
 }
 
 func (c *ClientDatabase) prepareRange(ctx context.Context, fromHeight, toHeight int64) (start, end int64, skip bool, err error) {

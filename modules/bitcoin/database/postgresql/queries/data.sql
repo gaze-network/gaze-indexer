@@ -1,10 +1,6 @@
 -- name: GetLatestBlockHeader :one
 SELECT * FROM bitcoin_blocks ORDER BY block_height DESC LIMIT 1;
 
--- TODO: GetBlockHeaderByRange
-
--- TODO: GetBlockByHeight/Hash (Join block with transactions, txins, txouts)
-
 -- name: InsertBlock :exec
 INSERT INTO bitcoin_blocks ("block_height","block_hash","version","merkle_root","prev_block_hash","timestamp","bits","nonce") VALUES ($1, $2, $3, $4, $5, $6, $7, $8);
 
@@ -41,6 +37,9 @@ WITH delete_tx AS (
 	RETURNING NULL
 )
 DELETE FROM "bitcoin_blocks" WHERE "bitcoin_blocks"."block_height" >= @from_height;
+
+-- name: GetBlockByHeight :one
+SELECT * FROM bitcoin_blocks WHERE block_height = $1;
 
 -- name: GetBlocksByHeightRange :many
 SELECT * FROM bitcoin_blocks WHERE block_height >= @from_height AND block_height <= @to_height ORDER BY block_height ASC;

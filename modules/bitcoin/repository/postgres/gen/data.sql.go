@@ -11,6 +11,26 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const getBlockByHeight = `-- name: GetBlockByHeight :one
+SELECT block_height, block_hash, version, merkle_root, prev_block_hash, timestamp, bits, nonce FROM bitcoin_blocks WHERE block_height = $1
+`
+
+func (q *Queries) GetBlockByHeight(ctx context.Context, blockHeight int32) (BitcoinBlock, error) {
+	row := q.db.QueryRow(ctx, getBlockByHeight, blockHeight)
+	var i BitcoinBlock
+	err := row.Scan(
+		&i.BlockHeight,
+		&i.BlockHash,
+		&i.Version,
+		&i.MerkleRoot,
+		&i.PrevBlockHash,
+		&i.Timestamp,
+		&i.Bits,
+		&i.Nonce,
+	)
+	return i, err
+}
+
 const getBlocksByHeightRange = `-- name: GetBlocksByHeightRange :many
 SELECT block_height, block_hash, version, merkle_root, prev_block_hash, timestamp, bits, nonce FROM bitcoin_blocks WHERE block_height >= $1 AND block_height <= $2 ORDER BY block_height ASC
 `
@@ -169,8 +189,6 @@ func (q *Queries) GetTransactionsByHeightRange(ctx context.Context, arg GetTrans
 }
 
 const insertBlock = `-- name: InsertBlock :exec
-
-
 INSERT INTO bitcoin_blocks ("block_height","block_hash","version","merkle_root","prev_block_hash","timestamp","bits","nonce") VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 `
 
@@ -185,8 +203,6 @@ type InsertBlockParams struct {
 	Nonce         int32
 }
 
-// TODO: GetBlockHeaderByRange
-// TODO: GetBlockByHeight/Hash (Join block with transactions, txins, txouts)
 func (q *Queries) InsertBlock(ctx context.Context, arg InsertBlockParams) error {
 	_, err := q.db.Exec(ctx, insertBlock,
 		arg.BlockHeight,

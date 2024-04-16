@@ -18,5 +18,6 @@ type BitcoinWriterDataDataGateway interface {
 
 type BitcoinReaderDataDataGateway interface {
 	GetLatestBlockHeader(context.Context) (types.BlockHeader, error)
+	GetBlockHeaderByHeight(ctx context.Context, blockHeight int64) (types.BlockHeader, error)
 	GetBlocksByHeightRange(ctx context.Context, from int64, to int64) ([]*types.Block, error)
 }
