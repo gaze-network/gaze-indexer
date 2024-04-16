@@ -12,6 +12,7 @@ network: mainnet
 
 modules:
   bitcoin:
+    database: "postgres" # Database to store bitcoin data. current supported databases: "postgres"
     postgres:
       host: "localhost"
       port: 5432

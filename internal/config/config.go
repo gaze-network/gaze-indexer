@@ -8,7 +8,8 @@ import (
 
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/common"
-	"github.com/gaze-network/indexer-network/internal/postgres"
+	btcconfig "github.com/gaze-network/indexer-network/modules/bitcoin/config"
+	runesconfig "github.com/gaze-network/indexer-network/modules/runes/config"
 	"github.com/gaze-network/indexer-network/pkg/logger"
 	"github.com/gaze-network/indexer-network/pkg/logger/slogx"
 	"github.com/spf13/pflag"
@@ -33,7 +34,7 @@ type Config struct {
 	Logger      logger.Config     `mapstructure:"logger"`
 	BitcoinNode BitcoinNodeClient `mapstructure:"bitcoin_node"`
 	Network     common.Network    `mapstructure:"network"`
-	Modules     map[string]Module `mapstructure:"modules"`
+	Modules     Modules           `mapstructure:"modules"`
 }
 
 type BitcoinNodeClient struct {
@@ -43,8 +44,9 @@ type BitcoinNodeClient struct {
 	DisableTLS bool   `mapstructure:"disable_tls"`
 }
 
-type Module struct {
-	Postgres postgres.Config `mapstructure:"postgres"`
+type Modules struct {
+	Bitcoin btcconfig.Config   `mapstructure:"bitcoin"`
+	Runes   runesconfig.Config `mapstructure:"runes"`
 }
 
 // Parse parse the configuration from environment variables

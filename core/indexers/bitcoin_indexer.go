@@ -13,6 +13,10 @@ import (
 	"github.com/gaze-network/indexer-network/pkg/logger/slogx"
 )
 
+const (
+	maxReorgLookBack = 100
+)
+
 type (
 	BitcoinProcessor  Processor[[]*types.Block]
 	BitcoinDatasource datasources.Datasource[[]*types.Block]
@@ -88,19 +92,55 @@ func (i *BitcoinIndexer) process(ctx context.Context) (err error) {
 
 			// validate reorg from first block
 			{
-				currentBlockHeader := blocks[0].Header
-				if !currentBlockHeader.PrevBlock.IsEqual(&i.currentBlock.Hash) {
+				remoteBlockHeader := blocks[0].Header
+				if !remoteBlockHeader.PrevBlock.IsEqual(&i.currentBlock.Hash) {
 					logger.WarnContext(ctx, "reorg detected",
 						slogx.Stringer("current_hash", i.currentBlock.Hash),
-						slogx.Stringer("expected_hash", currentBlockHeader.PrevBlock),
+						slogx.Stringer("expected_hash", remoteBlockHeader.PrevBlock),
 					)
 
-					// TODO: find start reorg block
-					startReorgHeight := currentBlockHeader.Height // TODO: use start reorg block height
-					if err := i.Processor.RevertData(ctx, startReorgHeight); err != nil {
+					var (
+						targetHeight           = i.currentBlock.Height - 1
+						beforeReorgBlockHeader = types.BlockHeader{
+							Height: -1,
+						}
+					)
+					for n := 0; n < maxReorgLookBack; n++ {
+						// TODO: concurrent fetch
+						indexedHeader, err := i.Processor.GetIndexedBlock(ctx, targetHeight)
+						if err != nil {
+							return errors.Wrapf(err, "failed to get indexed block, height: %d", targetHeight)
+						}
+
+						remoteHeader, err := i.Datasource.GetBlockHeader(ctx, targetHeight)
+						if err != nil {
+							return errors.Wrapf(err, "failed to get remote block header, height: %d", targetHeight)
+						}
+
+						// Found no reorg block
+						if indexedHeader.Hash.IsEqual(&remoteHeader.Hash) {
+							beforeReorgBlockHeader = remoteHeader
+							break
+						}
+
+						// Walk back to find fork point
+						targetHeight -= 1
+					}
+
+					// Reorg look back limit reached
+					if beforeReorgBlockHeader.Height < 0 {
+						return errors.Wrap(errs.SomethingWentWrong, "reorg look back limit reached")
+					}
+
+					// Revert all data since the reorg block
+					logger.WarnContext(ctx, "reverting reorg data", slogx.Int64("from", beforeReorgBlockHeader.Height+1))
+					if err := i.Processor.RevertData(ctx, beforeReorgBlockHeader.Height+1); err != nil {
 						return errors.Wrap(err, "failed to revert data")
 					}
-					i.currentBlock = currentBlockHeader
+
+					// Set current block to before reorg block and
+					// end current round to fetch again
+					i.currentBlock = beforeReorgBlockHeader
 					return nil
 				}
 			}

@@ -19,6 +19,20 @@ type BlockHeader struct {
 	Nonce      uint32
 }
 
+func ParseMsgBlockHeader(src wire.BlockHeader, height int64) BlockHeader {
+	hash := src.BlockHash()
+	return BlockHeader{
+		Hash:       hash,
+		Height:     height,
+		Version:    src.Version,
+		PrevBlock:  src.PrevBlock,
+		MerkleRoot: src.MerkleRoot,
+		Timestamp:  src.Timestamp,
+		Bits:       src.Bits,
+		Nonce:      src.Nonce,
+	}
+}
+
 type Block struct {
 	Header       BlockHeader
 	Transactions []*Transaction
@@ -27,16 +41,7 @@ type Block struct {
 func ParseMsgBlock(src *wire.MsgBlock, height int64) *Block {
 	hash := src.Header.BlockHash()
 	return &Block{
-		Header: BlockHeader{
-			Hash:       hash,
-			Height:     height,
-			Version:    src.Header.Version,
-			PrevBlock:  src.Header.PrevBlock,
-			MerkleRoot: src.Header.MerkleRoot,
-			Timestamp:  src.Header.Timestamp,
-			Bits:       src.Header.Bits,
-			Nonce:      src.Header.Nonce,
-		},
+		Header:       ParseMsgBlockHeader(src.Header, height),
 		Transactions: lo.Map(src.Transactions, func(item *wire.MsgTx, index int) *Transaction { return ParseMsgTx(item, height, hash, uint32(index)) }),
 	}
 }
