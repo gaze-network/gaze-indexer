@@ -67,3 +67,10 @@ func (r *Repository) InsertBlock(ctx context.Context, block *types.Block) error 
 
 	return nil
 }
+
+func (r *Repository) RevertBlocks(ctx context.Context, from int64) error {
+	if err := r.queries.RevertData(ctx, int32(from)); err != nil {
+		return errors.Wrap(err, "failed to revert data")
+	}
+	return nil
+}
