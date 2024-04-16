@@ -14,6 +14,8 @@ import (
 	"github.com/samber/lo"
 )
 
+// TODO: Refactor this, datasources.BitcoinNode and This package is the same.
+
 // Make sure to implement the BitcoinDatasource interface
 var _ datasources.Datasource[[]*types.Block] = (*ClientDatabase)(nil)
 
