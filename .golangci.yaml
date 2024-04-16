@@ -79,6 +79,9 @@ linters-settings:
       - .WithMessage(
       - .WithMessagef(
       - .WithStack(
+      - errs.NewPublicError(
+      - errs.WithPublicMessage(
+      - withstack.WithStackDepth(
     ignoreSigRegexps:
       - \.New.*Error\(
   goconst:
