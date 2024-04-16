@@ -1626,8 +1626,11 @@ func TestDecipherRunestone(t *testing.T) {
 		)
 	})
 	t.Run("all_pushdata_opcodes_are_valid", func(t *testing.T) {
-		// note: ord's original test includes i = 0 case, but in ord code, OP_0 is treated as data push.
-		for i := 1; i < 79; i++ {
+		// PushData opcodes include (per ord's spec):
+		// 1. OP_0
+		// 2. OP_DATA_1 - OP_DATA_76
+		// 3. OP_PUSHDATA1, OP_PUSHDATA2, OP_PUSHDATA4
+		for i := 0; i < 79; i++ {
 			pkScript := make([]byte, 0)
 
 			pkScript = append(pkScript, txscript.OP_RETURN)

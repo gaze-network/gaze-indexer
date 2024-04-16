@@ -350,11 +350,10 @@ func runestonePayloadFromTx(tx *types.Transaction) ([]byte, Flaws) {
 			if tokenizer.Err() != nil {
 				return nil, FlawFlagInvalidScript.Mask()
 			}
-			data := tokenizer.Data()
-			if data == nil {
+			if !IsDataPushOpCode(tokenizer.Opcode()) {
 				return nil, FlawFlagOpCode.Mask()
 			}
-			payload = append(payload, data...)
+			payload = append(payload, tokenizer.Data()...)
 		}
 		if tokenizer.Err() != nil {
 			return nil, FlawFlagInvalidScript.Mask()
@@ -382,4 +381,9 @@ func decodeLEB128VarIntsFromPayload(payload []byte) ([]uint128.Uint128, error) {
 	}
 
 	return integers, nil
+}
+
+func IsDataPushOpCode(opCode byte) bool {
+	// includes OP_0, OP_DATA_1 to OP_DATA_75, OP_PUSHDATA1, OP_PUSHDATA2, OP_PUSHDATA4
+	return opCode <= txscript.OP_PUSHDATA4
 }

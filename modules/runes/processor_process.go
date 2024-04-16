@@ -501,9 +501,13 @@ func (p *Processor) txCommitsToRune(ctx context.Context, tx *types.Transaction, 
 			if tapscript.Err() != nil {
 				break
 			}
-			data := tapscript.Data()
+			// check opcode is valid
+			if !runes.IsDataPushOpCode(tapscript.Opcode()) {
+				continue
+			}
+
 			// tapscript must contain commitment of the rune
-			if !bytes.Equal(data, commitment) {
+			if !bytes.Equal(tapscript.Data(), commitment) {
 				continue
 			}
 
