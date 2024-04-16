@@ -157,6 +157,7 @@ func (d *BitcoinNodeDatasource) FetchAsync(ctx context.Context, from, to int64, 
 							if err := subscription.SendError(ctx, errors.Wrapf(err, "failed to get block hash: height: %d", height)); err != nil {
 								logger.ErrorContext(ctx, "failed to send error", slogx.Error(err))
 							}
+							return nil
 						}
 
 						block, err := d.btcclient.GetBlock(hash)
@@ -165,6 +166,7 @@ func (d *BitcoinNodeDatasource) FetchAsync(ctx context.Context, from, to int64, 
 							if err := subscription.SendError(ctx, errors.Wrapf(err, "failed to get block: height: %d, hash: %s", height, hash)); err != nil {
 								logger.ErrorContext(ctx, "failed to send error", slogx.Error(err))
 							}
+							return nil
 						}
 						logger.DebugContext(ctx, "[BitcoinNodeDatasource] Fetched block", slogx.Int64("height", height), slogx.String("hash", hash.String()))
 
