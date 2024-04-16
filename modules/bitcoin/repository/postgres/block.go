@@ -128,6 +128,7 @@ func (r *Repository) GetBlocksByHeightRange(ctx context.Context, from int64, to 
 	groupedTxOuts := lo.GroupBy(txOuts, func(txOut gen.BitcoinTransactionTxout) string { return txOut.TxHash })
 	groupedTxIns := lo.GroupBy(txIns, func(txIn gen.BitcoinTransactionTxin) string { return txIn.TxHash })
 
+	// TODO: Extract to mapper functions
 	var errs []error
 	result := lo.Map(blocks, func(blockModel gen.BitcoinBlock, _ int) *types.Block {
 		header, err := mapBlockHeaderModelToType(blockModel)
