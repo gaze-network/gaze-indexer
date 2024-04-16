@@ -69,6 +69,39 @@ func (q *Queries) GetLatestBlockHeader(ctx context.Context) (BitcoinBlock, error
 	return i, err
 }
 
+const getTransactionTxInsByTxHashes = `-- name: GetTransactionTxInsByTxHashes :many
+SELECT tx_hash, tx_idx, prevout_tx_hash, prevout_tx_idx, prevout_pkscript, scriptsig, witness, sequence FROM bitcoin_transaction_txins WHERE tx_hash = ANY($1::TEXT[])
+`
+
+func (q *Queries) GetTransactionTxInsByTxHashes(ctx context.Context, txHashes []string) ([]BitcoinTransactionTxin, error) {
+	rows, err := q.db.Query(ctx, getTransactionTxInsByTxHashes, txHashes)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []BitcoinTransactionTxin
+	for rows.Next() {
+		var i BitcoinTransactionTxin
+		if err := rows.Scan(
+			&i.TxHash,
+			&i.TxIdx,
+			&i.PrevoutTxHash,
+			&i.PrevoutTxIdx,
+			&i.PrevoutPkscript,
+			&i.Scriptsig,
+			&i.Witness,
+			&i.Sequence,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getTransactionTxOutsByTxHashes = `-- name: GetTransactionTxOutsByTxHashes :many
 SELECT tx_hash, tx_idx, pkscript, value, is_spent FROM bitcoin_transaction_txouts WHERE tx_hash = ANY($1::TEXT[])
 `

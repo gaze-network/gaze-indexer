@@ -50,3 +50,6 @@ SELECT * FROM bitcoin_transactions WHERE block_height >= @from_height AND block_
 
 -- name: GetTransactionTxOutsByTxHashes :many
 SELECT * FROM bitcoin_transaction_txouts WHERE tx_hash = ANY(@tx_hashes::TEXT[]);
+
+-- name: GetTransactionTxInsByTxHashes :many
+SELECT * FROM bitcoin_transaction_txins WHERE tx_hash = ANY(@tx_hashes::TEXT[]);
