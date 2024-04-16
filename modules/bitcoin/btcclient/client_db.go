@@ -67,7 +67,7 @@ func (c *ClientDatabase) Fetch(ctx context.Context, from, to int64) ([]*types.Bl
 }
 
 func (c *ClientDatabase) FetchAsync(ctx context.Context, from, to int64, ch chan<- []*types.Block) (*subscription.ClientSubscription[[]*types.Block], error) {
-	from, to, skip, err := c.prepareRange(from, to)
+	from, to, skip, err := c.prepareRange(ctx, from, to)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to prepare fetch range")
 	}
@@ -156,13 +156,13 @@ func (c *ClientDatabase) GetBlockHeader(ctx context.Context, height int64) (type
 	return types.BlockHeader{}, nil
 }
 
-func (c *ClientDatabase) prepareRange(fromHeight, toHeight int64) (start, end int64, skip bool, err error) {
+func (c *ClientDatabase) prepareRange(ctx context.Context, fromHeight, toHeight int64) (start, end int64, skip bool, err error) {
 	start = fromHeight
 	end = toHeight
 
 	// get current bitcoin block height
 	// TODO: Get Latest Block Height from DB
-	latestBlockHeight, err := int64(0), nil
+	latestBlock, err := c.bitcoinDg.GetLatestBlockHeader(ctx)
 	if err != nil {
 		return -1, -1, false, errors.Wrap(err, "failed to get block count")
 	}
@@ -175,8 +175,8 @@ func (c *ClientDatabase) prepareRange(fromHeight, toHeight int64) (start, end in
 	// set end to current bitcoin block height if
 	// - end is -1
 	// - end is greater that current bitcoin block height
-	if end < 0 || end > latestBlockHeight {
-		end = latestBlockHeight
+	if end < 0 || end > latestBlock.Height {
+		end = latestBlock.Height
 	}
 
 	// if start is greater than end, skip this round
