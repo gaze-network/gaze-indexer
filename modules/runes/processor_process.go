@@ -523,7 +523,7 @@ func (p *Processor) txCommitsToRune(ctx context.Context, tx *types.Transaction, 
 			pkScript := prevTx.TxOut[txIn.PreviousOutIndex].PkScript
 			// input utxo must be P2TR
 			if !txscript.IsPayToTaproot(pkScript) {
-				continue
+				break
 			}
 			// input must be mature enough
 			confirmations := tx.BlockHeight - prevTx.BlockHeight
