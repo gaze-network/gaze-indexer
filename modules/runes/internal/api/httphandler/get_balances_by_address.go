@@ -2,6 +2,7 @@ package httphandler
 
 import (
 	"github.com/cockroachdb/errors"
+	"github.com/gaze-network/indexer-network/common/errs"
 	"github.com/gofiber/fiber/v2"
 	"github.com/samber/lo"
 )
@@ -28,11 +29,11 @@ type getBalancesByAddressResult struct {
 type getBalancesByAddressResponse = HttpResponse[getBalancesByAddressResult]
 
 func (r getBalancesByAddressRequest) Validate() error {
-	var errs []error
+	var errList []error
 	if r.Wallet == "" {
-		errs = append(errs, errors.New("'wallet' is required"))
+		errList = append(errList, errors.New("'wallet' is required"))
 	}
-	return NewValidationError(errs...)
+	return errs.WithPublicMessage(errors.Join(errList...), "validation error")
 }
 
 func (h *HttpHandler) GetBalancesByAddress(ctx *fiber.Ctx) (err error) {
@@ -49,7 +50,7 @@ func (h *HttpHandler) GetBalancesByAddress(ctx *fiber.Ctx) (err error) {
 
 	pkScript, ok := h.resolvePkScript(h.network, req.Wallet)
 	if !ok {
-		return NewUserError(errors.New("unable to resolve pkscript from \"wallet\""))
+		return errs.NewPublicError("unable to resolve pkscript from \"wallet\"")
 	}
 
 	blockHeight := req.BlockHeight
