@@ -124,22 +124,32 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 	}
 
 	// Initialize Runes Indexer
-	if opts.Runes.Enabled {
+	if opts.Runes {
 		var db runesdatagateway.RunesDataGateway
-		switch strings.ToLower(opts.Runes.Database) {
+		switch strings.ToLower(conf.Modules.Runes.Database) {
 		case "postgres", "pg":
-			pg, err := postgres.NewPool(ctx, conf.Modules["runes"].Postgres)
+			pg, err := postgres.NewPool(ctx, conf.Modules.Runes.Postgres)
 			if err != nil {
 				logger.PanicContext(ctx, "Failed to create Postgres connection pool", slogx.Error(err))
 			}
 			defer pg.Close()
 			db = runespostgres.NewRepository(pg)
 		default:
-			logger.PanicContext(ctx, "Unsupported database", slogx.String("database", opts.Runes.Database))
+			logger.PanicContext(ctx, "Unsupported database", slogx.String("database", conf.Modules.Runes.Database))
 		}
+		// TODO: add option to change bitcoinNodeDatasource implementation
 		bitcoinNodeDatasource := datasources.NewBitcoinNode(client)
-		runesProcessor := runes.NewProcessor(db, bitcoinNodeDatasource, bitcoinNodeDatasource, conf.Network)
-		runesIndexer := indexers.NewBitcoinIndexer(runesProcessor, bitcoinNodeDatasource)
+		var bitcoinDatasource indexers.BitcoinDatasource
+		switch strings.ToLower(conf.Modules.Runes.Datasource) {
+		case "bitcoin-node":
+			bitcoinDatasource = bitcoinNodeDatasource
+		case "database":
+			return errors.Wrap(errs.Unsupported, "%database datasource is not supported yet")
+		default:
+			return errors.Wrapf(errs.Unsupported, "%q datasource is not supported", conf.Modules.Runes.Datasource)
+		}
+		runesProcessor := runes.NewProcessor(db, bitcoinNodeDatasource, bitcoinDatasource, conf.Network)
+		runesIndexer := indexers.NewBitcoinIndexer(runesProcessor, bitcoinDatasource)
 
 		if err := runesProcessor.Init(ctx); err != nil {
 			logger.PanicContext(ctx, "Failed to initialize Runes Processor", slogx.Error(err))
