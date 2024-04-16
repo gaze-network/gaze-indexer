@@ -24,7 +24,6 @@ WITH update_txout AS (
 INSERT INTO bitcoin_transaction_txins ("tx_hash","tx_idx","prevout_tx_hash","prevout_tx_idx","prevout_pkscript","scriptsig","witness","sequence") 
 VALUES ($1, $2, $3, $4, (SELECT "pkscript" FROM update_txout), $5, $6, $7);
 
-
 -- name: RevertData :exec
 WITH delete_tx AS (
 	DELETE FROM "bitcoin_transactions" WHERE "block_height" >= @from_height
@@ -42,3 +41,12 @@ WITH delete_tx AS (
 	RETURNING NULL
 )
 DELETE FROM "bitcoin_blocks" WHERE "bitcoin_blocks"."block_height" >= @from_height;
+
+-- name: GetBlocksByHeightRange :many
+SELECT * FROM bitcoin_blocks WHERE block_height >= @from_height AND block_height <= @to_height ORDER BY block_height ASC;
+
+-- name: GetTransactionsByHeightRange :many
+SELECT * FROM bitcoin_transactions WHERE block_height >= @from_height AND block_height <= @to_height;
+
+-- name: GetTransactionTxOutsByTxHashes :many
+SELECT * FROM bitcoin_transaction_txouts WHERE tx_hash = ANY(@tx_hashes::TEXT[]);
