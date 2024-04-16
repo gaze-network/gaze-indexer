@@ -140,9 +140,23 @@ func (c *ClientDatabase) FetchAsync(ctx context.Context, from, to int64, ch chan
 			case <-ctx.Done():
 				return
 			default:
+				if len(chunk) == 0 {
+					continue
+				}
 				stream.Go(func() []*types.Block {
-					blocks := make([]*types.Block, 0, len(chunk))
-					// TODO: Fetch block from DB
+					fromHeight, toHeight := chunk[0], chunk[len(chunk)-1]
+					blocks, err := c.bitcoinDg.GetBlocksByHeightRange(ctx, fromHeight, toHeight)
+					if err != nil {
+						logger.ErrorContext(ctx, "failed to get blocks",
+							slogx.Error(err),
+							slogx.Int64("from_height", fromHeight),
+							slogx.Int64("to_height", toHeight),
+						)
+						if err := subscription.SendError(ctx, errors.Wrapf(err, "failed to get blocks: from_height: %d, to_height: %d", fromHeight, toHeight)); err != nil {
+							logger.ErrorContext(ctx, "failed to send error", slogx.Error(err))
+						}
+						return nil
+					}
 					return blocks
 				})
 			}
@@ -161,7 +175,6 @@ func (c *ClientDatabase) prepareRange(ctx context.Context, fromHeight, toHeight 
 	end = toHeight
 
 	// get current bitcoin block height
-	// TODO: Get Latest Block Height from DB
 	latestBlock, err := c.bitcoinDg.GetLatestBlockHeader(ctx)
 	if err != nil {
 		return -1, -1, false, errors.Wrap(err, "failed to get block count")
