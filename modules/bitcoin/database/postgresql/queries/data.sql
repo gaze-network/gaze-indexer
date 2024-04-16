@@ -23,3 +23,22 @@ WITH update_txout AS (
 )
 INSERT INTO bitcoin_transaction_txins ("tx_hash","tx_idx","prevout_tx_hash","prevout_tx_idx","prevout_pkscript","scriptsig","witness","sequence") 
 VALUES ($1, $2, $3, $4, (SELECT "pkscript" FROM update_txout), $5, $6, $7);
+
+
+-- name: RevertData :exec
+WITH delete_tx AS (
+	DELETE FROM "bitcoin_transactions" WHERE "block_height" >= @from_height
+	RETURNING "tx_hash"
+), delete_txin AS (
+	DELETE FROM  "bitcoin_transaction_txins" WHERE "tx_hash" = ANY(SELECT "tx_hash" FROM delete_tx)
+	RETURNING "prevout_tx_hash", "prevout_tx_idx"
+), delete_txout AS (
+	DELETE FROM  "bitcoin_transaction_txouts" WHERE "tx_hash" = ANY(SELECT "tx_hash" FROM delete_tx)
+	RETURNING NULL
+), revert_txout_spent AS (
+	UPDATE "bitcoin_transaction_txouts"
+	SET "is_spent" = false
+	WHERE ("tx_hash", "tx_idx") IN (SELECT "prevout_tx_hash", "prevout_tx_idx" FROM delete_txin)
+	RETURNING NULL
+)
+DELETE FROM "bitcoin_blocks" WHERE "bitcoin_blocks"."block_height" >= @from_height;
