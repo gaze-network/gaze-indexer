@@ -23,10 +23,6 @@ import (
 )
 
 func (p *Processor) Process(ctx context.Context, blocks []*types.Block) error {
-	err := p.runesDg.Begin(ctx)
-	if err != nil {
-		return errors.Wrap(err, "failed to begin transaction")
-	}
 	defer func() {
 		if err := p.runesDg.Rollback(ctx); err != nil {
 			logger.ErrorContext(ctx, "failed to rollback transaction", err)
@@ -39,6 +35,11 @@ func (p *Processor) Process(ctx context.Context, blocks []*types.Block) error {
 	for _, block := range blocks {
 		ctx := logger.WithContext(ctx, slog.Int("block_height", int(block.Header.Height)))
 		logger.DebugContext(ctx, "[RunesProcessor] Processing block", slog.Int("txs", len(block.Transactions)))
+
+		if err := p.runesDg.Begin(ctx); err != nil {
+			return errors.Wrap(err, "failed to begin transaction")
+		}
+
 		for _, tx := range block.Transactions {
 			if err := p.processTx(ctx, tx, block.Header); err != nil {
 				return errors.Wrap(err, "failed to process tx")
@@ -47,9 +48,10 @@ func (p *Processor) Process(ctx context.Context, blocks []*types.Block) error {
 		if err := p.flushBlock(ctx, block.Header); err != nil {
 			return errors.Wrap(err, "failed to flush block")
 		}
-	}
-	if err := p.runesDg.Commit(ctx); err != nil {
-		return errors.Wrap(err, "failed to commit transaction")
+
+		if err := p.runesDg.Commit(ctx); err != nil {
+			return errors.Wrap(err, "failed to commit transaction")
+		}
 	}
 	return nil
 }
