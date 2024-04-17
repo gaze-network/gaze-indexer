@@ -56,6 +56,10 @@ func (i *BitcoinIndexer) Run(ctx context.Context) (err error) {
 		return errors.Wrap(err, "can't init state, failed to get indexer current block")
 	}
 
+	// TODO:
+	// - compare db version in constants and database
+	// - update indexer stats
+
 	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
 	for {
