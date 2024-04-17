@@ -205,7 +205,8 @@ func (c *ClientDatabase) prepareRange(ctx context.Context, fromHeight, toHeight 
 	return start, end, false, nil
 }
 
-func (c *ClientDatabase) GetTransaction(ctx context.Context, txHash chainhash.Hash) (*types.Transaction, error) {
+// GetTransactionByHash returns a transaction with the given hash. Returns errs.NotFound if transaction does not exist.
+func (c *ClientDatabase) GetTransactionByHash(ctx context.Context, txHash chainhash.Hash) (*types.Transaction, error) {
 	tx, err := c.bitcoinDg.GetTransactionByHash(ctx, txHash)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get transaction by hash")
