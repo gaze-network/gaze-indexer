@@ -10,6 +10,8 @@ import (
 	"github.com/gaze-network/indexer-network/common"
 	"github.com/gaze-network/indexer-network/modules/runes/runes"
 	"github.com/gaze-network/indexer-network/modules/runes/usecase"
+	"github.com/gaze-network/indexer-network/pkg/logger"
+	"github.com/gaze-network/indexer-network/pkg/logger/slogx"
 )
 
 type HttpHandler struct {
@@ -60,6 +62,21 @@ func (h *HttpHandler) resolvePkScript(network common.Network, wallet string) ([]
 	}
 
 	return pkScript, true
+}
+
+// TODO: extract this function somewhere else
+// addressFromPkScript returns the address from the given pkScript. If the pkScript is invalid or not standard, it returns empty string.
+func addressFromPkScript(pkScript []byte, network common.Network) string {
+	_, addrs, _, err := txscript.ExtractPkScriptAddrs(pkScript, network.ChainParams())
+	if err != nil {
+		logger.Debug("unable to extract address from pkscript", slogx.Error(err))
+		return ""
+	}
+	if len(addrs) != 1 {
+		logger.Debug("invalid number of addresses extracted from pkscript. Expected only 1.", slogx.Int("numAddresses", len(addrs)))
+		return ""
+	}
+	return addrs[0].EncodeAddress()
 }
 
 func (h *HttpHandler) resolveRuneId(ctx context.Context, id string) (runes.RuneId, bool) {

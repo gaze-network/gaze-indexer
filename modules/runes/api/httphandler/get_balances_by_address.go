@@ -13,6 +13,14 @@ type getBalancesByAddressRequest struct {
 	BlockHeight uint64 `query:"blockHeight"`
 }
 
+func (r getBalancesByAddressRequest) Validate() error {
+	var errList []error
+	if r.Wallet == "" {
+		errList = append(errList, errors.New("'wallet' is required"))
+	}
+	return errs.WithPublicMessage(errors.Join(errList...), "validation error")
+}
+
 type balance struct {
 	Amount   string `json:"amount"`
 	Id       string `json:"id"`
@@ -27,14 +35,6 @@ type getBalancesByAddressResult struct {
 }
 
 type getBalancesByAddressResponse = HttpResponse[getBalancesByAddressResult]
-
-func (r getBalancesByAddressRequest) Validate() error {
-	var errList []error
-	if r.Wallet == "" {
-		errList = append(errList, errors.New("'wallet' is required"))
-	}
-	return errs.WithPublicMessage(errors.Join(errList...), "validation error")
-}
 
 func (h *HttpHandler) GetBalancesByAddress(ctx *fiber.Ctx) (err error) {
 	var req getBalancesByAddressRequest

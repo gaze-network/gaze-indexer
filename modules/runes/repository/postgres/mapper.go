@@ -301,12 +301,6 @@ func extractModelRuneTxAndRunestone(src gen.GetRuneTransactionsByHeightRow) (gen
 	var runestone *gen.RunesRunestone
 	if src.TxHash.Valid {
 		// these fields should never be null
-		if !src.Etching.Valid {
-			return gen.RunesTransaction{}, nil, errors.New("runestone etching bool is null")
-		}
-		if !src.EtchingTerms.Valid {
-			return gen.RunesTransaction{}, nil, errors.New("runestone etching terms bool is null")
-		}
 		if !src.Cenotaph.Valid {
 			return gen.RunesTransaction{}, nil, errors.New("runestone cenotaph is null")
 		}
