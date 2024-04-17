@@ -47,6 +47,9 @@ SELECT * FROM bitcoin_blocks WHERE block_height >= @from_height AND block_height
 -- name: GetTransactionsByHeightRange :many
 SELECT * FROM bitcoin_transactions WHERE block_height >= @from_height AND block_height <= @to_height;
 
+-- name: GetTransactionByHash :one
+SELECT * FROM bitcoin_transactions WHERE tx_hash = $1;
+
 -- name: GetTransactionTxOutsByTxHashes :many
 SELECT * FROM bitcoin_transaction_txouts WHERE tx_hash = ANY(@tx_hashes::TEXT[]);
 

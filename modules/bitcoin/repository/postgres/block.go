@@ -1,12 +1,8 @@
 package postgres
 
 import (
-	"cmp"
 	"context"
-	"encoding/hex"
-	"slices"
 
-	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/core/types"
 	"github.com/gaze-network/indexer-network/modules/bitcoin/repository/postgres/gen"
@@ -128,7 +124,6 @@ func (r *Repository) GetBlocksByHeightRange(ctx context.Context, from int64, to 
 	groupedTxOuts := lo.GroupBy(txOuts, func(txOut gen.BitcoinTransactionTxout) string { return txOut.TxHash })
 	groupedTxIns := lo.GroupBy(txIns, func(txIn gen.BitcoinTransactionTxin) string { return txIn.TxHash })
 
-	// TODO: Extract to mapper functions
 	var errs []error
 	result := lo.Map(blocks, func(blockModel gen.BitcoinBlock, _ int) *types.Block {
 		header, err := mapBlockHeaderModelToType(blockModel)
@@ -141,69 +136,12 @@ func (r *Repository) GetBlocksByHeightRange(ctx context.Context, from int64, to 
 		return &types.Block{
 			Header: header,
 			Transactions: lo.Map(txsModel, func(txModel gen.BitcoinTransaction, _ int) *types.Transaction {
-				blockHash, err := chainhash.NewHashFromStr(txModel.BlockHash)
+				tx, err := mapTransactionModelToType(txModel, groupedTxIns[txModel.TxHash], groupedTxOuts[txModel.TxHash])
 				if err != nil {
-					errs = append(errs, errors.Wrap(err, "failed to parse block hash"))
+					errs = append(errs, errors.Wrap(err, "failed to map transaction model to type"))
 					return nil
 				}
-
-				txHash, err := chainhash.NewHashFromStr(txModel.TxHash)
-				if err != nil {
-					errs = append(errs, errors.Wrap(err, "failed to parse tx hash"))
-					return nil
-				}
-
-				txOutsModel := groupedTxOuts[txModel.TxHash]
-				txInsModel := groupedTxIns[txModel.TxHash]
-
-				// Sort txins and txouts by index (Asc)
-				slices.SortFunc(txOutsModel, func(i, j gen.BitcoinTransactionTxout) int {
-					return cmp.Compare(i.TxIdx, j.TxIdx)
-				})
-				slices.SortFunc(txInsModel, func(i, j gen.BitcoinTransactionTxin) int {
-					return cmp.Compare(i.TxIdx, j.TxIdx)
-				})
-
-				return &types.Transaction{
-					BlockHeight: int64(txModel.BlockHeight),
-					BlockHash:   *blockHash,
-					Index:       uint32(txModel.Idx),
-					TxHash:      *txHash,
-					Version:     txModel.Version,
-					LockTime:    uint32(txModel.Locktime),
-					TxIn: lo.Map(txInsModel, func(src gen.BitcoinTransactionTxin, _ int) *types.TxIn {
-						scriptsig, err := hex.DecodeString(src.Scriptsig)
-						if err != nil {
-							errs = append(errs, errors.Wrap(err, "failed to decode scriptsig"))
-							return nil
-						}
-
-						prevoutTxHash, err := chainhash.NewHashFromStr(src.PrevoutTxHash)
-						if err != nil {
-							errs = append(errs, errors.Wrap(err, "failed to parse prevout tx hash"))
-							return nil
-						}
-
-						return &types.TxIn{
-							SignatureScript:   scriptsig,
-							Witness:           [][]byte{}, // TODO: implement witness
-							Sequence:          uint32(src.Sequence),
-							PreviousOutIndex:  uint32(src.PrevoutTxIdx),
-							PreviousOutTxHash: *prevoutTxHash,
-						}
-					}),
-					TxOut: lo.Map(txOutsModel, func(src gen.BitcoinTransactionTxout, _ int) *types.TxOut {
-						pkscript, err := hex.DecodeString(src.Pkscript)
-						if err != nil {
-							errs = append(errs, errors.Wrap(err, "failed to decode pkscript"))
-							return nil
-						}
-						return &types.TxOut{
-							PkScript: pkscript,
-							Value:    src.Value,
-						}
-					}),
-				}
+				return &tx
 			}),
 		}
 	})

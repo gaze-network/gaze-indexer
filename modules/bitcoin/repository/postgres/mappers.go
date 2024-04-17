@@ -1,7 +1,9 @@
 package postgres
 
 import (
+	"cmp"
 	"encoding/hex"
+	"slices"
 
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/cockroachdb/errors"
@@ -106,4 +108,67 @@ func mapBlockTypeToParams(src *types.Block) (gen.InsertBlockParams, []gen.Insert
 		}
 	}
 	return block, txs, txouts, txins
+}
+
+func mapTransactionModelToType(src gen.BitcoinTransaction, txInModel []gen.BitcoinTransactionTxin, txOutModels []gen.BitcoinTransactionTxout) (types.Transaction, error) {
+	blockHash, err := chainhash.NewHashFromStr(src.BlockHash)
+	if err != nil {
+		return types.Transaction{}, errors.Wrap(err, "failed to parse block hash")
+	}
+
+	txHash, err := chainhash.NewHashFromStr(src.TxHash)
+	if err != nil {
+		return types.Transaction{}, errors.Wrap(err, "failed to parse tx hash")
+	}
+
+	// Sort txins and txouts by index (Asc)
+	slices.SortFunc(txOutModels, func(i, j gen.BitcoinTransactionTxout) int {
+		return cmp.Compare(i.TxIdx, j.TxIdx)
+	})
+	slices.SortFunc(txInModel, func(i, j gen.BitcoinTransactionTxin) int {
+		return cmp.Compare(i.TxIdx, j.TxIdx)
+	})
+
+	txIns := make([]*types.TxIn, 0, len(txInModel))
+	txOuts := make([]*types.TxOut, 0, len(txOutModels))
+	for _, txInModel := range txInModel {
+		scriptsig, err := hex.DecodeString(txInModel.Scriptsig)
+		if err != nil {
+			return types.Transaction{}, errors.Wrap(err, "failed to decode scriptsig")
+		}
+
+		prevoutTxHash, err := chainhash.NewHashFromStr(txInModel.PrevoutTxHash)
+		if err != nil {
+			return types.Transaction{}, errors.Wrap(err, "failed to parse prevout tx hash")
+		}
+
+		txIns = append(txIns, &types.TxIn{
+			SignatureScript:   scriptsig,
+			Witness:           [][]byte{}, // TODO: implement witness
+			Sequence:          uint32(txInModel.Sequence),
+			PreviousOutIndex:  uint32(txInModel.PrevoutTxIdx),
+			PreviousOutTxHash: *prevoutTxHash,
+		})
+	}
+	for _, txOutModel := range txOutModels {
+		pkscript, err := hex.DecodeString(txOutModel.Pkscript)
+		if err != nil {
+			return types.Transaction{}, errors.Wrap(err, "failed to decode pkscript")
+		}
+		txOuts = append(txOuts, &types.TxOut{
+			PkScript: pkscript,
+			Value:    txOutModel.Value,
+		})
+	}
+
+	return types.Transaction{
+		BlockHeight: int64(src.BlockHeight),
+		BlockHash:   *blockHash,
+		Index:       uint32(src.Idx),
+		TxHash:      *txHash,
+		Version:     src.Version,
+		LockTime:    uint32(src.Locktime),
+		TxIn:        txIns,
+		TxOut:       txOuts,
+	}, nil
 }
