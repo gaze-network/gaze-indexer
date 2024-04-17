@@ -4,9 +4,12 @@ import (
 	"math"
 	"time"
 
+	"github.com/Cleverse/go-utilities/utils"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/cockroachdb/errors"
+	"github.com/gaze-network/indexer-network/common/errs"
 	"github.com/gaze-network/uint128"
+	"github.com/samber/lo"
 )
 
 type RuneEntry struct {
@@ -29,6 +32,7 @@ type RuneEntry struct {
 	CompletedAtHeight *uint64
 	EtchingBlock      uint64
 	EtchingTxHash     chainhash.Hash
+	EtchedAt          time.Time
 }
 
 var (
@@ -92,4 +96,34 @@ func (e *RuneEntry) IsMintEnded(height uint64) bool {
 	}
 
 	return height >= min(relative, absolute)
+}
+
+func (e RuneEntry) Supply() (uint128.Uint128, error) {
+	terms := utils.Default(e.Terms, &Terms{})
+
+	amount := lo.FromPtr(terms.Amount)
+	cap := lo.FromPtr(terms.Cap)
+	premine := e.Premine
+
+	result, overflow := amount.MulOverflow(cap)
+	if overflow {
+		return uint128.Uint128{}, errors.WithStack(errs.OverflowUint128)
+	}
+	result, overflow = result.AddOverflow(premine)
+	if overflow {
+		return uint128.Uint128{}, errors.WithStack(errs.OverflowUint128)
+	}
+	return result, nil
+}
+
+func (e RuneEntry) MintedAmount() (uint128.Uint128, error) {
+	amount, overflow := e.Mints.MulOverflow(lo.FromPtr(e.Terms.Amount))
+	if overflow {
+		return uint128.Uint128{}, errors.WithStack(errs.OverflowUint128)
+	}
+	amount, overflow = amount.AddOverflow(e.Premine)
+	if overflow {
+		return uint128.Uint128{}, errors.WithStack(errs.OverflowUint128)
+	}
+	return amount, nil
 }

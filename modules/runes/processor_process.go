@@ -215,7 +215,7 @@ func (p *Processor) processTx(ctx context.Context, tx *types.Transaction, blockH
 		}
 
 		if etching != nil {
-			if err := p.createRuneEntry(ctx, runestone, etchedRuneId, etchedRune, tx); err != nil {
+			if err := p.createRuneEntry(ctx, runestone, etchedRuneId, etchedRune, tx, blockHeader); err != nil {
 				return errors.Wrap(err, "failed to create rune entry")
 			}
 		}
@@ -563,7 +563,7 @@ func removeAnnexFromWitness(witness [][]byte) [][]byte {
 	return witness
 }
 
-func (p *Processor) createRuneEntry(ctx context.Context, runestone *runes.Runestone, runeId runes.RuneId, rune runes.Rune, tx *types.Transaction) error {
+func (p *Processor) createRuneEntry(ctx context.Context, runestone *runes.Runestone, runeId runes.RuneId, rune runes.Rune, tx *types.Transaction, blockHeader types.BlockHeader) error {
 	count, err := p.countRuneEntries(ctx)
 	if err != nil {
 		return errors.Wrap(err, "failed to count rune entries")
@@ -586,6 +586,7 @@ func (p *Processor) createRuneEntry(ctx context.Context, runestone *runes.Runest
 			CompletedAtHeight: nil,
 			EtchingBlock:      uint64(tx.BlockHeight),
 			EtchingTxHash:     tx.TxHash,
+			EtchedAt:          blockHeader.Timestamp,
 		}
 	} else {
 		etching := runestone.Etching
@@ -604,6 +605,7 @@ func (p *Processor) createRuneEntry(ctx context.Context, runestone *runes.Runest
 			CompletedAtHeight: nil,
 			EtchingBlock:      uint64(tx.BlockHeight),
 			EtchingTxHash:     tx.TxHash,
+			EtchedAt:          blockHeader.Timestamp,
 		}
 	}
 	p.newRuneEntries[runeId] = runeEntry

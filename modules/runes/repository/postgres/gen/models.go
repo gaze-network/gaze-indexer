@@ -33,6 +33,7 @@ type RunesEntry struct {
 	Turbo            bool
 	EtchingBlock     int32
 	EtchingTxHash    string
+	EtchedAt         pgtype.Timestamp
 }
 
 type RunesEntryState struct {

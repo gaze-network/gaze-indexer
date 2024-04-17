@@ -19,6 +19,14 @@ type getTransactionsRequest struct {
 	BlockHeight uint64 `query:"blockHeight"`
 }
 
+func (r getTransactionsRequest) Validate() error {
+	var errList []error
+	if r.Id != "" && !isRuneIdOrRuneName(r.Id) {
+		errList = append(errList, errors.New("'id' is not valid rune id or rune name"))
+	}
+	return errs.WithPublicMessage(errors.Join(errList...), "validation error")
+}
+
 type outPointBalance struct {
 	PkScript string          `json:"pkScript"`
 	Address  string          `json:"address"`
@@ -91,11 +99,14 @@ func (h *HttpHandler) GetTransactions(ctx *fiber.Ctx) (err error) {
 	if err := ctx.QueryParser(&req); err != nil {
 		return errors.WithStack(err)
 	}
+	if err := req.Validate(); err != nil {
+		return errors.WithStack(err)
+	}
 
 	var pkScript []byte
 	if req.Wallet != "" {
 		var ok bool
-		pkScript, ok = h.resolvePkScript(h.network, req.Wallet)
+		pkScript, ok = resolvePkScript(h.network, req.Wallet)
 		if !ok {
 			return errs.NewPublicError("unable to resolve pkscript from \"wallet\"")
 		}

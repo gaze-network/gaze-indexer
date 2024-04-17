@@ -31,7 +31,7 @@ type HttpResponse[T any] struct {
 	Result *T      `json:"result,omitempty"`
 }
 
-func (h *HttpHandler) resolvePkScript(network common.Network, wallet string) ([]byte, bool) {
+func resolvePkScript(network common.Network, wallet string) ([]byte, bool) {
 	if wallet == "" {
 		return nil, false
 	}
@@ -101,4 +101,14 @@ func (h *HttpHandler) resolveRuneId(ctx context.Context, id string) (runes.RuneI
 	}
 
 	return runes.RuneId{}, false
+}
+
+func isRuneIdOrRuneName(id string) bool {
+	if _, err := runes.NewRuneIdFromString(id); err == nil {
+		return true
+	}
+	if _, err := runes.NewRuneFromString(id); err == nil {
+		return true
+	}
+	return false
 }

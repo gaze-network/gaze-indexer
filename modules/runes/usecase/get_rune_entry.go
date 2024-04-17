@@ -26,7 +26,23 @@ func (u *Usecase) GetRuneEntryByRuneId(ctx context.Context, runeId runes.RuneId)
 func (u *Usecase) GetRuneEntryByRuneIdBatch(ctx context.Context, runeIds []runes.RuneId) (map[runes.RuneId]*runes.RuneEntry, error) {
 	runeEntry, err := u.runesDg.GetRuneEntryByRuneIdBatch(ctx, runeIds)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to get rune entry by rune id")
+		return nil, errors.Wrap(err, "failed to get rune entries by rune ids")
+	}
+	return runeEntry, nil
+}
+
+func (u *Usecase) GetRuneEntryByRuneIdAndHeight(ctx context.Context, runeId runes.RuneId, blockHeight uint64) (*runes.RuneEntry, error) {
+	runeEntry, err := u.runesDg.GetRuneEntryByRuneIdAndHeight(ctx, runeId, blockHeight)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get rune entry by rune id and height")
+	}
+	return runeEntry, nil
+}
+
+func (u *Usecase) GetRuneEntryByRuneIdAndHeightBatch(ctx context.Context, runeIds []runes.RuneId, blockHeight uint64) (map[runes.RuneId]*runes.RuneEntry, error) {
+	runeEntry, err := u.runesDg.GetRuneEntryByRuneIdAndHeightBatch(ctx, runeIds, blockHeight)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get rune entries by rune ids and height")
 	}
 	return runeEntry, nil
 }

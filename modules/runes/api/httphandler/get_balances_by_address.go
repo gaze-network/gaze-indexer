@@ -48,7 +48,7 @@ func (h *HttpHandler) GetBalancesByAddress(ctx *fiber.Ctx) (err error) {
 		return errors.WithStack(err)
 	}
 
-	pkScript, ok := h.resolvePkScript(h.network, req.Wallet)
+	pkScript, ok := resolvePkScript(h.network, req.Wallet)
 	if !ok {
 		return errs.NewPublicError("unable to resolve pkscript from \"wallet\"")
 	}

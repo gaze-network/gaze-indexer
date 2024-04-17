@@ -167,6 +167,46 @@ func (r *Repository) GetRuneEntryByRuneIdBatch(ctx context.Context, runeIds []ru
 	return runeEntries, nil
 }
 
+func (r *Repository) GetRuneEntryByRuneIdAndHeight(ctx context.Context, runeId runes.RuneId, blockHeight uint64) (*runes.RuneEntry, error) {
+	runeEntries, err := r.GetRuneEntryByRuneIdBatch(ctx, []runes.RuneId{runeId})
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get rune entries by rune id")
+	}
+	runeEntry, ok := runeEntries[runeId]
+	if !ok {
+		return nil, errors.WithStack(errs.NotFound)
+	}
+	return runeEntry, nil
+}
+
+func (r *Repository) GetRuneEntryByRuneIdAndHeightBatch(ctx context.Context, runeIds []runes.RuneId, blockHeight uint64) (map[runes.RuneId]*runes.RuneEntry, error) {
+	rows, err := r.getQueries().GetRuneEntriesByRuneIdsAndHeight(ctx, gen.GetRuneEntriesByRuneIdsAndHeightParams{
+		RuneIds: lo.Map(runeIds, func(runeId runes.RuneId, _ int) string {
+			return runeId.String()
+		}),
+		Height: int32(blockHeight),
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "error during query")
+	}
+
+	runeEntries := make(map[runes.RuneId]*runes.RuneEntry, len(rows))
+	var errs []error
+	for i, runeEntryModel := range rows {
+		runeEntry, err := mapRuneEntryModelToType(gen.GetRuneEntriesByRuneIdsRow(runeEntryModel))
+		if err != nil {
+			errs = append(errs, errors.Wrapf(err, "failed to parse rune entry model index %d", i))
+			continue
+		}
+		runeEntries[runeEntry.RuneId] = &runeEntry
+	}
+	if len(errs) > 0 {
+		return nil, errors.Join(errs...)
+	}
+
+	return runeEntries, nil
+}
+
 func (r *Repository) CountRuneEntries(ctx context.Context) (uint64, error) {
 	count, err := r.getQueries().CountRuneEntries(ctx)
 	if err != nil {

@@ -19,6 +19,15 @@ SELECT * FROM runes_entries
   LEFT JOIN states ON runes_entries.rune_id = states.rune_id
   WHERE runes_entries.rune_id = ANY(@rune_ids::text[]);
 
+-- name: GetRuneEntriesByRuneIdsAndHeight :many
+WITH states AS (
+  -- select latest state
+  SELECT DISTINCT ON (rune_id) * FROM runes_entry_states WHERE rune_id = ANY(@rune_ids::text[]) AND block_height <= @height ORDER BY rune_id, block_height DESC
+)
+SELECT * FROM runes_entries
+  LEFT JOIN states ON runes_entries.rune_id = states.rune_id
+  WHERE runes_entries.rune_id = ANY(@rune_ids::text[]) AND etching_block <= @height;
+
 -- name: GetRuneIdFromRune :one
 SELECT rune_id FROM runes_entries WHERE rune = $1;
 
@@ -31,8 +40,8 @@ SELECT * FROM runes_transactions
 SELECT COUNT(*) FROM runes_entries;
 
 -- name: CreateRuneEntry :exec
-INSERT INTO runes_entries (rune_id, rune, number, spacers, premine, symbol, divisibility, terms, terms_amount, terms_cap, terms_height_start, terms_height_end, terms_offset_start, terms_offset_end, turbo, etching_block, etching_tx_hash)
-  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17);
+INSERT INTO runes_entries (rune_id, rune, number, spacers, premine, symbol, divisibility, terms, terms_amount, terms_cap, terms_height_start, terms_height_end, terms_offset_start, terms_offset_end, turbo, etching_block, etching_tx_hash, etched_at)
+  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18);
 
 -- name: CreateRuneEntryState :exec
 INSERT INTO runes_entry_states (rune_id, block_height, mints, burned_amount, completed_at, completed_at_height) VALUES ($1, $2, $3, $4, $5, $6);

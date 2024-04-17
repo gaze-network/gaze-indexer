@@ -39,7 +39,7 @@ func (p *Processor) getHashPayload(header types.BlockHeader) ([]byte, error) {
 			return int(t1.Number) - int(t2.Number)
 		})
 		for _, entry := range runeEntries {
-			sb.Write(serializeNewRunEntry(entry))
+			sb.Write(serializeNewRuneEntry(entry))
 		}
 	}
 	// serialize new rune entry states
@@ -70,7 +70,7 @@ func (p *Processor) getHashPayload(header types.BlockHeader) ([]byte, error) {
 	// serialize new txs
 	// sort txs by block height and index
 	{
-		bytes, err := serializeRuneTxsForEventHash(p.newRuneTxs)
+		bytes, err := serializeRuneTxs(p.newRuneTxs)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to serialize new rune txs")
 		}
@@ -79,7 +79,7 @@ func (p *Processor) getHashPayload(header types.BlockHeader) ([]byte, error) {
 	return []byte(sb.String()), nil
 }
 
-func serializeNewRunEntry(entry *runes.RuneEntry) []byte {
+func serializeNewRuneEntry(entry *runes.RuneEntry) []byte {
 	var sb strings.Builder
 	sb.WriteString("newRuneEntry:")
 	sb.WriteString("runeId:" + entry.RuneId.String())
@@ -114,6 +114,7 @@ func serializeNewRunEntry(entry *runes.RuneEntry) []byte {
 	sb.WriteString("turbo:" + strconv.FormatBool(entry.Turbo))
 	sb.WriteString("etchingBlock:" + strconv.Itoa(int(entry.EtchingBlock)))
 	sb.WriteString("etchingTxHash:" + entry.EtchingTxHash.String())
+	sb.WriteString("etchedAt:" + strconv.Itoa(int(entry.EtchedAt.Unix())))
 	sb.WriteString(";")
 	return []byte(sb.String())
 }
@@ -213,7 +214,7 @@ func serializeNewBalances(balances map[string]map[runes.RuneId]uint128.Uint128) 
 	return []byte(sb.String()), nil
 }
 
-func serializeRuneTxsForEventHash(txs []*entity.RuneTransaction) ([]byte, error) {
+func serializeRuneTxs(txs []*entity.RuneTransaction) ([]byte, error) {
 	var sb strings.Builder
 
 	slices.SortFunc(txs, func(t1, t2 *entity.RuneTransaction) int {
@@ -288,6 +289,7 @@ func serializeRuneTxsForEventHash(txs []*entity.RuneTransaction) ([]byte, error)
 			sb.WriteString(amount.String())
 			sb.WriteString(";")
 		}
+		sb.WriteString("runeEtched:" + strconv.FormatBool(tx.RuneEtched))
 
 		sb.Write(serializeRunestoneForEventHash(tx.Runestone))
 		sb.WriteString(";")
