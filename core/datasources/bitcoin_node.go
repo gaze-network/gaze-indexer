@@ -141,7 +141,7 @@ func (d *BitcoinNodeDatasource) FetchAsync(ctx context.Context, from, to int64, 
 	go func() {
 		defer stream.Close()
 		done := subscription.Done()
-		chunks := lo.Chunk(blockHeights, 100)
+		chunks := lo.Chunk(blockHeights, 10)
 		for _, chunk := range chunks {
 			chunk := chunk
 			select {
