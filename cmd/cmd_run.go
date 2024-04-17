@@ -121,10 +121,9 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 			if err := bitcoinIndexer.Run(ctx); err != nil {
 				logger.ErrorContext(ctx, "Failed to run Bitcoin Indexer", slogx.Error(err))
 			}
+			// stop main process if Bitcoin Indexer failed
+			stop()
 		}()
-
-		// stop main process if Bitcoin Indexer failed
-		stop()
 	}
 
 	// Initialize Runes Indexer
