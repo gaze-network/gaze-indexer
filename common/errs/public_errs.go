@@ -1,6 +1,8 @@
 package errs
 
 import (
+	"fmt"
+
 	"github.com/cockroachdb/errors"
 	"github.com/cockroachdb/errors/withstack"
 )
@@ -27,9 +29,15 @@ func NewPublicError(message string) error {
 	return withstack.WithStackDepth(&PublicError{err: errors.New(message), message: message}, 1)
 }
 
-func WithPublicMessage(err error, message string) error {
+func WithPublicMessage(err error, prefix string) error {
 	if err == nil {
 		return nil
+	}
+	var message string
+	if prefix != "" {
+		message = fmt.Sprintf("%s: %s", prefix, err.Error())
+	} else {
+		message = err.Error()
 	}
 	return withstack.WithStackDepth(&PublicError{err: err, message: message}, 1)
 }
