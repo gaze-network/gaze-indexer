@@ -339,6 +339,7 @@ func extractModelRuneTxAndRunestone(src gen.GetRuneTransactionsByHeightRow) (gen
 		Outputs:     src.Outputs,
 		Mints:       src.Mints,
 		Burns:       src.Burns,
+		RuneEtched:  src.RuneEtched,
 	}, runestone, nil
 }
 
@@ -395,6 +396,7 @@ func mapRuneTransactionModelToType(src gen.RunesTransaction) (entity.RuneTransac
 		Outputs:     outputs,
 		Mints:       mints,
 		Burns:       burns,
+		RuneEtched:  src.RuneEtched,
 	}, nil
 }
 

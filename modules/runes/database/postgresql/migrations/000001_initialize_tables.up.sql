@@ -67,7 +67,8 @@ CREATE TABLE IF NOT EXISTS "runes_transactions" (
 	"inputs" JSONB NOT NULL,
 	"outputs" JSONB NOT NULL,
 	"mints" JSONB NOT NULL,
-	"burns" JSONB NOT NULL
+	"burns" JSONB NOT NULL,
+	"rune_etched" BOOLEAN NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS "runes_runestones" (

@@ -108,4 +108,5 @@ type RunesTransaction struct {
 	Outputs     []byte
 	Mints       []byte
 	Burns       []byte
+	RuneEtched  bool
 }

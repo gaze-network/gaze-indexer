@@ -119,7 +119,7 @@ func (q *Queries) CreateRuneEntryState(ctx context.Context, arg CreateRuneEntryS
 }
 
 const createRuneTransaction = `-- name: CreateRuneTransaction :exec
-INSERT INTO runes_transactions (hash, block_height, index, timestamp, inputs, outputs, mints, burns) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+INSERT INTO runes_transactions (hash, block_height, index, timestamp, inputs, outputs, mints, burns, rune_etched) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 `
 
 type CreateRuneTransactionParams struct {
@@ -131,6 +131,7 @@ type CreateRuneTransactionParams struct {
 	Outputs     []byte
 	Mints       []byte
 	Burns       []byte
+	RuneEtched  bool
 }
 
 func (q *Queries) CreateRuneTransaction(ctx context.Context, arg CreateRuneTransactionParams) error {
@@ -143,6 +144,7 @@ func (q *Queries) CreateRuneTransaction(ctx context.Context, arg CreateRuneTrans
 		arg.Outputs,
 		arg.Mints,
 		arg.Burns,
+		arg.RuneEtched,
 	)
 	return err
 }
@@ -518,7 +520,7 @@ func (q *Queries) GetRuneIdFromRune(ctx context.Context, rune string) (string, e
 }
 
 const getRuneTransactionsByHeight = `-- name: GetRuneTransactionsByHeight :many
-SELECT hash, runes_transactions.block_height, index, timestamp, inputs, outputs, mints, burns, tx_hash, runes_runestones.block_height, etching, etching_divisibility, etching_premine, etching_rune, etching_spacers, etching_symbol, etching_terms, etching_terms_amount, etching_terms_cap, etching_terms_height_start, etching_terms_height_end, etching_terms_offset_start, etching_terms_offset_end, etching_turbo, edicts, mint, pointer, cenotaph, flaws FROM runes_transactions 
+SELECT hash, runes_transactions.block_height, index, timestamp, inputs, outputs, mints, burns, rune_etched, tx_hash, runes_runestones.block_height, etching, etching_divisibility, etching_premine, etching_rune, etching_spacers, etching_symbol, etching_terms, etching_terms_amount, etching_terms_cap, etching_terms_height_start, etching_terms_height_end, etching_terms_offset_start, etching_terms_offset_end, etching_turbo, edicts, mint, pointer, cenotaph, flaws FROM runes_transactions 
   LEFT JOIN runes_runestones ON runes_transactions.hash = runes_runestones.tx_hash
   WHERE runes_transactions.block_height = $1
 `
@@ -532,6 +534,7 @@ type GetRuneTransactionsByHeightRow struct {
 	Outputs                 []byte
 	Mints                   []byte
 	Burns                   []byte
+	RuneEtched              bool
 	TxHash                  pgtype.Text
 	BlockHeight_2           pgtype.Int4
 	Etching                 pgtype.Bool
@@ -573,6 +576,7 @@ func (q *Queries) GetRuneTransactionsByHeight(ctx context.Context, blockHeight i
 			&i.Outputs,
 			&i.Mints,
 			&i.Burns,
+			&i.RuneEtched,
 			&i.TxHash,
 			&i.BlockHeight_2,
 			&i.Etching,

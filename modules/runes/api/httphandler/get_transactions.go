@@ -148,13 +148,13 @@ func (h *HttpHandler) GetTransactions(ctx *fiber.Ctx) (err error) {
 				return true
 			}
 		}
-		for runeId := range tx.Mints {
-			if runeId == runeId {
+		for mintedRuneId := range tx.Mints {
+			if mintedRuneId == runeId {
 				return true
 			}
 		}
-		for runeId := range tx.Burns {
-			if runeId == runeId {
+		for burnedRuneId := range tx.Burns {
+			if burnedRuneId == runeId {
 				return true
 			}
 		}
@@ -163,7 +163,7 @@ func (h *HttpHandler) GetTransactions(ctx *fiber.Ctx) (err error) {
 				return true
 			}
 			// returns true if this tx etched this runeId
-			if tx.Runestone.Etching != nil && tx.BlockHeight == runeId.BlockHeight && tx.Index == runeId.TxIndex {
+			if tx.RuneEtched && tx.BlockHeight == runeId.BlockHeight && tx.Index == runeId.TxIndex {
 				return true
 			}
 		}

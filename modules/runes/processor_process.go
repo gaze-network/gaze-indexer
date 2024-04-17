@@ -124,6 +124,7 @@ func (p *Processor) processTx(ctx context.Context, tx *types.Transaction, blockH
 	}
 
 	mints := make(map[runes.RuneId]uint128.Uint128)
+	var runeEtched bool
 	if runestone != nil {
 		if runestone.Mint != nil {
 			mintRuneId := *runestone.Mint
@@ -138,6 +139,9 @@ func (p *Processor) processTx(ctx context.Context, tx *types.Transaction, blockH
 		etching, etchedRuneId, etchedRune, err := p.getEtchedRune(ctx, tx, runestone)
 		if err != nil {
 			return errors.Wrap(err, "error during getting etched rune")
+		}
+		if etching != nil {
+			runeEtched = true
 		}
 
 		if !runestone.Cenotaph {
@@ -294,6 +298,7 @@ func (p *Processor) processTx(ctx context.Context, tx *types.Transaction, blockH
 		Mints:       mints,
 		Burns:       burns,
 		Runestone:   runestone,
+		RuneEtched:  runeEtched,
 	}
 	for inputIndex, balances := range inputBalances {
 		for runeId, amount := range balances {

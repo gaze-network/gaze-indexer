@@ -62,7 +62,6 @@ func (o *OutPointBalance) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// TODO: add tx index
 type RuneTransaction struct {
 	Hash        chainhash.Hash
 	BlockHeight uint64
@@ -73,4 +72,5 @@ type RuneTransaction struct {
 	Mints       map[runes.RuneId]uint128.Uint128
 	Burns       map[runes.RuneId]uint128.Uint128
 	Runestone   *runes.Runestone
+	RuneEtched  bool
 }
