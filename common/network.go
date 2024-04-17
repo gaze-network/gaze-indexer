@@ -14,14 +14,14 @@ var supportedNetworks = map[Network]struct{}{
 	NetworkTestnet: {},
 }
 
-func (n Network) IsSupported() bool {
-	_, ok := supportedNetworks[n]
-	return ok
-}
-
 var chainParams = map[Network]*chaincfg.Params{
 	NetworkMainnet: &chaincfg.MainNetParams,
 	NetworkTestnet: &chaincfg.TestNet3Params,
+}
+
+func (n Network) IsSupported() bool {
+	_, ok := supportedNetworks[n]
+	return ok
 }
 
 func (n Network) ChainParams() *chaincfg.Params {
