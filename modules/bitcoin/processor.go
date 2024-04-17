@@ -42,12 +42,9 @@ func (p *Processor) Process(ctx context.Context, inputs []*types.Block) error {
 		return cmp.Compare(t1.Header.Height, t2.Header.Height)
 	})
 
-	latestBlock, err := p.bitcoinDg.GetLatestBlockHeader(ctx)
+	latestBlock, err := p.CurrentBlock(ctx)
 	if err != nil {
-		if !errors.Is(err, errs.NotFound) {
-			return errors.Wrap(err, "failed to get latest indexed block header")
-		}
-		latestBlock.Height = -1
+		return errors.Wrap(err, "failed to get latest indexed block header")
 	}
 
 	// check if the given blocks are continue from the latest indexed block
@@ -78,12 +75,16 @@ func (p *Processor) Process(ctx context.Context, inputs []*types.Block) error {
 func (p *Processor) CurrentBlock(ctx context.Context) (types.BlockHeader, error) {
 	b, err := p.bitcoinDg.GetLatestBlockHeader(ctx)
 	if err != nil {
+		if errors.Is(err, errs.NotFound) {
+			return defaultCurrentBlock, nil
+		}
 		return types.BlockHeader{}, errors.WithStack(err)
 	}
 	return b, nil
 }
 
 func (p *Processor) GetIndexedBlock(ctx context.Context, height int64) (types.BlockHeader, error) {
+	// TODO: Implement this
 	return types.BlockHeader{}, nil
 }
 
