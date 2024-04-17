@@ -293,7 +293,10 @@ func (q *Queries) GetBalanceByPkScriptAndRuneId(ctx context.Context, arg GetBala
 }
 
 const getBalancesByPkScript = `-- name: GetBalancesByPkScript :many
-SELECT DISTINCT ON (rune_id) pkscript, block_height, rune_id, amount FROM runes_balances WHERE pkscript = $1 AND block_height <= $2 ORDER BY rune_id, block_height DESC
+With balances AS (
+  SELECT DISTINCT ON (rune_id) pkscript, block_height, rune_id, amount FROM runes_balances WHERE pkscript = $1 AND block_height <= $2 ORDER BY rune_id, block_height DESC
+)
+SELECT pkscript, block_height, rune_id, amount FROM balances WHERE amount > 0
 `
 
 type GetBalancesByPkScriptParams struct {
@@ -301,15 +304,22 @@ type GetBalancesByPkScriptParams struct {
 	BlockHeight int32
 }
 
-func (q *Queries) GetBalancesByPkScript(ctx context.Context, arg GetBalancesByPkScriptParams) ([]RunesBalance, error) {
+type GetBalancesByPkScriptRow struct {
+	Pkscript    string
+	BlockHeight int32
+	RuneID      string
+	Amount      pgtype.Numeric
+}
+
+func (q *Queries) GetBalancesByPkScript(ctx context.Context, arg GetBalancesByPkScriptParams) ([]GetBalancesByPkScriptRow, error) {
 	rows, err := q.db.Query(ctx, getBalancesByPkScript, arg.Pkscript, arg.BlockHeight)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []RunesBalance
+	var items []GetBalancesByPkScriptRow
 	for rows.Next() {
-		var i RunesBalance
+		var i GetBalancesByPkScriptRow
 		if err := rows.Scan(
 			&i.Pkscript,
 			&i.BlockHeight,
@@ -327,7 +337,10 @@ func (q *Queries) GetBalancesByPkScript(ctx context.Context, arg GetBalancesByPk
 }
 
 const getBalancesByRuneId = `-- name: GetBalancesByRuneId :many
-SELECT DISTINCT ON (pkscript) pkscript, block_height, rune_id, amount FROM runes_balances WHERE rune_id = $1 AND block_height <= $2 ORDER BY pkscript, block_height DESC
+With balances AS (
+  SELECT DISTINCT ON (pkscript) pkscript, block_height, rune_id, amount FROM runes_balances WHERE rune_id = $1 AND block_height <= $2 ORDER BY pkscript, block_height DESC
+)
+SELECT pkscript, block_height, rune_id, amount FROM balances WHERE amount > 0
 `
 
 type GetBalancesByRuneIdParams struct {
@@ -335,15 +348,22 @@ type GetBalancesByRuneIdParams struct {
 	BlockHeight int32
 }
 
-func (q *Queries) GetBalancesByRuneId(ctx context.Context, arg GetBalancesByRuneIdParams) ([]RunesBalance, error) {
+type GetBalancesByRuneIdRow struct {
+	Pkscript    string
+	BlockHeight int32
+	RuneID      string
+	Amount      pgtype.Numeric
+}
+
+func (q *Queries) GetBalancesByRuneId(ctx context.Context, arg GetBalancesByRuneIdParams) ([]GetBalancesByRuneIdRow, error) {
 	rows, err := q.db.Query(ctx, getBalancesByRuneId, arg.RuneID, arg.BlockHeight)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []RunesBalance
+	var items []GetBalancesByRuneIdRow
 	for rows.Next() {
-		var i RunesBalance
+		var i GetBalancesByRuneIdRow
 		if err := rows.Scan(
 			&i.Pkscript,
 			&i.BlockHeight,

@@ -9,6 +9,7 @@ func (h *HttpHandler) Mount(router fiber.Router) error {
 
 	r.Get("/balances/wallet/:wallet", h.GetBalancesByAddress)
 	r.Get("/transactions", h.GetTransactions)
+	r.Get("/holders/:id", h.GetHolders)
 	r.Get("/info/:id", h.GetTokenInfo)
 	return nil
 }

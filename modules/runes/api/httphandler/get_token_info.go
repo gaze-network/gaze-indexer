@@ -1,8 +1,11 @@
 package httphandler
 
 import (
+	"slices"
+
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/common/errs"
+	"github.com/gaze-network/indexer-network/modules/runes/internal/entity"
 	"github.com/gaze-network/indexer-network/modules/runes/runes"
 	"github.com/gaze-network/uint128"
 	"github.com/gofiber/fiber/v2"
@@ -102,6 +105,14 @@ func (h *HttpHandler) GetTokenInfo(ctx *fiber.Ctx) (err error) {
 	if err != nil {
 		return errors.Wrap(err, "error during GetBalancesByRuneId")
 	}
+
+	holdingBalances = lo.Filter(holdingBalances, func(b *entity.Balance, _ int) bool {
+		return !b.Amount.IsZero()
+	})
+	// sort by amount descending
+	slices.SortFunc(holdingBalances, func(i, j *entity.Balance) int {
+		return j.Amount.Cmp(i.Amount)
+	})
 
 	totalSupply, err := runeEntry.Supply()
 	if err != nil {

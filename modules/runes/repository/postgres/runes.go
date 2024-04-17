@@ -226,7 +226,7 @@ func (r *Repository) GetBalancesByPkScript(ctx context.Context, pkScript []byte,
 
 	result := make(map[runes.RuneId]*entity.Balance, len(balances))
 	for _, balanceModel := range balances {
-		balance, err := mapBalanceModelToType(balanceModel)
+		balance, err := mapBalanceModelToType(gen.RunesBalance(balanceModel))
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to parse balance model")
 		}
@@ -246,7 +246,7 @@ func (r *Repository) GetBalancesByRuneId(ctx context.Context, runeId runes.RuneI
 
 	result := make([]*entity.Balance, 0, len(balances))
 	for _, balanceModel := range balances {
-		balance, err := mapBalanceModelToType(balanceModel)
+		balance, err := mapBalanceModelToType(gen.RunesBalance(balanceModel))
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to parse balance model")
 		}
