@@ -7,6 +7,7 @@ import (
 	"slices"
 
 	"github.com/cockroachdb/errors"
+	"github.com/gaze-network/indexer-network/common/errs"
 	"github.com/gaze-network/indexer-network/core/indexers"
 	"github.com/gaze-network/indexer-network/core/types"
 	"github.com/gaze-network/indexer-network/modules/bitcoin/datagateway"
@@ -43,7 +44,10 @@ func (p *Processor) Process(ctx context.Context, inputs []*types.Block) error {
 
 	latestBlock, err := p.bitcoinDg.GetLatestBlockHeader(ctx)
 	if err != nil {
-		return errors.Wrap(err, "failed to get latest indexed block header")
+		if !errors.Is(err, errs.NotFound) {
+			return errors.Wrap(err, "failed to get latest indexed block header")
+		}
+		latestBlock.Height = -1
 	}
 
 	// check if the given blocks are continue from the latest indexed block
