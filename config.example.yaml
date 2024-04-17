@@ -10,6 +10,9 @@ bitcoin_node:
 
 network: mainnet
 
+้http_server:
+  port: 8080
+
 modules:
   bitcoin:
     database: "postgres" # Database to store bitcoin data. current supported databases: "postgres"
