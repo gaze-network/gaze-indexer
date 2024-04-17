@@ -559,7 +559,7 @@ func removeAnnexFromWitness(witness [][]byte) [][]byte {
 }
 
 func (p *Processor) createRuneEntry(ctx context.Context, runestone *runes.Runestone, runeId runes.RuneId, rune runes.Rune, tx *types.Transaction) error {
-	count, err := p.runesDg.CountRuneEntries(ctx)
+	count, err := p.countRuneEntries(ctx)
 	if err != nil {
 		return errors.Wrap(err, "failed to count rune entries")
 	}
@@ -657,6 +657,14 @@ func (p *Processor) incrementBurnedAmount(ctx context.Context, burned map[runes.
 		p.newRuneEntryStates[runeId] = runeEntry
 	}
 	return nil
+}
+
+func (p *Processor) countRuneEntries(ctx context.Context) (uint64, error) {
+	runeCountInDB, err := p.runesDg.CountRuneEntries(ctx)
+	if err != nil {
+		return 0, errors.Wrap(err, "failed to count rune entries in db")
+	}
+	return runeCountInDB + uint64(len(p.newRuneEntries)), nil
 }
 
 func (p *Processor) getRuneEntryByRuneId(ctx context.Context, runeId runes.RuneId) (*runes.RuneEntry, error) {
