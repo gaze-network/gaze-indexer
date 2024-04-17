@@ -4,14 +4,19 @@ import (
 	"context"
 
 	"github.com/cockroachdb/errors"
+	"github.com/gaze-network/indexer-network/common/errs"
 	"github.com/gaze-network/indexer-network/core/types"
 	"github.com/gaze-network/indexer-network/modules/bitcoin/repository/postgres/gen"
+	"github.com/jackc/pgx/v5"
 	"github.com/samber/lo"
 )
 
 func (r *Repository) GetLatestBlockHeader(ctx context.Context) (types.BlockHeader, error) {
 	model, err := r.queries.GetLatestBlockHeader(ctx)
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return types.BlockHeader{}, errors.Join(errs.NotFound, err)
+		}
 		return types.BlockHeader{}, errors.Wrap(err, "failed to get latest block header")
 	}
 
@@ -30,23 +35,16 @@ func (r *Repository) InsertBlock(ctx context.Context, block *types.Block) error 
 	if err != nil {
 		return errors.Wrap(err, "failed to begin transaction")
 	}
-	defer func() {
-		if r := recover(); r != nil {
-			_ = tx.Rollback(ctx)
-			panic(r) // re-throw panic after rollback
-		}
-	}()
+	defer tx.Rollback(ctx)
 
 	queries := r.queries.WithTx(tx)
 
 	if err := queries.InsertBlock(ctx, blockParams); err != nil {
-		_ = tx.Rollback(ctx)
 		return errors.Wrapf(err, "failed to insert block, height: %d, hash: %s", blockParams.BlockHeight, blockParams.BlockHash)
 	}
 
 	for _, params := range txParams {
 		if err := queries.InsertTransaction(ctx, params); err != nil {
-			_ = tx.Rollback(ctx)
 			return errors.Wrapf(err, "failed to insert transaction, hash: %s", params.TxHash)
 		}
 	}
@@ -55,16 +53,18 @@ func (r *Repository) InsertBlock(ctx context.Context, block *types.Block) error 
 	// Because txin references txout
 	for _, params := range txoutParams {
 		if err := queries.InsertTransactionTxOut(ctx, params); err != nil {
-			_ = tx.Rollback(ctx)
 			return errors.Wrapf(err, "failed to insert transaction txout, %v:%v", params.TxHash, params.TxIdx)
 		}
 	}
 
 	for _, params := range txinParams {
 		if err := queries.InsertTransactionTxIn(ctx, params); err != nil {
-			_ = tx.Rollback(ctx)
 			return errors.Wrapf(err, "failed to insert transaction txin, %v:%v", params.TxHash, params.TxIdx)
 		}
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return errors.Wrap(err, "failed to commit transaction")
 	}
 
 	return nil
@@ -72,6 +72,9 @@ func (r *Repository) InsertBlock(ctx context.Context, block *types.Block) error 
 
 func (r *Repository) RevertBlocks(ctx context.Context, from int64) error {
 	if err := r.queries.RevertData(ctx, int32(from)); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil
+		}
 		return errors.Wrap(err, "failed to revert data")
 	}
 	return nil
@@ -80,6 +83,9 @@ func (r *Repository) RevertBlocks(ctx context.Context, from int64) error {
 func (r *Repository) GetBlockHeaderByHeight(ctx context.Context, blockHeight int64) (types.BlockHeader, error) {
 	blockModel, err := r.queries.GetBlockByHeight(ctx, int32(blockHeight))
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return types.BlockHeader{}, errors.Join(errs.NotFound, err)
+		}
 		return types.BlockHeader{}, errors.Wrap(err, "failed to get block by height")
 	}
 
@@ -97,6 +103,10 @@ func (r *Repository) GetBlocksByHeightRange(ctx context.Context, from int64, to 
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get blocks by height range")
+	}
+
+	if len(blocks) == 0 {
+		return []*types.Block{}, nil
 	}
 
 	txs, err := r.queries.GetTransactionsByHeightRange(ctx, gen.GetTransactionsByHeightRangeParams{

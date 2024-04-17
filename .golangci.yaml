@@ -68,6 +68,9 @@ linters-settings:
   misspell:
     locale: US
     ignore-words: []
+  errcheck:
+    exclude-functions:
+      - (github.com/jackc/pgx/v5.Tx).Rollback
   wrapcheck:
     ignoreSigs:
       - .Errorf(

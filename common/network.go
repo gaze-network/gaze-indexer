@@ -1,5 +1,7 @@
 package common
 
+import "github.com/btcsuite/btcd/chaincfg"
+
 type Network string
 
 const (
@@ -17,9 +19,15 @@ func (n Network) IsSupported() bool {
 	return ok
 }
 
+var chainParams = map[Network]*chaincfg.Params{
+	NetworkMainnet: &chaincfg.MainNetParams,
+	NetworkTestnet: &chaincfg.TestNet3Params,
+}
+
+func (n Network) ChainParams() *chaincfg.Params {
+	return chainParams[n]
+}
+
 func (n Network) String() string {
 	return string(n)
 }
-
-// HalvingInterval is the number of blocks between each halving event.
-const HalvingInterval = 210_000

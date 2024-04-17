@@ -217,8 +217,8 @@ type InsertBlockParams struct {
 	MerkleRoot    string
 	PrevBlockHash string
 	Timestamp     pgtype.Timestamptz
-	Bits          int32
-	Nonce         int32
+	Bits          int64
+	Nonce         int64
 }
 
 func (q *Queries) InsertBlock(ctx context.Context, arg InsertBlockParams) error {
@@ -242,10 +242,10 @@ INSERT INTO bitcoin_transactions ("tx_hash","version","locktime","block_height",
 type InsertTransactionParams struct {
 	TxHash      string
 	Version     int32
-	Locktime    int32
+	Locktime    int64
 	BlockHeight int32
 	BlockHash   string
-	Idx         int16
+	Idx         int32
 }
 
 func (q *Queries) InsertTransaction(ctx context.Context, arg InsertTransactionParams) error {
@@ -273,12 +273,12 @@ VALUES ($1, $2, $3, $4, (SELECT "pkscript" FROM update_txout), $5, $6, $7)
 
 type InsertTransactionTxInParams struct {
 	TxHash        string
-	TxIdx         int16
+	TxIdx         int32
 	PrevoutTxHash string
-	PrevoutTxIdx  int16
+	PrevoutTxIdx  int32
 	Scriptsig     string
 	Witness       pgtype.Text
-	Sequence      int32
+	Sequence      int64
 }
 
 func (q *Queries) InsertTransactionTxIn(ctx context.Context, arg InsertTransactionTxInParams) error {
@@ -300,7 +300,7 @@ INSERT INTO bitcoin_transaction_txouts ("tx_hash","tx_idx","pkscript","value") V
 
 type InsertTransactionTxOutParams struct {
 	TxHash   string
-	TxIdx    int16
+	TxIdx    int32
 	Pkscript string
 	Value    int64
 }

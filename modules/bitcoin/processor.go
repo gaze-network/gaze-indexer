@@ -7,6 +7,7 @@ import (
 	"slices"
 
 	"github.com/cockroachdb/errors"
+	"github.com/gaze-network/indexer-network/common/errs"
 	"github.com/gaze-network/indexer-network/core/indexers"
 	"github.com/gaze-network/indexer-network/core/types"
 	"github.com/gaze-network/indexer-network/modules/bitcoin/datagateway"
@@ -41,7 +42,7 @@ func (p *Processor) Process(ctx context.Context, inputs []*types.Block) error {
 		return cmp.Compare(t1.Header.Height, t2.Header.Height)
 	})
 
-	latestBlock, err := p.bitcoinDg.GetLatestBlockHeader(ctx)
+	latestBlock, err := p.CurrentBlock(ctx)
 	if err != nil {
 		return errors.Wrap(err, "failed to get latest indexed block header")
 	}
@@ -74,13 +75,20 @@ func (p *Processor) Process(ctx context.Context, inputs []*types.Block) error {
 func (p *Processor) CurrentBlock(ctx context.Context) (types.BlockHeader, error) {
 	b, err := p.bitcoinDg.GetLatestBlockHeader(ctx)
 	if err != nil {
+		if errors.Is(err, errs.NotFound) {
+			return defaultCurrentBlock, nil
+		}
 		return types.BlockHeader{}, errors.WithStack(err)
 	}
 	return b, nil
 }
 
 func (p *Processor) GetIndexedBlock(ctx context.Context, height int64) (types.BlockHeader, error) {
-	return types.BlockHeader{}, nil
+	header, err := p.bitcoinDg.GetBlockHeaderByHeight(ctx, height)
+	if err != nil {
+		return types.BlockHeader{}, errors.WithStack(err)
+	}
+	return header, nil
 }
 
 func (p *Processor) RevertData(ctx context.Context, from int64) error {

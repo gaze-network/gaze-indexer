@@ -25,8 +25,8 @@ func mapBlockHeaderTypeToModel(src types.BlockHeader) gen.BitcoinBlock {
 			Time:  src.Timestamp,
 			Valid: true,
 		},
-		Bits:  int32(src.Bits),
-		Nonce: int32(src.Nonce),
+		Bits:  int64(src.Bits),
+		Nonce: int64(src.Nonce),
 	}
 }
 
@@ -69,17 +69,17 @@ func mapBlockTypeToParams(src *types.Block) (gen.InsertBlockParams, []gen.Insert
 			Time:  src.Header.Timestamp,
 			Valid: true,
 		},
-		Bits:  int32(src.Header.Bits),
-		Nonce: int32(src.Header.Nonce),
+		Bits:  int64(src.Header.Bits),
+		Nonce: int64(src.Header.Nonce),
 	}
 	for txIdx, srcTx := range src.Transactions {
 		tx := gen.InsertTransactionParams{
 			TxHash:      srcTx.TxHash.String(),
 			Version:     srcTx.Version,
-			Locktime:    int32(srcTx.LockTime),
+			Locktime:    int64(srcTx.LockTime),
 			BlockHeight: int32(src.Header.Height),
 			BlockHash:   src.Header.Hash.String(),
-			Idx:         int16(txIdx),
+			Idx:         int32(txIdx),
 		}
 		txs = append(txs, tx)
 
@@ -93,19 +93,19 @@ func mapBlockTypeToParams(src *types.Block) (gen.InsertBlockParams, []gen.Insert
 			}
 			txins = append(txins, gen.InsertTransactionTxInParams{
 				TxHash:        tx.TxHash,
-				TxIdx:         int16(idx),
+				TxIdx:         int32(idx),
 				PrevoutTxHash: txin.PreviousOutTxHash.String(),
-				PrevoutTxIdx:  int16(txin.PreviousOutIndex),
+				PrevoutTxIdx:  int32(txin.PreviousOutIndex),
 				Scriptsig:     hex.EncodeToString(txin.SignatureScript),
 				Witness:       witness,
-				Sequence:      int32(txin.Sequence),
+				Sequence:      int64(txin.Sequence),
 			})
 		}
 
 		for idx, txout := range srcTx.TxOut {
 			txouts = append(txouts, gen.InsertTransactionTxOutParams{
 				TxHash:   tx.TxHash,
-				TxIdx:    int16(idx),
+				TxIdx:    int32(idx),
 				Pkscript: hex.EncodeToString(txout.PkScript),
 				Value:    txout.Value,
 			})

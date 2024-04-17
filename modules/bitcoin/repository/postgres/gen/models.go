@@ -15,8 +15,8 @@ type BitcoinBlock struct {
 	MerkleRoot    string
 	PrevBlockHash string
 	Timestamp     pgtype.Timestamptz
-	Bits          int32
-	Nonce         int32
+	Bits          int64
+	Nonce         int64
 }
 
 type BitcoinIndexerDbVersion struct {
@@ -35,26 +35,26 @@ type BitcoinIndexerStat struct {
 type BitcoinTransaction struct {
 	TxHash      string
 	Version     int32
-	Locktime    int32
+	Locktime    int64
 	BlockHeight int32
 	BlockHash   string
-	Idx         int16
+	Idx         int32
 }
 
 type BitcoinTransactionTxin struct {
 	TxHash          string
-	TxIdx           int16
+	TxIdx           int32
 	PrevoutTxHash   string
-	PrevoutTxIdx    int16
-	PrevoutPkscript string
+	PrevoutTxIdx    int32
+	PrevoutPkscript pgtype.Text
 	Scriptsig       string
 	Witness         pgtype.Text
-	Sequence        int32
+	Sequence        int64
 }
 
 type BitcoinTransactionTxout struct {
 	TxHash   string
-	TxIdx    int16
+	TxIdx    int32
 	Pkscript string
 	Value    int64
 	IsSpent  bool
