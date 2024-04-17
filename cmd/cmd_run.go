@@ -23,14 +23,17 @@ import (
 	btcdatagateway "github.com/gaze-network/indexer-network/modules/bitcoin/datagateway"
 	btcpostgres "github.com/gaze-network/indexer-network/modules/bitcoin/repository/postgres"
 	"github.com/gaze-network/indexer-network/modules/runes"
+	runesapi "github.com/gaze-network/indexer-network/modules/runes/api"
 	runesdatagateway "github.com/gaze-network/indexer-network/modules/runes/datagateway"
 	runespostgres "github.com/gaze-network/indexer-network/modules/runes/repository/postgres"
+	runesusecase "github.com/gaze-network/indexer-network/modules/runes/usecase"
 	"github.com/gaze-network/indexer-network/pkg/errorhandler"
 	"github.com/gaze-network/indexer-network/pkg/logger"
 	"github.com/gaze-network/indexer-network/pkg/logger/slogx"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/compress"
 	fiberrecover "github.com/gofiber/fiber/v2/middleware/recover"
+	"github.com/samber/lo"
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
 )
@@ -150,7 +153,7 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 
 	// Initialize Runes Indexer
 	if opts.Runes {
-		var db runesdatagateway.RunesDataGateway
+		var runesDg runesdatagateway.RunesDataGateway
 		switch strings.ToLower(conf.Modules.Runes.Database) {
 		case "postgres", "pg":
 			pg, err := postgres.NewPool(ctx, conf.Modules.Runes.Postgres)
@@ -158,7 +161,7 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 				logger.PanicContext(ctx, "Failed to create Postgres connection pool", slogx.Error(err))
 			}
 			defer pg.Close()
-			db = runespostgres.NewRepository(pg)
+			runesDg = runespostgres.NewRepository(pg)
 		default:
 			logger.PanicContext(ctx, "Unsupported database", slogx.String("database", conf.Modules.Runes.Database))
 		}
@@ -183,7 +186,7 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 		default:
 			return errors.Wrapf(errs.Unsupported, "%q datasource is not supported", conf.Modules.Runes.Datasource)
 		}
-		runesProcessor := runes.NewProcessor(db, bitcoinClient, bitcoinDatasource, conf.Network)
+		runesProcessor := runes.NewProcessor(runesDg, bitcoinClient, bitcoinDatasource, conf.Network)
 		runesIndexer := indexers.NewBitcoinIndexer(runesProcessor, bitcoinDatasource)
 
 		if err := runesProcessor.Init(ctx); err != nil {
@@ -192,7 +195,7 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 
 		// Run Indexer
 		go func() {
-			logger.InfoContext(ctx, "Starting Runes Indexer...")
+			logger.InfoContext(ctx, "Started Runes Indexer")
 			if err := runesIndexer.Run(ctx); err != nil {
 				logger.ErrorContext(ctx, "Failed to run Runes Indexer", slogx.Error(err))
 			}
@@ -201,6 +204,19 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 			logger.InfoContext(ctx, "Runes Indexer stopped. Stopping main process...")
 			stop()
 		}()
+
+		// Mount API
+		apiHandlers := lo.Uniq(conf.Modules.Runes.APIHandlers)
+		for _, handler := range apiHandlers {
+			switch handler { // TODO: support more handlers (e.g. gRPC)
+			case "http":
+				runesUsecase := runesusecase.New(runesDg, bitcoinClient)
+				runesHTTPHandler := runesapi.NewHTTPHandler(conf.Network, runesUsecase)
+				httpHandlers["runes"] = runesHTTPHandler
+			default:
+				logger.PanicContext(ctx, "Unsupported API handler", slogx.String("handler", handler))
+			}
+		}
 	}
 
 	// Wait for interrupt signal to gracefully stop the server with
