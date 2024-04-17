@@ -15,3 +15,11 @@ func (u *Usecase) GetBalancesByPkScript(ctx context.Context, pkScript []byte, bl
 	}
 	return balances, nil
 }
+
+func (u *Usecase) GetBalancesByRuneId(ctx context.Context, runeId runes.RuneId, blockHeight uint64) ([]*entity.Balance, error) {
+	balances, err := u.runesDg.GetBalancesByRuneId(ctx, runeId, blockHeight)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get rune holders by rune id")
+	}
+	return balances, nil
+}
