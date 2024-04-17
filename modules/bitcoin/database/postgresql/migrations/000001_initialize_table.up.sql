@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS "bitcoin_blocks" (
 	"nonce" INT NOT NULL
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS bitcoin_blocks_block_hash_idx ON "bitcoin_blocks" USING HASH ("block_hash");
+CREATE INDEX IF NOT EXISTS bitcoin_blocks_block_hash_idx ON "bitcoin_blocks" USING HASH ("block_hash");
 
 CREATE TABLE IF NOT EXISTS "bitcoin_transactions" (
 	"tx_hash" TEXT NOT NULL PRIMARY KEY,
