@@ -35,23 +35,16 @@ func (r *Repository) InsertBlock(ctx context.Context, block *types.Block) error 
 	if err != nil {
 		return errors.Wrap(err, "failed to begin transaction")
 	}
-	defer func() {
-		if r := recover(); r != nil {
-			_ = tx.Rollback(ctx)
-			panic(r) // re-throw panic after rollback
-		}
-	}()
+	defer tx.Rollback(ctx)
 
 	queries := r.queries.WithTx(tx)
 
 	if err := queries.InsertBlock(ctx, blockParams); err != nil {
-		_ = tx.Rollback(ctx)
 		return errors.Wrapf(err, "failed to insert block, height: %d, hash: %s", blockParams.BlockHeight, blockParams.BlockHash)
 	}
 
 	for _, params := range txParams {
 		if err := queries.InsertTransaction(ctx, params); err != nil {
-			_ = tx.Rollback(ctx)
 			return errors.Wrapf(err, "failed to insert transaction, hash: %s", params.TxHash)
 		}
 	}
@@ -60,16 +53,18 @@ func (r *Repository) InsertBlock(ctx context.Context, block *types.Block) error 
 	// Because txin references txout
 	for _, params := range txoutParams {
 		if err := queries.InsertTransactionTxOut(ctx, params); err != nil {
-			_ = tx.Rollback(ctx)
 			return errors.Wrapf(err, "failed to insert transaction txout, %v:%v", params.TxHash, params.TxIdx)
 		}
 	}
 
 	for _, params := range txinParams {
 		if err := queries.InsertTransactionTxIn(ctx, params); err != nil {
-			_ = tx.Rollback(ctx)
 			return errors.Wrapf(err, "failed to insert transaction txin, %v:%v", params.TxHash, params.TxIdx)
 		}
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return errors.Wrap(err, "failed to commit transaction")
 	}
 
 	return nil
