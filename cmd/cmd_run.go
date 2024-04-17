@@ -14,6 +14,7 @@ import (
 	"github.com/gaze-network/indexer-network/internal/config"
 	"github.com/gaze-network/indexer-network/internal/postgres"
 	"github.com/gaze-network/indexer-network/modules/bitcoin"
+	"github.com/gaze-network/indexer-network/modules/bitcoin/btcclient"
 	btcdatagateway "github.com/gaze-network/indexer-network/modules/bitcoin/datagateway"
 	btcpostgres "github.com/gaze-network/indexer-network/modules/bitcoin/repository/postgres"
 	"github.com/gaze-network/indexer-network/modules/runes"
@@ -138,17 +139,27 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 			logger.PanicContext(ctx, "Unsupported database", slogx.String("database", conf.Modules.Runes.Database))
 		}
 		// TODO: add option to change bitcoinNodeDatasource implementation
-		bitcoinNodeDatasource := datasources.NewBitcoinNode(client)
 		var bitcoinDatasource indexers.BitcoinDatasource
+		var bitcoinClient btcclient.Contract
 		switch strings.ToLower(conf.Modules.Runes.Datasource) {
 		case "bitcoin-node":
+			bitcoinNodeDatasource := datasources.NewBitcoinNode(client)
 			bitcoinDatasource = bitcoinNodeDatasource
+			bitcoinClient = bitcoinNodeDatasource
 		case "database":
-			return errors.Wrap(errs.Unsupported, "%database datasource is not supported yet")
+			pg, err := postgres.NewPool(ctx, conf.Modules.Runes.Postgres)
+			if err != nil {
+				logger.PanicContext(ctx, "Failed to create Postgres connection pool", slogx.Error(err))
+			}
+			defer pg.Close()
+			btcRepo := btcpostgres.NewRepository(pg)
+			btcClientDB := btcclient.NewClientDatabase(btcRepo)
+			bitcoinDatasource = btcClientDB
+			bitcoinClient = btcClientDB
 		default:
 			return errors.Wrapf(errs.Unsupported, "%q datasource is not supported", conf.Modules.Runes.Datasource)
 		}
-		runesProcessor := runes.NewProcessor(db, bitcoinNodeDatasource, bitcoinDatasource, conf.Network)
+		runesProcessor := runes.NewProcessor(db, bitcoinClient, bitcoinDatasource, conf.Network)
 		runesIndexer := indexers.NewBitcoinIndexer(runesProcessor, bitcoinDatasource)
 
 		if err := runesProcessor.Init(ctx); err != nil {
