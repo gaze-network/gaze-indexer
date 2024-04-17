@@ -235,7 +235,7 @@ func (p *Processor) processTx(ctx context.Context, tx *types.Transaction, blockH
 		// if no pointer is provided, use the first non-OP_RETURN output
 		if pointer == nil {
 			for i, txOut := range tx.TxOut {
-				if txOut.IsOpReturn() {
+				if !txOut.IsOpReturn() {
 					pointer = lo.ToPtr(uint64(i))
 					break
 				}
