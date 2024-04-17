@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS "bitcoin_indexer_db_version" (
 	"version" INT NOT NULL,
 	"created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
-INSERT INTO "bitcoin_db_version" ("version") VALUES (1);
+INSERT INTO "bitcoin_indexer_db_version" ("version") VALUES (1);
 
 -- Bitcoin Data
 
