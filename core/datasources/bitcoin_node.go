@@ -215,7 +215,7 @@ func (d *BitcoinNodeDatasource) prepareRange(fromHeight, toHeight int64) (start,
 }
 
 // GetTransaction fetch transaction from Bitcoin node
-func (d *BitcoinNodeDatasource) GetTransaction(ctx context.Context, txHash chainhash.Hash) (*types.Transaction, error) {
+func (d *BitcoinNodeDatasource) GetTransactionByHash(ctx context.Context, txHash chainhash.Hash) (*types.Transaction, error) {
 	rawTxVerbose, err := d.btcclient.GetRawTransactionVerbose(&txHash)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get raw transaction")
