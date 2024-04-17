@@ -89,6 +89,24 @@ func (q *Queries) GetLatestBlockHeader(ctx context.Context) (BitcoinBlock, error
 	return i, err
 }
 
+const getTransactionByHash = `-- name: GetTransactionByHash :one
+SELECT tx_hash, version, locktime, block_height, block_hash, idx FROM bitcoin_transactions WHERE tx_hash = $1
+`
+
+func (q *Queries) GetTransactionByHash(ctx context.Context, txHash string) (BitcoinTransaction, error) {
+	row := q.db.QueryRow(ctx, getTransactionByHash, txHash)
+	var i BitcoinTransaction
+	err := row.Scan(
+		&i.TxHash,
+		&i.Version,
+		&i.Locktime,
+		&i.BlockHeight,
+		&i.BlockHash,
+		&i.Idx,
+	)
+	return i, err
+}
+
 const getTransactionTxInsByTxHashes = `-- name: GetTransactionTxInsByTxHashes :many
 SELECT tx_hash, tx_idx, prevout_tx_hash, prevout_tx_idx, prevout_pkscript, scriptsig, witness, sequence FROM bitcoin_transaction_txins WHERE tx_hash = ANY($1::TEXT[])
 `

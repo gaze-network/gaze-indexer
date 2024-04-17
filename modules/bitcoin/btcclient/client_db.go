@@ -3,13 +3,14 @@ package btcclient
 import (
 	"context"
 
+	"github.com/btcsuite/btcd/chaincfg/chainhash"
+	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/core/datasources"
 	"github.com/gaze-network/indexer-network/core/types"
 	"github.com/gaze-network/indexer-network/internal/subscription"
 	"github.com/gaze-network/indexer-network/modules/bitcoin/datagateway"
 	"github.com/gaze-network/indexer-network/pkg/logger"
 	"github.com/gaze-network/indexer-network/pkg/logger/slogx"
-	"github.com/pkg/errors"
 	cstream "github.com/planxnx/concurrent-stream"
 	"github.com/samber/lo"
 )
@@ -202,4 +203,12 @@ func (c *ClientDatabase) prepareRange(ctx context.Context, fromHeight, toHeight 
 	}
 
 	return start, end, false, nil
+}
+
+func (c *ClientDatabase) GetTransaction(ctx context.Context, txHash chainhash.Hash) (*types.Transaction, error) {
+	tx, err := c.bitcoinDg.GetTransactionByHash(ctx, txHash)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get transaction by hash")
+	}
+	return tx, nil
 }
