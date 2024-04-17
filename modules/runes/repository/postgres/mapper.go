@@ -294,6 +294,7 @@ func mapRuneTransactionTypeToParams(src entity.RuneTransaction) (gen.CreateRuneT
 		Outputs:     outputsBytes,
 		Mints:       mintsBytes,
 		Burns:       burnsBytes,
+		RuneEtched:  src.RuneEtched,
 	}, runestoneParams, nil
 }
 
