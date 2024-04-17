@@ -10,14 +10,9 @@ type Usecase struct {
 	bitcoinClient btcclient.Contract
 }
 
-type NewParams struct {
-	RunesDg       datagateway.RunesDataGateway
-	BitcoinClient btcclient.Contract
-}
-
-func New(params NewParams) *Usecase {
+func New(runesDg datagateway.RunesDataGateway, bitcoinClient btcclient.Contract) *Usecase {
 	return &Usecase{
-		runesDg:       params.RunesDg,
-		bitcoinClient: params.BitcoinClient,
+		runesDg:       runesDg,
+		bitcoinClient: bitcoinClient,
 	}
 }

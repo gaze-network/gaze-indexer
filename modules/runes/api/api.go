@@ -1,7 +1,11 @@
 package api
 
-import "github.com/gofiber/fiber/v2"
+import (
+	"github.com/gaze-network/indexer-network/common"
+	"github.com/gaze-network/indexer-network/modules/runes/api/httphandler"
+	"github.com/gaze-network/indexer-network/modules/runes/usecase"
+)
 
-func MountHTTP(router fiber.Router) error {
-	return nil
+func NewHTTPHandler(network common.Network, usecase *usecase.Usecase) *httphandler.HttpHandler {
+	return httphandler.New(network, usecase)
 }
