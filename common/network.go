@@ -20,6 +20,3 @@ func (n Network) IsSupported() bool {
 func (n Network) String() string {
 	return string(n)
 }
-
-// HalvingInterval is the number of blocks between each halving event.
-const HalvingInterval = 210_000
