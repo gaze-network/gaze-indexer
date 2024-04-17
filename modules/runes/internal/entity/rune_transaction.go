@@ -13,7 +13,7 @@ import (
 
 type OutPointBalance struct {
 	PkScript   []byte
-	Id         runes.RuneId
+	RuneId     runes.RuneId
 	Amount     uint128.Uint128
 	Index      uint32
 	TxHash     chainhash.Hash
@@ -22,7 +22,7 @@ type OutPointBalance struct {
 
 type outpointBalanceJSON struct {
 	PkScript   string          `json:"pkScript"`
-	Id         runes.RuneId    `json:"id"`
+	RuneId     runes.RuneId    `json:"runeId"`
 	Amount     uint128.Uint128 `json:"amount"`
 	Index      uint32          `json:"index"`
 	TxHash     chainhash.Hash  `json:"txHash"`
@@ -32,7 +32,7 @@ type outpointBalanceJSON struct {
 func (o OutPointBalance) MarshalJSON() ([]byte, error) {
 	bytes, err := json.Marshal(outpointBalanceJSON{
 		PkScript:   hex.EncodeToString(o.PkScript),
-		Id:         o.Id,
+		RuneId:     o.RuneId,
 		Amount:     o.Amount,
 		Index:      o.Index,
 		TxHash:     o.TxHash,
@@ -54,7 +54,7 @@ func (o *OutPointBalance) UnmarshalJSON(data []byte) error {
 		return errors.WithStack(err)
 	}
 	o.PkScript = pkScript
-	o.Id = aux.Id
+	o.RuneId = aux.RuneId
 	o.Amount = aux.Amount
 	o.Index = aux.Index
 	o.TxHash = aux.TxHash

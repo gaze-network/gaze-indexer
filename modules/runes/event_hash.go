@@ -233,7 +233,7 @@ func serializeRuneTxsForEventHash(txs []*entity.RuneTransaction) ([]byte, error)
 		writeOutPointBalance := func(ob *entity.OutPointBalance) {
 			sb.WriteString("pkScript:")
 			sb.Write(ob.PkScript)
-			sb.WriteString("id:" + ob.Id.String())
+			sb.WriteString("runeId:" + ob.RuneId.String())
 			sb.WriteString("amount:" + ob.Amount.String())
 			sb.WriteString("index:" + strconv.Itoa(int(ob.Index)))
 			sb.WriteString("txHash:")
@@ -246,7 +246,7 @@ func serializeRuneTxsForEventHash(txs []*entity.RuneTransaction) ([]byte, error)
 			if t1.Index != t2.Index {
 				return int(t1.Index) - int(t2.Index)
 			}
-			return t1.Id.Cmp(t2.Id)
+			return t1.RuneId.Cmp(t2.RuneId)
 		})
 
 		sb.WriteString("in:")
@@ -258,7 +258,7 @@ func serializeRuneTxsForEventHash(txs []*entity.RuneTransaction) ([]byte, error)
 			if t1.Index != t2.Index {
 				return int(t1.Index) - int(t2.Index)
 			}
-			return t1.Id.Cmp(t2.Id)
+			return t1.RuneId.Cmp(t2.RuneId)
 		})
 		sb.WriteString("out:")
 		for _, out := range tx.Outputs {
