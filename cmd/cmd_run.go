@@ -122,7 +122,10 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 
 	// Initialize Bitcoin Indexer
 	if opts.Bitcoin {
-		var db btcdatagateway.BitcoinDataGateway
+		var (
+			btcDB         btcdatagateway.BitcoinDataGateway
+			indexerInfoDB btcdatagateway.IndexerInformationDataGateway
+		)
 		switch strings.ToLower(conf.Modules.Bitcoin.Database) {
 		case "postgresql", "postgres", "pg":
 			pg, err := postgres.NewPool(ctx, conf.Modules.Bitcoin.Postgres)
@@ -130,13 +133,20 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 				logger.PanicContext(ctx, "Failed to create Postgres connection pool", slogx.Error(err))
 			}
 			defer pg.Close()
-			db = btcpostgres.NewRepository(pg)
+			repo := btcpostgres.NewRepository(pg)
+			btcDB = repo
+			indexerInfoDB = repo
 		default:
 			return errors.Wrapf(errs.Unsupported, "%q database is not supported", conf.Modules.Bitcoin.Database)
 		}
-		bitcoinProcessor := bitcoin.NewProcessor(db)
+		bitcoinProcessor := bitcoin.NewProcessor(conf, btcDB, indexerInfoDB)
 		bitcoinNodeDatasource := datasources.NewBitcoinNode(client)
 		bitcoinIndexer := indexers.NewBitcoinIndexer(bitcoinProcessor, bitcoinNodeDatasource)
+
+		// Verify states before running Indexer
+		if err := bitcoinProcessor.VerifyStates(ctx); err != nil {
+			return errors.WithStack(err)
+		}
 
 		// Run Indexer
 		go func() {
