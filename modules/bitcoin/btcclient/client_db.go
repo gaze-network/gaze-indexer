@@ -17,6 +17,10 @@ import (
 
 // TODO: Refactor this, datasources.BitcoinNode and This package is the same.
 
+const (
+	blockStreamChunkSize = 100
+)
+
 // Make sure to implement the BitcoinDatasource interface
 var _ datasources.Datasource[[]*types.Block] = (*ClientDatabase)(nil)
 
@@ -132,7 +136,7 @@ func (c *ClientDatabase) FetchAsync(ctx context.Context, from, to int64, ch chan
 	go func() {
 		defer stream.Close()
 		done := subscription.Done()
-		chunks := lo.Chunk(blockHeights, 100)
+		chunks := lo.Chunk(blockHeights, blockStreamChunkSize)
 		for _, chunk := range chunks {
 			chunk := chunk
 			select {
