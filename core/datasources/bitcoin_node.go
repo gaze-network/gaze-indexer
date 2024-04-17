@@ -10,6 +10,7 @@ import (
 	"github.com/btcsuite/btcd/wire"
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/core/types"
+	"github.com/gaze-network/indexer-network/internal/subscription"
 	"github.com/gaze-network/indexer-network/pkg/logger"
 	"github.com/gaze-network/indexer-network/pkg/logger/slogx"
 	cstream "github.com/planxnx/concurrent-stream"
@@ -75,18 +76,18 @@ func (d *BitcoinNodeDatasource) Fetch(ctx context.Context, from, to int64) ([]*t
 //
 //   - from: block height to start fetching, if -1, it will start from genesis block
 //   - to: block height to stop fetching, if -1, it will fetch until the latest block
-func (d *BitcoinNodeDatasource) FetchAsync(ctx context.Context, from, to int64, ch chan<- []*types.Block) (*ClientSubscription[[]*types.Block], error) {
+func (d *BitcoinNodeDatasource) FetchAsync(ctx context.Context, from, to int64, ch chan<- []*types.Block) (*subscription.ClientSubscription[[]*types.Block], error) {
 	from, to, skip, err := d.prepareRange(from, to)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to prepare fetch range")
 	}
 
-	subscription := newClientSubscription(ch)
+	subscription := subscription.NewSubscription(ch)
 	if skip {
 		if err := subscription.UnsubscribeWithContext(ctx); err != nil {
 			return nil, errors.Wrap(err, "failed to unsubscribe")
 		}
-		return subscription, nil
+		return subscription.Client(), nil
 	}
 
 	// Create parallel stream
@@ -122,7 +123,7 @@ func (d *BitcoinNodeDatasource) FetchAsync(ctx context.Context, from, to int64, 
 				}
 
 				// send blocks to subscription channel
-				if err := subscription.send(ctx, data); err != nil {
+				if err := subscription.Send(ctx, data); err != nil {
 					logger.ErrorContext(ctx, "failed while dispatch block",
 						slogx.Error(err),
 						slogx.Int64("start", data[0].Header.Height),
@@ -156,17 +157,19 @@ func (d *BitcoinNodeDatasource) FetchAsync(ctx context.Context, from, to int64, 
 						hash, err := d.btcclient.GetBlockHash(height)
 						if err != nil {
 							logger.ErrorContext(ctx, "failed to get block hash", slogx.Error(err), slogx.Int64("height", height))
-							if err := subscription.sendError(ctx, errors.Wrapf(err, "failed to get block hash: height: %d", height)); err != nil {
+							if err := subscription.SendError(ctx, errors.Wrapf(err, "failed to get block hash: height: %d", height)); err != nil {
 								logger.ErrorContext(ctx, "failed to send error", slogx.Error(err))
 							}
+							return nil
 						}
 
 						block, err := d.btcclient.GetBlock(hash)
 						if err != nil {
 							logger.ErrorContext(ctx, "failed to get block", slogx.Error(err), slogx.Int64("height", height))
-							if err := subscription.sendError(ctx, errors.Wrapf(err, "failed to get block: height: %d, hash: %s", height, hash)); err != nil {
+							if err := subscription.SendError(ctx, errors.Wrapf(err, "failed to get block: height: %d, hash: %s", height, hash)); err != nil {
 								logger.ErrorContext(ctx, "failed to send error", slogx.Error(err))
 							}
+							return nil
 						}
 						logger.DebugContext(ctx, "[BitcoinNodeDatasource] Fetched block", slogx.Int64("height", height), slogx.String("hash", hash.String()))
 
@@ -178,7 +181,7 @@ func (d *BitcoinNodeDatasource) FetchAsync(ctx context.Context, from, to int64, 
 		}
 	}()
 
-	return subscription, nil
+	return subscription.Client(), nil
 }
 
 func (d *BitcoinNodeDatasource) prepareRange(fromHeight, toHeight int64) (start, end int64, skip bool, err error) {
