@@ -12,7 +12,7 @@ import (
 
 func NewHTTPErrorHandler() func(ctx *fiber.Ctx, err error) error {
 	return func(ctx *fiber.Ctx, err error) error {
-		if e := new(errs.PublicError); errors.As(err, e) {
+		if e := new(errs.PublicError); errors.As(err, &e) {
 			return errors.WithStack(ctx.Status(http.StatusBadRequest).JSON(map[string]any{
 				"error": e.Message(),
 			}))
