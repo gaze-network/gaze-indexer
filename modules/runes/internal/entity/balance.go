@@ -1,7 +1,7 @@
 package entity
 
 import (
-	"github.com/gaze-network/indexer-network/modules/runes/internal/runes"
+	"github.com/gaze-network/indexer-network/modules/runes/runes"
 	"github.com/gaze-network/uint128"
 )
 

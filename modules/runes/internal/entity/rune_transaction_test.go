@@ -7,7 +7,7 @@ import (
 
 	"github.com/Cleverse/go-utilities/utils"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
-	"github.com/gaze-network/indexer-network/modules/runes/internal/runes"
+	"github.com/gaze-network/indexer-network/modules/runes/runes"
 	"github.com/gaze-network/uint128"
 	"github.com/stretchr/testify/assert"
 )

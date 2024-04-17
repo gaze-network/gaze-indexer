@@ -6,7 +6,7 @@ import (
 	"github.com/btcsuite/btcd/wire"
 	"github.com/gaze-network/indexer-network/core/types"
 	"github.com/gaze-network/indexer-network/modules/runes/internal/entity"
-	"github.com/gaze-network/indexer-network/modules/runes/internal/runes"
+	"github.com/gaze-network/indexer-network/modules/runes/runes"
 	"github.com/gaze-network/uint128"
 )
 

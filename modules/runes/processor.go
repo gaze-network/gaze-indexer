@@ -15,7 +15,7 @@ import (
 	"github.com/gaze-network/indexer-network/modules/bitcoin/btcclient"
 	"github.com/gaze-network/indexer-network/modules/runes/datagateway"
 	"github.com/gaze-network/indexer-network/modules/runes/internal/entity"
-	"github.com/gaze-network/indexer-network/modules/runes/internal/runes"
+	"github.com/gaze-network/indexer-network/modules/runes/runes"
 	"github.com/gaze-network/indexer-network/pkg/logger"
 	"github.com/gaze-network/uint128"
 	"github.com/samber/lo"

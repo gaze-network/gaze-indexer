@@ -5,7 +5,7 @@ import (
 
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/modules/runes/internal/entity"
-	"github.com/gaze-network/indexer-network/modules/runes/internal/runes"
+	"github.com/gaze-network/indexer-network/modules/runes/runes"
 )
 
 func (u *Usecase) GetBalancesByPkScript(ctx context.Context, pkScript []byte, blockHeight uint64) (map[runes.RuneId]*entity.Balance, error) {

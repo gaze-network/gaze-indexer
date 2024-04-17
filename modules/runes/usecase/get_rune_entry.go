@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/cockroachdb/errors"
-	"github.com/gaze-network/indexer-network/modules/runes/internal/runes"
+	"github.com/gaze-network/indexer-network/modules/runes/runes"
 )
 
 func (u *Usecase) GetRuneIdFromRune(ctx context.Context, rune runes.Rune) (runes.RuneId, error) {

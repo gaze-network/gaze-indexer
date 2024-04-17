@@ -15,7 +15,7 @@ import (
 	"github.com/gaze-network/indexer-network/core/types"
 	"github.com/gaze-network/indexer-network/modules/runes/datagateway"
 	"github.com/gaze-network/indexer-network/modules/runes/internal/entity"
-	"github.com/gaze-network/indexer-network/modules/runes/internal/runes"
+	"github.com/gaze-network/indexer-network/modules/runes/runes"
 	"github.com/gaze-network/indexer-network/pkg/logger"
 	"github.com/gaze-network/indexer-network/pkg/logger/slogx"
 	"github.com/gaze-network/uint128"
