@@ -97,7 +97,7 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 	if opts.Bitcoin {
 		var db btcdatagateway.BitcoinDataGateway
 		switch strings.ToLower(conf.Modules.Bitcoin.Database) {
-		case "postgres", "pg":
+		case "postgresql", "postgres", "pg":
 			pg, err := postgres.NewPool(ctx, conf.Modules.Bitcoin.Postgres)
 			if err != nil {
 				logger.PanicContext(ctx, "Failed to create Postgres connection pool", slogx.Error(err))
