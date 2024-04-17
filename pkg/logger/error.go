@@ -2,7 +2,6 @@ package logger
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 
 	"github.com/gaze-network/indexer-network/pkg/logger/slogx"
@@ -16,7 +15,7 @@ func middlewareError() middleware {
 				if attr.Key == slogx.ErrorKey || attr.Key == "err" {
 					err := attr.Value.Any()
 					if err, ok := err.(error); ok && err != nil {
-						rec.AddAttrs(slog.String(slogx.ErrorVerboseKey, fmt.Sprintf("%+v", err)))
+						// rec.AddAttrs(slog.String(slogx.ErrorVerboseKey, fmt.Sprintf("%+v", err)))
 						rec.AddAttrs(slog.Any(slogx.ErrorStackTraceKey, stacktrace.ExtractErrorStackTraces(err)))
 					}
 				}

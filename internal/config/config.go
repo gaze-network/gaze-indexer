@@ -34,6 +34,7 @@ type Config struct {
 	Logger      logger.Config     `mapstructure:"logger"`
 	BitcoinNode BitcoinNodeClient `mapstructure:"bitcoin_node"`
 	Network     common.Network    `mapstructure:"network"`
+	HTTPServer  HTTPServerConfig  `mapstructure:"http_server"`
 	Modules     Modules           `mapstructure:"modules"`
 }
 
@@ -47,6 +48,10 @@ type BitcoinNodeClient struct {
 type Modules struct {
 	Bitcoin btcconfig.Config   `mapstructure:"bitcoin"`
 	Runes   runesconfig.Config `mapstructure:"runes"`
+}
+
+type HTTPServerConfig struct {
+	Port int `mapstructure:"port"`
 }
 
 // Parse parse the configuration from environment variables

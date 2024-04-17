@@ -1,10 +1,15 @@
 package cmd
 
 import (
+	"context"
+	"fmt"
+	"log/slog"
 	"os"
 	"os/signal"
+	"runtime"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/cockroachdb/errors"
@@ -20,9 +25,14 @@ import (
 	"github.com/gaze-network/indexer-network/modules/runes"
 	runesdatagateway "github.com/gaze-network/indexer-network/modules/runes/datagateway"
 	runespostgres "github.com/gaze-network/indexer-network/modules/runes/repository/postgres"
+	"github.com/gaze-network/indexer-network/pkg/errorhandler"
 	"github.com/gaze-network/indexer-network/pkg/logger"
 	"github.com/gaze-network/indexer-network/pkg/logger/slogx"
+	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/compress"
+	fiberrecover "github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/spf13/cobra"
+	"golang.org/x/sync/errgroup"
 )
 
 type runCmdOptions struct {
@@ -58,6 +68,10 @@ func NewRunCommand() *cobra.Command {
 	config.BindPFlag("modules.runes.datasource", flags.Lookup("runes-datasource"))
 
 	return runCmd
+}
+
+type HttpHandler interface {
+	Mount(router fiber.Router) error
 }
 
 func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
@@ -97,11 +111,17 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 	// TODO: create module command package.
 	// each module should have its own command package and main package will routing the command to the module command package.
 
+	// TODO: refactor module name to specific type instead of string?
+	httpHandlers := make(map[string]HttpHandler, 0)
+
+	// use gracefulEG to coordinate graceful shutdown after context is done. (e.g. shut down http server, shutdown logic of each module, etc.)
+	gracefulEG, gctx := errgroup.WithContext(context.Background())
+
 	// Initialize Bitcoin Indexer
 	if opts.Bitcoin {
 		var db btcdatagateway.BitcoinDataGateway
 		switch strings.ToLower(conf.Modules.Bitcoin.Database) {
-		case "postgres", "pg":
+		case "postgresql", "postgres", "pg":
 			pg, err := postgres.NewPool(ctx, conf.Modules.Bitcoin.Postgres)
 			if err != nil {
 				logger.PanicContext(ctx, "Failed to create Postgres connection pool", slogx.Error(err))
@@ -184,7 +204,56 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 	}
 
 	// Wait for interrupt signal to gracefully stop the server with
+	// Setup HTTP server if there are any HTTP handlers
+	if len(httpHandlers) > 0 {
+		app := fiber.New(fiber.Config{
+			AppName:      "gaze",
+			ErrorHandler: errorhandler.NewHTTPErrorHandler(),
+		})
+		app.
+			Use(fiberrecover.New(fiberrecover.Config{
+				EnableStackTrace: true,
+				StackTraceHandler: func(c *fiber.Ctx, e interface{}) {
+					buf := make([]byte, 1024) // bufLen = 1024
+					buf = buf[:runtime.Stack(buf, false)]
+					logger.ErrorContext(c.UserContext(), "panic in http handler", slogx.Any("panic", e), slog.String("stacktrace", string(buf)))
+				},
+			})).
+			Use(compress.New(compress.Config{
+				Level: compress.LevelDefault,
+			}))
+
+		// mount http handlers from each http-enabled module
+		for module, handler := range httpHandlers {
+			if err := handler.Mount(app); err != nil {
+				logger.PanicContext(ctx, "Failed to mount HTTP handler", slogx.Error(err), slog.String("module", module))
+			}
+			logger.InfoContext(ctx, "Mounted HTTP handler", slog.String("module", module))
+		}
+		go func() {
+			logger.InfoContext(ctx, "Started HTTP server", slog.Int("port", conf.HTTPServer.Port))
+			if err := app.Listen(fmt.Sprintf(":%d", conf.HTTPServer.Port)); err != nil {
+				logger.PanicContext(ctx, "Failed to start HTTP server", slogx.Error(err))
+			}
+		}()
+		// handle graceful shutdown
+		gracefulEG.Go(func() error {
+			<-ctx.Done()
+			logger.InfoContext(gctx, "Stopping HTTP server...")
+			if err := app.ShutdownWithTimeout(60 * time.Second); err != nil {
+				logger.ErrorContext(gctx, "Error during shutdown HTTP server", slogx.Error(err))
+			}
+			logger.InfoContext(gctx, "HTTP server stopped gracefully")
+			return nil
+		})
+	}
+
 	<-ctx.Done()
-	logger.InfoContext(ctx, "Shutting down server")
+	// wait until all graceful shutdown goroutines are done before returning
+	if err := gracefulEG.Wait(); err != nil {
+		logger.ErrorContext(ctx, "Failed to shutdown gracefully", slogx.Error(err))
+	} else {
+		logger.InfoContext(ctx, "Successfully shut down gracefully")
+	}
 	return nil
 }
