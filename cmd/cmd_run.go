@@ -164,6 +164,7 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 	// Initialize Runes Indexer
 	if opts.Runes {
 		var runesDg runesdatagateway.RunesDataGateway
+		var indexerInfoDg runesdatagateway.IndexerInfoDataGateway
 		switch strings.ToLower(conf.Modules.Runes.Database) {
 		case "postgres", "pg":
 			pg, err := postgres.NewPool(ctx, conf.Modules.Runes.Postgres)
@@ -171,7 +172,9 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 				logger.PanicContext(ctx, "Failed to create Postgres connection pool", slogx.Error(err))
 			}
 			defer pg.Close()
-			runesDg = runespostgres.NewRepository(pg)
+			runesRepo := runespostgres.NewRepository(pg)
+			runesDg = runesRepo
+			indexerInfoDg = runesRepo
 		default:
 			logger.PanicContext(ctx, "Unsupported database", slogx.String("database", conf.Modules.Runes.Database))
 		}
@@ -196,11 +199,11 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 		default:
 			return errors.Wrapf(errs.Unsupported, "%q datasource is not supported", conf.Modules.Runes.Datasource)
 		}
-		runesProcessor := runes.NewProcessor(runesDg, bitcoinClient, bitcoinDatasource, conf.Network)
+		runesProcessor := runes.NewProcessor(runesDg, indexerInfoDg, bitcoinClient, bitcoinDatasource, conf.Network)
 		runesIndexer := indexers.NewBitcoinIndexer(runesProcessor, bitcoinDatasource)
 
-		if err := runesProcessor.Init(ctx); err != nil {
-			logger.PanicContext(ctx, "Failed to initialize Runes Processor", slogx.Error(err))
+		if err := runesProcessor.VerifyStates(ctx); err != nil {
+			return errors.WithStack(err)
 		}
 
 		// Run Indexer

@@ -9,22 +9,6 @@ import (
 	"context"
 )
 
-const getCurrentIndexerStats = `-- name: GetCurrentIndexerStats :one
-SELECT "client_version", "network" FROM runes_indexer_stats ORDER BY id DESC LIMIT 1
-`
-
-type GetCurrentIndexerStatsRow struct {
-	ClientVersion string
-	Network       string
-}
-
-func (q *Queries) GetCurrentIndexerStats(ctx context.Context) (GetCurrentIndexerStatsRow, error) {
-	row := q.db.QueryRow(ctx, getCurrentIndexerStats)
-	var i GetCurrentIndexerStatsRow
-	err := row.Scan(&i.ClientVersion, &i.Network)
-	return i, err
-}
-
 const getLatestIndexerState = `-- name: GetLatestIndexerState :one
 SELECT id, db_version, event_hash_version, created_at FROM runes_indexer_state ORDER BY created_at DESC LIMIT 1
 `
@@ -38,6 +22,22 @@ func (q *Queries) GetLatestIndexerState(ctx context.Context) (RunesIndexerState,
 		&i.EventHashVersion,
 		&i.CreatedAt,
 	)
+	return i, err
+}
+
+const getLatestIndexerStats = `-- name: GetLatestIndexerStats :one
+SELECT "client_version", "network" FROM runes_indexer_stats ORDER BY id DESC LIMIT 1
+`
+
+type GetLatestIndexerStatsRow struct {
+	ClientVersion string
+	Network       string
+}
+
+func (q *Queries) GetLatestIndexerStats(ctx context.Context) (GetLatestIndexerStatsRow, error) {
+	row := q.db.QueryRow(ctx, getLatestIndexerStats)
+	var i GetLatestIndexerStatsRow
+	err := row.Scan(&i.ClientVersion, &i.Network)
 	return i, err
 }
 

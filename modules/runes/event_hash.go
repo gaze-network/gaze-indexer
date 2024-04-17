@@ -28,7 +28,7 @@ func (p *Processor) calculateEventHash(header types.BlockHeader) (chainhash.Hash
 
 func (p *Processor) getHashPayload(header types.BlockHeader) ([]byte, error) {
 	var sb strings.Builder
-	sb.WriteString("payload:v" + strconv.Itoa(eventHashVersion) + ":")
+	sb.WriteString("payload:v" + strconv.Itoa(EventHashVersion) + ":")
 	sb.WriteString("blockHash:")
 	sb.Write(header.Hash[:])
 

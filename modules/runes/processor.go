@@ -4,8 +4,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/Cleverse/go-utilities/utils"
-	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/wire"
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/common"
@@ -24,13 +22,9 @@ import (
 
 var _ indexers.BitcoinProcessor = (*Processor)(nil)
 
-const (
-	dbVersion        = 1
-	eventHashVersion = 1
-)
-
 type Processor struct {
 	runesDg           datagateway.RunesDataGateway
+	indexerInfoDg     datagateway.IndexerInfoDataGateway
 	bitcoinClient     btcclient.Contract
 	bitcoinDataSource indexers.BitcoinDatasource
 	network           common.Network
@@ -43,9 +37,10 @@ type Processor struct {
 	newRuneTxs          []*entity.RuneTransaction
 }
 
-func NewProcessor(runesDg datagateway.RunesDataGateway, bitcoinClient btcclient.Contract, bitcoinDataSource indexers.BitcoinDatasource, network common.Network) *Processor {
+func NewProcessor(runesDg datagateway.RunesDataGateway, indexerInfoDg datagateway.IndexerInfoDataGateway, bitcoinClient btcclient.Contract, bitcoinDataSource indexers.BitcoinDatasource, network common.Network) *Processor {
 	return &Processor{
 		runesDg:             runesDg,
+		indexerInfoDg:       indexerInfoDg,
 		bitcoinClient:       bitcoinClient,
 		bitcoinDataSource:   bitcoinDataSource,
 		network:             network,
@@ -63,7 +58,7 @@ var (
 	ErrEventHashVersionMismatch = errors.New("event hash version mismatch: please reset db and reindex")
 )
 
-func (p *Processor) Init(ctx context.Context) error {
+func (p *Processor) VerifyStates(ctx context.Context) error {
 	// TODO: ensure db is migrated
 	if err := p.ensureValidState(ctx); err != nil {
 		return errors.Wrap(err, "error during ensureValidState")
@@ -77,25 +72,40 @@ func (p *Processor) Init(ctx context.Context) error {
 }
 
 func (p *Processor) ensureValidState(ctx context.Context) error {
-	indexerState, err := p.runesDg.GetLatestIndexerState(ctx)
+	indexerState, err := p.indexerInfoDg.GetLatestIndexerState(ctx)
 	if err != nil && !errors.Is(err, errs.NotFound) {
 		return errors.Wrap(err, "failed to get latest indexer state")
 	}
 	// if not found, set indexer state
 	if errors.Is(err, errs.NotFound) {
-		if err := p.runesDg.SetIndexerState(ctx, entity.IndexerState{
-			DBVersion:        dbVersion,
-			EventHashVersion: eventHashVersion,
+		if err := p.indexerInfoDg.SetIndexerState(ctx, entity.IndexerState{
+			DBVersion:        DBVersion,
+			EventHashVersion: EventHashVersion,
 		}); err != nil {
 			return errors.Wrap(err, "failed to set indexer state")
 		}
 	} else {
-		if indexerState.DBVersion != dbVersion {
-			return errors.WithStack(ErrDBVersionMismatch)
+		if indexerState.DBVersion != DBVersion {
+			return errors.Wrapf(errs.ConflictSetting, "db version mismatch: current version is %d. Please upgrade to version %d", indexerState.DBVersion, DBVersion)
 		}
-		if indexerState.EventHashVersion != eventHashVersion {
-			return errors.WithStack(ErrEventHashVersionMismatch)
+		if indexerState.EventHashVersion != EventHashVersion {
+			// TODO: automate reset db instead of returning error
+			return errors.Wrapf(errs.ConflictSetting, "event version mismatch: current version is %d. Please reset rune's db first.", indexerState.EventHashVersion, EventHashVersion)
 		}
+	}
+
+	_, network, err := p.indexerInfoDg.GetLatestIndexerStats(ctx)
+	if err != nil && !errors.Is(err, errs.NotFound) {
+		return errors.Wrap(err, "failed to get latest indexer stats")
+	}
+	// if found, verify indexer stats
+	if err == nil {
+		if network != p.network {
+			return errors.Wrapf(errs.ConflictSetting, "network mismatch: latest indexed network is %d, configured network is %d. If you want to change the network, please reset the database", network, p.network)
+		}
+	}
+	if err := p.indexerInfoDg.UpdateIndexerStats(ctx, p.network.String(), p.network); err != nil {
+		return errors.Wrap(err, "failed to update indexer stats")
 	}
 	return nil
 }
@@ -138,16 +148,6 @@ func (p *Processor) ensureGenesisRune(ctx context.Context) error {
 
 func (p *Processor) Name() string {
 	return "Runes"
-}
-
-var startingBlockHeader = map[common.Network]types.BlockHeader{
-	// TODO: add starting block header for mainnet after block 840,000 is mined
-	common.NetworkMainnet: {},
-	common.NetworkTestnet: {
-		Height:    2583200,
-		Hash:      *utils.Must(chainhash.NewHashFromStr("000000000006c5f0dfcd9e0e81f27f97a87aef82087ffe69cd3c390325bb6541")),
-		PrevBlock: *utils.Must(chainhash.NewHashFromStr("00000000000668f3bafac992f53424774515440cb47e1cb9e73af3f496139e28")),
-	},
 }
 
 func (p *Processor) CurrentBlock(ctx context.Context) (types.BlockHeader, error) {
