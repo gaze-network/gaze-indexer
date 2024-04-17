@@ -49,7 +49,7 @@ type BitcoinTransactionTxin struct {
 	PrevoutPkscript pgtype.Text
 	Scriptsig       string
 	Witness         pgtype.Text
-	Sequence        int32
+	Sequence        int64
 }
 
 type BitcoinTransactionTxout struct {

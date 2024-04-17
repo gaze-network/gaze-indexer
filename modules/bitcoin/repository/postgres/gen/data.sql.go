@@ -278,7 +278,7 @@ type InsertTransactionTxInParams struct {
 	PrevoutTxIdx  int16
 	Scriptsig     string
 	Witness       pgtype.Text
-	Sequence      int32
+	Sequence      int64
 }
 
 func (q *Queries) InsertTransactionTxIn(ctx context.Context, arg InsertTransactionTxInParams) error {

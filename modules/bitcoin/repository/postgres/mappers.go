@@ -98,7 +98,7 @@ func mapBlockTypeToParams(src *types.Block) (gen.InsertBlockParams, []gen.Insert
 				PrevoutTxIdx:  int16(txin.PreviousOutIndex),
 				Scriptsig:     hex.EncodeToString(txin.SignatureScript),
 				Witness:       witness,
-				Sequence:      int32(txin.Sequence),
+				Sequence:      int64(txin.Sequence),
 			})
 		}
 

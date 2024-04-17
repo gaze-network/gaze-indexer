@@ -62,7 +62,7 @@ CREATE TABLE IF NOT EXISTS "bitcoin_transaction_txins" (
 	"prevout_pkscript" TEXT NULL, -- Hex String, Can be NULL if the prevout is a coinbase transaction
 	"scriptsig" TEXT NOT NULL, -- Hex String
 	"witness" TEXT, -- Hex String
-	"sequence" INT NOT NULL,
+	"sequence" BIGINT NOT NULL,
 	PRIMARY KEY ("tx_hash", "tx_idx")
 );
 
