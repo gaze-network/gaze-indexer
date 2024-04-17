@@ -7,7 +7,7 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/common/errs"
 	"github.com/gaze-network/indexer-network/core/types"
-	"github.com/jackc/pgx"
+	"github.com/jackc/pgx/v5"
 )
 
 func (r *Repository) GetTransactionByHash(ctx context.Context, txHash chainhash.Hash) (*types.Transaction, error) {
