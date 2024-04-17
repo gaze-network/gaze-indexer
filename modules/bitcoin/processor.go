@@ -84,8 +84,11 @@ func (p *Processor) CurrentBlock(ctx context.Context) (types.BlockHeader, error)
 }
 
 func (p *Processor) GetIndexedBlock(ctx context.Context, height int64) (types.BlockHeader, error) {
-	// TODO: Implement this
-	return types.BlockHeader{}, nil
+	header, err := p.bitcoinDg.GetBlockHeaderByHeight(ctx, height)
+	if err != nil {
+		return types.BlockHeader{}, errors.WithStack(err)
+	}
+	return header, nil
 }
 
 func (p *Processor) RevertData(ctx context.Context, from int64) error {
