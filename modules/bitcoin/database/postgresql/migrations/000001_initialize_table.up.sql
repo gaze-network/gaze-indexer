@@ -25,8 +25,8 @@ CREATE TABLE IF NOT EXISTS "bitcoin_blocks" (
 	"merkle_root" TEXT NOT NULL,
 	"prev_block_hash" TEXT NOT NULL,
 	"timestamp" TIMESTAMP WITH TIME ZONE NOT NULL,
-	"bits" INT NOT NULL,
-	"nonce" INT NOT NULL
+	"bits" BIGINT NOT NULL,
+	"nonce" BIGINT NOT NULL
 );
 
 CREATE INDEX IF NOT EXISTS bitcoin_blocks_block_hash_idx ON "bitcoin_blocks" USING HASH ("block_hash");
@@ -34,7 +34,7 @@ CREATE INDEX IF NOT EXISTS bitcoin_blocks_block_hash_idx ON "bitcoin_blocks" USI
 CREATE TABLE IF NOT EXISTS "bitcoin_transactions" (
 	"tx_hash" TEXT NOT NULL PRIMARY KEY,
 	"version" INT NOT NULL,
-	"locktime" INT NOT NULL,
+	"locktime" BIGINT NOT NULL,
 	"block_height" INT NOT NULL,
 	"block_hash" TEXT NOT NULL,
 	"idx" SMALLINT NOT NULL

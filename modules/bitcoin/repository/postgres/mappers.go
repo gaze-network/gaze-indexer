@@ -25,8 +25,8 @@ func mapBlockHeaderTypeToModel(src types.BlockHeader) gen.BitcoinBlock {
 			Time:  src.Timestamp,
 			Valid: true,
 		},
-		Bits:  int32(src.Bits),
-		Nonce: int32(src.Nonce),
+		Bits:  int64(src.Bits),
+		Nonce: int64(src.Nonce),
 	}
 }
 
@@ -69,14 +69,14 @@ func mapBlockTypeToParams(src *types.Block) (gen.InsertBlockParams, []gen.Insert
 			Time:  src.Header.Timestamp,
 			Valid: true,
 		},
-		Bits:  int32(src.Header.Bits),
-		Nonce: int32(src.Header.Nonce),
+		Bits:  int64(src.Header.Bits),
+		Nonce: int64(src.Header.Nonce),
 	}
 	for txIdx, srcTx := range src.Transactions {
 		tx := gen.InsertTransactionParams{
 			TxHash:      srcTx.TxHash.String(),
 			Version:     srcTx.Version,
-			Locktime:    int32(srcTx.LockTime),
+			Locktime:    int64(srcTx.LockTime),
 			BlockHeight: int32(src.Header.Height),
 			BlockHash:   src.Header.Hash.String(),
 			Idx:         int16(txIdx),
