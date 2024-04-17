@@ -50,10 +50,10 @@ func (i *BitcoinIndexer) Run(ctx context.Context) (err error) {
 	// set to -1 to start from genesis block
 	i.currentBlock, err = i.Processor.CurrentBlock(ctx)
 	if err != nil {
-		if errors.Is(err, errs.NotFound) {
-			i.currentBlock.Height = -1
+		if !errors.Is(err, errs.NotFound) {
+			return errors.Wrap(err, "can't init state, failed to get indexer current block")
 		}
-		return errors.Wrap(err, "can't init state, failed to get indexer current block")
+		i.currentBlock.Height = -1
 	}
 
 	// TODO:
