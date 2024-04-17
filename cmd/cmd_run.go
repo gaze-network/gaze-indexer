@@ -176,6 +176,9 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 				logger.ErrorContext(ctx, "Failed to run Runes Indexer", slogx.Error(err))
 			}
 		}()
+
+		// stop main process if Runes Indexer failed
+		stop()
 	}
 
 	// Wait for interrupt signal to gracefully stop the server with
