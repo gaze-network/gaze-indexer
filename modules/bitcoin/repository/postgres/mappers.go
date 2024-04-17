@@ -10,6 +10,7 @@ import (
 	"github.com/gaze-network/indexer-network/common/errs"
 	"github.com/gaze-network/indexer-network/core/types"
 	"github.com/gaze-network/indexer-network/modules/bitcoin/repository/postgres/gen"
+	"github.com/gaze-network/indexer-network/pkg/btcutils"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -83,18 +84,21 @@ func mapBlockTypeToParams(src *types.Block) (gen.InsertBlockParams, []gen.Insert
 		txs = append(txs, tx)
 
 		for idx, txin := range srcTx.TxIn {
+			var witness pgtype.Text
+			if len(txin.Witness) > 0 {
+				witness = pgtype.Text{
+					String: btcutils.WitnessToString(txin.Witness),
+					Valid:  true,
+				}
+			}
 			txins = append(txins, gen.InsertTransactionTxInParams{
 				TxHash:        tx.TxHash,
 				TxIdx:         int16(idx),
 				PrevoutTxHash: txin.PreviousOutTxHash.String(),
 				PrevoutTxIdx:  int16(txin.PreviousOutIndex),
 				Scriptsig:     hex.EncodeToString(txin.SignatureScript),
-				// TODO: should figure out how to store this
-				// Witness: pgtype.Text{
-				// 	String: string(txin.Witness),
-				// 	Valid:  true,
-				// },
-				Sequence: int32(txin.Sequence),
+				Witness:       witness,
+				Sequence:      int32(txin.Sequence),
 			})
 		}
 
@@ -142,9 +146,18 @@ func mapTransactionModelToType(src gen.BitcoinTransaction, txInModel []gen.Bitco
 			return types.Transaction{}, errors.Wrap(err, "failed to parse prevout tx hash")
 		}
 
+		var witness [][]byte
+		if txInModel.Witness.Valid {
+			w, err := btcutils.WitnessFromString(txInModel.Witness.String)
+			if err != nil {
+				return types.Transaction{}, errors.Wrap(err, "failed to parse witness from hex string")
+			}
+			witness = w
+		}
+
 		txIns = append(txIns, &types.TxIn{
 			SignatureScript:   scriptsig,
-			Witness:           [][]byte{}, // TODO: implement witness
+			Witness:           witness,
 			Sequence:          uint32(txInModel.Sequence),
 			PreviousOutIndex:  uint32(txInModel.PrevoutTxIdx),
 			PreviousOutTxHash: *prevoutTxHash,
