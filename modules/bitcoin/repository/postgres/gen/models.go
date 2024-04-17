@@ -38,14 +38,14 @@ type BitcoinTransaction struct {
 	Locktime    int64
 	BlockHeight int32
 	BlockHash   string
-	Idx         int16
+	Idx         int32
 }
 
 type BitcoinTransactionTxin struct {
 	TxHash          string
-	TxIdx           int16
+	TxIdx           int32
 	PrevoutTxHash   string
-	PrevoutTxIdx    int16
+	PrevoutTxIdx    int32
 	PrevoutPkscript pgtype.Text
 	Scriptsig       string
 	Witness         pgtype.Text
@@ -54,7 +54,7 @@ type BitcoinTransactionTxin struct {
 
 type BitcoinTransactionTxout struct {
 	TxHash   string
-	TxIdx    int16
+	TxIdx    int32
 	Pkscript string
 	Value    int64
 	IsSpent  bool

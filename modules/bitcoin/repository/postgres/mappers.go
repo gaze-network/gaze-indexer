@@ -79,7 +79,7 @@ func mapBlockTypeToParams(src *types.Block) (gen.InsertBlockParams, []gen.Insert
 			Locktime:    int64(srcTx.LockTime),
 			BlockHeight: int32(src.Header.Height),
 			BlockHash:   src.Header.Hash.String(),
-			Idx:         int16(txIdx),
+			Idx:         int32(txIdx),
 		}
 		txs = append(txs, tx)
 
@@ -93,9 +93,9 @@ func mapBlockTypeToParams(src *types.Block) (gen.InsertBlockParams, []gen.Insert
 			}
 			txins = append(txins, gen.InsertTransactionTxInParams{
 				TxHash:        tx.TxHash,
-				TxIdx:         int16(idx),
+				TxIdx:         int32(idx),
 				PrevoutTxHash: txin.PreviousOutTxHash.String(),
-				PrevoutTxIdx:  int16(txin.PreviousOutIndex),
+				PrevoutTxIdx:  int32(txin.PreviousOutIndex),
 				Scriptsig:     hex.EncodeToString(txin.SignatureScript),
 				Witness:       witness,
 				Sequence:      int64(txin.Sequence),
@@ -105,7 +105,7 @@ func mapBlockTypeToParams(src *types.Block) (gen.InsertBlockParams, []gen.Insert
 		for idx, txout := range srcTx.TxOut {
 			txouts = append(txouts, gen.InsertTransactionTxOutParams{
 				TxHash:   tx.TxHash,
-				TxIdx:    int16(idx),
+				TxIdx:    int32(idx),
 				Pkscript: hex.EncodeToString(txout.PkScript),
 				Value:    txout.Value,
 			})

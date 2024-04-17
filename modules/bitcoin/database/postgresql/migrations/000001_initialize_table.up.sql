@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS "bitcoin_transactions" (
 	"locktime" BIGINT NOT NULL,
 	"block_height" INT NOT NULL,
 	"block_hash" TEXT NOT NULL,
-	"idx" SMALLINT NOT NULL
+	"idx" INT NOT NULL
 );
 
 CREATE INDEX IF NOT EXISTS bitcoin_transactions_block_height_idx ON "bitcoin_transactions" USING BTREE ("block_height");
@@ -45,7 +45,7 @@ CREATE INDEX IF NOT EXISTS bitcoin_transactions_block_hash_idx ON "bitcoin_trans
 
 CREATE TABLE IF NOT EXISTS "bitcoin_transaction_txouts" (
 	"tx_hash" TEXT NOT NULL,
-	"tx_idx" SMALLINT NOT NULL,
+	"tx_idx" INT NOT NULL,
 	"pkscript" TEXT NOT NULL, -- Hex String
 	"value" BIGINT NOT NULL,
 	"is_spent" BOOLEAN NOT NULL DEFAULT false,
@@ -56,9 +56,9 @@ CREATE INDEX IF NOT EXISTS bitcoin_transaction_txouts_pkscript_idx ON "bitcoin_t
 
 CREATE TABLE IF NOT EXISTS "bitcoin_transaction_txins" (
 	"tx_hash" TEXT NOT NULL,
-	"tx_idx" SMALLINT NOT NULL,
+	"tx_idx" INT NOT NULL,
 	"prevout_tx_hash" TEXT NOT NULL,
-	"prevout_tx_idx" SMALLINT NOT NULL,
+	"prevout_tx_idx" INT NOT NULL,
 	"prevout_pkscript" TEXT NULL, -- Hex String, Can be NULL if the prevout is a coinbase transaction
 	"scriptsig" TEXT NOT NULL, -- Hex String
 	"witness" TEXT, -- Hex String
