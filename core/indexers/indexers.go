@@ -24,4 +24,8 @@ type Processor[T any] interface {
 
 	// RevertData revert synced data to the specified block height for re-indexing.
 	RevertData(ctx context.Context, from int64) error
+
+	// VerifyStates verifies the states of the indexed data and the indexer
+	// to ensure the last shutdown was graceful and no missing data.
+	VerifyStates(ctx context.Context) error
 }

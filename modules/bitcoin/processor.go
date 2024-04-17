@@ -10,6 +10,7 @@ import (
 	"github.com/gaze-network/indexer-network/common/errs"
 	"github.com/gaze-network/indexer-network/core/indexers"
 	"github.com/gaze-network/indexer-network/core/types"
+	"github.com/gaze-network/indexer-network/internal/config"
 	"github.com/gaze-network/indexer-network/modules/bitcoin/datagateway"
 	"github.com/gaze-network/indexer-network/pkg/logger"
 	"github.com/gaze-network/indexer-network/pkg/logger/slogx"
@@ -19,12 +20,16 @@ import (
 var _ indexers.BitcoinProcessor = (*Processor)(nil)
 
 type Processor struct {
-	bitcoinDg datagateway.BitcoinDataGateway
+	config        config.Config
+	bitcoinDg     datagateway.BitcoinDataGateway
+	indexerInfoDg datagateway.IndexerInformationDataGateway
 }
 
-func NewProcessor(bitcoinDg datagateway.BitcoinDataGateway) *Processor {
+func NewProcessor(config config.Config, bitcoinDg datagateway.BitcoinDataGateway, indexerInfoDg datagateway.IndexerInformationDataGateway) *Processor {
 	return &Processor{
-		bitcoinDg: bitcoinDg,
+		config:        config,
+		bitcoinDg:     bitcoinDg,
+		indexerInfoDg: indexerInfoDg,
 	}
 }
 
@@ -95,5 +100,43 @@ func (p *Processor) RevertData(ctx context.Context, from int64) error {
 	if err := p.bitcoinDg.RevertBlocks(ctx, from); err != nil {
 		return errors.WithStack(err)
 	}
+	return nil
+}
+
+func (p *Processor) VerifyStates(ctx context.Context) error {
+	// Check current db version with the required db version
+	{
+		dbVersion, err := p.indexerInfoDg.GetCurrentDBVersion(ctx)
+		if err != nil {
+			return errors.Wrap(err, "can't get current db version")
+		}
+
+		if dbVersion != DBVersion {
+			return errors.Wrapf(errs.ConflictSetting, "db version mismatch, please upgrade to version %d", DBVersion)
+		}
+	}
+
+	// Check if the latest indexed network is mismatched with configured network
+	{
+		_, network, err := p.indexerInfoDg.GetLatestIndexerStats(ctx)
+		if err != nil {
+			if errors.Is(err, errs.NotFound) {
+				goto end
+			}
+			return errors.Wrap(err, "can't get latest indexer stats")
+		}
+
+		if network != p.config.Network {
+			return errors.Wrapf(errs.ConflictSetting, "network mismatch, latest indexed network: %q, configured network: %q. If you want to change the network, please reset the database", network, p.config.Network)
+		}
+	}
+
+	// TODO: Verify the states of the indexed data to ensure the last shutdown was graceful and no missing data.
+
+end:
+	if err := p.indexerInfoDg.UpdateIndexerStats(ctx, Version, p.config.Network); err != nil {
+		return errors.Wrap(err, "can't update indexer stats")
+	}
+
 	return nil
 }

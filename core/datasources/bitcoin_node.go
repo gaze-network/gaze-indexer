@@ -17,6 +17,10 @@ import (
 	"github.com/samber/lo"
 )
 
+const (
+	blockStreamChunkSize = 2
+)
+
 // Make sure to implement the BitcoinDatasource interface
 var _ Datasource[[]*types.Block] = (*BitcoinNodeDatasource)(nil)
 
@@ -141,7 +145,7 @@ func (d *BitcoinNodeDatasource) FetchAsync(ctx context.Context, from, to int64, 
 	go func() {
 		defer stream.Close()
 		done := subscription.Done()
-		chunks := lo.Chunk(blockHeights, 10)
+		chunks := lo.Chunk(blockHeights, blockStreamChunkSize)
 		for _, chunk := range chunks {
 			chunk := chunk
 			select {

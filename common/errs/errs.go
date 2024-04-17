@@ -81,4 +81,10 @@ var (
 	// inherited error from Overflow,
 	// so errors.Is(err, Overflow) == true
 	OverflowUint128 = errors.WrapWithDepth(depth, Overflow, "overflow uint128")
+
+	// InvalidState is returned when a state is invalid
+	InvalidState = errors.NewWithDepth(depth, "invalid state")
+
+	// ConflictSetting is returned when an indexer setting is conflicted
+	ConflictSetting = errors.NewWithDepth(depth, "conflict setting")
 )
