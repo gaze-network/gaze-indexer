@@ -357,7 +357,7 @@ func (p *Processor) getTxInputsPkScripts(ctx context.Context, tx *types.Transact
 		inputIndex := inputIndex
 		prevTxHash := tx.TxIn[inputIndex].PreviousOutTxHash
 		prevTxOutIndex := tx.TxIn[inputIndex].PreviousOutIndex
-		prevTx, err := p.bitcoinClient.GetTransaction(ctx, prevTxHash)
+		prevTx, err := p.bitcoinClient.GetTransactionByHash(ctx, prevTxHash)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to get transaction")
 		}
@@ -516,8 +516,10 @@ func (p *Processor) txCommitsToRune(ctx context.Context, tx *types.Transaction, 
 			// It is impossible to verify that input utxo is a P2TR output with just the input.
 			// Need to verify with utxo's pk script.
 
-			// TODO: what is behavior for not found? nil result or error?
-			prevTx, err := p.bitcoinClient.GetTransaction(ctx, txIn.PreviousOutTxHash)
+			prevTx, err := p.bitcoinClient.GetTransactionByHash(ctx, txIn.PreviousOutTxHash)
+			if err != nil && errors.Is(err, errs.NotFound) {
+				continue
+			}
 			if err != nil {
 				logger.ErrorContext(ctx, "failed to get pk script at out point", err)
 				continue
@@ -607,6 +609,9 @@ func (p *Processor) createRuneEntry(ctx context.Context, runestone *runes.Runest
 
 func (p *Processor) incrementMintCount(ctx context.Context, runeId runes.RuneId, blockHeader types.BlockHeader) (err error) {
 	runeEntry, err := p.getRuneEntryByRuneId(ctx, runeId)
+	if err != nil {
+		return errors.Wrap(err, "failed to get rune entry by rune id")
+	}
 
 	runeEntry.Mints = runeEntry.Mints.Add64(1)
 	if runeEntry.Mints == lo.FromPtr(runeEntry.Terms.Cap) {
