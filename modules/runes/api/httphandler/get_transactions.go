@@ -62,7 +62,8 @@ type runestone struct {
 }
 
 type runeTransactionExtend struct {
-	Runestone *runestone `json:"runestone"`
+	RuneEtched bool       `json:"runeEtched"`
+	Runestone  *runestone `json:"runestone"`
 }
 
 type transaction struct {
@@ -189,7 +190,10 @@ func (h *HttpHandler) GetTransactions(ctx *fiber.Ctx) (err error) {
 			Outputs:     make([]outPointBalance, 0, len(tx.Outputs)),
 			Mints:       make(map[string]uint128.Uint128, len(tx.Mints)),
 			Burns:       make(map[string]uint128.Uint128, len(tx.Burns)),
-			Extend:      runeTransactionExtend{},
+			Extend: runeTransactionExtend{
+				RuneEtched: tx.RuneEtched,
+				Runestone:  nil,
+			},
 		}
 		for _, input := range tx.Inputs {
 			address := addressFromPkScript(input.PkScript, h.network)
