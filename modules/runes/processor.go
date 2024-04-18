@@ -18,7 +18,6 @@ import (
 	"github.com/gaze-network/indexer-network/pkg/logger"
 	"github.com/gaze-network/uint128"
 	"github.com/samber/lo"
-	"golang.org/x/sync/errgroup"
 )
 
 var _ indexers.BitcoinProcessor = (*Processor)(nil)
@@ -189,59 +188,29 @@ func (p *Processor) RevertData(ctx context.Context, from int64) error {
 		}
 	}()
 
-	sinceHeight := uint64(from + 1)
-
-	eg, ectx := errgroup.WithContext(ctx)
-	eg.Go(func() error {
-		if err := runesDgTx.DeleteIndexedBlockSinceHeight(ectx, sinceHeight); err != nil {
-			return errors.Wrap(err, "failed to delete indexed blocks")
-		}
-		return nil
-	})
-	eg.Go(func() error {
-		if err := runesDgTx.DeleteRuneEntriesSinceHeight(ectx, sinceHeight); err != nil {
-			return errors.Wrap(err, "failed to delete rune entries")
-		}
-		return nil
-	})
-	eg.Go(func() error {
-		if err := runesDgTx.DeleteRuneEntryStatesSinceHeight(ectx, sinceHeight); err != nil {
-			return errors.Wrap(err, "failed to delete rune entry states")
-		}
-		return nil
-	})
-	eg.Go(func() error {
-		if err := runesDgTx.DeleteRuneTransactionsSinceHeight(ectx, sinceHeight); err != nil {
-			return errors.Wrap(err, "failed to delete rune transactions")
-		}
-		return nil
-	})
-	eg.Go(func() error {
-		if err := runesDgTx.DeleteRunestonesSinceHeight(ectx, sinceHeight); err != nil {
-			return errors.Wrap(err, "failed to delete runestones")
-		}
-		return nil
-	})
-	eg.Go(func() error {
-		if err := runesDgTx.DeleteOutPointBalancesSinceHeight(ectx, sinceHeight); err != nil {
-			return errors.Wrap(err, "failed to delete outpoint balances")
-		}
-		return nil
-	})
-	eg.Go(func() error {
-		if err := runesDgTx.UnspendOutPointBalancesSinceHeight(ectx, sinceHeight); err != nil {
-			return errors.Wrap(err, "failed to unspend outpoint balances")
-		}
-		return nil
-	})
-	eg.Go(func() error {
-		if err := runesDgTx.DeleteRuneBalancesSinceHeight(ectx, sinceHeight); err != nil {
-			return errors.Wrap(err, "failed to delete rune balances")
-		}
-		return nil
-	})
-	if err := eg.Wait(); err != nil {
-		return errors.Wrap(err, "failed to revert data")
+	if err := runesDgTx.DeleteIndexedBlockSinceHeight(ctx, uint64(from)); err != nil {
+		return errors.Wrap(err, "failed to delete indexed blocks")
+	}
+	if err := runesDgTx.DeleteRuneEntriesSinceHeight(ctx, uint64(from)); err != nil {
+		return errors.Wrap(err, "failed to delete rune entries")
+	}
+	if err := runesDgTx.DeleteRuneEntryStatesSinceHeight(ctx, uint64(from)); err != nil {
+		return errors.Wrap(err, "failed to delete rune entry states")
+	}
+	if err := runesDgTx.DeleteRuneTransactionsSinceHeight(ctx, uint64(from)); err != nil {
+		return errors.Wrap(err, "failed to delete rune transactions")
+	}
+	if err := runesDgTx.DeleteRunestonesSinceHeight(ctx, uint64(from)); err != nil {
+		return errors.Wrap(err, "failed to delete runestones")
+	}
+	if err := runesDgTx.DeleteOutPointBalancesSinceHeight(ctx, uint64(from)); err != nil {
+		return errors.Wrap(err, "failed to delete outpoint balances")
+	}
+	if err := runesDgTx.UnspendOutPointBalancesSinceHeight(ctx, uint64(from)); err != nil {
+		return errors.Wrap(err, "failed to unspend outpoint balances")
+	}
+	if err := runesDgTx.DeleteRuneBalancesSinceHeight(ctx, uint64(from)); err != nil {
+		return errors.Wrap(err, "failed to delete rune balances")
 	}
 
 	if err := runesDgTx.Commit(ctx); err != nil {
