@@ -805,31 +805,3 @@ func (p *Processor) flushBlock(ctx context.Context, blockHeader types.BlockHeade
 	logger.InfoContext(ctx, "[RunesProcessor] block flushed")
 	return nil
 }
-
-func (p *Processor) flushNewRuneEntries(ctx context.Context, runesDgTx datagateway.RunesDataGatewayWithTx, blockHeight uint64) error {
-	return nil
-}
-
-func (p *Processor) flushNewRuneEntryStates(ctx context.Context, runesDgTx datagateway.RunesDataGatewayWithTx, blockHeight uint64) error {
-	return nil
-}
-
-func (p *Processor) flushNewOutPointBalances(ctx context.Context, runesDgTx datagateway.RunesDataGatewayWithTx, blockHeight uint64) error {
-	return nil
-}
-
-func (p *Processor) flushNewSpendOutPoints(ctx context.Context, runesDgTx datagateway.RunesDataGatewayWithTx, blockHeight uint64) error {
-	return nil
-}
-
-func (p *Processor) flushNewBalances(ctx context.Context, runesDgTx datagateway.RunesDataGatewayWithTx, blockHeight uint64) error {
-	return nil
-}
-
-func (p *Processor) flushNewRuneTxs(ctx context.Context, runesDgTx datagateway.RunesDataGatewayWithTx) error {
-	return nil
-}
-
-func (p *Processor) createIndexedBlock(ctx context.Context, runesDgTx datagateway.RunesDataGatewayWithTx, header types.BlockHeader) error {
-	return nil
-}
