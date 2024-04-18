@@ -24,4 +24,4 @@ COPY --from=builder /app/main .
 
 # You can set `TZ` environment variable to change the timezone
 
-CMD ["/app/main"]
+CMD ["/app/main", "run"]
