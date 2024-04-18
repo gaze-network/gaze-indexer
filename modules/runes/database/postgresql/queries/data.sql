@@ -66,7 +66,7 @@ INSERT INTO runes_runestones (tx_hash, block_height, etching, etching_divisibili
 INSERT INTO runes_outpoint_balances (rune_id, pkscript, tx_hash, tx_idx, amount, block_height, spent_height) VALUES ($1, $2, $3, $4, $5, $6, $7);
 
 -- name: SpendOutPointBalances :exec
-UPDATE runes_outpoint_balances SET spent_height = $1 WHERE rune_id = $2 AND tx_hash = $3 AND tx_idx = $4;
+UPDATE runes_outpoint_balances SET spent_height = $1 WHERE tx_hash = $2 AND tx_idx = $3;
 
 -- name: CreateRuneBalanceAtBlock :batchexec
 INSERT INTO runes_balances (pkscript, block_height, rune_id, amount) VALUES ($1, $2, $3, $4);

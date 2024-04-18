@@ -759,23 +759,17 @@ func (q *Queries) GetUnspentOutPointBalancesByPkScript(ctx context.Context, arg 
 }
 
 const spendOutPointBalances = `-- name: SpendOutPointBalances :exec
-UPDATE runes_outpoint_balances SET spent_height = $1 WHERE rune_id = $2 AND tx_hash = $3 AND tx_idx = $4
+UPDATE runes_outpoint_balances SET spent_height = $1 WHERE tx_hash = $2 AND tx_idx = $3
 `
 
 type SpendOutPointBalancesParams struct {
 	SpentHeight pgtype.Int4
-	RuneID      string
 	TxHash      string
 	TxIdx       int32
 }
 
 func (q *Queries) SpendOutPointBalances(ctx context.Context, arg SpendOutPointBalancesParams) error {
-	_, err := q.db.Exec(ctx, spendOutPointBalances,
-		arg.SpentHeight,
-		arg.RuneID,
-		arg.TxHash,
-		arg.TxIdx,
-	)
+	_, err := q.db.Exec(ctx, spendOutPointBalances, arg.SpentHeight, arg.TxHash, arg.TxIdx)
 	return err
 }
 
