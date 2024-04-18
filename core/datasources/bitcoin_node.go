@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
+	"time"
 
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/rpcclient"
@@ -155,6 +156,16 @@ func (d *BitcoinNodeDatasource) FetchAsync(ctx context.Context, from, to int64, 
 				return
 			default:
 				stream.Go(func() []*types.Block {
+					startAt := time.Now()
+					defer func() {
+						logger.DebugContext(ctx, "[BitcoinNodeDatasource] Fetched blocks",
+							slogx.Int("total_blocks", len(chunk)),
+							slogx.Int64("from", chunk[0]),
+							slogx.Int64("to", chunk[len(chunk)-1]),
+							slogx.Stringer("duration", time.Since(startAt)),
+							slogx.Int64("duration_ms", time.Since(startAt).Milliseconds()),
+						)
+					}()
 					// TODO: should concurrent fetch block or not ?
 					blocks := make([]*types.Block, 0, len(chunk))
 					for _, height := range chunk {
