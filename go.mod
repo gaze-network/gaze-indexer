@@ -5,14 +5,16 @@ go 1.22
 require (
 	github.com/Cleverse/go-utilities/utils v0.0.0-20240119201306-d71eb577ef11
 	github.com/btcsuite/btcd v0.24.0
+	github.com/btcsuite/btcd/btcutil v1.1.5
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.1.0
 	github.com/cockroachdb/errors v1.11.1
-	github.com/gaze-network/uint128 v1.2.0
+	github.com/gaze-network/uint128 v1.3.0
 	github.com/gofiber/fiber/v2 v2.52.4
 	github.com/jackc/pgx/v5 v5.5.5
 	github.com/mcosta74/pgx-slog v0.3.0
 	github.com/planxnx/concurrent-stream v0.1.5
 	github.com/samber/lo v1.39.0
+	github.com/shopspring/decimal v1.3.1
 	github.com/spf13/cobra v1.8.0
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.18.2
@@ -23,7 +25,6 @@ require (
 require (
 	github.com/andybalholm/brotli v1.0.5 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.1.3 // indirect
-	github.com/btcsuite/btcd/btcutil v1.1.5 // indirect
 	github.com/btcsuite/btclog v0.0.0-20170628155309-84c8d2346e9f // indirect
 	github.com/btcsuite/go-socks v0.0.0-20170105172521-4720035b7bfd // indirect
 	github.com/btcsuite/websocket v0.0.0-20150119174127-31079b680792 // indirect

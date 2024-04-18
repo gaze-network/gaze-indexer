@@ -23,3 +23,15 @@ modules:
       password: "password"
       db_name: "postgres"
       # url: "postgres://postgres:password@localhost:5432/postgres?sslmode=prefer" # [Optional] This will override other database connection configurations
+  runes:
+    database: "postgres" # Database to store Runes data. current supported databases: "postgres"
+    datasource: "bitcoin-node" # Data source to be used. current supported data sources: "bitcoin-node" | "postgres"
+    api_handlers: # API handlers to be used. current supported handlers: "http"
+      - http
+    postgres:
+      host: "localhost"
+      port: 5432
+      user: "postgres"
+      password: "password"
+      db_name: "postgres"
+      # url: "postgres://postgres:password@localhost:5432/postgres?sslmode=prefer" # [Optional] This will override other database connection configurations

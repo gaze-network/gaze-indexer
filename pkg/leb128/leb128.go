@@ -1,16 +1,17 @@
 package leb128
 
 import (
+	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/common/errs"
 	"github.com/gaze-network/uint128"
 )
 
-const (
-	ErrEmpty        = errs.ErrorKind("leb128: empty byte sequence")
-	ErrUnterminated = errs.ErrorKind("leb128: unterminated byte sequence")
+var (
+	ErrEmpty        = errors.New("leb128: empty byte sequence")
+	ErrUnterminated = errors.New("leb128: unterminated byte sequence")
 )
 
-func EncodeLEB128(input uint128.Uint128) []byte {
+func EncodeUint128(input uint128.Uint128) []byte {
 	bytes := make([]byte, 0)
 	// for n >> 7 > 0
 	for !input.Rsh(7).IsZero() {
@@ -23,7 +24,7 @@ func EncodeLEB128(input uint128.Uint128) []byte {
 	return bytes
 }
 
-func DecodeLEB128(data []byte) (n uint128.Uint128, length int, err error) {
+func DecodeUint128(data []byte) (n uint128.Uint128, length int, err error) {
 	if len(data) == 0 {
 		return uint128.Uint128{}, 0, ErrEmpty
 	}

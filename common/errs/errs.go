@@ -74,6 +74,12 @@ var (
 	//
 	// inherited error from Overflow,
 	// so errors.Is(err, Overflow) == true
+	OverflowUint32 = errors.WrapWithDepth(depth, Overflow, "overflow uint32")
+
+	// OverflowUint64 is returned when an uint64 overflow error occurs
+	//
+	// inherited error from Overflow,
+	// so errors.Is(err, Overflow) == true
 	OverflowUint64 = errors.WrapWithDepth(depth, Overflow, "overflow uint64")
 
 	// OverflowUint128 is returned when an uint128 overflow error occurs

@@ -19,14 +19,21 @@ import (
 	"github.com/gaze-network/indexer-network/internal/config"
 	"github.com/gaze-network/indexer-network/internal/postgres"
 	"github.com/gaze-network/indexer-network/modules/bitcoin"
+	"github.com/gaze-network/indexer-network/modules/bitcoin/btcclient"
 	btcdatagateway "github.com/gaze-network/indexer-network/modules/bitcoin/datagateway"
 	btcpostgres "github.com/gaze-network/indexer-network/modules/bitcoin/repository/postgres"
+	"github.com/gaze-network/indexer-network/modules/runes"
+	runesapi "github.com/gaze-network/indexer-network/modules/runes/api"
+	runesdatagateway "github.com/gaze-network/indexer-network/modules/runes/datagateway"
+	runespostgres "github.com/gaze-network/indexer-network/modules/runes/repository/postgres"
+	runesusecase "github.com/gaze-network/indexer-network/modules/runes/usecase"
 	"github.com/gaze-network/indexer-network/pkg/errorhandler"
 	"github.com/gaze-network/indexer-network/pkg/logger"
 	"github.com/gaze-network/indexer-network/pkg/logger/slogx"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/compress"
 	fiberrecover "github.com/gofiber/fiber/v2/middleware/recover"
+	"github.com/samber/lo"
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
 )
@@ -154,6 +161,78 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 		}()
 	}
 
+	// Initialize Runes Indexer
+	if opts.Runes {
+		var runesDg runesdatagateway.RunesDataGateway
+		var indexerInfoDg runesdatagateway.IndexerInfoDataGateway
+		switch strings.ToLower(conf.Modules.Runes.Database) {
+		case "postgres", "pg":
+			pg, err := postgres.NewPool(ctx, conf.Modules.Runes.Postgres)
+			if err != nil {
+				logger.PanicContext(ctx, "Failed to create Postgres connection pool", slogx.Error(err))
+			}
+			defer pg.Close()
+			runesRepo := runespostgres.NewRepository(pg)
+			runesDg = runesRepo
+			indexerInfoDg = runesRepo
+		default:
+			logger.PanicContext(ctx, "Unsupported database", slogx.String("database", conf.Modules.Runes.Database))
+		}
+		// TODO: add option to change bitcoinNodeDatasource implementation
+		var bitcoinDatasource indexers.BitcoinDatasource
+		var bitcoinClient btcclient.Contract
+		switch strings.ToLower(conf.Modules.Runes.Datasource) {
+		case "bitcoin-node":
+			bitcoinNodeDatasource := datasources.NewBitcoinNode(client)
+			bitcoinDatasource = bitcoinNodeDatasource
+			bitcoinClient = bitcoinNodeDatasource
+		case "database":
+			pg, err := postgres.NewPool(ctx, conf.Modules.Runes.Postgres)
+			if err != nil {
+				logger.PanicContext(ctx, "Failed to create Postgres connection pool", slogx.Error(err))
+			}
+			defer pg.Close()
+			btcRepo := btcpostgres.NewRepository(pg)
+			btcClientDB := btcclient.NewClientDatabase(btcRepo)
+			bitcoinDatasource = btcClientDB
+			bitcoinClient = btcClientDB
+		default:
+			return errors.Wrapf(errs.Unsupported, "%q datasource is not supported", conf.Modules.Runes.Datasource)
+		}
+		runesProcessor := runes.NewProcessor(runesDg, indexerInfoDg, bitcoinClient, bitcoinDatasource, conf.Network)
+		runesIndexer := indexers.NewBitcoinIndexer(runesProcessor, bitcoinDatasource)
+
+		if err := runesProcessor.VerifyStates(ctx); err != nil {
+			return errors.WithStack(err)
+		}
+
+		// Run Indexer
+		go func() {
+			logger.InfoContext(ctx, "Started Runes Indexer")
+			if err := runesIndexer.Run(ctx); err != nil {
+				logger.ErrorContext(ctx, "Failed to run Runes Indexer", slogx.Error(err))
+			}
+
+			// stop main process if Runes Indexer failed
+			logger.InfoContext(ctx, "Runes Indexer stopped. Stopping main process...")
+			stop()
+		}()
+
+		// Mount API
+		apiHandlers := lo.Uniq(conf.Modules.Runes.APIHandlers)
+		for _, handler := range apiHandlers {
+			switch handler { // TODO: support more handlers (e.g. gRPC)
+			case "http":
+				runesUsecase := runesusecase.New(runesDg, bitcoinClient)
+				runesHTTPHandler := runesapi.NewHTTPHandler(conf.Network, runesUsecase)
+				httpHandlers["runes"] = runesHTTPHandler
+			default:
+				logger.PanicContext(ctx, "Unsupported API handler", slogx.String("handler", handler))
+			}
+		}
+	}
+
+	// Wait for interrupt signal to gracefully stop the server with
 	// Setup HTTP server if there are any HTTP handlers
 	if len(httpHandlers) > 0 {
 		app := fiber.New(fiber.Config{

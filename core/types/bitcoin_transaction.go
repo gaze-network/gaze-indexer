@@ -2,6 +2,7 @@ package types
 
 import (
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
+	"github.com/btcsuite/btcd/txscript"
 	"github.com/btcsuite/btcd/wire"
 	"github.com/samber/lo"
 )
@@ -28,6 +29,10 @@ type TxIn struct {
 type TxOut struct {
 	PkScript []byte
 	Value    int64
+}
+
+func (o TxOut) IsOpReturn() bool {
+	return len(o.PkScript) > 0 && o.PkScript[0] == txscript.OP_RETURN
 }
 
 // ParseMsgTx parses btcd/wire.MsgTx to Transaction.
