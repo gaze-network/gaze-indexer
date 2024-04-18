@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	blockStreamChunkSize = 2
+	blockStreamChunkSize = 5
 )
 
 // Make sure to implement the BitcoinDatasource interface
