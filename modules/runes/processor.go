@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/wire"
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/common"
@@ -138,6 +139,9 @@ func (p *Processor) ensureGenesisRune(ctx context.Context) error {
 			BurnedAmount:      uint128.Zero,
 			CompletedAt:       time.Time{},
 			CompletedAtHeight: nil,
+			EtchingBlock:      1,
+			EtchingTxHash:     chainhash.Hash{},
+			EtchedAt:          time.Time{},
 		}
 		if err := p.runesDg.CreateRuneEntry(ctx, runeEntry, genesisRuneId.BlockHeight); err != nil {
 			return errors.Wrap(err, "failed to create genesis rune entry")

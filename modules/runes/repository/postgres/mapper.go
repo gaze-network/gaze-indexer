@@ -221,11 +221,7 @@ func mapRuneEntryTypeToParams(src runes.RuneEntry, blockHeight uint64) (gen.Crea
 			}
 		}
 	}
-	var etchedAt pgtype.Timestamp
-	if !src.EtchedAt.IsZero() {
-		etchedAt.Time = src.EtchedAt
-		etchedAt.Valid = true
-	}
+	etchedAt := pgtype.Timestamp{Time: time.Time{}, Valid: true}
 
 	return gen.CreateRuneEntryParams{
 			RuneID:           runeId,
