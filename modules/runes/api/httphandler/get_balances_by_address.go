@@ -1,8 +1,12 @@
 package httphandler
 
 import (
+	"slices"
+
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/common/errs"
+	"github.com/gaze-network/indexer-network/modules/runes/runes"
+	"github.com/gaze-network/uint128"
 	"github.com/gofiber/fiber/v2"
 	"github.com/samber/lo"
 )
@@ -25,11 +29,11 @@ func (r getBalancesByAddressRequest) Validate() error {
 }
 
 type balance struct {
-	Amount   string `json:"amount"`
-	Id       string `json:"id"`
-	Name     string `json:"name"`
-	Symbol   string `json:"symbol"`
-	Decimals uint8  `json:"decimals"`
+	Amount   uint128.Uint128  `json:"amount"`
+	Id       runes.RuneId     `json:"id"`
+	Name     runes.SpacedRune `json:"name"`
+	Symbol   string           `json:"symbol"`
+	Decimals uint8            `json:"decimals"`
 }
 
 type getBalancesByAddressResult struct {
@@ -90,13 +94,16 @@ func (h *HttpHandler) GetBalancesByAddress(ctx *fiber.Ctx) (err error) {
 	for id, b := range balances {
 		runeEntry := runeEntries[id]
 		balanceList = append(balanceList, balance{
-			Amount:   b.Amount.String(),
-			Id:       id.String(),
-			Name:     runeEntry.SpacedRune.String(),
+			Amount:   b.Amount,
+			Id:       id,
+			Name:     runeEntry.SpacedRune,
 			Symbol:   string(runeEntry.Symbol),
 			Decimals: runeEntry.Divisibility,
 		})
 	}
+	slices.SortFunc(balanceList, func(i, j balance) int {
+		return j.Amount.Cmp(i.Amount)
+	})
 
 	resp := getBalancesByAddressResponse{
 		Result: &getBalancesByAddressResult{
