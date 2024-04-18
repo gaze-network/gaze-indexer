@@ -175,12 +175,12 @@ func (p *Processor) GetIndexedBlock(ctx context.Context, height int64) (types.Bl
 }
 
 func (p *Processor) RevertData(ctx context.Context, from int64) error {
-	err := p.runesDg.Begin(ctx)
+	runesDgTx, err := p.runesDg.BeginRunesTx(ctx)
 	if err != nil {
 		return errors.Wrap(err, "failed to begin transaction")
 	}
 	defer func() {
-		if err := p.runesDg.Rollback(ctx); err != nil {
+		if err := runesDgTx.Rollback(ctx); err != nil {
 			logger.ErrorContext(ctx, "failed to rollback transaction", err)
 		}
 	}()
@@ -189,49 +189,49 @@ func (p *Processor) RevertData(ctx context.Context, from int64) error {
 
 	eg, ectx := errgroup.WithContext(ctx)
 	eg.Go(func() error {
-		if err := p.runesDg.DeleteIndexedBlockSinceHeight(ectx, sinceHeight); err != nil {
+		if err := runesDgTx.DeleteIndexedBlockSinceHeight(ectx, sinceHeight); err != nil {
 			return errors.Wrap(err, "failed to delete indexed blocks")
 		}
 		return nil
 	})
 	eg.Go(func() error {
-		if err := p.runesDg.DeleteRuneEntriesSinceHeight(ectx, sinceHeight); err != nil {
+		if err := runesDgTx.DeleteRuneEntriesSinceHeight(ectx, sinceHeight); err != nil {
 			return errors.Wrap(err, "failed to delete rune entries")
 		}
 		return nil
 	})
 	eg.Go(func() error {
-		if err := p.runesDg.DeleteRuneEntryStatesSinceHeight(ectx, sinceHeight); err != nil {
+		if err := runesDgTx.DeleteRuneEntryStatesSinceHeight(ectx, sinceHeight); err != nil {
 			return errors.Wrap(err, "failed to delete rune entry states")
 		}
 		return nil
 	})
 	eg.Go(func() error {
-		if err := p.runesDg.DeleteRuneTransactionsSinceHeight(ectx, sinceHeight); err != nil {
+		if err := runesDgTx.DeleteRuneTransactionsSinceHeight(ectx, sinceHeight); err != nil {
 			return errors.Wrap(err, "failed to delete rune transactions")
 		}
 		return nil
 	})
 	eg.Go(func() error {
-		if err := p.runesDg.DeleteRunestonesSinceHeight(ectx, sinceHeight); err != nil {
+		if err := runesDgTx.DeleteRunestonesSinceHeight(ectx, sinceHeight); err != nil {
 			return errors.Wrap(err, "failed to delete runestones")
 		}
 		return nil
 	})
 	eg.Go(func() error {
-		if err := p.runesDg.DeleteOutPointBalancesSinceHeight(ectx, sinceHeight); err != nil {
+		if err := runesDgTx.DeleteOutPointBalancesSinceHeight(ectx, sinceHeight); err != nil {
 			return errors.Wrap(err, "failed to delete outpoint balances")
 		}
 		return nil
 	})
 	eg.Go(func() error {
-		if err := p.runesDg.UnspendOutPointBalancesSinceHeight(ectx, sinceHeight); err != nil {
+		if err := runesDgTx.UnspendOutPointBalancesSinceHeight(ectx, sinceHeight); err != nil {
 			return errors.Wrap(err, "failed to unspend outpoint balances")
 		}
 		return nil
 	})
 	eg.Go(func() error {
-		if err := p.runesDg.DeleteRuneBalancesSinceHeight(ectx, sinceHeight); err != nil {
+		if err := runesDgTx.DeleteRuneBalancesSinceHeight(ectx, sinceHeight); err != nil {
 			return errors.Wrap(err, "failed to delete rune balances")
 		}
 		return nil
@@ -240,7 +240,7 @@ func (p *Processor) RevertData(ctx context.Context, from int64) error {
 		return errors.Wrap(err, "failed to revert data")
 	}
 
-	if err := p.runesDg.Commit(ctx); err != nil {
+	if err := runesDgTx.Commit(ctx); err != nil {
 		return errors.Wrap(err, "failed to commit transaction")
 	}
 	return nil

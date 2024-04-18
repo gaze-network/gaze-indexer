@@ -24,7 +24,7 @@ var _ datagateway.RunesDataGateway = (*Repository)(nil)
 // warning: GetLatestBlock currently returns a types.BlockHeader with only Height, Hash, and PrevBlock fields populated.
 // This is because it is known that all usage of this function only requires these fields. In the future, we may want to populate all fields for type safety.
 func (r *Repository) GetLatestBlock(ctx context.Context) (types.BlockHeader, error) {
-	block, err := r.getQueries().GetLatestIndexedBlock(ctx)
+	block, err := r.queries.GetLatestIndexedBlock(ctx)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return types.BlockHeader{}, errors.WithStack(errs.NotFound)
@@ -47,7 +47,7 @@ func (r *Repository) GetLatestBlock(ctx context.Context) (types.BlockHeader, err
 }
 
 func (r *Repository) GetIndexedBlockByHeight(ctx context.Context, height int64) (*entity.IndexedBlock, error) {
-	indexedBlockModel, err := r.getQueries().GetIndexedBlockByHeight(ctx, int32(height))
+	indexedBlockModel, err := r.queries.GetIndexedBlockByHeight(ctx, int32(height))
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, errors.WithStack(errs.NotFound)
@@ -63,7 +63,7 @@ func (r *Repository) GetIndexedBlockByHeight(ctx context.Context, height int64) 
 }
 
 func (r *Repository) GetRuneTransactionsByHeight(ctx context.Context, height uint64) ([]*entity.RuneTransaction, error) {
-	rows, err := r.getQueries().GetRuneTransactionsByHeight(ctx, int32(height))
+	rows, err := r.queries.GetRuneTransactionsByHeight(ctx, int32(height))
 	if err != nil {
 		return nil, errors.Wrap(err, "error during query")
 	}
@@ -92,7 +92,7 @@ func (r *Repository) GetRuneTransactionsByHeight(ctx context.Context, height uin
 }
 
 func (r *Repository) GetRunesBalancesAtOutPoint(ctx context.Context, outPoint wire.OutPoint) (map[runes.RuneId]uint128.Uint128, error) {
-	balances, err := r.getQueries().GetOutPointBalances(ctx, gen.GetOutPointBalancesParams{
+	balances, err := r.queries.GetOutPointBalances(ctx, gen.GetOutPointBalancesParams{
 		TxHash: outPoint.Hash.String(),
 		TxIdx:  int32(outPoint.Index),
 	})
@@ -116,7 +116,7 @@ func (r *Repository) GetRunesBalancesAtOutPoint(ctx context.Context, outPoint wi
 }
 
 func (r *Repository) GetRuneIdFromRune(ctx context.Context, rune runes.Rune) (runes.RuneId, error) {
-	runeIdStr, err := r.getQueries().GetRuneIdFromRune(ctx, rune.String())
+	runeIdStr, err := r.queries.GetRuneIdFromRune(ctx, rune.String())
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return runes.RuneId{}, errors.WithStack(errs.NotFound)
@@ -143,7 +143,7 @@ func (r *Repository) GetRuneEntryByRuneId(ctx context.Context, runeId runes.Rune
 }
 
 func (r *Repository) GetRuneEntryByRuneIdBatch(ctx context.Context, runeIds []runes.RuneId) (map[runes.RuneId]*runes.RuneEntry, error) {
-	rows, err := r.getQueries().GetRuneEntriesByRuneIds(ctx, lo.Map(runeIds, func(runeId runes.RuneId, _ int) string {
+	rows, err := r.queries.GetRuneEntriesByRuneIds(ctx, lo.Map(runeIds, func(runeId runes.RuneId, _ int) string {
 		return runeId.String()
 	}))
 	if err != nil {
@@ -180,7 +180,7 @@ func (r *Repository) GetRuneEntryByRuneIdAndHeight(ctx context.Context, runeId r
 }
 
 func (r *Repository) GetRuneEntryByRuneIdAndHeightBatch(ctx context.Context, runeIds []runes.RuneId, blockHeight uint64) (map[runes.RuneId]*runes.RuneEntry, error) {
-	rows, err := r.getQueries().GetRuneEntriesByRuneIdsAndHeight(ctx, gen.GetRuneEntriesByRuneIdsAndHeightParams{
+	rows, err := r.queries.GetRuneEntriesByRuneIdsAndHeight(ctx, gen.GetRuneEntriesByRuneIdsAndHeightParams{
 		RuneIds: lo.Map(runeIds, func(runeId runes.RuneId, _ int) string {
 			return runeId.String()
 		}),
@@ -208,7 +208,7 @@ func (r *Repository) GetRuneEntryByRuneIdAndHeightBatch(ctx context.Context, run
 }
 
 func (r *Repository) CountRuneEntries(ctx context.Context) (uint64, error) {
-	count, err := r.getQueries().CountRuneEntries(ctx)
+	count, err := r.queries.CountRuneEntries(ctx)
 	if err != nil {
 		return 0, errors.Wrap(err, "error during query")
 	}
@@ -216,7 +216,7 @@ func (r *Repository) CountRuneEntries(ctx context.Context) (uint64, error) {
 }
 
 func (r *Repository) GetBalancesByPkScript(ctx context.Context, pkScript []byte, blockHeight uint64) (map[runes.RuneId]*entity.Balance, error) {
-	balances, err := r.getQueries().GetBalancesByPkScript(ctx, gen.GetBalancesByPkScriptParams{
+	balances, err := r.queries.GetBalancesByPkScript(ctx, gen.GetBalancesByPkScriptParams{
 		Pkscript:    hex.EncodeToString(pkScript),
 		BlockHeight: int32(blockHeight),
 	})
@@ -236,7 +236,7 @@ func (r *Repository) GetBalancesByPkScript(ctx context.Context, pkScript []byte,
 }
 
 func (r *Repository) GetBalancesByRuneId(ctx context.Context, runeId runes.RuneId, blockHeight uint64) ([]*entity.Balance, error) {
-	balances, err := r.getQueries().GetBalancesByRuneId(ctx, gen.GetBalancesByRuneIdParams{
+	balances, err := r.queries.GetBalancesByRuneId(ctx, gen.GetBalancesByRuneIdParams{
 		RuneID:      runeId.String(),
 		BlockHeight: int32(blockHeight),
 	})
@@ -256,7 +256,7 @@ func (r *Repository) GetBalancesByRuneId(ctx context.Context, runeId runes.RuneI
 }
 
 func (r *Repository) GetBalanceByPkScriptAndRuneId(ctx context.Context, pkScript []byte, runeId runes.RuneId, blockHeight uint64) (*entity.Balance, error) {
-	balance, err := r.getQueries().GetBalanceByPkScriptAndRuneId(ctx, gen.GetBalanceByPkScriptAndRuneIdParams{
+	balance, err := r.queries.GetBalanceByPkScriptAndRuneId(ctx, gen.GetBalanceByPkScriptAndRuneIdParams{
 		Pkscript:    hex.EncodeToString(pkScript),
 		RuneID:      runeId.String(),
 		BlockHeight: int32(blockHeight),
@@ -283,11 +283,11 @@ func (r *Repository) CreateRuneTransaction(ctx context.Context, tx *entity.RuneT
 	if err != nil {
 		return errors.Wrap(err, "failed to map rune transaction to params")
 	}
-	if err = r.getQueries().CreateRuneTransaction(ctx, txParams); err != nil {
+	if err = r.queries.CreateRuneTransaction(ctx, txParams); err != nil {
 		return errors.Wrap(err, "error during exec CreateRuneTransaction")
 	}
 	if runestoneParams != nil {
-		if err = r.getQueries().CreateRunestone(ctx, *runestoneParams); err != nil {
+		if err = r.queries.CreateRunestone(ctx, *runestoneParams); err != nil {
 			return errors.Wrap(err, "error during exec CreateRunestone")
 		}
 	}
@@ -302,7 +302,7 @@ func (r *Repository) CreateRuneEntry(ctx context.Context, entry *runes.RuneEntry
 	if err != nil {
 		return errors.Wrap(err, "failed to map rune entry to params")
 	}
-	if err = r.getQueries().CreateRuneEntry(ctx, createParams); err != nil {
+	if err = r.queries.CreateRuneEntry(ctx, createParams); err != nil {
 		return errors.Wrap(err, "error during exec CreateRuneEntry")
 	}
 	return nil
@@ -316,7 +316,7 @@ func (r *Repository) CreateRuneEntryState(ctx context.Context, entry *runes.Rune
 	if err != nil {
 		return errors.Wrap(err, "failed to map rune entry to params")
 	}
-	if err = r.getQueries().CreateRuneEntryState(ctx, createStateParams); err != nil {
+	if err = r.queries.CreateRuneEntryState(ctx, createStateParams); err != nil {
 		return errors.Wrap(err, "error during exec CreateRuneEntryState")
 	}
 	return nil
@@ -339,7 +339,7 @@ func (r *Repository) CreateOutPointBalances(ctx context.Context, outPoint wire.O
 			SpentHeight: pgtype.Int4{Valid: false},
 		})
 	}
-	result := r.getQueries().CreateOutPointBalances(ctx, params)
+	result := r.queries.CreateOutPointBalances(ctx, params)
 	var execErrors []error
 	result.Exec(func(i int, err error) {
 		if err != nil {
@@ -353,7 +353,7 @@ func (r *Repository) CreateOutPointBalances(ctx context.Context, outPoint wire.O
 }
 
 func (r *Repository) SpendOutPointBalances(ctx context.Context, outPoint wire.OutPoint, blockHeight uint64) error {
-	if err := r.getQueries().SpendOutPointBalances(ctx, gen.SpendOutPointBalancesParams{
+	if err := r.queries.SpendOutPointBalances(ctx, gen.SpendOutPointBalancesParams{
 		TxHash:      outPoint.Hash.String(),
 		TxIdx:       int32(outPoint.Index),
 		SpentHeight: pgtype.Int4{Int32: int32(blockHeight), Valid: true},
@@ -378,7 +378,7 @@ func (r *Repository) CreateRuneBalances(ctx context.Context, params []datagatewa
 			Amount:      amount,
 		})
 	}
-	result := r.getQueries().CreateRuneBalanceAtBlock(ctx, insertParams)
+	result := r.queries.CreateRuneBalanceAtBlock(ctx, insertParams)
 	var execErrors []error
 	result.Exec(func(i int, err error) {
 		if err != nil {
@@ -399,63 +399,63 @@ func (r *Repository) CreateIndexedBlock(ctx context.Context, block *entity.Index
 	if err != nil {
 		return errors.Wrap(err, "failed to map indexed block to params")
 	}
-	if err = r.getQueries().CreateIndexedBlock(ctx, params); err != nil {
+	if err = r.queries.CreateIndexedBlock(ctx, params); err != nil {
 		return errors.Wrap(err, "error during exec")
 	}
 	return nil
 }
 
 func (r *Repository) DeleteIndexedBlockSinceHeight(ctx context.Context, height uint64) error {
-	if err := r.getQueries().DeleteIndexedBlockSinceHeight(ctx, int32(height)); err != nil {
+	if err := r.queries.DeleteIndexedBlockSinceHeight(ctx, int32(height)); err != nil {
 		return errors.Wrap(err, "error during exec")
 	}
 	return nil
 }
 
 func (r *Repository) DeleteRuneEntriesSinceHeight(ctx context.Context, height uint64) error {
-	if err := r.getQueries().DeleteRuneEntriesSinceHeight(ctx, int32(height)); err != nil {
+	if err := r.queries.DeleteRuneEntriesSinceHeight(ctx, int32(height)); err != nil {
 		return errors.Wrap(err, "error during exec")
 	}
 	return nil
 }
 
 func (r *Repository) DeleteRuneEntryStatesSinceHeight(ctx context.Context, height uint64) error {
-	if err := r.getQueries().DeleteRuneEntryStatesSinceHeight(ctx, int32(height)); err != nil {
+	if err := r.queries.DeleteRuneEntryStatesSinceHeight(ctx, int32(height)); err != nil {
 		return errors.Wrap(err, "error during exec")
 	}
 	return nil
 }
 
 func (r *Repository) DeleteRuneTransactionsSinceHeight(ctx context.Context, height uint64) error {
-	if err := r.getQueries().DeleteRuneTransactionsSinceHeight(ctx, int32(height)); err != nil {
+	if err := r.queries.DeleteRuneTransactionsSinceHeight(ctx, int32(height)); err != nil {
 		return errors.Wrap(err, "error during exec")
 	}
 	return nil
 }
 
 func (r *Repository) DeleteRunestonesSinceHeight(ctx context.Context, height uint64) error {
-	if err := r.getQueries().DeleteRunestonesSinceHeight(ctx, int32(height)); err != nil {
+	if err := r.queries.DeleteRunestonesSinceHeight(ctx, int32(height)); err != nil {
 		return errors.Wrap(err, "error during exec")
 	}
 	return nil
 }
 
 func (r *Repository) DeleteOutPointBalancesSinceHeight(ctx context.Context, height uint64) error {
-	if err := r.getQueries().DeleteOutPointBalancesSinceHeight(ctx, int32(height)); err != nil {
+	if err := r.queries.DeleteOutPointBalancesSinceHeight(ctx, int32(height)); err != nil {
 		return errors.Wrap(err, "error during exec")
 	}
 	return nil
 }
 
 func (r *Repository) UnspendOutPointBalancesSinceHeight(ctx context.Context, height uint64) error {
-	if err := r.getQueries().UnspendOutPointBalancesSinceHeight(ctx, pgtype.Int4{Int32: int32(height), Valid: true}); err != nil {
+	if err := r.queries.UnspendOutPointBalancesSinceHeight(ctx, pgtype.Int4{Int32: int32(height), Valid: true}); err != nil {
 		return errors.Wrap(err, "error during exec")
 	}
 	return nil
 }
 
 func (r *Repository) DeleteRuneBalancesSinceHeight(ctx context.Context, height uint64) error {
-	if err := r.getQueries().DeleteRuneBalancesSinceHeight(ctx, int32(height)); err != nil {
+	if err := r.queries.DeleteRuneBalancesSinceHeight(ctx, int32(height)); err != nil {
 		return errors.Wrap(err, "error during exec")
 	}
 	return nil

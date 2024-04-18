@@ -23,22 +23,9 @@ import (
 )
 
 func (p *Processor) Process(ctx context.Context, blocks []*types.Block) error {
-	defer func() {
-		if err := p.runesDg.Rollback(ctx); err != nil {
-			logger.ErrorContext(ctx, "failed to rollback transaction", err)
-		}
-	}()
-
-	logger.DebugContext(ctx, "[RunesProcessor] Received blocks", slogx.Any("blocks", lo.Map(blocks, func(b *types.Block, _ int) int64 {
-		return b.Header.Height
-	})))
 	for _, block := range blocks {
 		ctx := logger.WithContext(ctx, slog.Int("block_height", int(block.Header.Height)))
 		logger.DebugContext(ctx, "[RunesProcessor] Processing block", slog.Int("txs", len(block.Transactions)))
-
-		if err := p.runesDg.Begin(ctx); err != nil {
-			return errors.Wrap(err, "failed to begin transaction")
-		}
 
 		for _, tx := range block.Transactions {
 			if err := p.processTx(ctx, tx, block.Header); err != nil {
@@ -47,10 +34,6 @@ func (p *Processor) Process(ctx context.Context, blocks []*types.Block) error {
 		}
 		if err := p.flushBlock(ctx, block.Header); err != nil {
 			return errors.Wrap(err, "failed to flush block")
-		}
-
-		if err := p.runesDg.Commit(ctx); err != nil {
-			return errors.Wrap(err, "failed to commit transaction")
 		}
 	}
 	return nil
@@ -718,142 +701,149 @@ func (p *Processor) getRunesBalancesAtOutPoint(ctx context.Context, outPoint wir
 }
 
 func (p *Processor) flushBlock(ctx context.Context, blockHeader types.BlockHeader) error {
-	// createdIndexedBlock must be called before other flush methods to correctly calculate event hash
-	if err := p.createIndexedBlock(ctx, blockHeader); err != nil {
-		return errors.Wrap(err, "failed to create indexed block")
+	runesDgTx, err := p.runesDg.BeginRunesTx(ctx)
+	if err != nil {
+		return errors.Wrap(err, "failed to begin runes tx")
+	}
+	defer func() {
+		if err := runesDgTx.Rollback(ctx); err != nil {
+			logger.ErrorContext(ctx, "[RunesProcessor] failed to rollback runes tx", err)
+		}
+	}()
+
+	// CreateIndexedBlock must be performed before other flush methods to correctly calculate event hash
+	{
+		eventHash, err := p.calculateEventHash(blockHeader)
+		if err != nil {
+			return errors.Wrap(err, "failed to calculate event hash")
+		}
+		prevIndexedBlock, err := runesDgTx.GetIndexedBlockByHeight(ctx, blockHeader.Height-1)
+		if err != nil && errors.Is(err, errs.NotFound) && blockHeader.Height-1 == startingBlockHeader[p.network].Height {
+			prevIndexedBlock = &entity.IndexedBlock{
+				Height:              startingBlockHeader[p.network].Height,
+				Hash:                startingBlockHeader[p.network].Hash,
+				EventHash:           chainhash.Hash{},
+				CumulativeEventHash: chainhash.Hash{},
+			}
+			err = nil
+		}
+		if err != nil {
+			if errors.Is(err, errs.NotFound) {
+				return errors.Errorf("indexed block not found for height %d. Indexed block must be created for every Bitcoin block", blockHeader.Height)
+			}
+			return errors.Wrap(err, "failed to get indexed block by height")
+		}
+		cumulativeEventHash := chainhash.DoubleHashH(append(prevIndexedBlock.CumulativeEventHash[:], eventHash[:]...))
+
+		if err := runesDgTx.CreateIndexedBlock(ctx, &entity.IndexedBlock{
+			Height:              blockHeader.Height,
+			Hash:                blockHeader.Hash,
+			PrevHash:            blockHeader.PrevBlock,
+			EventHash:           eventHash,
+			CumulativeEventHash: cumulativeEventHash,
+		}); err != nil {
+			return errors.Wrap(err, "failed to create indexed block")
+		}
+	}
+	// flush new rune entries
+	{
+		for _, runeEntry := range p.newRuneEntries {
+			if err := runesDgTx.CreateRuneEntry(ctx, runeEntry, uint64(blockHeader.Height)); err != nil {
+				return errors.Wrap(err, "failed to create rune entry")
+			}
+		}
+		p.newRuneEntries = make(map[runes.RuneId]*runes.RuneEntry)
+	}
+	// flush new rune entry states
+	{
+		for _, runeEntry := range p.newRuneEntryStates {
+			if err := runesDgTx.CreateRuneEntryState(ctx, runeEntry, uint64(blockHeader.Height)); err != nil {
+				return errors.Wrap(err, "failed to create rune entry state")
+			}
+		}
+		p.newRuneEntryStates = make(map[runes.RuneId]*runes.RuneEntry)
+	}
+	// flush new outpoint balances
+	{
+		for outPoint, balances := range p.newOutPointBalances {
+			if err := runesDgTx.CreateOutPointBalances(ctx, outPoint, balances, uint64(blockHeader.Height)); err != nil {
+				return errors.Wrap(err, "failed to create outpoint balances")
+			}
+		}
+		p.newOutPointBalances = make(map[wire.OutPoint]map[runes.RuneId]uint128.Uint128)
+	}
+	// flush new spend outpoints
+	{
+		for _, outPoint := range p.newSpendOutPoints {
+			if err := runesDgTx.SpendOutPointBalances(ctx, outPoint, uint64(blockHeader.Height)); err != nil {
+				return errors.Wrap(err, "failed to create spend outpoint")
+			}
+		}
+		p.newSpendOutPoints = make([]wire.OutPoint, 0)
+	}
+	// flush new balances
+	{
+		params := make([]datagateway.CreateRuneBalancesParams, 0)
+		for pkScriptStr, balances := range p.newBalances {
+			pkScript, err := hex.DecodeString(pkScriptStr)
+			if err != nil {
+				return errors.Wrap(err, "failed to decode pk script")
+			}
+			for runeId, balance := range balances {
+				params = append(params, datagateway.CreateRuneBalancesParams{
+					PkScript:    pkScript,
+					RuneId:      runeId,
+					Balance:     balance,
+					BlockHeight: uint64(blockHeader.Height),
+				})
+			}
+		}
+		if err := runesDgTx.CreateRuneBalances(ctx, params); err != nil {
+			return errors.Wrap(err, "failed to create balances at block")
+		}
+		p.newBalances = make(map[string]map[runes.RuneId]uint128.Uint128)
+	}
+	// flush new rune transactions
+	{
+		for _, runeTx := range p.newRuneTxs {
+			if err := runesDgTx.CreateRuneTransaction(ctx, runeTx); err != nil {
+				return errors.Wrap(err, "failed to create rune transaction")
+			}
+		}
+		p.newRuneTxs = make([]*entity.RuneTransaction, 0)
 	}
 
-	if err := p.flushNewRuneEntries(ctx, uint64(blockHeader.Height)); err != nil {
-		return errors.Wrap(err, "failed to flush new rune entries")
-	}
-
-	if err := p.flushNewRuneEntryStates(ctx, uint64(blockHeader.Height)); err != nil {
-		return errors.Wrap(err, "failed to flush new rune entry states")
-	}
-
-	if err := p.flushNewOutPointBalances(ctx, uint64(blockHeader.Height)); err != nil {
-		return errors.Wrap(err, "failed to flush new outpoint balances")
-	}
-
-	if err := p.flushNewSpendOutPoints(ctx, uint64(blockHeader.Height)); err != nil {
-		return errors.Wrap(err, "failed to flush new spend outpoints")
-	}
-
-	if err := p.flushNewBalances(ctx, uint64(blockHeader.Height)); err != nil {
-		return errors.Wrap(err, "failed to flush new balances")
-	}
-
-	if err := p.flushNewRuneTxs(ctx); err != nil {
-		return errors.Wrap(err, "failed to flush new rune transactions")
+	if err := runesDgTx.Commit(ctx); err != nil {
+		return errors.Wrap(err, "failed to commit runes tx")
 	}
 	logger.InfoContext(ctx, "[RunesProcessor] block flushed")
 	return nil
 }
 
-func (p *Processor) flushNewRuneEntries(ctx context.Context, blockHeight uint64) error {
-	for _, runeEntry := range p.newRuneEntries {
-		if err := p.runesDg.CreateRuneEntry(ctx, runeEntry, blockHeight); err != nil {
-			return errors.Wrap(err, "failed to create rune entry")
-		}
-	}
-	p.newRuneEntries = make(map[runes.RuneId]*runes.RuneEntry)
+func (p *Processor) flushNewRuneEntries(ctx context.Context, runesDgTx datagateway.RunesDataGatewayWithTx, blockHeight uint64) error {
 	return nil
 }
 
-func (p *Processor) flushNewRuneEntryStates(ctx context.Context, blockHeight uint64) error {
-	for _, runeEntry := range p.newRuneEntryStates {
-		if err := p.runesDg.CreateRuneEntryState(ctx, runeEntry, blockHeight); err != nil {
-			return errors.Wrap(err, "failed to create rune entry state")
-		}
-	}
-	p.newRuneEntryStates = make(map[runes.RuneId]*runes.RuneEntry)
+func (p *Processor) flushNewRuneEntryStates(ctx context.Context, runesDgTx datagateway.RunesDataGatewayWithTx, blockHeight uint64) error {
 	return nil
 }
 
-func (p *Processor) flushNewOutPointBalances(ctx context.Context, blockHeight uint64) error {
-	for outPoint, balances := range p.newOutPointBalances {
-		if err := p.runesDg.CreateOutPointBalances(ctx, outPoint, balances, blockHeight); err != nil {
-			return errors.Wrap(err, "failed to create outpoint balances")
-		}
-	}
-	p.newOutPointBalances = make(map[wire.OutPoint]map[runes.RuneId]uint128.Uint128)
+func (p *Processor) flushNewOutPointBalances(ctx context.Context, runesDgTx datagateway.RunesDataGatewayWithTx, blockHeight uint64) error {
 	return nil
 }
 
-func (p *Processor) flushNewSpendOutPoints(ctx context.Context, blockHeight uint64) error {
-	for _, outPoint := range p.newSpendOutPoints {
-		if err := p.runesDg.SpendOutPointBalances(ctx, outPoint, blockHeight); err != nil {
-			return errors.Wrap(err, "failed to create spend outpoint")
-		}
-	}
-	p.newSpendOutPoints = make([]wire.OutPoint, 0)
+func (p *Processor) flushNewSpendOutPoints(ctx context.Context, runesDgTx datagateway.RunesDataGatewayWithTx, blockHeight uint64) error {
 	return nil
 }
 
-func (p *Processor) flushNewBalances(ctx context.Context, blockHeight uint64) error {
-	params := make([]datagateway.CreateRuneBalancesParams, 0)
-	for pkScriptStr, balances := range p.newBalances {
-		pkScript, err := hex.DecodeString(pkScriptStr)
-		if err != nil {
-			return errors.Wrap(err, "failed to decode pk script")
-		}
-		for runeId, balance := range balances {
-			params = append(params, datagateway.CreateRuneBalancesParams{
-				PkScript:    pkScript,
-				RuneId:      runeId,
-				Balance:     balance,
-				BlockHeight: blockHeight,
-			})
-		}
-	}
-	if err := p.runesDg.CreateRuneBalances(ctx, params); err != nil {
-		return errors.Wrap(err, "failed to create balances at block")
-	}
-	p.newBalances = make(map[string]map[runes.RuneId]uint128.Uint128)
+func (p *Processor) flushNewBalances(ctx context.Context, runesDgTx datagateway.RunesDataGatewayWithTx, blockHeight uint64) error {
 	return nil
 }
 
-func (p *Processor) flushNewRuneTxs(ctx context.Context) error {
-	for _, runeTx := range p.newRuneTxs {
-		if err := p.runesDg.CreateRuneTransaction(ctx, runeTx); err != nil {
-			return errors.Wrap(err, "failed to create rune transaction")
-		}
-	}
-	p.newRuneTxs = make([]*entity.RuneTransaction, 0)
+func (p *Processor) flushNewRuneTxs(ctx context.Context, runesDgTx datagateway.RunesDataGatewayWithTx) error {
 	return nil
 }
 
-func (p *Processor) createIndexedBlock(ctx context.Context, header types.BlockHeader) error {
-	eventHash, err := p.calculateEventHash(header)
-	if err != nil {
-		return errors.Wrap(err, "failed to calculate event hash")
-	}
-	prevIndexedBlock, err := p.runesDg.GetIndexedBlockByHeight(ctx, header.Height-1)
-	if err != nil && errors.Is(err, errs.NotFound) && header.Height-1 == startingBlockHeader[p.network].Height {
-		prevIndexedBlock = &entity.IndexedBlock{
-			Height:              startingBlockHeader[p.network].Height,
-			Hash:                startingBlockHeader[p.network].Hash,
-			EventHash:           chainhash.Hash{},
-			CumulativeEventHash: chainhash.Hash{},
-		}
-		err = nil
-	}
-	if err != nil {
-		if errors.Is(err, errs.NotFound) {
-			return errors.Errorf("indexed block not found for height %d. Indexed block must be created for every Bitcoin block", header.Height)
-		}
-		return errors.Wrap(err, "failed to get indexed block by height")
-	}
-	cumulativeEventHash := chainhash.DoubleHashH(append(prevIndexedBlock.CumulativeEventHash[:], eventHash[:]...))
-
-	if err := p.runesDg.CreateIndexedBlock(ctx, &entity.IndexedBlock{
-		Height:              header.Height,
-		Hash:                header.Hash,
-		PrevHash:            header.PrevBlock,
-		EventHash:           eventHash,
-		CumulativeEventHash: cumulativeEventHash,
-	}); err != nil {
-		return errors.Wrap(err, "failed to create indexed block")
-	}
+func (p *Processor) createIndexedBlock(ctx context.Context, runesDgTx datagateway.RunesDataGatewayWithTx, header types.BlockHeader) error {
 	return nil
 }

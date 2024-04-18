@@ -13,6 +13,14 @@ import (
 type RunesDataGateway interface {
 	RunesReaderDataGateway
 	RunesWriterDataGateway
+
+	// BeginRunesTx returns a new RunesDataGateway with transaction enabled. All write operations performed in this datagateway must be committed to persist changes.
+	BeginRunesTx(ctx context.Context) (RunesDataGatewayWithTx, error)
+}
+
+type RunesDataGatewayWithTx interface {
+	RunesDataGateway
+	Tx
 }
 
 type RunesReaderDataGateway interface {
@@ -44,15 +52,6 @@ type RunesReaderDataGateway interface {
 }
 
 type RunesWriterDataGateway interface {
-	// Begin starts a DB transaction. All write operations done after this call must be followed by Commit() to persist those changes, or Rollback() to discard them.
-	Begin(ctx context.Context) error
-	// Commit commits the DB transaction. All changes made after Begin() will be persisted. Calling Commit() will close the current transaction.
-	// If Commit() is called without a prior Begin(), it must be a no-op.
-	Commit(ctx context.Context) error
-	// Rollback rolls back the DB transaction. All changes made after Begin() will be discarded.
-	// Rollback() must be safe to call even if no transaction is active. Hence, a defer Rollback() is safe, even if Commit() was called prior with non-error conditions.
-	Rollback(ctx context.Context) error
-
 	CreateRuneEntry(ctx context.Context, entry *runes.RuneEntry, blockHeight uint64) error
 	CreateRuneEntryState(ctx context.Context, entry *runes.RuneEntry, blockHeight uint64) error
 	CreateOutPointBalances(ctx context.Context, outPoint wire.OutPoint, balances map[runes.RuneId]uint128.Uint128, blockHeight uint64) error

@@ -15,7 +15,7 @@ import (
 var _ datagateway.IndexerInfoDataGateway = (*Repository)(nil)
 
 func (r *Repository) GetLatestIndexerState(ctx context.Context) (entity.IndexerState, error) {
-	indexerStateModel, err := r.getQueries().GetLatestIndexerState(ctx)
+	indexerStateModel, err := r.queries.GetLatestIndexerState(ctx)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return entity.IndexerState{}, errors.WithStack(errs.NotFound)
@@ -27,7 +27,7 @@ func (r *Repository) GetLatestIndexerState(ctx context.Context) (entity.IndexerS
 }
 
 func (r *Repository) GetLatestIndexerStats(ctx context.Context) (string, common.Network, error) {
-	stats, err := r.getQueries().GetLatestIndexerStats(ctx)
+	stats, err := r.queries.GetLatestIndexerStats(ctx)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return "", "", errors.WithStack(errs.NotFound)
@@ -39,14 +39,14 @@ func (r *Repository) GetLatestIndexerStats(ctx context.Context) (string, common.
 
 func (r *Repository) SetIndexerState(ctx context.Context, state entity.IndexerState) error {
 	params := mapIndexerStateTypeToParams(state)
-	if err := r.getQueries().SetIndexerState(ctx, params); err != nil {
+	if err := r.queries.SetIndexerState(ctx, params); err != nil {
 		return errors.Wrap(err, "error during exec")
 	}
 	return nil
 }
 
 func (r *Repository) UpdateIndexerStats(ctx context.Context, clientVersion string, network common.Network) error {
-	if err := r.getQueries().UpdateIndexerStats(ctx, gen.UpdateIndexerStatsParams{
+	if err := r.queries.UpdateIndexerStats(ctx, gen.UpdateIndexerStatsParams{
 		ClientVersion: clientVersion,
 		Network:       string(network),
 	}); err != nil {
