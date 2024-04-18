@@ -101,12 +101,13 @@ func (h *HttpHandler) GetUTXOsByAddress(ctx *fiber.Ctx) (err error) {
 	for outPoint, balances := range groupedBalances {
 		runeBalances := make([]runeBalance, 0, len(balances))
 		for _, balance := range balances {
+			runeEntry := runeEntries[balance.RuneId]
 			runeBalances = append(runeBalances, runeBalance{
 				RuneId:       balance.RuneId,
-				Rune:         runeEntries[balance.RuneId].SpacedRune,
-				Symbol:       string(runeEntries[balance.RuneId].Symbol),
+				Rune:         runeEntry.SpacedRune,
+				Symbol:       string(runeEntry.Symbol),
 				Amount:       balance.Amount,
-				Divisibility: runeEntries[balance.RuneId].Divisibility,
+				Divisibility: runeEntry.Divisibility,
 			})
 		}
 

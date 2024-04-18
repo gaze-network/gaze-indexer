@@ -94,9 +94,6 @@ type getTransactionsResponse = HttpResponse[getTransactionsResult]
 
 func (h *HttpHandler) GetTransactions(ctx *fiber.Ctx) (err error) {
 	var req getTransactionsRequest
-	if err := ctx.ParamsParser(&req); err != nil {
-		return errors.WithStack(err)
-	}
 	if err := ctx.QueryParser(&req); err != nil {
 		return errors.WithStack(err)
 	}

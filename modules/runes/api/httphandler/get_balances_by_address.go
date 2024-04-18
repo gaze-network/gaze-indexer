@@ -88,23 +88,13 @@ func (h *HttpHandler) GetBalancesByAddress(ctx *fiber.Ctx) (err error) {
 
 	balanceList := make([]balance, 0, len(balances))
 	for id, b := range balances {
-		var name string
-		var symbol rune
-		var decimal uint8
-		if runeEntry, ok := runeEntries[id]; ok {
-			name = runeEntry.SpacedRune.String()
-			symbol = runeEntry.Symbol
-			decimal = runeEntry.Divisibility
-		}
-		if symbol == 0 {
-			symbol = '¤'
-		}
+		runeEntry := runeEntries[id]
 		balanceList = append(balanceList, balance{
 			Amount:   b.Amount.String(),
 			Id:       id.String(),
-			Name:     name,
-			Symbol:   string(symbol),
-			Decimals: decimal,
+			Name:     runeEntry.SpacedRune.String(),
+			Symbol:   string(runeEntry.Symbol),
+			Decimals: runeEntry.Divisibility,
 		})
 	}
 
