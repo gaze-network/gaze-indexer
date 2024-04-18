@@ -365,11 +365,11 @@ func mapRuneTransactionModelToType(src gen.RunesTransaction) (entity.RuneTransac
 		timestamp = src.Timestamp.Time
 	}
 
-	inputs := make([]*entity.OutPointBalance, 0)
+	inputs := make([]*entity.TxInputOutput, 0)
 	if err := json.Unmarshal(src.Inputs, &inputs); err != nil {
 		return entity.RuneTransaction{}, errors.Wrap(err, "failed to unmarshal inputs")
 	}
-	outputs := make([]*entity.OutPointBalance, 0)
+	outputs := make([]*entity.TxInputOutput, 0)
 	if err := json.Unmarshal(src.Outputs, &outputs); err != nil {
 		return entity.RuneTransaction{}, errors.Wrap(err, "failed to unmarshal outputs")
 	}

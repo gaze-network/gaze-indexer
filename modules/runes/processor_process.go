@@ -276,8 +276,8 @@ func (p *Processor) processTx(ctx context.Context, tx *types.Transaction, blockH
 		BlockHeight: uint64(blockHeader.Height),
 		Index:       tx.Index,
 		Timestamp:   blockHeader.Timestamp,
-		Inputs:      make([]*entity.OutPointBalance, 0),
-		Outputs:     make([]*entity.OutPointBalance, 0),
+		Inputs:      make([]*entity.TxInputOutput, 0),
+		Outputs:     make([]*entity.TxInputOutput, 0),
 		Mints:       mints,
 		Burns:       burns,
 		Runestone:   runestone,
@@ -286,7 +286,7 @@ func (p *Processor) processTx(ctx context.Context, tx *types.Transaction, blockH
 	for inputIndex, balances := range inputBalances {
 		for runeId, amount := range balances {
 			pkScript := txInputsPkScripts[inputIndex]
-			runeTx.Inputs = append(runeTx.Inputs, &entity.OutPointBalance{
+			runeTx.Inputs = append(runeTx.Inputs, &entity.TxInputOutput{
 				PkScript:   pkScript,
 				RuneId:     runeId,
 				Amount:     amount,
@@ -299,7 +299,7 @@ func (p *Processor) processTx(ctx context.Context, tx *types.Transaction, blockH
 	for outputIndex, balances := range allocated {
 		pkScript := tx.TxOut[outputIndex].PkScript
 		for runeId, amount := range balances {
-			runeTx.Outputs = append(runeTx.Outputs, &entity.OutPointBalance{
+			runeTx.Outputs = append(runeTx.Outputs, &entity.TxInputOutput{
 				PkScript:   pkScript,
 				RuneId:     runeId,
 				Amount:     amount,

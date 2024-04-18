@@ -12,8 +12,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestOutPointBalanceJSON(t *testing.T) {
-	ob := OutPointBalance{
+func TestTxInputOutputJSON(t *testing.T) {
+	ob := TxInputOutput{
 		PkScript:   utils.Must(hex.DecodeString("51203daaca9b82a51aca960c1491588246029d7e0fc49e0abdbcc8fd17574be5c74b")),
 		RuneId:     runes.RuneId{BlockHeight: 1, TxIndex: 2},
 		Amount:     uint128.From64(100),
@@ -25,7 +25,7 @@ func TestOutPointBalanceJSON(t *testing.T) {
 	assert.NoError(t, err)
 	t.Log(string(bytes))
 
-	var parsedOB OutPointBalance
+	var parsedOB TxInputOutput
 	err = json.Unmarshal(bytes, &parsedOB)
 	assert.NoError(t, err)
 	assert.Equal(t, ob, parsedOB)

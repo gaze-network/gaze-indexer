@@ -231,7 +231,7 @@ func serializeRuneTxs(txs []*entity.RuneTransaction) ([]byte, error) {
 		sb.WriteString("blockHeight:" + strconv.Itoa(int(tx.BlockHeight)))
 		sb.WriteString("index:" + strconv.Itoa(int(tx.Index)))
 
-		writeOutPointBalance := func(ob *entity.OutPointBalance) {
+		writeOutPointBalance := func(ob *entity.TxInputOutput) {
 			sb.WriteString("pkScript:")
 			sb.Write(ob.PkScript)
 			sb.WriteString("runeId:" + ob.RuneId.String())
@@ -243,7 +243,7 @@ func serializeRuneTxs(txs []*entity.RuneTransaction) ([]byte, error) {
 			sb.WriteString(";")
 		}
 		// sort inputs to ensure order
-		slices.SortFunc(tx.Inputs, func(t1, t2 *entity.OutPointBalance) int {
+		slices.SortFunc(tx.Inputs, func(t1, t2 *entity.TxInputOutput) int {
 			if t1.Index != t2.Index {
 				return int(t1.Index) - int(t2.Index)
 			}
@@ -255,7 +255,7 @@ func serializeRuneTxs(txs []*entity.RuneTransaction) ([]byte, error) {
 			writeOutPointBalance(in)
 		}
 		// sort outputs to ensure order
-		slices.SortFunc(tx.Inputs, func(t1, t2 *entity.OutPointBalance) int {
+		slices.SortFunc(tx.Inputs, func(t1, t2 *entity.TxInputOutput) int {
 			if t1.Index != t2.Index {
 				return int(t1.Index) - int(t2.Index)
 			}
