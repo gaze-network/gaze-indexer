@@ -18,6 +18,9 @@ func (r getBalancesByAddressRequest) Validate() error {
 	if r.Wallet == "" {
 		errList = append(errList, errors.New("'wallet' is required"))
 	}
+	if r.Id != "" && !isRuneIdOrRuneName(r.Id) {
+		errList = append(errList, errors.New("'id' is not valid rune id or rune name"))
+	}
 	return errs.WithPublicMessage(errors.Join(errList...), "validation error")
 }
 

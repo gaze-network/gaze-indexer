@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/hex"
 
+	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/common/errs"
 	"github.com/gaze-network/indexer-network/modules/runes/internal/entity"
@@ -75,7 +76,7 @@ type runeTransactionExtend struct {
 }
 
 type transaction struct {
-	TxHash      string                     `json:"txHash"`
+	TxHash      chainhash.Hash             `json:"txHash"`
 	BlockHeight uint64                     `json:"blockHeight"`
 	Timestamp   int64                      `json:"timestamp"`
 	Inputs      []outPointBalance          `json:"inputs"`
@@ -194,7 +195,7 @@ func (h *HttpHandler) GetTransactions(ctx *fiber.Ctx) (err error) {
 	txList := make([]transaction, 0, len(filteredTxs))
 	for _, tx := range filteredTxs {
 		respTx := transaction{
-			TxHash:      tx.Hash.String(),
+			TxHash:      tx.Hash,
 			BlockHeight: tx.BlockHeight,
 			Timestamp:   tx.Timestamp.Unix(),
 			Inputs:      make([]outPointBalance, 0, len(tx.Inputs)),
