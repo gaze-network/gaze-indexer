@@ -7,6 +7,7 @@ import (
 	"syscall"
 
 	"github.com/gaze-network/indexer-network/cmd"
+	_ "go.uber.org/automaxprocs"
 )
 
 func main() {
