@@ -93,6 +93,13 @@ func (i *BitcoinIndexer) process(ctx context.Context) (err error) {
 				continue
 			}
 
+			startAt := time.Now()
+			ctx := logger.WithContext(ctx,
+				slog.Int("total_blocks", len(blocks)),
+				slogx.Int64("from", blocks[0].Header.Height),
+				slogx.Int64("to", blocks[len(blocks)-1].Header.Height),
+			)
+
 			// validate reorg from first block
 			{
 				remoteBlockHeader := blocks[0].Header
@@ -162,12 +169,18 @@ func (i *BitcoinIndexer) process(ctx context.Context) (err error) {
 			}
 
 			// Start processing blocks
+			logger.InfoContext(ctx, "Processing blocks")
 			if err := i.Processor.Process(ctx, blocks); err != nil {
 				return errors.WithStack(err)
 			}
 
 			// Update current state
 			i.currentBlock = blocks[len(blocks)-1].Header
+
+			logger.InfoContext(ctx, "Processed blocks successfully",
+				slogx.Stringer("duration", time.Since(startAt)),
+				slogx.Int64("duration_ms", time.Since(startAt).Milliseconds()),
+			)
 		case <-subscription.Done():
 			// end current round
 			if err := ctx.Err(); err != nil {
