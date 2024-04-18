@@ -134,33 +134,38 @@ func serializeNewRuneEntryState(entry *runes.RuneEntry) []byte {
 	return []byte(sb.String())
 }
 
-func serializeNewOutPointBalances(outPointBalances map[wire.OutPoint]map[runes.RuneId]uint128.Uint128) []byte {
+func serializeNewOutPointBalances(outPointBalances map[wire.OutPoint][]*entity.OutPointBalance) []byte {
 	var sb strings.Builder
 	sb.WriteString("newOutPointBalances:")
 
-	outPoints := lo.Keys(outPointBalances)
-	// sort outpoints to ensure order
-	slices.SortFunc(outPoints, func(t1, t2 wire.OutPoint) int {
-		if t1.Hash != t2.Hash {
-			return bytes.Compare(t1.Hash[:], t2.Hash[:])
+	// collect balance values
+	newBalances := make([]*entity.OutPointBalance, 0)
+	for _, balances := range outPointBalances {
+		newBalances = append(newBalances, balances...)
+	}
+
+	// sort balances to ensure order
+	slices.SortFunc(newBalances, func(t1, t2 *entity.OutPointBalance) int {
+		// sort by outpoint first
+		if t1.OutPoint != t2.OutPoint {
+			if t1.OutPoint.Hash != t2.OutPoint.Hash {
+				return bytes.Compare(t1.OutPoint.Hash[:], t2.OutPoint.Hash[:])
+			}
+			return int(t1.OutPoint.Index) - int(t2.OutPoint.Index)
 		}
-		return int(t1.Index) - int(t2.Index)
+		// sort by runeId
+		return t1.RuneId.Cmp(t2.RuneId)
 	})
-	for _, outPoint := range outPoints {
-		runeIds := lo.Keys(outPointBalances[outPoint])
-		// sort runeIds to ensure order
-		slices.SortFunc(runeIds, func(t1, t2 runes.RuneId) int {
-			return t1.Cmp(t2)
-		})
-		for _, runeId := range runeIds {
-			sb.WriteString("outPoint:")
-			sb.WriteString("hash:")
-			sb.Write(outPoint.Hash[:])
-			sb.WriteString("index:" + strconv.Itoa(int(outPoint.Index)))
-			sb.WriteString("runeId:" + runeId.String())
-			sb.WriteString("amount:" + outPointBalances[outPoint][runeId].String())
-			sb.WriteString(";")
-		}
+	for _, balance := range newBalances {
+		sb.WriteString("outPoint:")
+		sb.WriteString("hash:")
+		sb.Write(balance.OutPoint.Hash[:])
+		sb.WriteString("index:" + strconv.Itoa(int(balance.OutPoint.Index)))
+		sb.WriteString("pkScript:")
+		sb.Write(balance.PkScript)
+		sb.WriteString("runeId:" + balance.RuneId.String())
+		sb.WriteString("amount:" + balance.Amount.String())
+		sb.WriteString(";")
 	}
 	return []byte(sb.String())
 }

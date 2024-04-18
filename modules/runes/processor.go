@@ -31,7 +31,7 @@ type Processor struct {
 
 	newRuneEntries      map[runes.RuneId]*runes.RuneEntry
 	newRuneEntryStates  map[runes.RuneId]*runes.RuneEntry
-	newOutPointBalances map[wire.OutPoint]map[runes.RuneId]uint128.Uint128
+	newOutPointBalances map[wire.OutPoint][]*entity.OutPointBalance
 	newSpendOutPoints   []wire.OutPoint
 	newBalances         map[string]map[runes.RuneId]uint128.Uint128 // pkScript(hex) -> runeId -> amount
 	newRuneTxs          []*entity.RuneTransaction
@@ -46,7 +46,7 @@ func NewProcessor(runesDg datagateway.RunesDataGateway, indexerInfoDg datagatewa
 		network:             network,
 		newRuneEntries:      make(map[runes.RuneId]*runes.RuneEntry),
 		newRuneEntryStates:  make(map[runes.RuneId]*runes.RuneEntry),
-		newOutPointBalances: make(map[wire.OutPoint]map[runes.RuneId]uint128.Uint128),
+		newOutPointBalances: make(map[wire.OutPoint][]*entity.OutPointBalance),
 		newSpendOutPoints:   make([]wire.OutPoint, 0),
 		newBalances:         make(map[string]map[runes.RuneId]uint128.Uint128),
 		newRuneTxs:          make([]*entity.RuneTransaction, 0),

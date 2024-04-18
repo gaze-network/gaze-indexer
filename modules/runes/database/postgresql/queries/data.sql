@@ -1,11 +1,11 @@
 -- name: GetBalancesByPkScript :many
-With balances AS (
+WITH balances AS (
   SELECT DISTINCT ON (rune_id) * FROM runes_balances WHERE pkscript = $1 AND block_height <= $2 ORDER BY rune_id, block_height DESC
 )
 SELECT * FROM balances WHERE amount > 0;
 
 -- name: GetBalancesByRuneId :many
-With balances AS (
+WITH balances AS (
   SELECT DISTINCT ON (pkscript) * FROM runes_balances WHERE rune_id = $1 AND block_height <= $2 ORDER BY pkscript, block_height DESC
 )
 SELECT * FROM balances WHERE amount > 0;
@@ -13,8 +13,11 @@ SELECT * FROM balances WHERE amount > 0;
 -- name: GetBalanceByPkScriptAndRuneId :one
 SELECT * FROM runes_balances WHERE pkscript = $1 AND rune_id = $2 AND block_height <= $3 ORDER BY block_height DESC LIMIT 1;
 
--- name: GetOutPointBalances :many
+-- name: GetOutPointBalancesAtOutPoint :many
 SELECT * FROM runes_outpoint_balances WHERE tx_hash = $1 AND tx_idx = $2;
+
+-- name: GetUnspentOutPointBalancesByPkScript :many
+SELECT * FROM runes_outpoint_balances WHERE pkscript = @pkScript AND block_height <= @block_height AND (spent_height IS NULL OR spent_height > @block_height);
 
 -- name: GetRuneEntriesByRuneIds :many
 WITH states AS (
@@ -60,7 +63,7 @@ INSERT INTO runes_runestones (tx_hash, block_height, etching, etching_divisibili
   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21);
 
 -- name: CreateOutPointBalances :batchexec
-INSERT INTO runes_outpoint_balances (rune_id, tx_hash, tx_idx, amount, block_height, spent_height) VALUES ($1, $2, $3, $4, $5, $6);
+INSERT INTO runes_outpoint_balances (rune_id, pkscript, tx_hash, tx_idx, amount, block_height, spent_height) VALUES ($1, $2, $3, $4, $5, $6, $7);
 
 -- name: SpendOutPointBalances :exec
 UPDATE runes_outpoint_balances SET spent_height = $1 WHERE rune_id = $2 AND tx_hash = $3 AND tx_idx = $4;

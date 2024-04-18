@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
+	"github.com/btcsuite/btcd/wire"
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/modules/runes/internal/entity"
 	"github.com/gaze-network/indexer-network/modules/runes/repository/postgres/gen"
@@ -638,5 +639,59 @@ func mapIndexedBlockTypeToParams(src entity.IndexedBlock) (gen.CreateIndexedBloc
 		PrevHash:            src.PrevHash.String(),
 		EventHash:           src.EventHash.String(),
 		CumulativeEventHash: src.CumulativeEventHash.String(),
+	}, nil
+}
+
+func mapOutPointBalanceModelToType(src gen.RunesOutpointBalance) (entity.OutPointBalance, error) {
+	runeId, err := runes.NewRuneIdFromString(src.RuneID)
+	if err != nil {
+		return entity.OutPointBalance{}, errors.Wrap(err, "failed to parse rune id")
+	}
+	amount, err := uint128FromNumeric(src.Amount)
+	if err != nil {
+		return entity.OutPointBalance{}, errors.Wrap(err, "failed to parse balance")
+	}
+	pkScript, err := hex.DecodeString(src.Pkscript)
+	if err != nil {
+		return entity.OutPointBalance{}, errors.Wrap(err, "failed to parse pkscript")
+	}
+	txHash, err := chainhash.NewHashFromStr(src.TxHash)
+	if err != nil {
+		return entity.OutPointBalance{}, errors.Wrap(err, "failed to parse tx hash")
+	}
+	var spentHeight *uint64
+	if src.SpentHeight.Valid {
+		spentHeight = lo.ToPtr(uint64(src.SpentHeight.Int32))
+	}
+	return entity.OutPointBalance{
+		PkScript: pkScript,
+		RuneId:   runeId,
+		Amount:   lo.FromPtr(amount),
+		OutPoint: wire.OutPoint{
+			Hash:  *txHash,
+			Index: uint32(src.TxIdx),
+		},
+		BlockHeight: uint64(src.BlockHeight),
+		SpentHeight: spentHeight,
+	}, nil
+}
+
+func mapOutPointBalanceTypeToParams(src entity.OutPointBalance) (gen.CreateOutPointBalancesParams, error) {
+	amount, err := numericFromUint128(&src.Amount)
+	if err != nil {
+		return gen.CreateOutPointBalancesParams{}, errors.Wrap(err, "failed to parse amount")
+	}
+	var spentHeight pgtype.Int4
+	if src.SpentHeight != nil {
+		spentHeight = pgtype.Int4{Int32: int32(*src.SpentHeight), Valid: true}
+	}
+	return gen.CreateOutPointBalancesParams{
+		TxHash:      src.OutPoint.Hash.String(),
+		TxIdx:       int32(src.OutPoint.Index),
+		Pkscript:    hex.EncodeToString(src.PkScript),
+		RuneID:      src.RuneId.String(),
+		Amount:      amount,
+		BlockHeight: int32(src.BlockHeight),
+		SpentHeight: spentHeight,
 	}, nil
 }

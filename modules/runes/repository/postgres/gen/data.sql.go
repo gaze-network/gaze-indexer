@@ -293,7 +293,7 @@ func (q *Queries) GetBalanceByPkScriptAndRuneId(ctx context.Context, arg GetBala
 }
 
 const getBalancesByPkScript = `-- name: GetBalancesByPkScript :many
-With balances AS (
+WITH balances AS (
   SELECT DISTINCT ON (rune_id) pkscript, block_height, rune_id, amount FROM runes_balances WHERE pkscript = $1 AND block_height <= $2 ORDER BY rune_id, block_height DESC
 )
 SELECT pkscript, block_height, rune_id, amount FROM balances WHERE amount > 0
@@ -337,7 +337,7 @@ func (q *Queries) GetBalancesByPkScript(ctx context.Context, arg GetBalancesByPk
 }
 
 const getBalancesByRuneId = `-- name: GetBalancesByRuneId :many
-With balances AS (
+WITH balances AS (
   SELECT DISTINCT ON (pkscript) pkscript, block_height, rune_id, amount FROM runes_balances WHERE rune_id = $1 AND block_height <= $2 ORDER BY pkscript, block_height DESC
 )
 SELECT pkscript, block_height, rune_id, amount FROM balances WHERE amount > 0
@@ -414,17 +414,17 @@ func (q *Queries) GetLatestIndexedBlock(ctx context.Context) (RunesIndexedBlock,
 	return i, err
 }
 
-const getOutPointBalances = `-- name: GetOutPointBalances :many
-SELECT rune_id, tx_hash, tx_idx, amount, block_height, spent_height FROM runes_outpoint_balances WHERE tx_hash = $1 AND tx_idx = $2
+const getOutPointBalancesAtOutPoint = `-- name: GetOutPointBalancesAtOutPoint :many
+SELECT rune_id, pkscript, tx_hash, tx_idx, amount, block_height, spent_height FROM runes_outpoint_balances WHERE tx_hash = $1 AND tx_idx = $2
 `
 
-type GetOutPointBalancesParams struct {
+type GetOutPointBalancesAtOutPointParams struct {
 	TxHash string
 	TxIdx  int32
 }
 
-func (q *Queries) GetOutPointBalances(ctx context.Context, arg GetOutPointBalancesParams) ([]RunesOutpointBalance, error) {
-	rows, err := q.db.Query(ctx, getOutPointBalances, arg.TxHash, arg.TxIdx)
+func (q *Queries) GetOutPointBalancesAtOutPoint(ctx context.Context, arg GetOutPointBalancesAtOutPointParams) ([]RunesOutpointBalance, error) {
+	rows, err := q.db.Query(ctx, getOutPointBalancesAtOutPoint, arg.TxHash, arg.TxIdx)
 	if err != nil {
 		return nil, err
 	}
@@ -434,6 +434,7 @@ func (q *Queries) GetOutPointBalances(ctx context.Context, arg GetOutPointBalanc
 		var i RunesOutpointBalance
 		if err := rows.Scan(
 			&i.RuneID,
+			&i.Pkscript,
 			&i.TxHash,
 			&i.TxIdx,
 			&i.Amount,
@@ -709,6 +710,43 @@ func (q *Queries) GetRuneTransactionsByHeight(ctx context.Context, blockHeight i
 			&i.Pointer,
 			&i.Cenotaph,
 			&i.Flaws,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getUnspentOutPointBalancesByPkScript = `-- name: GetUnspentOutPointBalancesByPkScript :many
+SELECT rune_id, pkscript, tx_hash, tx_idx, amount, block_height, spent_height FROM runes_outpoint_balances WHERE pkscript = $1 AND block_height <= $2 AND (spent_height IS NULL OR spent_height > $2)
+`
+
+type GetUnspentOutPointBalancesByPkScriptParams struct {
+	Pkscript    string
+	BlockHeight int32
+}
+
+func (q *Queries) GetUnspentOutPointBalancesByPkScript(ctx context.Context, arg GetUnspentOutPointBalancesByPkScriptParams) ([]RunesOutpointBalance, error) {
+	rows, err := q.db.Query(ctx, getUnspentOutPointBalancesByPkScript, arg.Pkscript, arg.BlockHeight)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []RunesOutpointBalance
+	for rows.Next() {
+		var i RunesOutpointBalance
+		if err := rows.Scan(
+			&i.RuneID,
+			&i.Pkscript,
+			&i.TxHash,
+			&i.TxIdx,
+			&i.Amount,
+			&i.BlockHeight,
+			&i.SpentHeight,
 		); err != nil {
 			return nil, err
 		}

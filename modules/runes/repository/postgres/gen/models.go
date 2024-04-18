@@ -69,6 +69,7 @@ type RunesIndexerState struct {
 
 type RunesOutpointBalance struct {
 	RuneID      string
+	Pkscript    string
 	TxHash      string
 	TxIdx       int32
 	Amount      pgtype.Numeric

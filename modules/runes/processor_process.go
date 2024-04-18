@@ -53,10 +53,6 @@ func (p *Processor) processTx(ctx context.Context, tx *types.Transaction, blockH
 	if err != nil {
 		return errors.Wrap(err, "failed to get input balances")
 	}
-	txInputsPkScripts, err := p.getTxInputsPkScripts(ctx, tx, lo.Keys(inputBalances))
-	if err != nil {
-		return errors.Wrap(err, "failed to get tx inputs pk scripts")
-	}
 
 	if runestone == nil && len(inputBalances) == 0 {
 		// no runes involved in this tx
@@ -65,17 +61,15 @@ func (p *Processor) processTx(ctx context.Context, tx *types.Transaction, blockH
 
 	unallocated := make(map[runes.RuneId]uint128.Uint128)
 	allocated := make(map[int]map[runes.RuneId]uint128.Uint128)
-	for inputIndex, balances := range inputBalances {
-		for runeId, amount := range balances {
-			unallocated[runeId] = unallocated[runeId].Add(amount)
-			p.newSpendOutPoints = append(p.newSpendOutPoints, wire.OutPoint{
-				Hash:  tx.TxIn[inputIndex].PreviousOutTxHash,
-				Index: tx.TxIn[inputIndex].PreviousOutIndex,
-			})
+	for _, balances := range inputBalances {
+		for runeId, balance := range balances {
+			unallocated[runeId] = unallocated[runeId].Add(balance.Amount)
+			p.newSpendOutPoints = append(p.newSpendOutPoints, balance.OutPoint)
 			logger.DebugContext(ctx, "[RunesProcessor] Found runes in tx input",
 				slogx.Any("runeId", runeId),
-				slogx.Stringer("amount", amount),
-				slogx.Stringer("txHash", tx.TxHash),
+				slogx.Stringer("amount", balance.Amount),
+				slogx.Stringer("txHash", balance.OutPoint.Hash),
+				slog.Int("txOutIndex", int(balance.OutPoint.Index)),
 				slog.Int("blockHeight", int(tx.BlockHeight)),
 			)
 		}
@@ -255,13 +249,23 @@ func (p *Processor) processTx(ctx context.Context, tx *types.Transaction, blockH
 			continue
 		}
 
-		p.newOutPointBalances[wire.OutPoint{
+		outPoint := wire.OutPoint{
 			Hash:  tx.TxHash,
 			Index: uint32(output),
-		}] = balances
+		}
+		for runeId, amount := range balances {
+			p.newOutPointBalances[outPoint] = append(p.newOutPointBalances[outPoint], &entity.OutPointBalance{
+				RuneId:      runeId,
+				PkScript:    tx.TxOut[output].PkScript,
+				OutPoint:    outPoint,
+				Amount:      amount,
+				BlockHeight: uint64(tx.BlockHeight),
+				SpentHeight: nil,
+			})
+		}
 	}
 
-	if err := p.updateNewBalances(ctx, tx, txInputsPkScripts, inputBalances, allocated); err != nil {
+	if err := p.updateNewBalances(ctx, tx, inputBalances, allocated); err != nil {
 		return errors.Wrap(err, "failed to update new balances")
 	}
 
@@ -284,12 +288,11 @@ func (p *Processor) processTx(ctx context.Context, tx *types.Transaction, blockH
 		RuneEtched:  runeEtched,
 	}
 	for inputIndex, balances := range inputBalances {
-		for runeId, amount := range balances {
-			pkScript := txInputsPkScripts[inputIndex]
+		for runeId, balance := range balances {
 			runeTx.Inputs = append(runeTx.Inputs, &entity.TxInputOutput{
-				PkScript:   pkScript,
+				PkScript:   balance.PkScript,
 				RuneId:     runeId,
-				Amount:     amount,
+				Amount:     balance.Amount,
 				Index:      uint32(inputIndex),
 				TxHash:     tx.TxIn[inputIndex].PreviousOutTxHash,
 				TxOutIndex: tx.TxIn[inputIndex].PreviousOutIndex,
@@ -314,24 +317,17 @@ func (p *Processor) processTx(ctx context.Context, tx *types.Transaction, blockH
 	return nil
 }
 
-func (p *Processor) getInputBalances(ctx context.Context, txInputs []*types.TxIn) (map[int]map[runes.RuneId]uint128.Uint128, error) {
-	inputBalances := make(map[int]map[runes.RuneId]uint128.Uint128)
+func (p *Processor) getInputBalances(ctx context.Context, txInputs []*types.TxIn) (map[int]map[runes.RuneId]*entity.OutPointBalance, error) {
+	inputBalances := make(map[int]map[runes.RuneId]*entity.OutPointBalance)
 	for i, txIn := range txInputs {
-		// check balances in p.newOutPointBalances first, since it may use outpoint from txs in the same block
-		balances, ok := p.newOutPointBalances[wire.OutPoint{
+		balances, err := p.getRunesBalancesAtOutPoint(ctx, wire.OutPoint{
 			Hash:  txIn.PreviousOutTxHash,
 			Index: txIn.PreviousOutIndex,
-		}]
-		if !ok {
-			var err error
-			balances, err = p.getRunesBalancesAtOutPoint(ctx, wire.OutPoint{
-				Hash:  txIn.PreviousOutTxHash,
-				Index: txIn.PreviousOutIndex,
-			})
-			if err != nil {
-				return nil, errors.Wrap(err, "failed to get runes balances at outpoint")
-			}
+		})
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to get runes balances at outpoint")
 		}
+
 		if len(balances) > 0 {
 			inputBalances[i] = balances
 		}
@@ -339,23 +335,7 @@ func (p *Processor) getInputBalances(ctx context.Context, txInputs []*types.TxIn
 	return inputBalances, nil
 }
 
-func (p *Processor) getTxInputsPkScripts(ctx context.Context, tx *types.Transaction, inputIndexes []int) (map[int][]byte, error) {
-	txInPkScripts := make(map[int][]byte)
-	for _, inputIndex := range inputIndexes {
-		inputIndex := inputIndex
-		prevTxHash := tx.TxIn[inputIndex].PreviousOutTxHash
-		prevTxOutIndex := tx.TxIn[inputIndex].PreviousOutIndex
-		prevTx, err := p.bitcoinClient.GetTransactionByHash(ctx, prevTxHash)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to get transaction")
-		}
-		pkScript := prevTx.TxOut[prevTxOutIndex].PkScript
-		txInPkScripts[inputIndex] = pkScript
-	}
-	return txInPkScripts, nil
-}
-
-func (p *Processor) updateNewBalances(ctx context.Context, tx *types.Transaction, txInputsPkScripts map[int][]byte, inputBalances map[int]map[runes.RuneId]uint128.Uint128, allocated map[int]map[runes.RuneId]uint128.Uint128) error {
+func (p *Processor) updateNewBalances(ctx context.Context, tx *types.Transaction, inputBalances map[int]map[runes.RuneId]*entity.OutPointBalance, allocated map[int]map[runes.RuneId]uint128.Uint128) error {
 	// getBalanceFromDg returns the current balance of the pkScript and runeId since last flush
 	getBalanceFromDg := func(ctx context.Context, pkScript []byte, runeId runes.RuneId) (uint128.Uint128, error) {
 		balance, err := p.runesDg.GetBalanceByPkScriptAndRuneId(ctx, pkScript, runeId, uint64(tx.BlockHeight-1))
@@ -369,10 +349,10 @@ func (p *Processor) updateNewBalances(ctx context.Context, tx *types.Transaction
 	}
 
 	// deduct balances used in inputs
-	for inputIndex, balances := range inputBalances {
-		pkScript := txInputsPkScripts[inputIndex]
-		pkScriptStr := hex.EncodeToString(pkScript)
-		for runeId, amount := range balances {
+	for _, balances := range inputBalances {
+		for runeId, balance := range balances {
+			pkScript := balance.PkScript
+			pkScriptStr := hex.EncodeToString(pkScript)
 			if _, ok := p.newBalances[pkScriptStr]; !ok {
 				p.newBalances[pkScriptStr] = make(map[runes.RuneId]uint128.Uint128)
 			}
@@ -383,11 +363,11 @@ func (p *Processor) updateNewBalances(ctx context.Context, tx *types.Transaction
 				}
 				p.newBalances[pkScriptStr][runeId] = balance
 			}
-			if p.newBalances[pkScriptStr][runeId].Cmp(amount) < 0 {
+			if p.newBalances[pkScriptStr][runeId].Cmp(balance.Amount) < 0 {
 				// total pkScript's balance is less that balance in input. This is impossible. Something is wrong.
 				return errors.Errorf("current balance is less than balance in input: %s", runeId)
 			}
-			p.newBalances[pkScriptStr][runeId] = p.newBalances[pkScriptStr][runeId].Sub(amount)
+			p.newBalances[pkScriptStr][runeId] = p.newBalances[pkScriptStr][runeId].Sub(balance.Amount)
 		}
 	}
 
@@ -688,11 +668,15 @@ func (p *Processor) isRuneExists(ctx context.Context, rune runes.Rune) (bool, er
 	return true, nil
 }
 
-func (p *Processor) getRunesBalancesAtOutPoint(ctx context.Context, outPoint wire.OutPoint) (map[runes.RuneId]uint128.Uint128, error) {
-	balances, ok := p.newOutPointBalances[outPoint]
-	if ok {
+func (p *Processor) getRunesBalancesAtOutPoint(ctx context.Context, outPoint wire.OutPoint) (map[runes.RuneId]*entity.OutPointBalance, error) {
+	if outPointBalances, ok := p.newOutPointBalances[outPoint]; ok {
+		balances := make(map[runes.RuneId]*entity.OutPointBalance)
+		for _, outPointBalance := range outPointBalances {
+			balances[outPointBalance.RuneId] = outPointBalance
+		}
 		return balances, nil
 	}
+
 	balances, err := p.runesDg.GetRunesBalancesAtOutPoint(ctx, outPoint)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get runes balances at outpoint")
@@ -765,12 +749,14 @@ func (p *Processor) flushBlock(ctx context.Context, blockHeader types.BlockHeade
 	}
 	// flush new outpoint balances
 	{
-		for outPoint, balances := range p.newOutPointBalances {
-			if err := runesDgTx.CreateOutPointBalances(ctx, outPoint, balances, uint64(blockHeader.Height)); err != nil {
-				return errors.Wrap(err, "failed to create outpoint balances")
-			}
+		newBalances := make([]*entity.OutPointBalance, 0)
+		for _, balances := range p.newOutPointBalances {
+			newBalances = append(newBalances, balances...)
 		}
-		p.newOutPointBalances = make(map[wire.OutPoint]map[runes.RuneId]uint128.Uint128)
+		if err := runesDgTx.CreateOutPointBalances(ctx, newBalances); err != nil {
+			return errors.Wrap(err, "failed to create outpoint balances")
+		}
+		p.newOutPointBalances = make(map[wire.OutPoint][]*entity.OutPointBalance)
 	}
 	// flush new spend outpoints
 	{

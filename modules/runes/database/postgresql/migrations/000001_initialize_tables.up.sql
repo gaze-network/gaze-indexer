@@ -98,6 +98,7 @@ CREATE TABLE IF NOT EXISTS "runes_runestones" (
 
 CREATE TABLE IF NOT EXISTS "runes_outpoint_balances" (
 	"rune_id" TEXT NOT NULL,
+	"pkscript" TEXT NOT NULL,
 	"tx_hash" TEXT NOT NULL,
 	"tx_idx" INT NOT NULL, -- output index
 	"amount" DECIMAL NOT NULL,

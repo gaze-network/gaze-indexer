@@ -18,7 +18,7 @@ var (
 )
 
 const createOutPointBalances = `-- name: CreateOutPointBalances :batchexec
-INSERT INTO runes_outpoint_balances (rune_id, tx_hash, tx_idx, amount, block_height, spent_height) VALUES ($1, $2, $3, $4, $5, $6)
+INSERT INTO runes_outpoint_balances (rune_id, pkscript, tx_hash, tx_idx, amount, block_height, spent_height) VALUES ($1, $2, $3, $4, $5, $6, $7)
 `
 
 type CreateOutPointBalancesBatchResults struct {
@@ -29,6 +29,7 @@ type CreateOutPointBalancesBatchResults struct {
 
 type CreateOutPointBalancesParams struct {
 	RuneID      string
+	Pkscript    string
 	TxHash      string
 	TxIdx       int32
 	Amount      pgtype.Numeric
@@ -41,6 +42,7 @@ func (q *Queries) CreateOutPointBalances(ctx context.Context, arg []CreateOutPoi
 	for _, a := range arg {
 		vals := []interface{}{
 			a.RuneID,
+			a.Pkscript,
 			a.TxHash,
 			a.TxIdx,
 			a.Amount,

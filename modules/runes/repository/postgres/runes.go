@@ -13,7 +13,6 @@ import (
 	"github.com/gaze-network/indexer-network/modules/runes/internal/entity"
 	"github.com/gaze-network/indexer-network/modules/runes/repository/postgres/gen"
 	"github.com/gaze-network/indexer-network/modules/runes/runes"
-	"github.com/gaze-network/uint128"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/samber/lo"
@@ -91,8 +90,8 @@ func (r *Repository) GetRuneTransactionsByHeight(ctx context.Context, height uin
 	return runeTxs, nil
 }
 
-func (r *Repository) GetRunesBalancesAtOutPoint(ctx context.Context, outPoint wire.OutPoint) (map[runes.RuneId]uint128.Uint128, error) {
-	balances, err := r.queries.GetOutPointBalances(ctx, gen.GetOutPointBalancesParams{
+func (r *Repository) GetRunesBalancesAtOutPoint(ctx context.Context, outPoint wire.OutPoint) (map[runes.RuneId]*entity.OutPointBalance, error) {
+	balances, err := r.queries.GetOutPointBalancesAtOutPoint(ctx, gen.GetOutPointBalancesAtOutPointParams{
 		TxHash: outPoint.Hash.String(),
 		TxIdx:  int32(outPoint.Index),
 	})
@@ -100,17 +99,33 @@ func (r *Repository) GetRunesBalancesAtOutPoint(ctx context.Context, outPoint wi
 		return nil, errors.Wrap(err, "error during query")
 	}
 
-	result := make(map[runes.RuneId]uint128.Uint128, len(balances))
-	for _, balance := range balances {
-		runeId, err := runes.NewRuneIdFromString(balance.RuneID)
+	result := make(map[runes.RuneId]*entity.OutPointBalance, len(balances))
+	for _, balanceModel := range balances {
+		balance, err := mapOutPointBalanceModelToType(balanceModel)
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to parse RuneId")
+			return nil, errors.Wrap(err, "failed to parse balance model")
 		}
-		amount, err := uint128FromNumeric(balance.Amount)
+		result[balance.RuneId] = &balance
+	}
+	return result, nil
+}
+
+func (r *Repository) GetUnspentOutPointBalancesByPkScript(ctx context.Context, pkScript []byte, blockHeight uint64) ([]*entity.OutPointBalance, error) {
+	balances, err := r.queries.GetUnspentOutPointBalancesByPkScript(ctx, gen.GetUnspentOutPointBalancesByPkScriptParams{
+		Pkscript:    hex.EncodeToString(pkScript),
+		BlockHeight: int32(blockHeight),
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "error during query")
+	}
+
+	result := make([]*entity.OutPointBalance, 0, len(balances))
+	for _, balanceModel := range balances {
+		balance, err := mapOutPointBalanceModelToType(balanceModel)
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to parse balance")
+			return nil, errors.Wrap(err, "failed to parse balance model")
 		}
-		result[runeId] = lo.FromPtr(amount)
+		result = append(result, &balance)
 	}
 	return result, nil
 }
@@ -322,22 +337,14 @@ func (r *Repository) CreateRuneEntryState(ctx context.Context, entry *runes.Rune
 	return nil
 }
 
-func (r *Repository) CreateOutPointBalances(ctx context.Context, outPoint wire.OutPoint, balances map[runes.RuneId]uint128.Uint128, blockHeight uint64) error {
-	params := make([]gen.CreateOutPointBalancesParams, 0, len(balances))
-	for runeId, balance := range balances {
-		balance := balance
-		amount, err := numericFromUint128(&balance)
+func (r *Repository) CreateOutPointBalances(ctx context.Context, outPointBalances []*entity.OutPointBalance) error {
+	params := make([]gen.CreateOutPointBalancesParams, 0, len(outPointBalances))
+	for _, balance := range outPointBalances {
+		param, err := mapOutPointBalanceTypeToParams(*balance)
 		if err != nil {
-			return errors.Wrap(err, "failed to convert balance to numeric")
+			return errors.Wrap(err, "failed to map outpoint balance to params")
 		}
-		params = append(params, gen.CreateOutPointBalancesParams{
-			RuneID:      runeId.String(),
-			TxHash:      outPoint.Hash.String(),
-			TxIdx:       int32(outPoint.Index),
-			Amount:      amount,
-			BlockHeight: int32(blockHeight),
-			SpentHeight: pgtype.Int4{Valid: false},
-		})
+		params = append(params, param)
 	}
 	result := r.queries.CreateOutPointBalances(ctx, params)
 	var execErrors []error
