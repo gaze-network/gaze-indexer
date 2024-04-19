@@ -49,7 +49,7 @@ func NewMigrateDownCommand() *cobra.Command {
 		Use:     "down [N]",
 		Short:   "Apply down migrations",
 		Args:    cobra.MaximumNArgs(1),
-		Example: `gaze migrate down --database "postgres://postgres:postgres@localhost:5432/gaze-indexer?sslmode=disable" --all`,
+		Example: `gaze migrate down --database "postgres://postgres:postgres@localhost:5432/gaze-indexer?sslmode=disable"`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// args already validated by cobra
 			var downArgs migrateDownCmdArgs
