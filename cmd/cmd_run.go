@@ -166,7 +166,7 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 		var runesDg runesdatagateway.RunesDataGateway
 		var indexerInfoDg runesdatagateway.IndexerInfoDataGateway
 		switch strings.ToLower(conf.Modules.Runes.Database) {
-		case "postgres", "pg":
+		case "postgresql", "postgres", "pg":
 			pg, err := postgres.NewPool(ctx, conf.Modules.Runes.Postgres)
 			if err != nil {
 				logger.PanicContext(ctx, "Failed to create Postgres connection pool", slogx.Error(err))
@@ -178,7 +178,6 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 		default:
 			logger.PanicContext(ctx, "Unsupported database", slogx.String("database", conf.Modules.Runes.Database))
 		}
-		// TODO: add option to change bitcoinNodeDatasource implementation
 		var bitcoinDatasource indexers.BitcoinDatasource
 		var bitcoinClient btcclient.Contract
 		switch strings.ToLower(conf.Modules.Runes.Datasource) {
