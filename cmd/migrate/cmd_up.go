@@ -41,7 +41,7 @@ func NewMigrateUpCommand() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:     "up [N]",
-		Short:   "Apply up migrations",
+		Short:   "Apply all or N up migrations",
 		Args:    cobra.MaximumNArgs(1),
 		Example: `gaze migrate up --database "postgres://postgres:postgres@localhost:5432/gaze-indexer?sslmode=disable"`,
 		RunE: func(cmd *cobra.Command, args []string) error {
