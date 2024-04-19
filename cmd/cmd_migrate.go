@@ -12,6 +12,9 @@ func NewMigrateCommand() *cobra.Command {
 		Use:   "migrate",
 		Short: "Migrate database schema",
 	}
-	cmd.AddCommand(migrate.NewMigrateUpCommand())
+	cmd.AddCommand(
+		migrate.NewMigrateUpCommand(),
+		migrate.NewMigrateDownCommand(),
+	)
 	return cmd
 }
