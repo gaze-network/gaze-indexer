@@ -110,6 +110,7 @@ func (i *BitcoinIndexer) process(ctx context.Context) (err error) {
 					)
 
 					var (
+						start                  = time.Now()
 						targetHeight           = i.currentBlock.Height - 1
 						beforeReorgBlockHeader = types.BlockHeader{
 							Height: -1,
@@ -143,7 +144,11 @@ func (i *BitcoinIndexer) process(ctx context.Context) (err error) {
 					}
 
 					// Revert all data since the reorg block
-					logger.WarnContext(ctx, "reverting reorg data", slogx.Int64("from", beforeReorgBlockHeader.Height+1))
+					logger.WarnContext(ctx, "reverting reorg data",
+						slogx.Int64("reorg_from", beforeReorgBlockHeader.Height+1),
+						slogx.Int64("total_reorg_blocks", i.currentBlock.Height-beforeReorgBlockHeader.Height),
+						slogx.Stringer("detect_duration", time.Since(start)),
+					)
 					if err := i.Processor.RevertData(ctx, beforeReorgBlockHeader.Height+1); err != nil {
 						return errors.Wrap(err, "failed to revert data")
 					}
@@ -151,6 +156,11 @@ func (i *BitcoinIndexer) process(ctx context.Context) (err error) {
 					// Set current block to before reorg block and
 					// end current round to fetch again
 					i.currentBlock = beforeReorgBlockHeader
+					logger.Info("Reverted data successfully",
+						slogx.Any("current_block", i.currentBlock),
+						slogx.Stringer("duration", time.Since(start)),
+						slogx.Int64("duration_ms", time.Since(start).Milliseconds()),
+					)
 					return nil
 				}
 			}
