@@ -109,8 +109,10 @@ func (p *Processor) processTx(ctx context.Context, tx *types.Transaction, blockH
 			if err != nil {
 				return errors.Wrap(err, "error during mint")
 			}
-			unallocated[mintRuneId] = unallocated[mintRuneId].Add(amount)
-			mints[mintRuneId] = amount
+			if !amount.IsZero() {
+				unallocated[mintRuneId] = unallocated[mintRuneId].Add(amount)
+				mints[mintRuneId] = amount
+			}
 		}
 
 		etching, etchedRuneId, etchedRune, err := p.getEtchedRune(ctx, tx, runestone)
