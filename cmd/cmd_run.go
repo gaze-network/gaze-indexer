@@ -39,6 +39,7 @@ import (
 )
 
 type runCmdOptions struct {
+	APIOnly bool
 	Bitcoin bool
 	Runes   bool
 }
@@ -59,6 +60,7 @@ func NewRunCommand() *cobra.Command {
 
 	// Add local flags
 	flags := runCmd.Flags()
+	flags.BoolVar(&opts.APIOnly, "api-only", false, "Run only API server")
 	flags.BoolVar(&opts.Bitcoin, "bitcoin", false, "Enable Bitcoin indexer module")
 	flags.String("bitcoin-db", "postgres", `Database to store bitcoin data. current supported databases: "postgres"`)
 	flags.BoolVar(&opts.Runes, "runes", false, "Enable Runes indexer module")
@@ -139,26 +141,28 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 		default:
 			return errors.Wrapf(errs.Unsupported, "%q database is not supported", conf.Modules.Bitcoin.Database)
 		}
-		bitcoinProcessor := bitcoin.NewProcessor(conf, btcDB, indexerInfoDB)
-		bitcoinNodeDatasource := datasources.NewBitcoinNode(client)
-		bitcoinIndexer := indexers.NewBitcoinIndexer(bitcoinProcessor, bitcoinNodeDatasource)
+		if !opts.APIOnly {
+			bitcoinProcessor := bitcoin.NewProcessor(conf, btcDB, indexerInfoDB)
+			bitcoinNodeDatasource := datasources.NewBitcoinNode(client)
+			bitcoinIndexer := indexers.NewBitcoinIndexer(bitcoinProcessor, bitcoinNodeDatasource)
 
-		// Verify states before running Indexer
-		if err := bitcoinProcessor.VerifyStates(ctx); err != nil {
-			return errors.WithStack(err)
-		}
-
-		// Run Indexer
-		go func() {
-			logger.InfoContext(ctx, "Starting Bitcoin Indexer")
-			if err := bitcoinIndexer.Run(ctx); err != nil {
-				logger.ErrorContext(ctx, "Failed to run Bitcoin Indexer", slogx.Error(err))
+			// Verify states before running Indexer
+			if err := bitcoinProcessor.VerifyStates(ctx); err != nil {
+				return errors.WithStack(err)
 			}
 
-			// stop main process if Bitcoin Indexer failed
-			logger.InfoContext(ctx, "Bitcoin Indexer stopped. Stopping main process...")
-			stop()
-		}()
+			// Run Indexer
+			go func() {
+				logger.InfoContext(ctx, "Starting Bitcoin Indexer")
+				if err := bitcoinIndexer.Run(ctx); err != nil {
+					logger.ErrorContext(ctx, "Failed to run Bitcoin Indexer", slogx.Error(err))
+				}
+
+				// stop main process if Bitcoin Indexer failed
+				logger.InfoContext(ctx, "Bitcoin Indexer stopped. Stopping main process...")
+				stop()
+			}()
+		}
 	}
 
 	// Initialize Runes Indexer
@@ -198,24 +202,26 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 		default:
 			return errors.Wrapf(errs.Unsupported, "%q datasource is not supported", conf.Modules.Runes.Datasource)
 		}
-		runesProcessor := runes.NewProcessor(runesDg, indexerInfoDg, bitcoinClient, bitcoinDatasource, conf.Network)
-		runesIndexer := indexers.NewBitcoinIndexer(runesProcessor, bitcoinDatasource)
+		if !opts.APIOnly {
+			runesProcessor := runes.NewProcessor(runesDg, indexerInfoDg, bitcoinClient, bitcoinDatasource, conf.Network)
+			runesIndexer := indexers.NewBitcoinIndexer(runesProcessor, bitcoinDatasource)
 
-		if err := runesProcessor.VerifyStates(ctx); err != nil {
-			return errors.WithStack(err)
-		}
-
-		// Run Indexer
-		go func() {
-			logger.InfoContext(ctx, "Started Runes Indexer")
-			if err := runesIndexer.Run(ctx); err != nil {
-				logger.ErrorContext(ctx, "Failed to run Runes Indexer", slogx.Error(err))
+			if err := runesProcessor.VerifyStates(ctx); err != nil {
+				return errors.WithStack(err)
 			}
 
-			// stop main process if Runes Indexer failed
-			logger.InfoContext(ctx, "Runes Indexer stopped. Stopping main process...")
-			stop()
-		}()
+			// Run Indexer
+			go func() {
+				logger.InfoContext(ctx, "Started Runes Indexer")
+				if err := runesIndexer.Run(ctx); err != nil {
+					logger.ErrorContext(ctx, "Failed to run Runes Indexer", slogx.Error(err))
+				}
+
+				// stop main process if Runes Indexer failed
+				logger.InfoContext(ctx, "Runes Indexer stopped. Stopping main process...")
+				stop()
+			}()
+		}
 
 		// Mount API
 		apiHandlers := lo.Uniq(conf.Modules.Runes.APIHandlers)
