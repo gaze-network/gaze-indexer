@@ -13,6 +13,7 @@ import (
 
 	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/cockroachdb/errors"
+	"github.com/gaze-network/indexer-network/common"
 	"github.com/gaze-network/indexer-network/common/errs"
 	"github.com/gaze-network/indexer-network/core/datasources"
 	"github.com/gaze-network/indexer-network/core/indexers"
@@ -30,6 +31,7 @@ import (
 	"github.com/gaze-network/indexer-network/pkg/errorhandler"
 	"github.com/gaze-network/indexer-network/pkg/logger"
 	"github.com/gaze-network/indexer-network/pkg/logger/slogx"
+	"github.com/gaze-network/indexer-network/pkg/reportingclient"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/compress"
 	fiberrecover "github.com/gofiber/fiber/v2/middleware/recover"
@@ -117,10 +119,18 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 	// each module should have its own command package and main package will routing the command to the module command package.
 
 	// TODO: refactor module name to specific type instead of string?
-	httpHandlers := make(map[string]HttpHandler, 0)
+	httpHandlers := make(map[common.Module]HttpHandler, 0)
 
 	// use gracefulEG to coordinate graceful shutdown after context is done. (e.g. shut down http server, shutdown logic of each module, etc.)
 	gracefulEG, gctx := errgroup.WithContext(context.Background())
+
+	var reportingClient *reportingclient.ReportingClient
+	if !conf.Reporting.Disabled {
+		reportingClient, err = reportingclient.New(conf.Reporting)
+		if err != nil {
+			logger.PanicContext(ctx, "Failed to create reporting client", slogx.Error(err))
+		}
+	}
 
 	// Initialize Bitcoin Indexer
 	if opts.Bitcoin {
@@ -203,7 +213,7 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 			return errors.Wrapf(errs.Unsupported, "%q datasource is not supported", conf.Modules.Runes.Datasource)
 		}
 		if !opts.APIOnly {
-			runesProcessor := runes.NewProcessor(runesDg, indexerInfoDg, bitcoinClient, bitcoinDatasource, conf.Network)
+			runesProcessor := runes.NewProcessor(runesDg, indexerInfoDg, bitcoinClient, bitcoinDatasource, conf.Network, reportingClient)
 			runesIndexer := indexers.NewBitcoinIndexer(runesProcessor, bitcoinDatasource)
 
 			if err := runesProcessor.VerifyStates(ctx); err != nil {
@@ -230,7 +240,7 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 			case "http":
 				runesUsecase := runesusecase.New(runesDg, bitcoinClient)
 				runesHTTPHandler := runesapi.NewHTTPHandler(conf.Network, runesUsecase)
-				httpHandlers["runes"] = runesHTTPHandler
+				httpHandlers[common.ModuleRunes] = runesHTTPHandler
 			default:
 				logger.PanicContext(ctx, "Unsupported API handler", slogx.String("handler", handler))
 			}
@@ -260,9 +270,9 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 		// mount http handlers from each http-enabled module
 		for module, handler := range httpHandlers {
 			if err := handler.Mount(app); err != nil {
-				logger.PanicContext(ctx, "Failed to mount HTTP handler", slogx.Error(err), slog.String("module", module))
+				logger.PanicContext(ctx, "Failed to mount HTTP handler", slogx.Error(err), slogx.Stringer("module", module))
 			}
-			logger.InfoContext(ctx, "Mounted HTTP handler", slog.String("module", module))
+			logger.InfoContext(ctx, "Mounted HTTP handler", slogx.Stringer("module", module))
 		}
 		go func() {
 			logger.InfoContext(ctx, "Started HTTP server", slog.Int("port", conf.HTTPServer.Port))
