@@ -106,6 +106,7 @@ CREATE TABLE IF NOT EXISTS "runes_outpoint_balances" (
 	"spent_height" INT, -- block height when this output was spent
 	PRIMARY KEY ("rune_id", "tx_hash", "tx_idx")
 );
+CREATE INDEX IF NOT EXISTS runes_outpoint_balances_tx_hash_tx_idx_idx ON "runes_outpoint_balances" USING HASH ("tx_hash", "tx_idx");
 
 CREATE TABLE IF NOT EXISTS "runes_balances" (
 	"pkscript" TEXT NOT NULL,
