@@ -11,7 +11,6 @@ import (
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/btcsuite/btcd/wire"
 	"github.com/cockroachdb/errors"
-	"github.com/gaze-network/indexer-network/common"
 	"github.com/gaze-network/indexer-network/common/errs"
 	"github.com/gaze-network/indexer-network/core/types"
 	"github.com/gaze-network/indexer-network/modules/runes/datagateway"
@@ -812,7 +811,7 @@ func (p *Processor) flushBlock(ctx context.Context, blockHeader types.BlockHeade
 	// submit event to reporting system
 	if p.reportingClient != nil {
 		if err := p.reportingClient.SubmitBlockReport(ctx, reportingclient.SubmitBlockReportPayload{
-			Type:                common.ModuleRunes,
+			Type:                "runes",
 			ClientVersion:       Version,
 			DBVersion:           DBVersion,
 			EventHashVersion:    EventHashVersion,

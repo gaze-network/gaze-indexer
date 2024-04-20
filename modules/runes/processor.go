@@ -71,6 +71,11 @@ func (p *Processor) VerifyStates(ctx context.Context) error {
 			return errors.Wrap(err, "error during ensureGenesisRune")
 		}
 	}
+	if p.reportingClient != nil {
+		if err := p.reportingClient.SubmitNodeReport(ctx, "runes", p.network); err != nil {
+			return errors.Wrap(err, "failed to submit node report")
+		}
+	}
 	return nil
 }
 
