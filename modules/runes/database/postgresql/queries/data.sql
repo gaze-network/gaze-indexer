@@ -16,6 +16,9 @@ SELECT * FROM runes_balances WHERE pkscript = $1 AND rune_id = $2 AND block_heig
 -- name: GetOutPointBalancesAtOutPoint :many
 SELECT * FROM runes_outpoint_balances WHERE tx_hash = $1 AND tx_idx = $2;
 
+-- name: GetOutPointBalancesAtOutPointBatch :batchmany
+SELECT * FROM runes_outpoint_balances WHERE tx_hash = $1 AND tx_idx = $2;
+
 -- name: GetUnspentOutPointBalancesByPkScript :many
 SELECT * FROM runes_outpoint_balances WHERE pkscript = @pkScript AND block_height <= @block_height AND (spent_height IS NULL OR spent_height > @block_height);
 

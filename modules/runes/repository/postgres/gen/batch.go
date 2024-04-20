@@ -128,3 +128,75 @@ func (b *CreateRuneBalanceAtBlockBatchResults) Close() error {
 	b.closed = true
 	return b.br.Close()
 }
+
+const getOutPointBalancesAtOutPointBatch = `-- name: GetOutPointBalancesAtOutPointBatch :batchmany
+SELECT rune_id, pkscript, tx_hash, tx_idx, amount, block_height, spent_height FROM runes_outpoint_balances WHERE tx_hash = $1 AND tx_idx = $2
+`
+
+type GetOutPointBalancesAtOutPointBatchBatchResults struct {
+	br     pgx.BatchResults
+	tot    int
+	closed bool
+}
+
+type GetOutPointBalancesAtOutPointBatchParams struct {
+	TxHash string
+	TxIdx  int32
+}
+
+func (q *Queries) GetOutPointBalancesAtOutPointBatch(ctx context.Context, arg []GetOutPointBalancesAtOutPointBatchParams) *GetOutPointBalancesAtOutPointBatchBatchResults {
+	batch := &pgx.Batch{}
+	for _, a := range arg {
+		vals := []interface{}{
+			a.TxHash,
+			a.TxIdx,
+		}
+		batch.Queue(getOutPointBalancesAtOutPointBatch, vals...)
+	}
+	br := q.db.SendBatch(ctx, batch)
+	return &GetOutPointBalancesAtOutPointBatchBatchResults{br, len(arg), false}
+}
+
+func (b *GetOutPointBalancesAtOutPointBatchBatchResults) Query(f func(int, []RunesOutpointBalance, error)) {
+	defer b.br.Close()
+	for t := 0; t < b.tot; t++ {
+		var items []RunesOutpointBalance
+		if b.closed {
+			if f != nil {
+				f(t, items, ErrBatchAlreadyClosed)
+			}
+			continue
+		}
+		err := func() error {
+			rows, err := b.br.Query()
+			if err != nil {
+				return err
+			}
+			defer rows.Close()
+			for rows.Next() {
+				var i RunesOutpointBalance
+				if err := rows.Scan(
+					&i.RuneID,
+					&i.Pkscript,
+					&i.TxHash,
+					&i.TxIdx,
+					&i.Amount,
+					&i.BlockHeight,
+					&i.SpentHeight,
+				); err != nil {
+					return err
+				}
+				items = append(items, i)
+			}
+			return rows.Err()
+		}()
+		if f != nil {
+			f(t, items, err)
+		}
+	}
+}
+
+func (b *GetOutPointBalancesAtOutPointBatchBatchResults) Close() error {
+	b.closed = true
+	return b.br.Close()
+}

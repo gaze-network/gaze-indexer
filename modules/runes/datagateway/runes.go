@@ -29,6 +29,7 @@ type RunesReaderDataGateway interface {
 	GetRuneTransactionsByHeight(ctx context.Context, height uint64) ([]*entity.RuneTransaction, error)
 
 	GetRunesBalancesAtOutPoint(ctx context.Context, outPoint wire.OutPoint) (map[runes.RuneId]*entity.OutPointBalance, error)
+	GetRunesBalancesAtOutPointBatch(ctx context.Context, outPoints []wire.OutPoint) (map[wire.OutPoint]map[runes.RuneId]*entity.OutPointBalance, error)
 	GetUnspentOutPointBalancesByPkScript(ctx context.Context, pkScript []byte, blockHeight uint64) ([]*entity.OutPointBalance, error)
 	// GetRuneIdFromRune returns the RuneId for the given rune. Returns errs.NotFound if the rune entry is not found.
 	GetRuneIdFromRune(ctx context.Context, rune runes.Rune) (runes.RuneId, error)

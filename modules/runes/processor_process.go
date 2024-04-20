@@ -23,12 +23,22 @@ import (
 )
 
 func (p *Processor) Process(ctx context.Context, blocks []*types.Block) error {
+	// collect txs to batch get input balances
+	txs := make([]*types.Transaction, 0)
+	for _, block := range blocks {
+		txs = append(txs, block.Transactions...)
+	}
+	inputBalances, err := p.getInputBalances(ctx, txs)
+	if err != nil {
+		return errors.Wrap(err, "failed to get input balances")
+	}
+
 	for _, block := range blocks {
 		ctx := logger.WithContext(ctx, slog.Int("block_height", int(block.Header.Height)))
 		logger.DebugContext(ctx, "[RunesProcessor] Processing block", slog.Int("txs", len(block.Transactions)))
 
 		for _, tx := range block.Transactions {
-			if err := p.processTx(ctx, tx, block.Header); err != nil {
+			if err := p.processTx(ctx, tx, block.Header, inputBalances[tx.TxHash]); err != nil {
 				return errors.Wrap(err, "failed to process tx")
 			}
 		}
@@ -39,7 +49,7 @@ func (p *Processor) Process(ctx context.Context, blocks []*types.Block) error {
 	return nil
 }
 
-func (p *Processor) processTx(ctx context.Context, tx *types.Transaction, blockHeader types.BlockHeader) error {
+func (p *Processor) processTx(ctx context.Context, tx *types.Transaction, blockHeader types.BlockHeader, inputBalances map[int]map[runes.RuneId]*entity.OutPointBalance) error {
 	if tx.BlockHeight < int64(runes.FirstRuneHeight(p.network)) {
 		// prevent processing txs before the activation height
 		return nil
@@ -47,11 +57,6 @@ func (p *Processor) processTx(ctx context.Context, tx *types.Transaction, blockH
 	runestone, err := runes.DecipherRunestone(tx)
 	if err != nil {
 		return errors.Wrap(err, "failed to decipher runestone")
-	}
-
-	inputBalances, err := p.getInputBalances(ctx, tx.TxIn)
-	if err != nil {
-		return errors.Wrap(err, "failed to get input balances")
 	}
 
 	if runestone == nil && len(inputBalances) == 0 {
@@ -319,19 +324,32 @@ func (p *Processor) processTx(ctx context.Context, tx *types.Transaction, blockH
 	return nil
 }
 
-func (p *Processor) getInputBalances(ctx context.Context, txInputs []*types.TxIn) (map[int]map[runes.RuneId]*entity.OutPointBalance, error) {
-	inputBalances := make(map[int]map[runes.RuneId]*entity.OutPointBalance)
-	for i, txIn := range txInputs {
-		balances, err := p.getRunesBalancesAtOutPoint(ctx, wire.OutPoint{
-			Hash:  txIn.PreviousOutTxHash,
-			Index: txIn.PreviousOutIndex,
-		})
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to get runes balances at outpoint")
+func (p *Processor) getInputBalances(ctx context.Context, txs []*types.Transaction) (map[chainhash.Hash]map[int]map[runes.RuneId]*entity.OutPointBalance, error) {
+	inputBalances := make(map[chainhash.Hash]map[int]map[runes.RuneId]*entity.OutPointBalance)
+	outPoints := make([]wire.OutPoint, 0)
+	for _, tx := range txs {
+		for _, txIn := range tx.TxIn {
+			outPoints = append(outPoints, wire.OutPoint{
+				Hash:  txIn.PreviousOutTxHash,
+				Index: txIn.PreviousOutIndex,
+			})
 		}
-
-		if len(balances) > 0 {
-			inputBalances[i] = balances
+	}
+	outPointBalances, err := p.getRunesBalancesAtOutPointBatch(ctx, outPoints)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get runes balances at outpoints")
+	}
+	for _, tx := range txs {
+		inputBalances[tx.TxHash] = make(map[int]map[runes.RuneId]*entity.OutPointBalance)
+		for inputIndex, txIn := range tx.TxIn {
+			outPoint := wire.OutPoint{
+				Hash:  txIn.PreviousOutTxHash,
+				Index: txIn.PreviousOutIndex,
+			}
+			balancesInOutPoint := outPointBalances[outPoint]
+			if len(balancesInOutPoint) > 0 {
+				inputBalances[tx.TxHash][inputIndex] = balancesInOutPoint
+			}
 		}
 	}
 	return inputBalances, nil
@@ -674,18 +692,30 @@ func (p *Processor) isRuneExists(ctx context.Context, rune runes.Rune) (bool, er
 	return true, nil
 }
 
-func (p *Processor) getRunesBalancesAtOutPoint(ctx context.Context, outPoint wire.OutPoint) (map[runes.RuneId]*entity.OutPointBalance, error) {
-	if outPointBalances, ok := p.newOutPointBalances[outPoint]; ok {
-		balances := make(map[runes.RuneId]*entity.OutPointBalance)
-		for _, outPointBalance := range outPointBalances {
-			balances[outPointBalance.RuneId] = outPointBalance
+func (p *Processor) getRunesBalancesAtOutPointBatch(ctx context.Context, outPoints []wire.OutPoint) (map[wire.OutPoint]map[runes.RuneId]*entity.OutPointBalance, error) {
+	balances := make(map[wire.OutPoint]map[runes.RuneId]*entity.OutPointBalance)
+	outPointsToFetch := make([]wire.OutPoint, 0)
+	for _, outPoint := range outPoints {
+		balances[outPoint] = make(map[runes.RuneId]*entity.OutPointBalance)
+		if outPointBalances, ok := p.newOutPointBalances[outPoint]; ok {
+			for _, outPointBalance := range outPointBalances {
+				balances[outPoint][outPointBalance.RuneId] = outPointBalance
+			}
+		} else {
+			outPointsToFetch = append(outPointsToFetch, outPoint)
 		}
-		return balances, nil
 	}
-
-	balances, err := p.runesDg.GetRunesBalancesAtOutPoint(ctx, outPoint)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get runes balances at outpoint")
+	if len(outPointsToFetch) > 0 {
+		fetchedBalances, err := p.runesDg.GetRunesBalancesAtOutPointBatch(ctx, outPointsToFetch)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to get runes balances at outpoints batch")
+		}
+		for outPoint, fetchedBalancesByRuneId := range fetchedBalances {
+			balances[outPoint] = make(map[runes.RuneId]*entity.OutPointBalance)
+			for runeId, balance := range fetchedBalancesByRuneId {
+				balances[outPoint][runeId] = balance
+			}
+		}
 	}
 	return balances, nil
 }

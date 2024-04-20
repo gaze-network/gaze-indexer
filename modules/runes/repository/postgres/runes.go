@@ -110,6 +110,35 @@ func (r *Repository) GetRunesBalancesAtOutPoint(ctx context.Context, outPoint wi
 	return result, nil
 }
 
+func (r *Repository) GetRunesBalancesAtOutPointBatch(ctx context.Context, outPoints []wire.OutPoint) (map[wire.OutPoint]map[runes.RuneId]*entity.OutPointBalance, error) {
+	params := lo.Map(outPoints, func(outPoint wire.OutPoint, _ int) gen.GetOutPointBalancesAtOutPointBatchParams {
+		return gen.GetOutPointBalancesAtOutPointBatchParams{
+			TxHash: outPoint.Hash.String(),
+			TxIdx:  int32(outPoint.Index),
+		}
+	})
+	queryResults := r.queries.GetOutPointBalancesAtOutPointBatch(ctx, params)
+
+	var errorList []error
+	result := make(map[wire.OutPoint]map[runes.RuneId]*entity.OutPointBalance)
+	queryResults.Query(func(i int, balances []gen.RunesOutpointBalance, err error) {
+		if err != nil {
+			errorList = append(errorList, errors.Wrap(err, "error during query"))
+			return
+		}
+		result[outPoints[i]] = make(map[runes.RuneId]*entity.OutPointBalance, len(balances))
+		for _, balanceModel := range balances {
+			balance, err := mapOutPointBalanceModelToType(balanceModel)
+			if err != nil {
+				errorList = append(errorList, errors.Wrap(err, "failed to parse balance model"))
+				break
+			}
+			result[outPoints[i]][balance.RuneId] = &balance
+		}
+	})
+	return result, nil
+}
+
 func (r *Repository) GetUnspentOutPointBalancesByPkScript(ctx context.Context, pkScript []byte, blockHeight uint64) ([]*entity.OutPointBalance, error) {
 	balances, err := r.queries.GetUnspentOutPointBalancesByPkScript(ctx, gen.GetUnspentOutPointBalancesByPkScriptParams{
 		Pkscript:    hex.EncodeToString(pkScript),
