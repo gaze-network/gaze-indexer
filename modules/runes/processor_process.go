@@ -597,7 +597,11 @@ func (p *Processor) incrementMintCount(ctx context.Context, runeId runes.RuneId,
 func (p *Processor) incrementBurnedAmount(ctx context.Context, burned map[runes.RuneId]uint128.Uint128) (err error) {
 	runeEntries := make(map[runes.RuneId]*runes.RuneEntry)
 	runeIdsToFetch := make([]runes.RuneId, 0)
-	for runeId := range burned {
+	for runeId, amount := range burned {
+		if amount.IsZero() {
+			// ignore zero burn amount
+			continue
+		}
 		runeEntry, ok := p.newRuneEntryStates[runeId]
 		if !ok {
 			runeIdsToFetch = append(runeIdsToFetch, runeId)
