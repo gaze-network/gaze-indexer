@@ -55,7 +55,7 @@ func mapBlockHeaderModelToType(src gen.BitcoinBlock) (types.BlockHeader, error) 
 	}, nil
 }
 
-func mapBlockTypeToParams(src *types.Block) (gen.InsertBlockParams, gen.BatchInsertTransactionParams, gen.BatchInsertTransactionTxOutsParams, gen.BatchInsertTransactionTxInsParams) {
+func mapBlockTypeToParams(src *types.Block) (gen.InsertBlockParams, gen.BatchInsertTransactionsParams, gen.BatchInsertTransactionTxOutsParams, gen.BatchInsertTransactionTxInsParams) {
 	block := gen.InsertBlockParams{
 		BlockHeight:   int32(src.Header.Height),
 		BlockHash:     src.Header.Hash.String(),
@@ -69,7 +69,7 @@ func mapBlockTypeToParams(src *types.Block) (gen.InsertBlockParams, gen.BatchIns
 		Bits:  int64(src.Header.Bits),
 		Nonce: int64(src.Header.Nonce),
 	}
-	txs := gen.BatchInsertTransactionParams{
+	txs := gen.BatchInsertTransactionsParams{
 		TxHashArr:      []string{},
 		VersionArr:     []int32{},
 		LocktimeArr:    []int64{},

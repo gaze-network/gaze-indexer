@@ -4,7 +4,7 @@ SELECT * FROM bitcoin_blocks ORDER BY block_height DESC LIMIT 1;
 -- name: InsertBlock :exec
 INSERT INTO bitcoin_blocks ("block_height","block_hash","version","merkle_root","prev_block_hash","timestamp","bits","nonce") VALUES ($1, $2, $3, $4, $5, $6, $7, $8);
 
--- name: BatchInsertTransaction :exec
+-- name: BatchInsertTransactions :exec
 INSERT INTO bitcoin_transactions ("tx_hash","version","locktime","block_height","block_hash","idx")
 VALUES (
 	unnest(@tx_hash_arr::TEXT[]),

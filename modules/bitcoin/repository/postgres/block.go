@@ -43,7 +43,7 @@ func (r *Repository) InsertBlock(ctx context.Context, block *types.Block) error 
 		return errors.Wrapf(err, "failed to insert block, height: %d, hash: %s", blockParams.BlockHeight, blockParams.BlockHash)
 	}
 
-	if err := queries.BatchInsertTransaction(ctx, txParams); err != nil {
+	if err := queries.BatchInsertTransactions(ctx, txParams); err != nil {
 		return errors.Wrap(err, "failed to batch insert transactions")
 	}
 
