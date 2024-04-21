@@ -2,6 +2,7 @@ package btcclient
 
 import (
 	"context"
+	"time"
 
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/cockroachdb/errors"
@@ -104,7 +105,12 @@ func (c *ClientDatabase) FetchAsync(ctx context.Context, from, to int64, ch chan
 
 	// Fan-out blocks to subscription channel
 	go func() {
-		defer subscription.Unsubscribe()
+		defer func() {
+			// add a bit delay to prevent shutdown before client receive all blocks
+			time.Sleep(100 * time.Millisecond)
+
+			subscription.Unsubscribe()
+		}()
 		for {
 			select {
 			case data, ok := <-out:
