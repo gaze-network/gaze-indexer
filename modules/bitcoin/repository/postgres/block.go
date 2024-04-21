@@ -28,8 +28,12 @@ func (r *Repository) GetLatestBlockHeader(ctx context.Context) (types.BlockHeade
 	return data, nil
 }
 
-func (r *Repository) InsertBlock(ctx context.Context, block *types.Block) error {
-	blockParams, txParams, txoutParams, txinParams := mapBlockTypeToParams(block)
+func (r *Repository) InsertBlocks(ctx context.Context, blocks []*types.Block) error {
+	if len(blocks) == 0 {
+		return nil
+	}
+
+	blockParams, txParams, txoutParams, txinParams := mapBlocksTypeToParams(blocks)
 
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
@@ -39,8 +43,8 @@ func (r *Repository) InsertBlock(ctx context.Context, block *types.Block) error 
 
 	queries := r.queries.WithTx(tx)
 
-	if err := queries.InsertBlock(ctx, blockParams); err != nil {
-		return errors.Wrapf(err, "failed to insert block, height: %d, hash: %s", blockParams.BlockHeight, blockParams.BlockHash)
+	if err := queries.BatchInsertBlocks(ctx, blockParams); err != nil {
+		return errors.Wrap(err, "failed to batch insert block headers")
 	}
 
 	if err := queries.BatchInsertTransactions(ctx, txParams); err != nil {
