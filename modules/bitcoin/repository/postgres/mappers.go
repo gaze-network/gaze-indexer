@@ -84,12 +84,9 @@ func mapBlockTypeToParams(src *types.Block) (gen.InsertBlockParams, []gen.Insert
 		txs = append(txs, tx)
 
 		for idx, txin := range srcTx.TxIn {
-			var witness pgtype.Text
+			var witness string
 			if len(txin.Witness) > 0 {
-				witness = pgtype.Text{
-					String: btcutils.WitnessToString(txin.Witness),
-					Valid:  true,
-				}
+				witness = btcutils.WitnessToString(txin.Witness)
 			}
 			txins = append(txins, gen.InsertTransactionTxInParams{
 				TxHash:        tx.TxHash,
@@ -146,13 +143,9 @@ func mapTransactionModelToType(src gen.BitcoinTransaction, txInModel []gen.Bitco
 			return types.Transaction{}, errors.Wrap(err, "failed to parse prevout tx hash")
 		}
 
-		var witness [][]byte
-		if txInModel.Witness.Valid {
-			w, err := btcutils.WitnessFromString(txInModel.Witness.String)
-			if err != nil {
-				return types.Transaction{}, errors.Wrap(err, "failed to parse witness from hex string")
-			}
-			witness = w
+		witness, err := btcutils.WitnessFromString(txInModel.Witness)
+		if err != nil {
+			return types.Transaction{}, errors.Wrap(err, "failed to parse witness from hex string")
 		}
 
 		txIns = append(txIns, &types.TxIn{

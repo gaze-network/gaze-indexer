@@ -277,7 +277,7 @@ type InsertTransactionTxInParams struct {
 	PrevoutTxHash string
 	PrevoutTxIdx  int32
 	Scriptsig     string
-	Witness       pgtype.Text
+	Witness       string
 	Sequence      int64
 }
 
