@@ -5,6 +5,7 @@ import (
 
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/cockroachdb/errors"
+	"github.com/gaze-network/indexer-network/common/errs"
 	"github.com/gaze-network/indexer-network/core/datasources"
 	"github.com/gaze-network/indexer-network/core/types"
 	"github.com/gaze-network/indexer-network/internal/subscription"
@@ -119,6 +120,9 @@ func (c *ClientDatabase) FetchAsync(ctx context.Context, from, to int64, ch chan
 
 				// send blocks to subscription channel
 				if err := subscription.Send(ctx, data); err != nil {
+					if errors.Is(err, errs.Closed) {
+						return
+					}
 					logger.WarnContext(ctx, "failed while dispatch block",
 						slogx.Error(err),
 						slogx.Int64("start", data[0].Header.Height),

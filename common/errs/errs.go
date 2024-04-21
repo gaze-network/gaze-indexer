@@ -93,4 +93,7 @@ var (
 
 	// ConflictSetting is returned when an indexer setting is conflicted
 	ConflictSetting = errors.NewWithDepth(depth, "conflict setting")
+
+	// Closed is returned when a resource is closed
+	Closed = errors.NewWithDepth(depth, "closed")
 )

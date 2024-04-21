@@ -94,7 +94,7 @@ func (s *Subscription[T]) Send(ctx context.Context, value T) error {
 	select {
 	case s.in <- value:
 	case <-s.quitDone:
-		return errors.Wrap(errs.InternalError, "subscription is closed")
+		return errors.Wrap(errs.Closed, "subscription is closed")
 	case <-ctx.Done():
 		return errors.WithStack(ctx.Err())
 	}
@@ -106,7 +106,7 @@ func (s *Subscription[T]) SendError(ctx context.Context, err error) error {
 	select {
 	case s.err <- err:
 	case <-s.quitDone:
-		return errors.Wrap(errs.InternalError, "subscription is closed")
+		return errors.Wrap(errs.Closed, "subscription is closed")
 	case <-ctx.Done():
 		return errors.WithStack(ctx.Err())
 	}
