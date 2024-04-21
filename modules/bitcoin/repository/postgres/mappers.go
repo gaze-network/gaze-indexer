@@ -55,10 +55,9 @@ func mapBlockHeaderModelToType(src gen.BitcoinBlock) (types.BlockHeader, error) 
 	}, nil
 }
 
-func mapBlockTypeToParams(src *types.Block) (gen.InsertBlockParams, []gen.InsertTransactionParams, []gen.InsertTransactionTxOutParams, []gen.InsertTransactionTxInParams) {
+func mapBlockTypeToParams(src *types.Block) (gen.InsertBlockParams, []gen.InsertTransactionParams, []gen.InsertTransactionTxOutParams, gen.BatchInsertTransactionTxInsParams) {
 	txs := make([]gen.InsertTransactionParams, 0, len(src.Transactions))
 	txouts := make([]gen.InsertTransactionTxOutParams, 0)
-	txins := make([]gen.InsertTransactionTxInParams, 0)
 	block := gen.InsertBlockParams{
 		BlockHeight:   int32(src.Header.Height),
 		BlockHash:     src.Header.Hash.String(),
@@ -72,6 +71,16 @@ func mapBlockTypeToParams(src *types.Block) (gen.InsertBlockParams, []gen.Insert
 		Bits:  int64(src.Header.Bits),
 		Nonce: int64(src.Header.Nonce),
 	}
+	txins := gen.BatchInsertTransactionTxInsParams{
+		PrevoutTxHashArr: []string{},
+		PrevoutTxIdxArr:  []int32{},
+		TxHashArr:        []string{},
+		TxIdxArr:         []int32{},
+		ScriptsigArr:     []string{},
+		WitnessArr:       []string{},
+		SequenceArr:      []int32{},
+	}
+
 	for txIdx, srcTx := range src.Transactions {
 		tx := gen.InsertTransactionParams{
 			TxHash:      srcTx.TxHash.String(),
@@ -88,15 +97,15 @@ func mapBlockTypeToParams(src *types.Block) (gen.InsertBlockParams, []gen.Insert
 			if len(txin.Witness) > 0 {
 				witness = btcutils.WitnessToString(txin.Witness)
 			}
-			txins = append(txins, gen.InsertTransactionTxInParams{
-				TxHash:        tx.TxHash,
-				TxIdx:         int32(idx),
-				PrevoutTxHash: txin.PreviousOutTxHash.String(),
-				PrevoutTxIdx:  int32(txin.PreviousOutIndex),
-				Scriptsig:     hex.EncodeToString(txin.SignatureScript),
-				Witness:       witness,
-				Sequence:      int64(txin.Sequence),
-			})
+
+			// Batch insert txins
+			txins.TxHashArr = append(txins.TxHashArr, tx.TxHash)
+			txins.TxIdxArr = append(txins.TxIdxArr, int32(idx))
+			txins.PrevoutTxHashArr = append(txins.PrevoutTxHashArr, txin.PreviousOutTxHash.String())
+			txins.PrevoutTxIdxArr = append(txins.PrevoutTxIdxArr, int32(txin.PreviousOutIndex))
+			txins.ScriptsigArr = append(txins.ScriptsigArr, hex.EncodeToString(txin.SignatureScript))
+			txins.WitnessArr = append(txins.WitnessArr, witness)
+			txins.SequenceArr = append(txins.SequenceArr, int32(txin.Sequence))
 		}
 
 		for idx, txout := range srcTx.TxOut {

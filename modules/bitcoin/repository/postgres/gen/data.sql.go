@@ -11,6 +11,53 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const batchInsertTransactionTxIns = `-- name: BatchInsertTransactionTxIns :exec
+WITH update_txout AS (
+	UPDATE "bitcoin_transaction_txouts"
+	SET "is_spent" = true
+	FROM (SELECT unnest($1::TEXT[]) as tx_hash, unnest($2::INT[]) as tx_idx) as txin
+	WHERE "bitcoin_transaction_txouts"."tx_hash" = txin.tx_hash AND "bitcoin_transaction_txouts"."tx_idx" = txin.tx_idx AND "is_spent" = false
+	RETURNING "bitcoin_transaction_txouts"."tx_hash", "bitcoin_transaction_txouts"."tx_idx", "pkscript"
+), prepare_insert AS (
+	SELECT input.tx_hash, input.tx_idx, prevout_tx_hash, prevout_tx_idx, update_txout.pkscript as prevout_pkscript, scriptsig, witness, sequence
+		FROM (
+			SELECT 
+				unnest($3::TEXT[]) as tx_hash,
+				unnest($4::INT[]) as tx_idx,
+				unnest($1::TEXT[]) as prevout_tx_hash,
+				unnest($2::INT[]) as prevout_tx_idx,
+				unnest($5::TEXT[]) as scriptsig,
+				unnest($6::TEXT[]) as witness,
+				unnest($7::INT[]) as sequence
+		) input LEFT JOIN update_txout ON "update_txout"."tx_hash" = "input"."prevout_tx_hash" AND "update_txout"."tx_idx" = "input"."prevout_tx_idx"
+)
+INSERT INTO bitcoin_transaction_txins ("tx_hash","tx_idx","prevout_tx_hash","prevout_tx_idx", "prevout_pkscript","scriptsig","witness","sequence") 
+SELECT "tx_hash", "tx_idx", "prevout_tx_hash", "prevout_tx_idx", "prevout_pkscript", "scriptsig", "witness", "sequence" FROM prepare_insert
+`
+
+type BatchInsertTransactionTxInsParams struct {
+	PrevoutTxHashArr []string
+	PrevoutTxIdxArr  []int32
+	TxHashArr        []string
+	TxIdxArr         []int32
+	ScriptsigArr     []string
+	WitnessArr       []string
+	SequenceArr      []int32
+}
+
+func (q *Queries) BatchInsertTransactionTxIns(ctx context.Context, arg BatchInsertTransactionTxInsParams) error {
+	_, err := q.db.Exec(ctx, batchInsertTransactionTxIns,
+		arg.PrevoutTxHashArr,
+		arg.PrevoutTxIdxArr,
+		arg.TxHashArr,
+		arg.TxIdxArr,
+		arg.ScriptsigArr,
+		arg.WitnessArr,
+		arg.SequenceArr,
+	)
+	return err
+}
+
 const getBlockByHeight = `-- name: GetBlockByHeight :one
 SELECT block_height, block_hash, version, merkle_root, prev_block_hash, timestamp, bits, nonce FROM bitcoin_blocks WHERE block_height = $1
 `

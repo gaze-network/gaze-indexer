@@ -20,6 +20,29 @@ WITH update_txout AS (
 INSERT INTO bitcoin_transaction_txins ("tx_hash","tx_idx","prevout_tx_hash","prevout_tx_idx","prevout_pkscript","scriptsig","witness","sequence") 
 VALUES ($1, $2, $3, $4, (SELECT "pkscript" FROM update_txout), $5, $6, $7);
 
+-- name: BatchInsertTransactionTxIns :exec
+WITH update_txout AS (
+	UPDATE "bitcoin_transaction_txouts"
+	SET "is_spent" = true
+	FROM (SELECT unnest(@prevout_tx_hash_arr::TEXT[]) as tx_hash, unnest(@prevout_tx_idx_arr::INT[]) as tx_idx) as txin
+	WHERE "bitcoin_transaction_txouts"."tx_hash" = txin.tx_hash AND "bitcoin_transaction_txouts"."tx_idx" = txin.tx_idx AND "is_spent" = false
+	RETURNING "bitcoin_transaction_txouts"."tx_hash", "bitcoin_transaction_txouts"."tx_idx", "pkscript"
+), prepare_insert AS (
+	SELECT input.tx_hash, input.tx_idx, prevout_tx_hash, prevout_tx_idx, update_txout.pkscript as prevout_pkscript, scriptsig, witness, sequence
+		FROM (
+			SELECT 
+				unnest(@tx_hash_arr::TEXT[]) as tx_hash,
+				unnest(@tx_idx_arr::INT[]) as tx_idx,
+				unnest(@prevout_tx_hash_arr::TEXT[]) as prevout_tx_hash,
+				unnest(@prevout_tx_idx_arr::INT[]) as prevout_tx_idx,
+				unnest(@scriptsig_arr::TEXT[]) as scriptsig,
+				unnest(@witness_arr::TEXT[]) as witness,
+				unnest(@sequence_arr::INT[]) as sequence
+		) input LEFT JOIN update_txout ON "update_txout"."tx_hash" = "input"."prevout_tx_hash" AND "update_txout"."tx_idx" = "input"."prevout_tx_idx"
+)
+INSERT INTO bitcoin_transaction_txins ("tx_hash","tx_idx","prevout_tx_hash","prevout_tx_idx", "prevout_pkscript","scriptsig","witness","sequence") 
+SELECT "tx_hash", "tx_idx", "prevout_tx_hash", "prevout_tx_idx", "prevout_pkscript", "scriptsig", "witness", "sequence" FROM prepare_insert;
+
 -- name: RevertData :exec
 WITH delete_tx AS (
 	DELETE FROM "bitcoin_transactions" WHERE "block_height" >= @from_height
