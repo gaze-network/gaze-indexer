@@ -20,6 +20,17 @@ WITH update_txout AS (
 INSERT INTO bitcoin_transaction_txins ("tx_hash","tx_idx","prevout_tx_hash","prevout_tx_idx","prevout_pkscript","scriptsig","witness","sequence") 
 VALUES ($1, $2, $3, $4, (SELECT "pkscript" FROM update_txout), $5, $6, $7);
 
+-- name: BatchInsertTransaction :exec
+INSERT INTO bitcoin_transactions ("tx_hash","version","locktime","block_height","block_hash","idx")
+VALUES (
+	unnest(@tx_hash_arr::TEXT[]),
+	unnest(@version_arr::INT[]),
+	unnest(@locktime_arr::BIGINT[]),
+	unnest(@block_height_arr::INT[]),
+	unnest(@block_hash_arr::TEXT[]),
+	unnest(@idx_arr::INT[])
+);
+
 -- name: BatchInsertTransactionTxIns :exec
 WITH update_txout AS (
 	UPDATE "bitcoin_transaction_txouts"

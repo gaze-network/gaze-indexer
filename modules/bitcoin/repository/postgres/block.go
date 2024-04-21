@@ -43,10 +43,8 @@ func (r *Repository) InsertBlock(ctx context.Context, block *types.Block) error 
 		return errors.Wrapf(err, "failed to insert block, height: %d, hash: %s", blockParams.BlockHeight, blockParams.BlockHash)
 	}
 
-	for _, params := range txParams {
-		if err := queries.InsertTransaction(ctx, params); err != nil {
-			return errors.Wrapf(err, "failed to insert transaction, hash: %s", params.TxHash)
-		}
+	if err := queries.BatchInsertTransaction(ctx, txParams); err != nil {
+		return errors.Wrap(err, "failed to batch insert transactions")
 	}
 
 	// Should insert txout first, then txin

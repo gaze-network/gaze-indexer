@@ -55,8 +55,7 @@ func mapBlockHeaderModelToType(src gen.BitcoinBlock) (types.BlockHeader, error) 
 	}, nil
 }
 
-func mapBlockTypeToParams(src *types.Block) (gen.InsertBlockParams, []gen.InsertTransactionParams, gen.BatchInsertTransactionTxOutsParams, gen.BatchInsertTransactionTxInsParams) {
-	txs := make([]gen.InsertTransactionParams, 0, len(src.Transactions))
+func mapBlockTypeToParams(src *types.Block) (gen.InsertBlockParams, gen.BatchInsertTransactionParams, gen.BatchInsertTransactionTxOutsParams, gen.BatchInsertTransactionTxInsParams) {
 	block := gen.InsertBlockParams{
 		BlockHeight:   int32(src.Header.Height),
 		BlockHash:     src.Header.Hash.String(),
@@ -69,6 +68,14 @@ func mapBlockTypeToParams(src *types.Block) (gen.InsertBlockParams, []gen.Insert
 		},
 		Bits:  int64(src.Header.Bits),
 		Nonce: int64(src.Header.Nonce),
+	}
+	txs := gen.BatchInsertTransactionParams{
+		TxHashArr:      []string{},
+		VersionArr:     []int32{},
+		LocktimeArr:    []int64{},
+		BlockHeightArr: []int32{},
+		BlockHashArr:   []string{},
+		IdxArr:         []int32{},
 	}
 	txouts := gen.BatchInsertTransactionTxOutsParams{
 		TxHashArr:   []string{},
@@ -87,24 +94,22 @@ func mapBlockTypeToParams(src *types.Block) (gen.InsertBlockParams, []gen.Insert
 	}
 
 	for txIdx, srcTx := range src.Transactions {
-		tx := gen.InsertTransactionParams{
-			TxHash:      srcTx.TxHash.String(),
-			Version:     srcTx.Version,
-			Locktime:    int64(srcTx.LockTime),
-			BlockHeight: int32(src.Header.Height),
-			BlockHash:   src.Header.Hash.String(),
-			Idx:         int32(txIdx),
-		}
-		txs = append(txs, tx)
+		txHash := srcTx.TxHash.String()
+		// Batch insert transactions
+		txs.TxHashArr = append(txs.TxHashArr, txHash)
+		txs.VersionArr = append(txs.VersionArr, srcTx.Version)
+		txs.LocktimeArr = append(txs.LocktimeArr, int64(srcTx.LockTime))
+		txs.BlockHeightArr = append(txs.BlockHeightArr, int32(src.Header.Height))
+		txs.BlockHashArr = append(txs.BlockHashArr, src.Header.Hash.String())
+		txs.IdxArr = append(txs.IdxArr, int32(txIdx))
 
+		// Batch insert txins
 		for idx, txin := range srcTx.TxIn {
 			var witness string
 			if len(txin.Witness) > 0 {
 				witness = btcutils.WitnessToString(txin.Witness)
 			}
-
-			// Batch insert txins
-			txins.TxHashArr = append(txins.TxHashArr, tx.TxHash)
+			txins.TxHashArr = append(txins.TxHashArr, txHash)
 			txins.TxIdxArr = append(txins.TxIdxArr, int32(idx))
 			txins.PrevoutTxHashArr = append(txins.PrevoutTxHashArr, txin.PreviousOutTxHash.String())
 			txins.PrevoutTxIdxArr = append(txins.PrevoutTxIdxArr, int32(txin.PreviousOutIndex))
@@ -113,9 +118,9 @@ func mapBlockTypeToParams(src *types.Block) (gen.InsertBlockParams, []gen.Insert
 			txins.SequenceArr = append(txins.SequenceArr, int32(txin.Sequence))
 		}
 
+		// Batch insert txouts
 		for idx, txout := range srcTx.TxOut {
-			// Batch insert txouts
-			txouts.TxHashArr = append(txouts.TxHashArr, tx.TxHash)
+			txouts.TxHashArr = append(txouts.TxHashArr, txHash)
 			txouts.TxIdxArr = append(txouts.TxIdxArr, int32(idx))
 			txouts.PkscriptArr = append(txouts.PkscriptArr, hex.EncodeToString(txout.PkScript))
 			txouts.ValueArr = append(txouts.ValueArr, txout.Value)
