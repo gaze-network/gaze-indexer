@@ -55,9 +55,8 @@ func mapBlockHeaderModelToType(src gen.BitcoinBlock) (types.BlockHeader, error) 
 	}, nil
 }
 
-func mapBlockTypeToParams(src *types.Block) (gen.InsertBlockParams, []gen.InsertTransactionParams, []gen.InsertTransactionTxOutParams, gen.BatchInsertTransactionTxInsParams) {
+func mapBlockTypeToParams(src *types.Block) (gen.InsertBlockParams, []gen.InsertTransactionParams, gen.BatchInsertTransactionTxOutsParams, gen.BatchInsertTransactionTxInsParams) {
 	txs := make([]gen.InsertTransactionParams, 0, len(src.Transactions))
-	txouts := make([]gen.InsertTransactionTxOutParams, 0)
 	block := gen.InsertBlockParams{
 		BlockHeight:   int32(src.Header.Height),
 		BlockHash:     src.Header.Hash.String(),
@@ -70,6 +69,12 @@ func mapBlockTypeToParams(src *types.Block) (gen.InsertBlockParams, []gen.Insert
 		},
 		Bits:  int64(src.Header.Bits),
 		Nonce: int64(src.Header.Nonce),
+	}
+	txouts := gen.BatchInsertTransactionTxOutsParams{
+		TxHashArr:   []string{},
+		TxIdxArr:    []int32{},
+		PkscriptArr: []string{},
+		ValueArr:    []int64{},
 	}
 	txins := gen.BatchInsertTransactionTxInsParams{
 		PrevoutTxHashArr: []string{},
@@ -109,12 +114,11 @@ func mapBlockTypeToParams(src *types.Block) (gen.InsertBlockParams, []gen.Insert
 		}
 
 		for idx, txout := range srcTx.TxOut {
-			txouts = append(txouts, gen.InsertTransactionTxOutParams{
-				TxHash:   tx.TxHash,
-				TxIdx:    int32(idx),
-				Pkscript: hex.EncodeToString(txout.PkScript),
-				Value:    txout.Value,
-			})
+			// Batch insert txouts
+			txouts.TxHashArr = append(txouts.TxHashArr, tx.TxHash)
+			txouts.TxIdxArr = append(txouts.TxIdxArr, int32(idx))
+			txouts.PkscriptArr = append(txouts.PkscriptArr, hex.EncodeToString(txout.PkScript))
+			txouts.ValueArr = append(txouts.ValueArr, txout.Value)
 		}
 	}
 	return block, txs, txouts, txins

@@ -58,6 +58,33 @@ func (q *Queries) BatchInsertTransactionTxIns(ctx context.Context, arg BatchInse
 	return err
 }
 
+const batchInsertTransactionTxOuts = `-- name: BatchInsertTransactionTxOuts :exec
+INSERT INTO bitcoin_transaction_txouts ("tx_hash","tx_idx","pkscript","value")
+VALUES (
+	unnest($1::TEXT[]),
+	unnest($2::INT[]),
+	unnest($3::TEXT[]),
+	unnest($4::BIGINT[])
+)
+`
+
+type BatchInsertTransactionTxOutsParams struct {
+	TxHashArr   []string
+	TxIdxArr    []int32
+	PkscriptArr []string
+	ValueArr    []int64
+}
+
+func (q *Queries) BatchInsertTransactionTxOuts(ctx context.Context, arg BatchInsertTransactionTxOutsParams) error {
+	_, err := q.db.Exec(ctx, batchInsertTransactionTxOuts,
+		arg.TxHashArr,
+		arg.TxIdxArr,
+		arg.PkscriptArr,
+		arg.ValueArr,
+	)
+	return err
+}
+
 const getBlockByHeight = `-- name: GetBlockByHeight :one
 SELECT block_height, block_hash, version, merkle_root, prev_block_hash, timestamp, bits, nonce FROM bitcoin_blocks WHERE block_height = $1
 `

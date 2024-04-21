@@ -43,6 +43,15 @@ WITH update_txout AS (
 INSERT INTO bitcoin_transaction_txins ("tx_hash","tx_idx","prevout_tx_hash","prevout_tx_idx", "prevout_pkscript","scriptsig","witness","sequence") 
 SELECT "tx_hash", "tx_idx", "prevout_tx_hash", "prevout_tx_idx", "prevout_pkscript", "scriptsig", "witness", "sequence" FROM prepare_insert;
 
+-- name: BatchInsertTransactionTxOuts :exec
+INSERT INTO bitcoin_transaction_txouts ("tx_hash","tx_idx","pkscript","value")
+VALUES (
+	unnest(@tx_hash_arr::TEXT[]),
+	unnest(@tx_idx_arr::INT[]),
+	unnest(@pkscript_arr::TEXT[]),
+	unnest(@value_arr::BIGINT[])
+);
+
 -- name: RevertData :exec
 WITH delete_tx AS (
 	DELETE FROM "bitcoin_transactions" WHERE "block_height" >= @from_height

@@ -51,10 +51,8 @@ func (r *Repository) InsertBlock(ctx context.Context, block *types.Block) error 
 
 	// Should insert txout first, then txin
 	// Because txin references txout
-	for _, params := range txoutParams {
-		if err := queries.InsertTransactionTxOut(ctx, params); err != nil {
-			return errors.Wrapf(err, "failed to insert transaction txout, %v:%v", params.TxHash, params.TxIdx)
-		}
+	if err := queries.BatchInsertTransactionTxOuts(ctx, txoutParams); err != nil {
+		return errors.Wrap(err, "failed to batch insert transaction txins")
 	}
 
 	if err := queries.BatchInsertTransactionTxIns(ctx, txinParams); err != nil {
