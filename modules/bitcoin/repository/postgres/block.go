@@ -65,12 +65,21 @@ func (r *Repository) InsertBlock(ctx context.Context, block *types.Block) error 
 }
 
 func (r *Repository) RevertBlocks(ctx context.Context, from int64) error {
-	if err := r.queries.RevertData(ctx, int32(from)); err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil
-		}
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return errors.Wrap(err, "failed to begin transaction")
+	}
+	defer tx.Rollback(ctx)
+
+	queries := r.queries.WithTx(tx)
+	if err := queries.RevertData(ctx, int32(from)); err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		return errors.Wrap(err, "failed to revert data")
 	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return errors.Wrap(err, "failed to commit transaction")
+	}
+
 	return nil
 }
 
