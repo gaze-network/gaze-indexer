@@ -78,8 +78,9 @@ func (i *BitcoinIndexer) Run(ctx context.Context) (err error) {
 
 func (i *BitcoinIndexer) process(ctx context.Context) (err error) {
 	ch := make(chan []*types.Block)
-	logger.InfoContext(ctx, "Fetching blocks", slog.Int64("from", i.currentBlock.Height+1), slog.Int64("to", -1))
-	subscription, err := i.Datasource.FetchAsync(ctx, i.currentBlock.Height+1, -1, ch)
+	from, to := i.currentBlock.Height+1, int64(-1)
+	logger.InfoContext(ctx, "Fetching blocks", slog.Int64("from", from), slog.Int64("to", to))
+	subscription, err := i.Datasource.FetchAsync(ctx, from, to, ch)
 	if err != nil {
 		return errors.Wrap(err, "failed to call fetch async")
 	}
