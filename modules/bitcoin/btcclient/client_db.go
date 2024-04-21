@@ -119,7 +119,7 @@ func (c *ClientDatabase) FetchAsync(ctx context.Context, from, to int64, ch chan
 
 				// send blocks to subscription channel
 				if err := subscription.Send(ctx, data); err != nil {
-					logger.ErrorContext(ctx, "failed while dispatch block",
+					logger.WarnContext(ctx, "failed while dispatch block",
 						slogx.Error(err),
 						slogx.Int64("start", data[0].Header.Height),
 						slogx.Int64("end", data[len(data)-1].Header.Height),
