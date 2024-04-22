@@ -16,6 +16,7 @@ import (
 	"github.com/gaze-network/indexer-network/modules/runes/internal/entity"
 	"github.com/gaze-network/indexer-network/modules/runes/runes"
 	"github.com/gaze-network/indexer-network/pkg/logger"
+	"github.com/gaze-network/indexer-network/pkg/reportingclient"
 	"github.com/gaze-network/uint128"
 	"github.com/samber/lo"
 )
@@ -28,6 +29,7 @@ type Processor struct {
 	bitcoinClient     btcclient.Contract
 	bitcoinDataSource indexers.BitcoinDatasource
 	network           common.Network
+	reportingClient   *reportingclient.ReportingClient
 
 	newRuneEntries      map[runes.RuneId]*runes.RuneEntry
 	newRuneEntryStates  map[runes.RuneId]*runes.RuneEntry
@@ -37,13 +39,14 @@ type Processor struct {
 	newRuneTxs          []*entity.RuneTransaction
 }
 
-func NewProcessor(runesDg datagateway.RunesDataGateway, indexerInfoDg datagateway.IndexerInfoDataGateway, bitcoinClient btcclient.Contract, bitcoinDataSource indexers.BitcoinDatasource, network common.Network) *Processor {
+func NewProcessor(runesDg datagateway.RunesDataGateway, indexerInfoDg datagateway.IndexerInfoDataGateway, bitcoinClient btcclient.Contract, bitcoinDataSource indexers.BitcoinDatasource, network common.Network, reportingClient *reportingclient.ReportingClient) *Processor {
 	return &Processor{
 		runesDg:             runesDg,
 		indexerInfoDg:       indexerInfoDg,
 		bitcoinClient:       bitcoinClient,
 		bitcoinDataSource:   bitcoinDataSource,
 		network:             network,
+		reportingClient:     reportingClient,
 		newRuneEntries:      make(map[runes.RuneId]*runes.RuneEntry),
 		newRuneEntryStates:  make(map[runes.RuneId]*runes.RuneEntry),
 		newOutPointBalances: make(map[wire.OutPoint][]*entity.OutPointBalance),
@@ -66,6 +69,11 @@ func (p *Processor) VerifyStates(ctx context.Context) error {
 	if p.network == common.NetworkMainnet {
 		if err := p.ensureGenesisRune(ctx); err != nil {
 			return errors.Wrap(err, "error during ensureGenesisRune")
+		}
+	}
+	if p.reportingClient != nil {
+		if err := p.reportingClient.SubmitNodeReport(ctx, "runes", p.network); err != nil {
+			return errors.Wrap(err, "failed to submit node report")
 		}
 	}
 	return nil
