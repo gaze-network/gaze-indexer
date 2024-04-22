@@ -30,6 +30,7 @@ import (
 	"github.com/gaze-network/indexer-network/pkg/errorhandler"
 	"github.com/gaze-network/indexer-network/pkg/logger"
 	"github.com/gaze-network/indexer-network/pkg/logger/slogx"
+	"github.com/gaze-network/indexer-network/pkg/reportingclient"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/compress"
 	fiberrecover "github.com/gofiber/fiber/v2/middleware/recover"
@@ -122,6 +123,14 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 	// use gracefulEG to coordinate graceful shutdown after context is done. (e.g. shut down http server, shutdown logic of each module, etc.)
 	gracefulEG, gctx := errgroup.WithContext(context.Background())
 
+	var reportingClient *reportingclient.ReportingClient
+	if !conf.Reporting.Disabled {
+		reportingClient, err = reportingclient.New(conf.Reporting)
+		if err != nil {
+			logger.PanicContext(ctx, "Failed to create reporting client", slogx.Error(err))
+		}
+	}
+
 	// Initialize Bitcoin Indexer
 	if opts.Bitcoin {
 		var (
@@ -203,7 +212,7 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 			return errors.Wrapf(errs.Unsupported, "%q datasource is not supported", conf.Modules.Runes.Datasource)
 		}
 		if !opts.APIOnly {
-			runesProcessor := runes.NewProcessor(runesDg, indexerInfoDg, bitcoinClient, bitcoinDatasource, conf.Network)
+			runesProcessor := runes.NewProcessor(runesDg, indexerInfoDg, bitcoinClient, bitcoinDatasource, conf.Network, reportingClient)
 			runesIndexer := indexers.NewBitcoinIndexer(runesProcessor, bitcoinDatasource)
 
 			if err := runesProcessor.VerifyStates(ctx); err != nil {
@@ -260,9 +269,9 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 		// mount http handlers from each http-enabled module
 		for module, handler := range httpHandlers {
 			if err := handler.Mount(app); err != nil {
-				logger.PanicContext(ctx, "Failed to mount HTTP handler", slogx.Error(err), slog.String("module", module))
+				logger.PanicContext(ctx, "Failed to mount HTTP handler", slogx.Error(err), slogx.String("module", module))
 			}
-			logger.InfoContext(ctx, "Mounted HTTP handler", slog.String("module", module))
+			logger.InfoContext(ctx, "Mounted HTTP handler", slogx.String("module", module))
 		}
 		go func() {
 			logger.InfoContext(ctx, "Started HTTP server", slog.Int("port", conf.HTTPServer.Port))

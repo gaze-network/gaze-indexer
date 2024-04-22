@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	maxReorgLookBack = 100
+	maxReorgLookBack = 1000
 )
 
 type (

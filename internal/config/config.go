@@ -12,6 +12,7 @@ import (
 	runesconfig "github.com/gaze-network/indexer-network/modules/runes/config"
 	"github.com/gaze-network/indexer-network/pkg/logger"
 	"github.com/gaze-network/indexer-network/pkg/logger/slogx"
+	"github.com/gaze-network/indexer-network/pkg/reportingclient"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )
@@ -31,11 +32,12 @@ var (
 )
 
 type Config struct {
-	Logger      logger.Config     `mapstructure:"logger"`
-	BitcoinNode BitcoinNodeClient `mapstructure:"bitcoin_node"`
-	Network     common.Network    `mapstructure:"network"`
-	HTTPServer  HTTPServerConfig  `mapstructure:"http_server"`
-	Modules     Modules           `mapstructure:"modules"`
+	Logger      logger.Config          `mapstructure:"logger"`
+	BitcoinNode BitcoinNodeClient      `mapstructure:"bitcoin_node"`
+	Network     common.Network         `mapstructure:"network"`
+	HTTPServer  HTTPServerConfig       `mapstructure:"http_server"`
+	Modules     Modules                `mapstructure:"modules"`
+	Reporting   reportingclient.Config `mapstructure:"reporting"`
 }
 
 type BitcoinNodeClient struct {

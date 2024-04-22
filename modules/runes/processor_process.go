@@ -18,6 +18,7 @@ import (
 	"github.com/gaze-network/indexer-network/modules/runes/runes"
 	"github.com/gaze-network/indexer-network/pkg/logger"
 	"github.com/gaze-network/indexer-network/pkg/logger/slogx"
+	"github.com/gaze-network/indexer-network/pkg/reportingclient"
 	"github.com/gaze-network/uint128"
 	"github.com/samber/lo"
 )
@@ -702,38 +703,36 @@ func (p *Processor) flushBlock(ctx context.Context, blockHeader types.BlockHeade
 	}()
 
 	// CreateIndexedBlock must be performed before other flush methods to correctly calculate event hash
-	{
-		eventHash, err := p.calculateEventHash(blockHeader)
-		if err != nil {
-			return errors.Wrap(err, "failed to calculate event hash")
+	eventHash, err := p.calculateEventHash(blockHeader)
+	if err != nil {
+		return errors.Wrap(err, "failed to calculate event hash")
+	}
+	prevIndexedBlock, err := runesDgTx.GetIndexedBlockByHeight(ctx, blockHeader.Height-1)
+	if err != nil && errors.Is(err, errs.NotFound) && blockHeader.Height-1 == startingBlockHeader[p.network].Height {
+		prevIndexedBlock = &entity.IndexedBlock{
+			Height:              startingBlockHeader[p.network].Height,
+			Hash:                startingBlockHeader[p.network].Hash,
+			EventHash:           chainhash.Hash{},
+			CumulativeEventHash: chainhash.Hash{},
 		}
-		prevIndexedBlock, err := runesDgTx.GetIndexedBlockByHeight(ctx, blockHeader.Height-1)
-		if err != nil && errors.Is(err, errs.NotFound) && blockHeader.Height-1 == startingBlockHeader[p.network].Height {
-			prevIndexedBlock = &entity.IndexedBlock{
-				Height:              startingBlockHeader[p.network].Height,
-				Hash:                startingBlockHeader[p.network].Hash,
-				EventHash:           chainhash.Hash{},
-				CumulativeEventHash: chainhash.Hash{},
-			}
-			err = nil
+		err = nil
+	}
+	if err != nil {
+		if errors.Is(err, errs.NotFound) {
+			return errors.Errorf("indexed block not found for height %d. Indexed block must be created for every Bitcoin block", blockHeader.Height)
 		}
-		if err != nil {
-			if errors.Is(err, errs.NotFound) {
-				return errors.Errorf("indexed block not found for height %d. Indexed block must be created for every Bitcoin block", blockHeader.Height)
-			}
-			return errors.Wrap(err, "failed to get indexed block by height")
-		}
-		cumulativeEventHash := chainhash.DoubleHashH(append(prevIndexedBlock.CumulativeEventHash[:], eventHash[:]...))
+		return errors.Wrap(err, "failed to get indexed block by height")
+	}
+	cumulativeEventHash := chainhash.DoubleHashH(append(prevIndexedBlock.CumulativeEventHash[:], eventHash[:]...))
 
-		if err := runesDgTx.CreateIndexedBlock(ctx, &entity.IndexedBlock{
-			Height:              blockHeader.Height,
-			Hash:                blockHeader.Hash,
-			PrevHash:            blockHeader.PrevBlock,
-			EventHash:           eventHash,
-			CumulativeEventHash: cumulativeEventHash,
-		}); err != nil {
-			return errors.Wrap(err, "failed to create indexed block")
-		}
+	if err := runesDgTx.CreateIndexedBlock(ctx, &entity.IndexedBlock{
+		Height:              blockHeader.Height,
+		Hash:                blockHeader.Hash,
+		PrevHash:            blockHeader.PrevBlock,
+		EventHash:           eventHash,
+		CumulativeEventHash: cumulativeEventHash,
+	}); err != nil {
+		return errors.Wrap(err, "failed to create indexed block")
 	}
 	// flush new rune entries
 	{
@@ -807,6 +806,23 @@ func (p *Processor) flushBlock(ctx context.Context, blockHeader types.BlockHeade
 
 	if err := runesDgTx.Commit(ctx); err != nil {
 		return errors.Wrap(err, "failed to commit runes tx")
+	}
+
+	// submit event to reporting system
+	if p.reportingClient != nil {
+		if err := p.reportingClient.SubmitBlockReport(ctx, reportingclient.SubmitBlockReportPayload{
+			Type:                "runes",
+			ClientVersion:       Version,
+			DBVersion:           DBVersion,
+			EventHashVersion:    EventHashVersion,
+			Network:             p.network,
+			BlockHeight:         uint64(blockHeader.Height),
+			BlockHash:           blockHeader.Hash,
+			EventHash:           eventHash,
+			CumulativeEventHash: cumulativeEventHash,
+		}); err != nil {
+			return errors.Wrap(err, "failed to submit block report")
+		}
 	}
 	logger.InfoContext(ctx, "[RunesProcessor] block flushed")
 	return nil

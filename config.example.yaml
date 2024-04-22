@@ -10,6 +10,13 @@ bitcoin_node:
 
 network: mainnet
 
+reporting:
+  disabled: false
+  base_url: "https://indexer.api.gaze.network" # defaults to "https://indexer.api.gaze.network" if empty
+  name: "local-dev" # name of this instance to show on the dashboard
+  website_url: "" # public website URL to show on the dashboard. Can be left empty.
+  indexer_api_url: "" # public url to access this api. Can be left empty.
+
 ้http_server:
   port: 8080
 
