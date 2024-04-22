@@ -189,7 +189,7 @@ func (h *HttpHandler) GetTransactions(ctx *fiber.Ctx) (err error) {
 		if pkScript != nil && !isTxContainPkScript(tx) {
 			continue
 		}
-		if runeId != (runes.RuneId{}) && isTxContainRuneId(tx) {
+		if runeId != (runes.RuneId{}) && !isTxContainRuneId(tx) {
 			continue
 		}
 		filteredTxs = append(filteredTxs, tx)
