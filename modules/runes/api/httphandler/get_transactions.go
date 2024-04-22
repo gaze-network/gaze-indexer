@@ -28,11 +28,12 @@ func (r getTransactionsRequest) Validate() error {
 	return errs.WithPublicMessage(errors.Join(errList...), "validation error")
 }
 
-type outPointBalance struct {
+type txInputOutput struct {
 	PkScript string          `json:"pkScript"`
 	Address  string          `json:"address"`
 	Id       runes.RuneId    `json:"id"`
 	Amount   uint128.Uint128 `json:"amount"`
+	Decimals uint8           `json:"decimals"`
 	Index    uint32          `json:"index"`
 }
 
@@ -75,15 +76,20 @@ type runeTransactionExtend struct {
 	Runestone  *runestone `json:"runestone"`
 }
 
+type amountWithDecimal struct {
+	Amount   uint128.Uint128 `json:"amount"`
+	Decimals uint8           `json:"decimals"`
+}
+
 type transaction struct {
-	TxHash      chainhash.Hash             `json:"txHash"`
-	BlockHeight uint64                     `json:"blockHeight"`
-	Timestamp   int64                      `json:"timestamp"`
-	Inputs      []outPointBalance          `json:"inputs"`
-	Outputs     []outPointBalance          `json:"outputs"`
-	Mints       map[string]uint128.Uint128 `json:"mints"`
-	Burns       map[string]uint128.Uint128 `json:"burns"`
-	Extend      runeTransactionExtend      `json:"extend"`
+	TxHash      chainhash.Hash               `json:"txHash"`
+	BlockHeight uint64                       `json:"blockHeight"`
+	Timestamp   int64                        `json:"timestamp"`
+	Inputs      []txInputOutput              `json:"inputs"`
+	Outputs     []txInputOutput              `json:"outputs"`
+	Mints       map[string]amountWithDecimal `json:"mints"`
+	Burns       map[string]amountWithDecimal `json:"burns"`
+	Extend      runeTransactionExtend        `json:"extend"`
 }
 
 type getTransactionsResult struct {
@@ -188,6 +194,26 @@ func (h *HttpHandler) GetTransactions(ctx *fiber.Ctx) (err error) {
 		}
 		filteredTxs = append(filteredTxs, tx)
 	}
+	var allRuneIds []runes.RuneId
+	for _, tx := range filteredTxs {
+		for id := range tx.Mints {
+			allRuneIds = append(allRuneIds, id)
+		}
+		for id := range tx.Burns {
+			allRuneIds = append(allRuneIds, id)
+		}
+		for _, input := range tx.Inputs {
+			allRuneIds = append(allRuneIds, input.RuneId)
+		}
+		for _, output := range tx.Outputs {
+			allRuneIds = append(allRuneIds, output.RuneId)
+		}
+	}
+	allRuneIds = lo.Uniq(allRuneIds)
+	runeEntries, err := h.usecase.GetRuneEntryByRuneIdBatch(ctx.UserContext(), allRuneIds)
+	if err != nil {
+		return errors.Wrap(err, "error during GetRuneEntryByRuneIdBatch")
+	}
 
 	txList := make([]transaction, 0, len(filteredTxs))
 	for _, tx := range filteredTxs {
@@ -195,10 +221,10 @@ func (h *HttpHandler) GetTransactions(ctx *fiber.Ctx) (err error) {
 			TxHash:      tx.Hash,
 			BlockHeight: tx.BlockHeight,
 			Timestamp:   tx.Timestamp.Unix(),
-			Inputs:      make([]outPointBalance, 0, len(tx.Inputs)),
-			Outputs:     make([]outPointBalance, 0, len(tx.Outputs)),
-			Mints:       make(map[string]uint128.Uint128, len(tx.Mints)),
-			Burns:       make(map[string]uint128.Uint128, len(tx.Burns)),
+			Inputs:      make([]txInputOutput, 0, len(tx.Inputs)),
+			Outputs:     make([]txInputOutput, 0, len(tx.Outputs)),
+			Mints:       make(map[string]amountWithDecimal, len(tx.Mints)),
+			Burns:       make(map[string]amountWithDecimal, len(tx.Burns)),
 			Extend: runeTransactionExtend{
 				RuneEtched: tx.RuneEtched,
 				Runestone:  nil,
@@ -206,29 +232,37 @@ func (h *HttpHandler) GetTransactions(ctx *fiber.Ctx) (err error) {
 		}
 		for _, input := range tx.Inputs {
 			address := addressFromPkScript(input.PkScript, h.network)
-			respTx.Inputs = append(respTx.Inputs, outPointBalance{
+			respTx.Inputs = append(respTx.Inputs, txInputOutput{
 				PkScript: hex.EncodeToString(input.PkScript),
 				Address:  address,
 				Id:       input.RuneId,
 				Amount:   input.Amount,
+				Decimals: runeEntries[input.RuneId].Divisibility,
 				Index:    input.Index,
 			})
 		}
 		for _, output := range tx.Outputs {
 			address := addressFromPkScript(output.PkScript, h.network)
-			respTx.Outputs = append(respTx.Outputs, outPointBalance{
+			respTx.Outputs = append(respTx.Outputs, txInputOutput{
 				PkScript: hex.EncodeToString(output.PkScript),
 				Address:  address,
 				Id:       output.RuneId,
 				Amount:   output.Amount,
+				Decimals: runeEntries[output.RuneId].Divisibility,
 				Index:    output.Index,
 			})
 		}
 		for id, amount := range tx.Mints {
-			respTx.Mints[id.String()] = amount
+			respTx.Mints[id.String()] = amountWithDecimal{
+				Amount:   amount,
+				Decimals: runeEntries[id].Divisibility,
+			}
 		}
 		for id, amount := range tx.Burns {
-			respTx.Burns[id.String()] = amount
+			respTx.Burns[id.String()] = amountWithDecimal{
+				Amount:   amount,
+				Decimals: runeEntries[id].Divisibility,
+			}
 		}
 		if tx.Runestone != nil {
 			var e *etching
