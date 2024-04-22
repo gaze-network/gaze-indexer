@@ -213,7 +213,7 @@ func (i *BitcoinIndexer) process(ctx context.Context) (err error) {
 			}
 
 			// Update current state
-			// i.currentBlock = blocks[len(blocks)-1].Header
+			i.currentBlock = blocks[len(blocks)-1].Header
 
 			logger.InfoContext(ctx, "Processed blocks successfully",
 				slogx.Stringer("duration", time.Since(startAt)),
