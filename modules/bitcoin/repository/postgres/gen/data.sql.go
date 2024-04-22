@@ -322,13 +322,15 @@ WITH delete_tx AS (
 ), delete_txin AS (
 	DELETE FROM  "bitcoin_transaction_txins" WHERE "tx_hash" = ANY(SELECT "tx_hash" FROM delete_tx)
 	RETURNING "prevout_tx_hash", "prevout_tx_idx"
+), delete_txout AS (
+	DELETE FROM  "bitcoin_transaction_txouts" WHERE "tx_hash" = ANY(SELECT "tx_hash" FROM delete_tx)
+	RETURNING "tx_hash", "tx_idx"
 ), revert_txout_spent AS (
 	UPDATE "bitcoin_transaction_txouts"
 	SET "is_spent" = false
-	WHERE ("tx_hash", "tx_idx") IN (SELECT "prevout_tx_hash", "prevout_tx_idx" FROM delete_txin)
-	RETURNING NULL
-), delete_txout AS (
-	DELETE FROM  "bitcoin_transaction_txouts" WHERE "tx_hash" = ANY(SELECT "tx_hash" FROM delete_tx)
+	WHERE 
+		("tx_hash", "tx_idx") IN (SELECT "prevout_tx_hash", "prevout_tx_idx" FROM delete_txin) AND 
+		("tx_hash", "tx_idx") NOT IN (SELECT "tx_hash", "tx_idx" FROM delete_txout) -- avoid to modified same row twice (modified the same row twice in a single statement is not supported)
 	RETURNING NULL
 )
 DELETE FROM "bitcoin_blocks" WHERE "bitcoin_blocks"."block_height" >= $1
