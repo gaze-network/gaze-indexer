@@ -155,6 +155,7 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 			bitcoinProcessor := bitcoin.NewProcessor(conf, btcDB, indexerInfoDB)
 			bitcoinNodeDatasource := datasources.NewBitcoinNode(client)
 			bitcoinIndexer := indexers.NewBitcoinIndexer(bitcoinProcessor, bitcoinNodeDatasource)
+			defer bitcoinIndexer.Shutdown()
 
 			// Verify states before running Indexer
 			if err := bitcoinProcessor.VerifyStates(ctx); err != nil {
@@ -215,6 +216,7 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 		if !opts.APIOnly {
 			runesProcessor := runes.NewProcessor(runesDg, indexerInfoDg, bitcoinClient, bitcoinDatasource, conf.Network, reportingClient)
 			runesIndexer := indexers.NewBitcoinIndexer(runesProcessor, bitcoinDatasource)
+			defer runesIndexer.Shutdown()
 
 			if err := runesProcessor.VerifyStates(ctx); err != nil {
 				return errors.WithStack(err)

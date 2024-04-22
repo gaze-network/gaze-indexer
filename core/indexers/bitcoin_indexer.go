@@ -2,7 +2,9 @@ package indexers
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
+	"sync"
 	"time"
 
 	"github.com/cockroachdb/errors"
@@ -30,6 +32,10 @@ type BitcoinIndexer struct {
 	Processor    BitcoinProcessor
 	Datasource   BitcoinDatasource
 	currentBlock types.BlockHeader
+
+	quitOnce sync.Once
+	quit     chan struct{}
+	done     chan struct{}
 }
 
 // NewBitcoinIndexer create new BitcoinIndexer
@@ -37,10 +43,32 @@ func NewBitcoinIndexer(processor BitcoinProcessor, datasource BitcoinDatasource)
 	return &BitcoinIndexer{
 		Processor:  processor,
 		Datasource: datasource,
+
+		quit: make(chan struct{}),
+		done: make(chan struct{}),
 	}
 }
 
+func (i *BitcoinIndexer) Shutdown() {
+	i.ShutdownWithContext(context.Background())
+}
+
+func (i *BitcoinIndexer) ShutdownWithContext(ctx context.Context) {
+	i.quitOnce.Do(func() {
+		select {
+		case i.quit <- struct{}{}:
+			<-i.done // wait for graceful shutdown
+		case <-i.done: // already shutdown
+		case <-time.After(15 * time.Second):
+		case <-ctx.Done():
+		}
+		fmt.Println("BitcoinIndexer shutdowned")
+	})
+}
+
 func (i *BitcoinIndexer) Run(ctx context.Context) (err error) {
+	defer close(i.done)
+
 	ctx = logger.WithContext(ctx,
 		slog.String("indexer", "bitcoin"),
 		slog.String("processor", i.Processor.Name()),
@@ -56,15 +84,12 @@ func (i *BitcoinIndexer) Run(ctx context.Context) (err error) {
 		i.currentBlock.Height = -1
 	}
 
-	// TODO:
-	// - compare db version in constants and database
-	// - compare current network and local indexed network
-	// - update indexer stats
-
 	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
 	for {
 		select {
+		case <-i.quit:
+			return nil
 		case <-ctx.Done():
 			return nil
 		case <-ticker.C:
@@ -88,6 +113,8 @@ func (i *BitcoinIndexer) process(ctx context.Context) (err error) {
 
 	for {
 		select {
+		case <-i.quit:
+			return nil
 		case blocks := <-ch:
 			// empty blocks
 			if len(blocks) == 0 {
@@ -186,7 +213,7 @@ func (i *BitcoinIndexer) process(ctx context.Context) (err error) {
 			}
 
 			// Update current state
-			i.currentBlock = blocks[len(blocks)-1].Header
+			// i.currentBlock = blocks[len(blocks)-1].Header
 
 			logger.InfoContext(ctx, "Processed blocks successfully",
 				slogx.Stringer("duration", time.Since(startAt)),

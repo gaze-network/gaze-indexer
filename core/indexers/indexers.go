@@ -8,6 +8,8 @@ import (
 
 type IndexerWorker interface {
 	Run(ctx context.Context) error
+	Shutdown()
+	ShutdownWithContext(ctx context.Context)
 }
 
 type Processor[T any] interface {
