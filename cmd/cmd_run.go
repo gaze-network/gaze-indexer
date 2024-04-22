@@ -84,12 +84,17 @@ type HttpHandler interface {
 func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 	conf := config.Load()
 
-	// Initialize context
+	// Initialize application process context
 	ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
+	// Initialize worker context to separate worker's lifecycle from main process
+	ctxWorker, stopWorker := context.WithCancel(context.Background())
+	defer stopWorker()
+
 	// Add logger context
 	ctx = logger.WithContext(ctx, slogx.Stringer("network", conf.Network))
+	ctxWorker = logger.WithContext(ctxWorker, slogx.Stringer("network", conf.Network))
 
 	// Initialize Bitcoin Core RPC Client
 	client, err := rpcclient.New(&rpcclient.ConnConfig{
@@ -165,7 +170,7 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 			// Run Indexer
 			go func() {
 				logger.InfoContext(ctx, "Starting Bitcoin Indexer")
-				if err := bitcoinIndexer.Run(ctx); err != nil {
+				if err := bitcoinIndexer.Run(ctxWorker); err != nil {
 					logger.ErrorContext(ctx, "Failed to run Bitcoin Indexer", slogx.Error(err))
 				}
 
@@ -225,7 +230,7 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 			// Run Indexer
 			go func() {
 				logger.InfoContext(ctx, "Started Runes Indexer")
-				if err := runesIndexer.Run(ctx); err != nil {
+				if err := runesIndexer.Run(ctxWorker); err != nil {
 					logger.ErrorContext(ctx, "Failed to run Runes Indexer", slogx.Error(err))
 				}
 
@@ -298,6 +303,15 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 		})
 	}
 
+	// Stop application if worker context is done
+	go func() {
+		<-ctxWorker.Done()
+		defer stop()
+
+		logger.InfoContext(ctx, "Worker is stopped. Stopping main process...")
+	}()
+
+	// Wait for interrupt signal to gracefully stop the server
 	<-ctx.Done()
 
 	// Force shutdown if timeout exceeded or got signal again
