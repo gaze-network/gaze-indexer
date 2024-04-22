@@ -322,8 +322,8 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 		select {
 		case <-ctx.Done():
 			logger.InfoContext(ctx, "Force shutdown")
-		case <-time.After(60 * time.Second):
-			logger.InfoContext(ctx, "Force shutdown after 60 seconds")
+		case <-time.After(120 * time.Second):
+			logger.InfoContext(ctx, "Force shutdown after 120 seconds")
 		}
 
 		os.Exit(1)
