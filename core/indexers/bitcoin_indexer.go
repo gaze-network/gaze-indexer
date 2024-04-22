@@ -62,7 +62,6 @@ func (i *BitcoinIndexer) ShutdownWithContext(ctx context.Context) {
 		case <-time.After(15 * time.Second):
 		case <-ctx.Done():
 		}
-		fmt.Println("BitcoinIndexer shutdowned")
 	})
 }
 
