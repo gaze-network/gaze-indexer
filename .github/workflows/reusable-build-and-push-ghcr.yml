@@ -51,6 +51,6 @@ jobs:
           push: true
           context: ${{ inputs.context }}
           file: ${{ inputs.dockerfile }}
-          tags: "${{ inputs.image-repo }}:${{ inputs.image-tag }}"
+          tags: "${{ inputs.image-repo }}:${{ inputs.image-tag }},${{ inputs.image-repo }}:latest"
           cache-from: type=registry,ref=${{ inputs.image-repo }}:buildcache
           cache-to: type=registry,ref=${{ inputs.image-repo }}:buildcache,mode=max
