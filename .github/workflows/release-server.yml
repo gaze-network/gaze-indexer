@@ -1,0 +1,37 @@
+name: Build & Release
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v**" # e.g. v1.0.0
+
+env:
+  IMAGE_REPO: ghcr.io/gaze-network/gaze-indexer
+
+jobs:
+  prepare:
+    name: Prepare Environment
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v3
+      - name: Get tag value
+        id: tag
+        run: |
+          TAG=${GITHUB_REF#refs/*/}
+          echo "Working tag: $TAG"
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+  build-push:
+    name: Build Docker & Push to GitHub Container Registry
+    needs:
+      - prepare
+    if: ${{ needs.prepare.outputs.tag }}
+    uses: ./.github/workflows/reusable-build-and-push-ghcr.yml
+    with:
+      context: .
+      dockerfile: Dockerfile
+      image-repo: "ghcr.io/gaze-network/gaze-indexer"
+      image-tag: ${{ needs.prepare.outputs.tag }}
