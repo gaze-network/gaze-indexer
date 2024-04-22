@@ -299,6 +299,22 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 	}
 
 	<-ctx.Done()
+
+	// Force shutdown if timeout exceeded or got signal again
+	go func() {
+		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+		defer stop()
+
+		select {
+		case <-ctx.Done():
+			logger.InfoContext(ctx, "Force shutdown")
+		case <-time.After(60 * time.Second):
+			logger.InfoContext(ctx, "Force shutdown after 60 seconds")
+		}
+
+		os.Exit(1)
+	}()
+
 	// wait until all graceful shutdown goroutines are done before returning
 	if err := gracefulEG.Wait(); err != nil {
 		logger.ErrorContext(ctx, "Failed to shutdown gracefully", slogx.Error(err))
