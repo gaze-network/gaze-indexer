@@ -306,7 +306,7 @@ func mapRuneTransactionTypeToParams(src entity.RuneTransaction) (gen.CreateRuneT
 	}, runestoneParams, nil
 }
 
-func extractModelRuneTxAndRunestone(src gen.GetRuneTransactionsByHeightRow) (gen.RunesTransaction, *gen.RunesRunestone, error) {
+func extractModelRuneTxAndRunestone(src gen.GetRuneTransactionsRow) (gen.RunesTransaction, *gen.RunesRunestone, error) {
 	var runestone *gen.RunesRunestone
 	if src.TxHash.Valid {
 		// these fields should never be null

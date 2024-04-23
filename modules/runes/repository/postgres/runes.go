@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"encoding/hex"
+	"fmt"
 
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/wire"
@@ -61,8 +62,21 @@ func (r *Repository) GetIndexedBlockByHeight(ctx context.Context, height int64) 
 	return indexedBlock, nil
 }
 
-func (r *Repository) GetRuneTransactionsByHeight(ctx context.Context, height uint64) ([]*entity.RuneTransaction, error) {
-	rows, err := r.queries.GetRuneTransactionsByHeight(ctx, int32(height))
+func (r *Repository) GetRuneTransactions(ctx context.Context, pkScript []byte, runeId runes.RuneId, height uint64) ([]*entity.RuneTransaction, error) {
+	pkScriptParam := []byte(fmt.Sprintf(`[{"pkScript":"%s"}]`, hex.EncodeToString(pkScript)))
+	runeIdParam := []byte(fmt.Sprintf(`[{"runeId":"%s"}]`, runeId.String()))
+	rows, err := r.queries.GetRuneTransactions(ctx, gen.GetRuneTransactionsParams{
+		FilterPkScript: pkScript != nil,
+		PkScriptParam:  pkScriptParam,
+
+		FilterRuneID:      runeId != runes.RuneId{},
+		RuneIDParam:       runeIdParam,
+		RuneID:            []byte(runeId.String()),
+		RuneIDBlockHeight: int32(runeId.BlockHeight),
+		RuneIDTxIndex:     int32(runeId.TxIndex),
+
+		BlockHeight: int32(height),
+	})
 	if err != nil {
 		return nil, errors.Wrap(err, "error during query")
 	}

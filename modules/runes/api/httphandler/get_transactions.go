@@ -1,13 +1,12 @@
 package httphandler
 
 import (
-	"bytes"
 	"encoding/hex"
+	"slices"
 
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/common/errs"
-	"github.com/gaze-network/indexer-network/modules/runes/internal/entity"
 	"github.com/gaze-network/indexer-network/modules/runes/runes"
 	"github.com/gaze-network/uint128"
 	"github.com/gofiber/fiber/v2"
@@ -84,6 +83,7 @@ type amountWithDecimal struct {
 type transaction struct {
 	TxHash      chainhash.Hash               `json:"txHash"`
 	BlockHeight uint64                       `json:"blockHeight"`
+	Index       uint32                       `json:"index"`
 	Timestamp   int64                        `json:"timestamp"`
 	Inputs      []txInputOutput              `json:"inputs"`
 	Outputs     []txInputOutput              `json:"outputs"`
@@ -116,15 +116,6 @@ func (h *HttpHandler) GetTransactions(ctx *fiber.Ctx) (err error) {
 		}
 	}
 
-	blockHeight := req.BlockHeight
-	if blockHeight == 0 {
-		blockHeader, err := h.usecase.GetLatestBlock(ctx.UserContext())
-		if err != nil {
-			return errors.Wrap(err, "error during GetLatestBlock")
-		}
-		blockHeight = uint64(blockHeader.Height)
-	}
-
 	var runeId runes.RuneId
 	if req.Id != "" {
 		var ok bool
@@ -134,68 +125,23 @@ func (h *HttpHandler) GetTransactions(ctx *fiber.Ctx) (err error) {
 		}
 	}
 
-	txs, err := h.usecase.GetTransactionsByHeight(ctx.UserContext(), blockHeight)
-	if err != nil {
-		return errors.Wrap(err, "error during GetTransactionsByHeight")
+	blockHeight := req.BlockHeight
+	// set blockHeight to the latest block height blockHeight, pkScript, and runeId are not provided
+	if blockHeight == 0 && pkScript == nil && runeId == (runes.RuneId{}) {
+		blockHeader, err := h.usecase.GetLatestBlock(ctx.UserContext())
+		if err != nil {
+			return errors.Wrap(err, "error during GetLatestBlock")
+		}
+		blockHeight = uint64(blockHeader.Height)
 	}
 
-	filteredTxs := make([]*entity.RuneTransaction, 0)
-	isTxContainPkScript := func(tx *entity.RuneTransaction) bool {
-		for _, input := range tx.Inputs {
-			if bytes.Equal(input.PkScript, pkScript) {
-				return true
-			}
-		}
-		for _, output := range tx.Outputs {
-			if bytes.Equal(output.PkScript, pkScript) {
-				return true
-			}
-		}
-		return false
+	txs, err := h.usecase.GetRuneTransactions(ctx.UserContext(), pkScript, runeId, blockHeight)
+	if err != nil {
+		return errors.Wrap(err, "error during GetRuneTransactions")
 	}
-	isTxContainRuneId := func(tx *entity.RuneTransaction) bool {
-		for _, input := range tx.Inputs {
-			if input.RuneId == runeId {
-				return true
-			}
-		}
-		for _, output := range tx.Outputs {
-			if output.RuneId == runeId {
-				return true
-			}
-		}
-		for mintedRuneId := range tx.Mints {
-			if mintedRuneId == runeId {
-				return true
-			}
-		}
-		for burnedRuneId := range tx.Burns {
-			if burnedRuneId == runeId {
-				return true
-			}
-		}
-		if tx.Runestone != nil {
-			if tx.Runestone.Mint != nil && *tx.Runestone.Mint == runeId {
-				return true
-			}
-			// returns true if this tx etched this runeId
-			if tx.RuneEtched && tx.BlockHeight == runeId.BlockHeight && tx.Index == runeId.TxIndex {
-				return true
-			}
-		}
-		return false
-	}
-	for _, tx := range txs {
-		if pkScript != nil && !isTxContainPkScript(tx) {
-			continue
-		}
-		if runeId != (runes.RuneId{}) && !isTxContainRuneId(tx) {
-			continue
-		}
-		filteredTxs = append(filteredTxs, tx)
-	}
+
 	var allRuneIds []runes.RuneId
-	for _, tx := range filteredTxs {
+	for _, tx := range txs {
 		for id := range tx.Mints {
 			allRuneIds = append(allRuneIds, id)
 		}
@@ -215,11 +161,12 @@ func (h *HttpHandler) GetTransactions(ctx *fiber.Ctx) (err error) {
 		return errors.Wrap(err, "error during GetRuneEntryByRuneIdBatch")
 	}
 
-	txList := make([]transaction, 0, len(filteredTxs))
-	for _, tx := range filteredTxs {
+	txList := make([]transaction, 0, len(txs))
+	for _, tx := range txs {
 		respTx := transaction{
 			TxHash:      tx.Hash,
 			BlockHeight: tx.BlockHeight,
+			Index:       tx.Index,
 			Timestamp:   tx.Timestamp.Unix(),
 			Inputs:      make([]txInputOutput, 0, len(tx.Inputs)),
 			Outputs:     make([]txInputOutput, 0, len(tx.Outputs)),
@@ -309,6 +256,13 @@ func (h *HttpHandler) GetTransactions(ctx *fiber.Ctx) (err error) {
 		}
 		txList = append(txList, respTx)
 	}
+	// sort by block height ASC, then index ASC
+	slices.SortFunc(txList, func(t1, t2 transaction) int {
+		if t1.BlockHeight != t2.BlockHeight {
+			return int(t1.BlockHeight - t2.BlockHeight)
+		}
+		return int(t1.Index - t2.Index)
+	})
 
 	resp := getTransactionsResponse{
 		Result: &getTransactionsResult{
