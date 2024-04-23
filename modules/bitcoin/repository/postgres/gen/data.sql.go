@@ -11,6 +11,152 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const batchInsertBlocks = `-- name: BatchInsertBlocks :exec
+INSERT INTO bitcoin_blocks ("block_height","block_hash","version","merkle_root","prev_block_hash","timestamp","bits","nonce")
+VALUES (
+	unnest($1::INT[]),
+	unnest($2::TEXT[]),
+	unnest($3::INT[]),
+	unnest($4::TEXT[]),
+	unnest($5::TEXT[]),
+	unnest($6::TIMESTAMP WITH TIME ZONE[]), -- or use TIMESTAMPTZ
+	unnest($7::BIGINT[]),
+	unnest($8::BIGINT[])
+)
+`
+
+type BatchInsertBlocksParams struct {
+	BlockHeightArr   []int32
+	BlockHashArr     []string
+	VersionArr       []int32
+	MerkleRootArr    []string
+	PrevBlockHashArr []string
+	TimestampArr     []pgtype.Timestamptz
+	BitsArr          []int64
+	NonceArr         []int64
+}
+
+func (q *Queries) BatchInsertBlocks(ctx context.Context, arg BatchInsertBlocksParams) error {
+	_, err := q.db.Exec(ctx, batchInsertBlocks,
+		arg.BlockHeightArr,
+		arg.BlockHashArr,
+		arg.VersionArr,
+		arg.MerkleRootArr,
+		arg.PrevBlockHashArr,
+		arg.TimestampArr,
+		arg.BitsArr,
+		arg.NonceArr,
+	)
+	return err
+}
+
+const batchInsertTransactionTxIns = `-- name: BatchInsertTransactionTxIns :exec
+WITH update_txout AS (
+	UPDATE "bitcoin_transaction_txouts"
+	SET "is_spent" = true
+	FROM (SELECT unnest($1::TEXT[]) as tx_hash, unnest($2::INT[]) as tx_idx) as txin
+	WHERE "bitcoin_transaction_txouts"."tx_hash" = txin.tx_hash AND "bitcoin_transaction_txouts"."tx_idx" = txin.tx_idx AND "is_spent" = false
+	RETURNING "bitcoin_transaction_txouts"."tx_hash", "bitcoin_transaction_txouts"."tx_idx", "pkscript"
+), prepare_insert AS (
+	SELECT input.tx_hash, input.tx_idx, prevout_tx_hash, prevout_tx_idx, update_txout.pkscript as prevout_pkscript, scriptsig, witness, sequence
+		FROM (
+			SELECT 
+				unnest($3::TEXT[]) as tx_hash,
+				unnest($4::INT[]) as tx_idx,
+				unnest($1::TEXT[]) as prevout_tx_hash,
+				unnest($2::INT[]) as prevout_tx_idx,
+				unnest($5::TEXT[]) as scriptsig,
+				unnest($6::TEXT[]) as witness,
+				unnest($7::INT[]) as sequence
+		) input LEFT JOIN update_txout ON "update_txout"."tx_hash" = "input"."prevout_tx_hash" AND "update_txout"."tx_idx" = "input"."prevout_tx_idx"
+)
+INSERT INTO bitcoin_transaction_txins ("tx_hash","tx_idx","prevout_tx_hash","prevout_tx_idx", "prevout_pkscript","scriptsig","witness","sequence") 
+SELECT "tx_hash", "tx_idx", "prevout_tx_hash", "prevout_tx_idx", "prevout_pkscript", "scriptsig", "witness", "sequence" FROM prepare_insert
+`
+
+type BatchInsertTransactionTxInsParams struct {
+	PrevoutTxHashArr []string
+	PrevoutTxIdxArr  []int32
+	TxHashArr        []string
+	TxIdxArr         []int32
+	ScriptsigArr     []string
+	WitnessArr       []string
+	SequenceArr      []int32
+}
+
+func (q *Queries) BatchInsertTransactionTxIns(ctx context.Context, arg BatchInsertTransactionTxInsParams) error {
+	_, err := q.db.Exec(ctx, batchInsertTransactionTxIns,
+		arg.PrevoutTxHashArr,
+		arg.PrevoutTxIdxArr,
+		arg.TxHashArr,
+		arg.TxIdxArr,
+		arg.ScriptsigArr,
+		arg.WitnessArr,
+		arg.SequenceArr,
+	)
+	return err
+}
+
+const batchInsertTransactionTxOuts = `-- name: BatchInsertTransactionTxOuts :exec
+INSERT INTO bitcoin_transaction_txouts ("tx_hash","tx_idx","pkscript","value")
+VALUES (
+	unnest($1::TEXT[]),
+	unnest($2::INT[]),
+	unnest($3::TEXT[]),
+	unnest($4::BIGINT[])
+)
+`
+
+type BatchInsertTransactionTxOutsParams struct {
+	TxHashArr   []string
+	TxIdxArr    []int32
+	PkscriptArr []string
+	ValueArr    []int64
+}
+
+func (q *Queries) BatchInsertTransactionTxOuts(ctx context.Context, arg BatchInsertTransactionTxOutsParams) error {
+	_, err := q.db.Exec(ctx, batchInsertTransactionTxOuts,
+		arg.TxHashArr,
+		arg.TxIdxArr,
+		arg.PkscriptArr,
+		arg.ValueArr,
+	)
+	return err
+}
+
+const batchInsertTransactions = `-- name: BatchInsertTransactions :exec
+INSERT INTO bitcoin_transactions ("tx_hash","version","locktime","block_height","block_hash","idx")
+VALUES (
+	unnest($1::TEXT[]),
+	unnest($2::INT[]),
+	unnest($3::BIGINT[]),
+	unnest($4::INT[]),
+	unnest($5::TEXT[]),
+	unnest($6::INT[])
+)
+`
+
+type BatchInsertTransactionsParams struct {
+	TxHashArr      []string
+	VersionArr     []int32
+	LocktimeArr    []int64
+	BlockHeightArr []int32
+	BlockHashArr   []string
+	IdxArr         []int32
+}
+
+func (q *Queries) BatchInsertTransactions(ctx context.Context, arg BatchInsertTransactionsParams) error {
+	_, err := q.db.Exec(ctx, batchInsertTransactions,
+		arg.TxHashArr,
+		arg.VersionArr,
+		arg.LocktimeArr,
+		arg.BlockHeightArr,
+		arg.BlockHashArr,
+		arg.IdxArr,
+	)
+	return err
+}
+
 const getBlockByHeight = `-- name: GetBlockByHeight :one
 SELECT block_height, block_hash, version, merkle_root, prev_block_hash, timestamp, bits, nonce FROM bitcoin_blocks WHERE block_height = $1
 `
@@ -231,86 +377,6 @@ func (q *Queries) InsertBlock(ctx context.Context, arg InsertBlockParams) error 
 		arg.Timestamp,
 		arg.Bits,
 		arg.Nonce,
-	)
-	return err
-}
-
-const insertTransaction = `-- name: InsertTransaction :exec
-INSERT INTO bitcoin_transactions ("tx_hash","version","locktime","block_height","block_hash","idx") VALUES ($1, $2, $3, $4, $5, $6)
-`
-
-type InsertTransactionParams struct {
-	TxHash      string
-	Version     int32
-	Locktime    int64
-	BlockHeight int32
-	BlockHash   string
-	Idx         int32
-}
-
-func (q *Queries) InsertTransaction(ctx context.Context, arg InsertTransactionParams) error {
-	_, err := q.db.Exec(ctx, insertTransaction,
-		arg.TxHash,
-		arg.Version,
-		arg.Locktime,
-		arg.BlockHeight,
-		arg.BlockHash,
-		arg.Idx,
-	)
-	return err
-}
-
-const insertTransactionTxIn = `-- name: InsertTransactionTxIn :exec
-WITH update_txout AS (
-	UPDATE "bitcoin_transaction_txouts"
-	SET "is_spent" = true
-	WHERE "tx_hash" = $3 AND "tx_idx" = $4 AND "is_spent" = false -- TODO: should throw an error if already spent
-	RETURNING "pkscript"
-)
-INSERT INTO bitcoin_transaction_txins ("tx_hash","tx_idx","prevout_tx_hash","prevout_tx_idx","prevout_pkscript","scriptsig","witness","sequence") 
-VALUES ($1, $2, $3, $4, (SELECT "pkscript" FROM update_txout), $5, $6, $7)
-`
-
-type InsertTransactionTxInParams struct {
-	TxHash        string
-	TxIdx         int32
-	PrevoutTxHash string
-	PrevoutTxIdx  int32
-	Scriptsig     string
-	Witness       pgtype.Text
-	Sequence      int64
-}
-
-func (q *Queries) InsertTransactionTxIn(ctx context.Context, arg InsertTransactionTxInParams) error {
-	_, err := q.db.Exec(ctx, insertTransactionTxIn,
-		arg.TxHash,
-		arg.TxIdx,
-		arg.PrevoutTxHash,
-		arg.PrevoutTxIdx,
-		arg.Scriptsig,
-		arg.Witness,
-		arg.Sequence,
-	)
-	return err
-}
-
-const insertTransactionTxOut = `-- name: InsertTransactionTxOut :exec
-INSERT INTO bitcoin_transaction_txouts ("tx_hash","tx_idx","pkscript","value") VALUES ($1, $2, $3, $4)
-`
-
-type InsertTransactionTxOutParams struct {
-	TxHash   string
-	TxIdx    int32
-	Pkscript string
-	Value    int64
-}
-
-func (q *Queries) InsertTransactionTxOut(ctx context.Context, arg InsertTransactionTxOutParams) error {
-	_, err := q.db.Exec(ctx, insertTransactionTxOut,
-		arg.TxHash,
-		arg.TxIdx,
-		arg.Pkscript,
-		arg.Value,
 	)
 	return err
 }

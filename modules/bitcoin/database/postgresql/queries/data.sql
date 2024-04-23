@@ -4,21 +4,61 @@ SELECT * FROM bitcoin_blocks ORDER BY block_height DESC LIMIT 1;
 -- name: InsertBlock :exec
 INSERT INTO bitcoin_blocks ("block_height","block_hash","version","merkle_root","prev_block_hash","timestamp","bits","nonce") VALUES ($1, $2, $3, $4, $5, $6, $7, $8);
 
--- name: InsertTransaction :exec
-INSERT INTO bitcoin_transactions ("tx_hash","version","locktime","block_height","block_hash","idx") VALUES ($1, $2, $3, $4, $5, $6);
+-- name: BatchInsertBlocks :exec
+INSERT INTO bitcoin_blocks ("block_height","block_hash","version","merkle_root","prev_block_hash","timestamp","bits","nonce")
+VALUES (
+	unnest(@block_height_arr::INT[]),
+	unnest(@block_hash_arr::TEXT[]),
+	unnest(@version_arr::INT[]),
+	unnest(@merkle_root_arr::TEXT[]),
+	unnest(@prev_block_hash_arr::TEXT[]),
+	unnest(@timestamp_arr::TIMESTAMP WITH TIME ZONE[]), -- or use TIMESTAMPTZ
+	unnest(@bits_arr::BIGINT[]),
+	unnest(@nonce_arr::BIGINT[])
+);
 
--- name: InsertTransactionTxOut :exec
-INSERT INTO bitcoin_transaction_txouts ("tx_hash","tx_idx","pkscript","value") VALUES ($1, $2, $3, $4);
+-- name: BatchInsertTransactions :exec
+INSERT INTO bitcoin_transactions ("tx_hash","version","locktime","block_height","block_hash","idx")
+VALUES (
+	unnest(@tx_hash_arr::TEXT[]),
+	unnest(@version_arr::INT[]),
+	unnest(@locktime_arr::BIGINT[]),
+	unnest(@block_height_arr::INT[]),
+	unnest(@block_hash_arr::TEXT[]),
+	unnest(@idx_arr::INT[])
+);
 
--- name: InsertTransactionTxIn :exec
+-- name: BatchInsertTransactionTxIns :exec
 WITH update_txout AS (
 	UPDATE "bitcoin_transaction_txouts"
 	SET "is_spent" = true
-	WHERE "tx_hash" = $3 AND "tx_idx" = $4 AND "is_spent" = false -- TODO: should throw an error if already spent
-	RETURNING "pkscript"
+	FROM (SELECT unnest(@prevout_tx_hash_arr::TEXT[]) as tx_hash, unnest(@prevout_tx_idx_arr::INT[]) as tx_idx) as txin
+	WHERE "bitcoin_transaction_txouts"."tx_hash" = txin.tx_hash AND "bitcoin_transaction_txouts"."tx_idx" = txin.tx_idx AND "is_spent" = false
+	RETURNING "bitcoin_transaction_txouts"."tx_hash", "bitcoin_transaction_txouts"."tx_idx", "pkscript"
+), prepare_insert AS (
+	SELECT input.tx_hash, input.tx_idx, prevout_tx_hash, prevout_tx_idx, update_txout.pkscript as prevout_pkscript, scriptsig, witness, sequence
+		FROM (
+			SELECT 
+				unnest(@tx_hash_arr::TEXT[]) as tx_hash,
+				unnest(@tx_idx_arr::INT[]) as tx_idx,
+				unnest(@prevout_tx_hash_arr::TEXT[]) as prevout_tx_hash,
+				unnest(@prevout_tx_idx_arr::INT[]) as prevout_tx_idx,
+				unnest(@scriptsig_arr::TEXT[]) as scriptsig,
+				unnest(@witness_arr::TEXT[]) as witness,
+				unnest(@sequence_arr::INT[]) as sequence
+		) input LEFT JOIN update_txout ON "update_txout"."tx_hash" = "input"."prevout_tx_hash" AND "update_txout"."tx_idx" = "input"."prevout_tx_idx"
 )
-INSERT INTO bitcoin_transaction_txins ("tx_hash","tx_idx","prevout_tx_hash","prevout_tx_idx","prevout_pkscript","scriptsig","witness","sequence") 
-VALUES ($1, $2, $3, $4, (SELECT "pkscript" FROM update_txout), $5, $6, $7);
+INSERT INTO bitcoin_transaction_txins ("tx_hash","tx_idx","prevout_tx_hash","prevout_tx_idx", "prevout_pkscript","scriptsig","witness","sequence") 
+SELECT "tx_hash", "tx_idx", "prevout_tx_hash", "prevout_tx_idx", "prevout_pkscript", "scriptsig", "witness", "sequence" FROM prepare_insert;
+
+-- name: BatchInsertTransactionTxOuts :exec
+INSERT INTO bitcoin_transaction_txouts ("tx_hash","tx_idx","pkscript","value")
+VALUES (
+	unnest(@tx_hash_arr::TEXT[]),
+	unnest(@tx_idx_arr::INT[]),
+	unnest(@pkscript_arr::TEXT[]),
+	unnest(@value_arr::BIGINT[])
+);
 
 -- name: RevertData :exec
 WITH delete_tx AS (
