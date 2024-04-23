@@ -19,8 +19,8 @@ var (
 		Height: -1,
 	}
 
-	fistV2Block = types.BlockHeader{
-		Hash:   *utils.Must(chainhash.NewHashFromStr("00000000000000d0dfd4c9d588d325dce4f32c1b31b7c0064cba7025a9b9adcc")),
-		Height: 227836,
+	lastV1Block = types.BlockHeader{
+		Hash:   *utils.Must(chainhash.NewHashFromStr("00000000000001aa077d7aa84c532a4d69bdbff519609d1da0835261b7a74eb6")),
+		Height: 227835,
 	}
 )

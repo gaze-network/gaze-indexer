@@ -79,9 +79,9 @@ func (p *Processor) GetIndexedBlock(ctx context.Context, height int64) (types.Bl
 
 func (p *Processor) RevertData(ctx context.Context, from int64) error {
 	// to prevent remove txin/txout of duplicated coinbase transaction in the blocks 91842 and 91880
-	// if you really want to revert the data before the block version 2, you should reset the database and reindex the data instead.
-	if from < fistV2Block.Height {
-		return errors.Wrapf(errs.InvalidArgument, "can't revert data before block version 2, height: %d", fistV2Block.Height)
+	// if you really want to revert the data before the block `227835`, you should reset the database and reindex the data instead.
+	if from <= lastV1Block.Height {
+		return errors.Wrapf(errs.InvalidArgument, "can't revert data before block version 2, height: %d", lastV1Block.Height)
 	}
 
 	if err := p.bitcoinDg.RevertBlocks(ctx, from); err != nil {
