@@ -1,10 +1,8 @@
 package bitcoin
 
 import (
-	"cmp"
 	"context"
 	"log/slog"
-	"slices"
 
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/common/errs"
@@ -42,27 +40,10 @@ func (p *Processor) Process(ctx context.Context, inputs []*types.Block) error {
 		return nil
 	}
 
-	// Sort ASC by block height
-	slices.SortFunc(inputs, func(t1, t2 *types.Block) int {
-		return cmp.Compare(t1.Header.Height, t2.Header.Height)
-	})
-
-	latestBlock, err := p.CurrentBlock(ctx)
+	// Process the given blocks before inserting to the database
+	inputs, err := p.process(ctx, inputs)
 	if err != nil {
-		return errors.Wrap(err, "failed to get latest indexed block header")
-	}
-
-	// check if the given blocks are continue from the latest indexed block
-	// return an error to prevent inserting out-of-order blocks or duplicate blocks
-	if inputs[0].Header.Height != latestBlock.Height+1 {
-		return errors.New("given blocks are not continue from the latest indexed block")
-	}
-
-	// check if the given blocks are in sequence and not missing any block
-	for i := 1; i < len(inputs); i++ {
-		if inputs[i].Header.Height != inputs[i-1].Header.Height+1 {
-			return errors.New("given blocks are not in sequence")
-		}
+		return errors.WithStack(err)
 	}
 
 	// Insert blocks
