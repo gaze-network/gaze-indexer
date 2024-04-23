@@ -32,16 +32,17 @@ CREATE TABLE IF NOT EXISTS "bitcoin_blocks" (
 CREATE INDEX IF NOT EXISTS bitcoin_blocks_block_hash_idx ON "bitcoin_blocks" USING HASH ("block_hash");
 
 CREATE TABLE IF NOT EXISTS "bitcoin_transactions" (
-	"tx_hash" TEXT NOT NULL PRIMARY KEY,
+	"tx_hash" TEXT NOT NULL, -- can't use as primary key because block v1 has duplicate tx hashes (coinbase tx). See: https://github.com/bitcoin/bitcoin/commit/a206b0ea12eb4606b93323268fc81a4f1f952531
 	"version" INT NOT NULL,
 	"locktime" BIGINT NOT NULL,
 	"block_height" INT NOT NULL,
 	"block_hash" TEXT NOT NULL,
-	"idx" INT NOT NULL
+	"idx" INT NOT NULL,
+	PRIMARY KEY ("block_height", "idx")
 );
 
-CREATE INDEX IF NOT EXISTS bitcoin_transactions_block_height_idx ON "bitcoin_transactions" USING BTREE ("block_height");
-CREATE INDEX IF NOT EXISTS bitcoin_transactions_block_hash_idx ON "bitcoin_transactions" USING BTREE ("block_hash");
+CREATE INDEX IF NOT EXISTS bitcoin_transactions_tx_hash_idx ON "bitcoin_transactions" USING HASH ("tx_hash");
+CREATE INDEX IF NOT EXISTS bitcoin_transactions_block_hash_idx ON "bitcoin_transactions" USING HASH ("block_hash");
 
 CREATE TABLE IF NOT EXISTS "bitcoin_transaction_txouts" (
 	"tx_hash" TEXT NOT NULL,
