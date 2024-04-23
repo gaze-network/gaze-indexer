@@ -62,40 +62,20 @@ func (r *Repository) GetIndexedBlockByHeight(ctx context.Context, height int64) 
 	return indexedBlock, nil
 }
 
-func (r *Repository) GetRuneTransactionsByHeight(ctx context.Context, height uint64) ([]*entity.RuneTransaction, error) {
-	rows, err := r.queries.GetRuneTransactionsByHeight(ctx, int32(height))
-	if err != nil {
-		return nil, errors.Wrap(err, "error during query")
-	}
-
-	runeTxs := make([]*entity.RuneTransaction, 0, len(rows))
-	for _, row := range rows {
-		runeTxModel, runestoneModel, err := extractModelRuneTxAndRunestone(row)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to extract rune transaction and runestone from row")
-		}
-
-		runeTx, err := mapRuneTransactionModelToType(runeTxModel)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to parse rune transaction model")
-		}
-		if runestoneModel != nil {
-			runestone, err := mapRunestoneModelToType(*runestoneModel)
-			if err != nil {
-				return nil, errors.Wrap(err, "failed to parse runestone model")
-			}
-			runeTx.Runestone = &runestone
-		}
-		runeTxs = append(runeTxs, &runeTx)
-	}
-	return runeTxs, nil
-}
-
-func (r *Repository) GetRuneTransactionsByPkScript(ctx context.Context, pkScript []byte, height *uint64) ([]*entity.RuneTransaction, error) {
+func (r *Repository) GetRuneTransactions(ctx context.Context, pkScript []byte, runeId runes.RuneId, height uint64) ([]*entity.RuneTransaction, error) {
 	pkScriptParam := []byte(fmt.Sprintf(`[{"pkScript":"%s"}]`, hex.EncodeToString(pkScript)))
-	rows, err := r.queries.GetRuneTransactionsByPkScript(ctx, gen.GetRuneTransactionsByPkScriptParams{
-		PkScriptParam: pkScriptParam,
-		BlockHeight:   int32(lo.FromPtr(height)),
+	runeIdParam := []byte(fmt.Sprintf(`[{"runeId":"%s"}]`, runeId.String()))
+	rows, err := r.queries.GetRuneTransactions(ctx, gen.GetRuneTransactionsParams{
+		FilterPkScript: pkScript != nil,
+		PkScriptParam:  pkScriptParam,
+
+		FilterRuneID:      runeId != runes.RuneId{},
+		RuneIDParam:       runeIdParam,
+		RuneID:            []byte(runeId.String()),
+		RuneIDBlockHeight: int32(runeId.BlockHeight),
+		RuneIDTxIndex:     int32(runeId.TxIndex),
+
+		BlockHeight: int32(height),
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "error during query")
@@ -103,7 +83,7 @@ func (r *Repository) GetRuneTransactionsByPkScript(ctx context.Context, pkScript
 
 	runeTxs := make([]*entity.RuneTransaction, 0, len(rows))
 	for _, row := range rows {
-		runeTxModel, runestoneModel, err := extractModelRuneTxAndRunestone(gen.GetRuneTransactionsByHeightRow(row))
+		runeTxModel, runestoneModel, err := extractModelRuneTxAndRunestone(row)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to extract rune transaction and runestone from row")
 		}

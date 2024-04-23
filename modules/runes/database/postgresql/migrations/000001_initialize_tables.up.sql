@@ -72,8 +72,7 @@ CREATE TABLE IF NOT EXISTS "runes_transactions" (
 	"rune_etched" BOOLEAN NOT NULL
 );
 CREATE INDEX IF NOT EXISTS runes_transactions_block_height_idx ON "runes_transactions" USING BTREE ("block_height");
-CREATE INDEX IF NOT EXISTS runes_transactions_output_idx ON "runes_transactions" USING GIN ("outputs");
-CREATE INDEX IF NOT EXISTS runes_transactions_input_idx ON "runes_transactions" USING GIN ("inputs");
+CREATE INDEX IF NOT EXISTS runes_transactions_jsonb_idx ON "runes_transactions" USING GIN ("inputs", "outputs", "mints", "burns");
 
 CREATE TABLE IF NOT EXISTS "runes_runestones" (
 	"tx_hash" TEXT NOT NULL PRIMARY KEY,

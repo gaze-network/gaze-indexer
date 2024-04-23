@@ -40,17 +40,23 @@ SELECT * FROM runes_entries
 -- name: GetRuneIdFromRune :one
 SELECT rune_id FROM runes_entries WHERE rune = $1;
 
--- name: GetRuneTransactionsByHeight :many
-SELECT * FROM runes_transactions 
-  LEFT JOIN runes_runestones ON runes_transactions.hash = runes_runestones.tx_hash
-  WHERE runes_transactions.block_height = $1;
-
--- name: GetRuneTransactionsByPkScript :many
-SELECT * FROM runes_transactions 
+-- name: GetRuneTransactions :many
+SELECT * FROM runes_transactions
 	LEFT JOIN runes_runestones ON runes_transactions.hash = runes_runestones.tx_hash
 	WHERE (
-    runes_transactions.outputs @> @pk_script_param::JSONB OR runes_transactions.inputs @> @pk_script_param::JSONB
-  ) AND (@block_height::INT = 0 OR runes_transactions.block_height = @block_height::INT); -- optionally filter by block height if block height > 0
+    @filter_pk_script::BOOLEAN = FALSE -- if @filter_pk_script is TRUE, apply pk_script filter
+    OR runes_transactions.outputs @> @pk_script_param::JSONB 
+    OR runes_transactions.inputs @> @pk_script_param::JSONB
+  ) AND (
+    @filter_rune_id::BOOLEAN = FALSE -- if @filter_rune_id is TRUE, apply rune_id filter
+    OR runes_transactions.outputs @> @rune_id_param::JSONB 
+    OR runes_transactions.inputs @> @rune_id_param::JSONB 
+    OR runes_transactions.mints ? @rune_id 
+    OR runes_transactions.burns ? @rune_id
+    OR (runes_transactions.rune_etched = TRUE AND runes_transactions.block_height = @rune_id_block_height AND runes_transactions.index = @rune_id_tx_index)
+  ) AND (
+    @block_height::INT = 0 OR runes_transactions.block_height = @block_height::INT -- if @block_height > 0, apply block_height filter
+  );
 
 -- name: CountRuneEntries :one
 SELECT COUNT(*) FROM runes_entries;

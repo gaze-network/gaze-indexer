@@ -631,111 +631,37 @@ func (q *Queries) GetRuneIdFromRune(ctx context.Context, rune string) (string, e
 	return rune_id, err
 }
 
-const getRuneTransactionsByHeight = `-- name: GetRuneTransactionsByHeight :many
-SELECT hash, runes_transactions.block_height, index, timestamp, inputs, outputs, mints, burns, rune_etched, tx_hash, runes_runestones.block_height, etching, etching_divisibility, etching_premine, etching_rune, etching_spacers, etching_symbol, etching_terms, etching_terms_amount, etching_terms_cap, etching_terms_height_start, etching_terms_height_end, etching_terms_offset_start, etching_terms_offset_end, etching_turbo, edicts, mint, pointer, cenotaph, flaws FROM runes_transactions 
-  LEFT JOIN runes_runestones ON runes_transactions.hash = runes_runestones.tx_hash
-  WHERE runes_transactions.block_height = $1
-`
-
-type GetRuneTransactionsByHeightRow struct {
-	Hash                    string
-	BlockHeight             int32
-	Index                   int32
-	Timestamp               pgtype.Timestamp
-	Inputs                  []byte
-	Outputs                 []byte
-	Mints                   []byte
-	Burns                   []byte
-	RuneEtched              bool
-	TxHash                  pgtype.Text
-	BlockHeight_2           pgtype.Int4
-	Etching                 pgtype.Bool
-	EtchingDivisibility     pgtype.Int2
-	EtchingPremine          pgtype.Numeric
-	EtchingRune             pgtype.Text
-	EtchingSpacers          pgtype.Int4
-	EtchingSymbol           pgtype.Int4
-	EtchingTerms            pgtype.Bool
-	EtchingTermsAmount      pgtype.Numeric
-	EtchingTermsCap         pgtype.Numeric
-	EtchingTermsHeightStart pgtype.Int4
-	EtchingTermsHeightEnd   pgtype.Int4
-	EtchingTermsOffsetStart pgtype.Int4
-	EtchingTermsOffsetEnd   pgtype.Int4
-	EtchingTurbo            pgtype.Bool
-	Edicts                  []byte
-	Mint                    pgtype.Text
-	Pointer                 pgtype.Int4
-	Cenotaph                pgtype.Bool
-	Flaws                   pgtype.Int4
-}
-
-func (q *Queries) GetRuneTransactionsByHeight(ctx context.Context, blockHeight int32) ([]GetRuneTransactionsByHeightRow, error) {
-	rows, err := q.db.Query(ctx, getRuneTransactionsByHeight, blockHeight)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []GetRuneTransactionsByHeightRow
-	for rows.Next() {
-		var i GetRuneTransactionsByHeightRow
-		if err := rows.Scan(
-			&i.Hash,
-			&i.BlockHeight,
-			&i.Index,
-			&i.Timestamp,
-			&i.Inputs,
-			&i.Outputs,
-			&i.Mints,
-			&i.Burns,
-			&i.RuneEtched,
-			&i.TxHash,
-			&i.BlockHeight_2,
-			&i.Etching,
-			&i.EtchingDivisibility,
-			&i.EtchingPremine,
-			&i.EtchingRune,
-			&i.EtchingSpacers,
-			&i.EtchingSymbol,
-			&i.EtchingTerms,
-			&i.EtchingTermsAmount,
-			&i.EtchingTermsCap,
-			&i.EtchingTermsHeightStart,
-			&i.EtchingTermsHeightEnd,
-			&i.EtchingTermsOffsetStart,
-			&i.EtchingTermsOffsetEnd,
-			&i.EtchingTurbo,
-			&i.Edicts,
-			&i.Mint,
-			&i.Pointer,
-			&i.Cenotaph,
-			&i.Flaws,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const getRuneTransactionsByPkScript = `-- name: GetRuneTransactionsByPkScript :many
-SELECT hash, runes_transactions.block_height, index, timestamp, inputs, outputs, mints, burns, rune_etched, tx_hash, runes_runestones.block_height, etching, etching_divisibility, etching_premine, etching_rune, etching_spacers, etching_symbol, etching_terms, etching_terms_amount, etching_terms_cap, etching_terms_height_start, etching_terms_height_end, etching_terms_offset_start, etching_terms_offset_end, etching_turbo, edicts, mint, pointer, cenotaph, flaws FROM runes_transactions 
+const getRuneTransactions = `-- name: GetRuneTransactions :many
+SELECT hash, runes_transactions.block_height, index, timestamp, inputs, outputs, mints, burns, rune_etched, tx_hash, runes_runestones.block_height, etching, etching_divisibility, etching_premine, etching_rune, etching_spacers, etching_symbol, etching_terms, etching_terms_amount, etching_terms_cap, etching_terms_height_start, etching_terms_height_end, etching_terms_offset_start, etching_terms_offset_end, etching_turbo, edicts, mint, pointer, cenotaph, flaws FROM runes_transactions
 	LEFT JOIN runes_runestones ON runes_transactions.hash = runes_runestones.tx_hash
 	WHERE (
-    runes_transactions.outputs @> $1::JSONB OR runes_transactions.inputs @> $1::JSONB
-  ) AND ($2::INT = 0 OR runes_transactions.block_height = $2::INT) -- optionally filter by block height if block height > 0
-  ORDER BY runes_transactions.block_height ASC
+    $1::BOOLEAN = FALSE -- if @filter_pk_script is TRUE, apply pk_script filter
+    OR runes_transactions.outputs @> $2::JSONB 
+    OR runes_transactions.inputs @> $2::JSONB
+  ) AND (
+    $3::BOOLEAN = FALSE -- if @filter_rune_id is TRUE, apply rune_id filter
+    OR runes_transactions.outputs @> $4::JSONB 
+    OR runes_transactions.inputs @> $4::JSONB 
+    OR runes_transactions.mints ? $5 
+    OR runes_transactions.burns ? $5
+    OR (runes_transactions.rune_etched = TRUE AND runes_transactions.block_height = $6 AND runes_transactions.index = $7)
+  ) AND (
+    $8::INT = 0 OR runes_transactions.block_height = $8::INT -- if @block_height > 0, apply block_height filter
+  )
 `
 
-type GetRuneTransactionsByPkScriptParams struct {
-	PkScriptParam []byte
-	BlockHeight   int32
+type GetRuneTransactionsParams struct {
+	FilterPkScript    bool
+	PkScriptParam     []byte
+	FilterRuneID      bool
+	RuneIDParam       []byte
+	RuneID            []byte
+	RuneIDBlockHeight int32
+	RuneIDTxIndex     int32
+	BlockHeight       int32
 }
 
-type GetRuneTransactionsByPkScriptRow struct {
+type GetRuneTransactionsRow struct {
 	Hash                    string
 	BlockHeight             int32
 	Index                   int32
@@ -768,15 +694,24 @@ type GetRuneTransactionsByPkScriptRow struct {
 	Flaws                   pgtype.Int4
 }
 
-func (q *Queries) GetRuneTransactionsByPkScript(ctx context.Context, arg GetRuneTransactionsByPkScriptParams) ([]GetRuneTransactionsByPkScriptRow, error) {
-	rows, err := q.db.Query(ctx, getRuneTransactionsByPkScript, arg.PkScriptParam, arg.BlockHeight)
+func (q *Queries) GetRuneTransactions(ctx context.Context, arg GetRuneTransactionsParams) ([]GetRuneTransactionsRow, error) {
+	rows, err := q.db.Query(ctx, getRuneTransactions,
+		arg.FilterPkScript,
+		arg.PkScriptParam,
+		arg.FilterRuneID,
+		arg.RuneIDParam,
+		arg.RuneID,
+		arg.RuneIDBlockHeight,
+		arg.RuneIDTxIndex,
+		arg.BlockHeight,
+	)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []GetRuneTransactionsByPkScriptRow
+	var items []GetRuneTransactionsRow
 	for rows.Next() {
-		var i GetRuneTransactionsByPkScriptRow
+		var i GetRuneTransactionsRow
 		if err := rows.Scan(
 			&i.Hash,
 			&i.BlockHeight,
