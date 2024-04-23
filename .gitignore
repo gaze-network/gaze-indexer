@@ -3,6 +3,8 @@
 # Eg. ignore.foo_test.go, ignore.credentials.json, ignore.config.yml
 ignore.*
 
+/key
+
 **/cmd.local/**
 **/cmd.local.**/**
 

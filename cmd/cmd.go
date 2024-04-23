@@ -14,13 +14,14 @@ var (
 	// root command
 	cmd = &cobra.Command{
 		Use:  "gaze",
-		Long: `Description of gaze indexer`,
+		Long: `Gaze in a Bitcoin meta-protocol indexer`,
 	}
 
-	// sub-commands
+	// sub-commandsf
 	cmds = []*cobra.Command{
 		NewVersionCommand(),
 		NewRunCommand(),
+		NewGenerateKeypairCommand(),
 	}
 )
 
