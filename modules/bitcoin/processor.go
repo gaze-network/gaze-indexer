@@ -2,7 +2,6 @@ package bitcoin
 
 import (
 	"context"
-	"log/slog"
 
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/common/errs"
@@ -10,8 +9,6 @@ import (
 	"github.com/gaze-network/indexer-network/core/types"
 	"github.com/gaze-network/indexer-network/internal/config"
 	"github.com/gaze-network/indexer-network/modules/bitcoin/datagateway"
-	"github.com/gaze-network/indexer-network/pkg/logger"
-	"github.com/gaze-network/indexer-network/pkg/logger/slogx"
 )
 
 // Make sure to implement the BitcoinProcessor interface
@@ -47,12 +44,8 @@ func (p *Processor) Process(ctx context.Context, inputs []*types.Block) error {
 	}
 
 	// Insert blocks
-	for _, b := range inputs {
-		err := p.bitcoinDg.InsertBlock(ctx, b)
-		if err != nil {
-			return errors.Wrapf(err, "failed to insert block, height: %d, hash: %s", b.Header.Height, b.Header.Hash)
-		}
-		logger.InfoContext(ctx, "Block inserted", slog.Int64("height", b.Header.Height), slogx.Stringer("hash", b.Header.Hash))
+	if err := p.bitcoinDg.InsertBlocks(ctx, inputs); err != nil {
+		return errors.Wrapf(err, "error during insert blocks, from: %d, to: %d", inputs[0].Header.Height, inputs[len(inputs)-1].Header.Height)
 	}
 
 	return nil
