@@ -76,7 +76,7 @@ func (p *Processor) isContinueFromLatestIndexedBlock(ctx context.Context, block 
 //
 // Duplicate Coinbase Transactions:
 //   - `454279874213763724535987336644243549a273058910332236515429488599` in blocks 91812, 91842
-//   - `5356640744203756384561725255950751537320676481287559742658862468` in blocks 91722, 91880
+//   - `e3bf3d07d4b0375638d5f1db5255fe07ba2c4cb067cd81b84ee974b6585fb468` in blocks 91722, 91880
 //
 // This function will modify the given data directly.
 func (p *Processor) removeDuplicateCoinbaseTxInputsOutputs(blocks []*types.Block) {
