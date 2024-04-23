@@ -1,9 +1,7 @@
 package bitcoin
 
 import (
-	"cmp"
 	"context"
-	"slices"
 
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/common/errs"
@@ -39,27 +37,10 @@ func (p *Processor) Process(ctx context.Context, inputs []*types.Block) error {
 		return nil
 	}
 
-	// Sort ASC by block height
-	slices.SortFunc(inputs, func(t1, t2 *types.Block) int {
-		return cmp.Compare(t1.Header.Height, t2.Header.Height)
-	})
-
-	latestBlock, err := p.CurrentBlock(ctx)
+	// Process the given blocks before inserting to the database
+	inputs, err := p.process(ctx, inputs)
 	if err != nil {
-		return errors.Wrap(err, "failed to get latest indexed block header")
-	}
-
-	// check if the given blocks are continue from the latest indexed block
-	// return an error to prevent inserting out-of-order blocks or duplicate blocks
-	if inputs[0].Header.Height != latestBlock.Height+1 {
-		return errors.New("given blocks are not continue from the latest indexed block")
-	}
-
-	// check if the given blocks are in sequence and not missing any block
-	for i := 1; i < len(inputs); i++ {
-		if inputs[i].Header.Height != inputs[i-1].Header.Height+1 {
-			return errors.New("given blocks are not in sequence")
-		}
+		return errors.WithStack(err)
 	}
 
 	// Insert blocks
@@ -90,6 +71,12 @@ func (p *Processor) GetIndexedBlock(ctx context.Context, height int64) (types.Bl
 }
 
 func (p *Processor) RevertData(ctx context.Context, from int64) error {
+	// to prevent remove txin/txout of duplicated coinbase transaction in the blocks 91842 and 91880
+	// if you really want to revert the data before the block `227835`, you should reset the database and reindex the data instead.
+	if from <= lastV1Block.Height {
+		return errors.Wrapf(errs.InvalidArgument, "can't revert data before block version 2, height: %d", lastV1Block.Height)
+	}
+
 	if err := p.bitcoinDg.RevertBlocks(ctx, from); err != nil {
 		return errors.WithStack(err)
 	}
