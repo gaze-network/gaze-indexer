@@ -66,9 +66,9 @@ func (p *Processor) isContinueFromLatestIndexedBlock(ctx context.Context, block 
 	return block.Header.Height == latestBlock.Height+1
 }
 
-// there 2 tx hashes that are duplicated in the blocks 91842 and 91880 (coinbase transaction is duplicated)
+// there 2 coinbase transaction that are duplicated in the blocks 91842 and 91880.
 // if the given block version is v1 and height is `91842` or `91880`,
-// then remove transaction inputs/outputs to prevent duplicate txin/txout error.
+// then remove transaction inputs/outputs to prevent duplicate txin/txout error when inserting to the database.
 //
 // Theses duplicated coinbase transactions are having the same transaction input(from coinbase)/output and
 // utxo from these 2 duplicated coinbase txs can redeem only once), so, it's safe to remove them and can
