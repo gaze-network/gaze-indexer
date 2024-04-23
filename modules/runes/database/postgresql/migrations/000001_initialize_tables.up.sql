@@ -71,6 +71,7 @@ CREATE TABLE IF NOT EXISTS "runes_transactions" (
 	"burns" JSONB NOT NULL,
 	"rune_etched" BOOLEAN NOT NULL
 );
+CREATE INDEX IF NOT EXISTS runes_transactions_block_height_idx ON "runes_transactions" USING BTREE ("block_height");
 
 CREATE TABLE IF NOT EXISTS "runes_runestones" (
 	"tx_hash" TEXT NOT NULL PRIMARY KEY,
@@ -107,6 +108,7 @@ CREATE TABLE IF NOT EXISTS "runes_outpoint_balances" (
 	PRIMARY KEY ("rune_id", "tx_hash", "tx_idx")
 );
 CREATE INDEX IF NOT EXISTS runes_outpoint_balances_tx_hash_tx_idx_idx ON "runes_outpoint_balances" USING BTREE ("tx_hash", "tx_idx");
+CREATE INDEX IF NOT EXISTS runes_outpoint_balances_pkscript_block_height_spent_height_idx ON "runes_outpoint_balances" USING BTREE ("pkscript", "block_height", "spent_height");
 
 CREATE TABLE IF NOT EXISTS "runes_balances" (
 	"pkscript" TEXT NOT NULL,
