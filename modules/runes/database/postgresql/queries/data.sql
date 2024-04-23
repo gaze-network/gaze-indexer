@@ -45,6 +45,13 @@ SELECT * FROM runes_transactions
   LEFT JOIN runes_runestones ON runes_transactions.hash = runes_runestones.tx_hash
   WHERE runes_transactions.block_height = $1;
 
+-- name: GetRuneTransactionsByPkScript :many
+SELECT * FROM runes_transactions 
+	LEFT JOIN runes_runestones ON runes_transactions.hash = runes_runestones.tx_hash
+	WHERE (
+    runes_transactions.outputs @> @pk_script_param::JSONB OR runes_transactions.inputs @> @pk_script_param::JSONB
+  ) AND (@block_height::INT = 0 OR runes_transactions.block_height = @block_height::INT); -- optionally filter by block height if block height > 0
+
 -- name: CountRuneEntries :one
 SELECT COUNT(*) FROM runes_entries;
 

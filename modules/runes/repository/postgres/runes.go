@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"encoding/hex"
+	"fmt"
 
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/wire"
@@ -70,6 +71,39 @@ func (r *Repository) GetRuneTransactionsByHeight(ctx context.Context, height uin
 	runeTxs := make([]*entity.RuneTransaction, 0, len(rows))
 	for _, row := range rows {
 		runeTxModel, runestoneModel, err := extractModelRuneTxAndRunestone(row)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to extract rune transaction and runestone from row")
+		}
+
+		runeTx, err := mapRuneTransactionModelToType(runeTxModel)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to parse rune transaction model")
+		}
+		if runestoneModel != nil {
+			runestone, err := mapRunestoneModelToType(*runestoneModel)
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to parse runestone model")
+			}
+			runeTx.Runestone = &runestone
+		}
+		runeTxs = append(runeTxs, &runeTx)
+	}
+	return runeTxs, nil
+}
+
+func (r *Repository) GetRuneTransactionsByPkScript(ctx context.Context, pkScript []byte, height *uint64) ([]*entity.RuneTransaction, error) {
+	pkScriptParam := []byte(fmt.Sprintf(`[{"pkScript":"%s"}]`, hex.EncodeToString(pkScript)))
+	rows, err := r.queries.GetRuneTransactionsByPkScript(ctx, gen.GetRuneTransactionsByPkScriptParams{
+		PkScriptParam: pkScriptParam,
+		BlockHeight:   int32(lo.FromPtr(height)),
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "error during query")
+	}
+
+	runeTxs := make([]*entity.RuneTransaction, 0, len(rows))
+	for _, row := range rows {
+		runeTxModel, runestoneModel, err := extractModelRuneTxAndRunestone(gen.GetRuneTransactionsByHeightRow(row))
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to extract rune transaction and runestone from row")
 		}

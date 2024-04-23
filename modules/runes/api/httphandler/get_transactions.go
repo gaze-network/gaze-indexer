@@ -3,6 +3,7 @@ package httphandler
 import (
 	"bytes"
 	"encoding/hex"
+	"slices"
 
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/cockroachdb/errors"
@@ -84,6 +85,7 @@ type amountWithDecimal struct {
 type transaction struct {
 	TxHash      chainhash.Hash               `json:"txHash"`
 	BlockHeight uint64                       `json:"blockHeight"`
+	Index       uint32                       `json:"index"`
 	Timestamp   int64                        `json:"timestamp"`
 	Inputs      []txInputOutput              `json:"inputs"`
 	Outputs     []txInputOutput              `json:"outputs"`
@@ -116,15 +118,6 @@ func (h *HttpHandler) GetTransactions(ctx *fiber.Ctx) (err error) {
 		}
 	}
 
-	blockHeight := req.BlockHeight
-	if blockHeight == 0 {
-		blockHeader, err := h.usecase.GetLatestBlock(ctx.UserContext())
-		if err != nil {
-			return errors.Wrap(err, "error during GetLatestBlock")
-		}
-		blockHeight = uint64(blockHeader.Height)
-	}
-
 	var runeId runes.RuneId
 	if req.Id != "" {
 		var ok bool
@@ -134,9 +127,29 @@ func (h *HttpHandler) GetTransactions(ctx *fiber.Ctx) (err error) {
 		}
 	}
 
-	txs, err := h.usecase.GetTransactionsByHeight(ctx.UserContext(), blockHeight)
-	if err != nil {
-		return errors.Wrap(err, "error during GetTransactionsByHeight")
+	var txs []*entity.RuneTransaction
+	if pkScript != nil {
+		var blockHeight *uint64
+		if req.BlockHeight > 0 {
+			blockHeight = &req.BlockHeight
+		}
+		txs, err = h.usecase.GetTransactionsByPkScript(ctx.UserContext(), pkScript, blockHeight)
+		if err != nil {
+			return errors.Wrap(err, "error during GetTransactionsByPkScript")
+		}
+	} else {
+		blockHeight := req.BlockHeight
+		if blockHeight == 0 {
+			blockHeader, err := h.usecase.GetLatestBlock(ctx.UserContext())
+			if err != nil {
+				return errors.Wrap(err, "error during GetLatestBlock")
+			}
+			blockHeight = uint64(blockHeader.Height)
+		}
+		txs, err = h.usecase.GetTransactionsByHeight(ctx.UserContext(), blockHeight)
+		if err != nil {
+			return errors.Wrap(err, "error during GetTransactionsByHeight")
+		}
 	}
 
 	filteredTxs := make([]*entity.RuneTransaction, 0)
@@ -220,6 +233,7 @@ func (h *HttpHandler) GetTransactions(ctx *fiber.Ctx) (err error) {
 		respTx := transaction{
 			TxHash:      tx.Hash,
 			BlockHeight: tx.BlockHeight,
+			Index:       tx.Index,
 			Timestamp:   tx.Timestamp.Unix(),
 			Inputs:      make([]txInputOutput, 0, len(tx.Inputs)),
 			Outputs:     make([]txInputOutput, 0, len(tx.Outputs)),
@@ -309,6 +323,13 @@ func (h *HttpHandler) GetTransactions(ctx *fiber.Ctx) (err error) {
 		}
 		txList = append(txList, respTx)
 	}
+	// sort by block height ASC, then index ASC
+	slices.SortFunc(txList, func(t1, t2 transaction) int {
+		if t1.BlockHeight != t2.BlockHeight {
+			return int(t1.BlockHeight - t2.BlockHeight)
+		}
+		return int(t1.Index - t2.Index)
+	})
 
 	resp := getTransactionsResponse{
 		Result: &getTransactionsResult{

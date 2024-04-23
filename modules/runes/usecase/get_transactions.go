@@ -14,3 +14,11 @@ func (u *Usecase) GetTransactionsByHeight(ctx context.Context, height uint64) ([
 	}
 	return txs, nil
 }
+
+func (u *Usecase) GetTransactionsByPkScript(ctx context.Context, pkScript []byte, height *uint64) ([]*entity.RuneTransaction, error) {
+	txs, err := u.runesDg.GetRuneTransactionsByPkScript(ctx, pkScript, height)
+	if err != nil {
+		return nil, errors.Wrap(err, "error during GetTransactionsByHeight")
+	}
+	return txs, nil
+}
