@@ -11,6 +11,45 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const batchInsertBlocks = `-- name: BatchInsertBlocks :exec
+INSERT INTO bitcoin_blocks ("block_height","block_hash","version","merkle_root","prev_block_hash","timestamp","bits","nonce")
+VALUES (
+	unnest($1::INT[]),
+	unnest($2::TEXT[]),
+	unnest($3::INT[]),
+	unnest($4::TEXT[]),
+	unnest($5::TEXT[]),
+	unnest($6::TIMESTAMP WITH TIME ZONE[]), -- or use TIMESTAMPTZ
+	unnest($7::BIGINT[]),
+	unnest($8::BIGINT[])
+)
+`
+
+type BatchInsertBlocksParams struct {
+	BlockHeightArr   []int32
+	BlockHashArr     []string
+	VersionArr       []int32
+	MerkleRootArr    []string
+	PrevBlockHashArr []string
+	TimestampArr     []pgtype.Timestamptz
+	BitsArr          []int64
+	NonceArr         []int64
+}
+
+func (q *Queries) BatchInsertBlocks(ctx context.Context, arg BatchInsertBlocksParams) error {
+	_, err := q.db.Exec(ctx, batchInsertBlocks,
+		arg.BlockHeightArr,
+		arg.BlockHashArr,
+		arg.VersionArr,
+		arg.MerkleRootArr,
+		arg.PrevBlockHashArr,
+		arg.TimestampArr,
+		arg.BitsArr,
+		arg.NonceArr,
+	)
+	return err
+}
+
 const batchInsertTransactionTxIns = `-- name: BatchInsertTransactionTxIns :exec
 WITH update_txout AS (
 	UPDATE "bitcoin_transaction_txouts"

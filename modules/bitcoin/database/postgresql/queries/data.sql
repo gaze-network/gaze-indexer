@@ -4,6 +4,19 @@ SELECT * FROM bitcoin_blocks ORDER BY block_height DESC LIMIT 1;
 -- name: InsertBlock :exec
 INSERT INTO bitcoin_blocks ("block_height","block_hash","version","merkle_root","prev_block_hash","timestamp","bits","nonce") VALUES ($1, $2, $3, $4, $5, $6, $7, $8);
 
+-- name: BatchInsertBlocks :exec
+INSERT INTO bitcoin_blocks ("block_height","block_hash","version","merkle_root","prev_block_hash","timestamp","bits","nonce")
+VALUES (
+	unnest(@block_height_arr::INT[]),
+	unnest(@block_hash_arr::TEXT[]),
+	unnest(@version_arr::INT[]),
+	unnest(@merkle_root_arr::TEXT[]),
+	unnest(@prev_block_hash_arr::TEXT[]),
+	unnest(@timestamp_arr::TIMESTAMP WITH TIME ZONE[]), -- or use TIMESTAMPTZ
+	unnest(@bits_arr::BIGINT[]),
+	unnest(@nonce_arr::BIGINT[])
+);
+
 -- name: BatchInsertTransactions :exec
 INSERT INTO bitcoin_transactions ("tx_hash","version","locktime","block_height","block_hash","idx")
 VALUES (
