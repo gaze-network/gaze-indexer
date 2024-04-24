@@ -224,16 +224,16 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 		}
 
 		if !opts.APIOnly {
-			runesProcessor := runes.NewProcessor(runesDg, indexerInfoDg, bitcoinClient, bitcoinDatasource, conf.Network, reportingClient)
-			runesIndexer := indexers.NewBitcoinIndexer(runesProcessor, bitcoinDatasource)
+			processor := runes.NewProcessor(runesDg, indexerInfoDg, bitcoinClient, bitcoinDatasource, conf.Network, reportingClient)
+			indexer := indexers.NewBitcoinIndexer(processor, bitcoinDatasource)
 			defer func() {
-				if err := runesIndexer.ShutdownWithTimeout(shutdownTimeout); err != nil {
+				if err := indexer.ShutdownWithTimeout(shutdownTimeout); err != nil {
 					logger.ErrorContext(ctx, "Error during shutdown Runes indexer", slogx.Error(err))
 				}
 				logger.InfoContext(ctx, "Runes indexer stopped gracefully")
 			}()
 
-			if err := runesProcessor.VerifyStates(ctx); err != nil {
+			if err := processor.VerifyStates(ctx); err != nil {
 				return errors.WithStack(err)
 			}
 
@@ -243,7 +243,7 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 				defer stop()
 
 				logger.InfoContext(ctx, "Started Runes Indexer")
-				if err := runesIndexer.Run(ctxWorker); err != nil {
+				if err := indexer.Run(ctxWorker); err != nil {
 					logger.PanicContext(ctx, "Failed to run Runes Indexer", slogx.Error(err))
 				}
 			}()
