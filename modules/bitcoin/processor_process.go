@@ -70,8 +70,8 @@ func (p *Processor) isContinueFromLatestIndexedBlock(ctx context.Context, block 
 // if the given block version is v1 and height is `91842` or `91880`,
 // then remove transaction inputs/outputs to prevent duplicate txin/txout error when inserting to the database.
 //
-// Theses duplicated coinbase transactions are having the same transaction input(from coinbase)/output and
-// utxo from these 2 duplicated coinbase txs can redeem only once), so, it's safe to remove them and can
+// Theses duplicated coinbase transactions are having the same transaction input/output and
+// utxo from these 2 duplicated coinbase txs can redeem only once. so, it's safe to remove them and can
 // use inputs/outputs from the previous block.
 //
 // Duplicate Coinbase Transactions:
