@@ -59,4 +59,4 @@ jobs:
       - run: echo "GOVERSION=$(go version)" >> $GITHUB_ENV
 
       - name: Test
-        run: go test ./...
+        uses: robherley/go-test-action@v0
