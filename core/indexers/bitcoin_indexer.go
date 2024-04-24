@@ -92,9 +92,10 @@ func (i *BitcoinIndexer) Run(ctx context.Context) (err error) {
 			return nil
 		case <-ticker.C:
 			if err := i.process(ctx); err != nil {
-				logger.ErrorContext(ctx, "failed to process", slogx.Error(err))
-				return errors.Wrap(err, "failed to process")
+				logger.ErrorContext(ctx, "Failed while process", slogx.Error(err))
+				return errors.Wrap(err, "Failed while process")
 			}
+			logger.InfoContext(ctx, "Waiting for next round")
 		}
 	}
 }
