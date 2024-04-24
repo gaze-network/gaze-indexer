@@ -39,6 +39,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const (
+	shutdownTimeout = 60 * time.Second
+)
+
 type runCmdOptions struct {
 	APIOnly bool
 	Bitcoin bool
@@ -156,7 +160,12 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 			bitcoinProcessor := bitcoin.NewProcessor(conf, btcDB, indexerInfoDB)
 			bitcoinNodeDatasource := datasources.NewBitcoinNode(client)
 			bitcoinIndexer := indexers.NewBitcoinIndexer(bitcoinProcessor, bitcoinNodeDatasource)
-			defer bitcoinIndexer.Shutdown()
+			defer func() {
+				if err := bitcoinIndexer.ShutdownWithTimeout(shutdownTimeout); err != nil {
+					logger.ErrorContext(ctx, "Error during shutdown Runes indexer", slogx.Error(err))
+				}
+				logger.InfoContext(ctx, "Runes indexer stopped gracefully")
+			}()
 
 			// Verify states before running Indexer
 			if err := bitcoinProcessor.VerifyStates(ctx); err != nil {
@@ -217,7 +226,12 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 		if !opts.APIOnly {
 			runesProcessor := runes.NewProcessor(runesDg, indexerInfoDg, bitcoinClient, bitcoinDatasource, conf.Network, reportingClient)
 			runesIndexer := indexers.NewBitcoinIndexer(runesProcessor, bitcoinDatasource)
-			defer runesIndexer.Shutdown()
+			defer func() {
+				if err := runesIndexer.ShutdownWithTimeout(shutdownTimeout); err != nil {
+					logger.ErrorContext(ctx, "Error during shutdown Runes indexer", slogx.Error(err))
+				}
+				logger.InfoContext(ctx, "Runes indexer stopped gracefully")
+			}()
 
 			if err := runesProcessor.VerifyStates(ctx); err != nil {
 				return errors.WithStack(err)
@@ -254,7 +268,7 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 	// Setup HTTP server if there are any HTTP handlers
 	if len(httpHandlers) > 0 {
 		app := fiber.New(fiber.Config{
-			AppName:      "gaze",
+			AppName:      "Gaze Indexer",
 			ErrorHandler: errorhandler.NewHTTPErrorHandler(),
 		})
 		app.
@@ -269,7 +283,15 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 			Use(compress.New(compress.Config{
 				Level: compress.LevelDefault,
 			}))
-		// ping handler
+
+		defer func() {
+			if err := app.ShutdownWithTimeout(shutdownTimeout); err != nil {
+				logger.ErrorContext(ctx, "Error during shutdown HTTP server", slogx.Error(err))
+			}
+			logger.InfoContext(ctx, "HTTP server stopped gracefully")
+		}()
+
+		// Health check
 		app.Get("/", func(c *fiber.Ctx) error {
 			return errors.WithStack(c.SendStatus(http.StatusOK))
 		})
@@ -281,18 +303,12 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 			}
 			logger.InfoContext(ctx, "Mounted HTTP handler", slogx.String("module", module))
 		}
+
 		go func() {
 			logger.InfoContext(ctx, "Started HTTP server", slog.Int("port", conf.HTTPServer.Port))
 			if err := app.Listen(fmt.Sprintf(":%d", conf.HTTPServer.Port)); err != nil {
 				logger.PanicContext(ctx, "Failed to start HTTP server", slogx.Error(err))
 			}
-		}()
-
-		defer func() {
-			if err := app.ShutdownWithTimeout(60 * time.Second); err != nil {
-				logger.ErrorContext(ctx, "Error during shutdown HTTP server", slogx.Error(err))
-			}
-			logger.InfoContext(ctx, "HTTP server stopped gracefully")
 		}()
 	}
 

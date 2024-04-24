@@ -48,22 +48,28 @@ func NewBitcoinIndexer(processor BitcoinProcessor, datasource BitcoinDatasource)
 	}
 }
 
-func (i *BitcoinIndexer) Shutdown() {
-	i.ShutdownWithContext(context.Background())
+func (i *BitcoinIndexer) Shutdown() error {
+	return i.ShutdownWithContext(context.Background())
 }
 
-func (i *BitcoinIndexer) ShutdownWithContext(ctx context.Context) {
+func (i *BitcoinIndexer) ShutdownWithTimeout(timeout time.Duration) error {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	return i.ShutdownWithContext(ctx)
+}
+
+func (i *BitcoinIndexer) ShutdownWithContext(ctx context.Context) (err error) {
 	i.quitOnce.Do(func() {
 		close(i.quit)
 		select {
 		case <-i.done:
 		case <-time.After(180 * time.Second):
-			logger.WarnContext(ctx, "Indexer Shutdown timeout",
-				slog.String("indexer", "bitcoin"),
-			)
+			err = errors.Wrap(errs.Timeout, "indexer shutdown timeout")
 		case <-ctx.Done():
+			err = errors.Wrap(ctx.Err(), "indexer shutdown context canceled")
 		}
 	})
+	return
 }
 
 func (i *BitcoinIndexer) Run(ctx context.Context) (err error) {
