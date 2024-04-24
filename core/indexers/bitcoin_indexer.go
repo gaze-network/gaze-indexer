@@ -54,11 +54,13 @@ func (i *BitcoinIndexer) Shutdown() {
 
 func (i *BitcoinIndexer) ShutdownWithContext(ctx context.Context) {
 	i.quitOnce.Do(func() {
+		close(i.quit)
 		select {
-		case i.quit <- struct{}{}:
-			<-i.done // wait for graceful shutdown
-		case <-i.done: // already shutdown
-		case <-time.After(15 * time.Second):
+		case <-i.done:
+		case <-time.After(180 * time.Second):
+			logger.WarnContext(ctx, "Indexer Shutdown timeout",
+				slog.String("indexer", "bitcoin"),
+			)
 		case <-ctx.Done():
 		}
 	})
@@ -87,6 +89,7 @@ func (i *BitcoinIndexer) Run(ctx context.Context) (err error) {
 	for {
 		select {
 		case <-i.quit:
+			logger.InfoContext(ctx, "Got quit signal, stopping indexer")
 			return nil
 		case <-ctx.Done():
 			return nil
