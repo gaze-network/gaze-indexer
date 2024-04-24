@@ -37,7 +37,6 @@ import (
 	fiberrecover "github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/samber/lo"
 	"github.com/spf13/cobra"
-	"golang.org/x/sync/errgroup"
 )
 
 type runCmdOptions struct {
@@ -125,9 +124,6 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 
 	// TODO: refactor module name to specific type instead of string?
 	httpHandlers := make(map[string]HttpHandler, 0)
-
-	// use gracefulEG to coordinate graceful shutdown after context is done. (e.g. shut down http server, shutdown logic of each module, etc.)
-	gracefulEG, gctx := errgroup.WithContext(context.Background())
 
 	var reportingClient *reportingclient.ReportingClient
 	if !conf.Reporting.Disabled {
@@ -291,16 +287,13 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 				logger.PanicContext(ctx, "Failed to start HTTP server", slogx.Error(err))
 			}
 		}()
-		// handle graceful shutdown
-		gracefulEG.Go(func() error {
-			<-ctx.Done()
-			logger.InfoContext(gctx, "Stopping HTTP server...")
+
+		defer func() {
 			if err := app.ShutdownWithTimeout(60 * time.Second); err != nil {
-				logger.ErrorContext(gctx, "Error during shutdown HTTP server", slogx.Error(err))
+				logger.ErrorContext(ctx, "Error during shutdown HTTP server", slogx.Error(err))
 			}
-			logger.InfoContext(gctx, "HTTP server stopped gracefully")
-			return nil
-		})
+			logger.InfoContext(ctx, "HTTP server stopped gracefully")
+		}()
 	}
 
 	// Stop application if worker context is done
@@ -329,11 +322,5 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 		os.Exit(1)
 	}()
 
-	// wait until all graceful shutdown goroutines are done before returning
-	if err := gracefulEG.Wait(); err != nil {
-		logger.ErrorContext(ctx, "Failed to shutdown gracefully", slogx.Error(err))
-	} else {
-		logger.InfoContext(ctx, "Successfully shut down gracefully")
-	}
 	return nil
 }
