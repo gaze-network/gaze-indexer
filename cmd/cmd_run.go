@@ -327,17 +327,17 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 
 	// Force shutdown if timeout exceeded or got signal again
 	go func() {
+		defer os.Exit(1)
+
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 		defer stop()
 
 		select {
 		case <-ctx.Done():
-			logger.InfoContext(ctx, "Force shutdown")
-		case <-time.After(120 * time.Second):
-			logger.InfoContext(ctx, "Force shutdown after 120 seconds")
+			logger.FatalContext(ctx, "Received exit signal again. Force shutdown...")
+		case <-time.After(shutdownTimeout + 15*time.Second):
+			logger.FatalContext(ctx, "Shutdown timeout exceeded. Force shutdown...")
 		}
-
-		os.Exit(1)
 	}()
 
 	return nil
