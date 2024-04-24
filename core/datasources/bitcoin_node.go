@@ -157,6 +157,7 @@ func (d *BitcoinNodeDatasource) FetchAsync(ctx context.Context, from, to int64, 
 		done := subscription.Done()
 		chunks := lo.Chunk(blockHeights, blockStreamChunkSize)
 		for _, chunk := range chunks {
+			// TODO: Implement throttling logic to control the rate of fetching blocks (block/sec)
 			chunk := chunk
 			select {
 			case <-done:
