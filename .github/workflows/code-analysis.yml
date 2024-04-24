@@ -1,0 +1,62 @@
+name: Code Analysis & Test
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - develop
+      - main
+    paths:
+      - "go.mod"
+      - "go.sum"
+      - "**.go"
+      - ".golangci.yaml"
+      - ".github/workflows/code-analysis.yml"
+
+jobs:
+  lint:
+    strategy:
+      matrix:
+        os: ["ubuntu-latest", "macos-latest", "windows-latest"]
+    name: Lint (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: "0"
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version-file: "go.mod"
+          cache-dependency-path: "**/*.sum"
+          cache: true # caching and restoring go modules and build outputs.
+
+      - name: Lint
+        uses: reviewdog/action-golangci-lint@v2
+        with: # https://github.com/reviewdog/action-golangci-lint#inputs
+          go_version_file: "go.mod"
+          workdir: ./
+          golangci_lint_flags: "--config=./.golangci.yaml --verbose --new-from-rev=${{ github.event.pull_request.base.sha }}"
+          fail_on_error: true
+  test:
+    strategy:
+      matrix:
+        os: ["ubuntu-latest", "macos-latest", "windows-latest"]
+        go-version: ["1.22.x", "1.x"] # minimum version and latest version
+    name: Test (${{ matrix.os }}/${{ matrix.go-version }})
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: "0"
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ matrix.go-version }}
+          cache: true # caching and restoring go modules and build outputs.
+      - run: echo "GOVERSION=$(go version)" >> $GITHUB_ENV
+
+      - name: Test
+        run: go test ./...
