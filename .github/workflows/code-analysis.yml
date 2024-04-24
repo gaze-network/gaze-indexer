@@ -61,7 +61,7 @@ jobs:
       - name: Test
         uses: robherley/go-test-action@v0
         with:
-          testArguments: "-json ./... > test_output.json"
+          testArguments: ./... > test_output.json
 
       - name: Annotate Test Results
         if: always()
