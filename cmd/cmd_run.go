@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"os"
 	"os/signal"
 	"runtime"
@@ -265,6 +266,10 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 			Use(compress.New(compress.Config{
 				Level: compress.LevelDefault,
 			}))
+		// ping handler
+		app.Get("/", func(c *fiber.Ctx) error {
+			return errors.WithStack(c.SendStatus(http.StatusOK))
+		})
 
 		// mount http handlers from each http-enabled module
 		for module, handler := range httpHandlers {
