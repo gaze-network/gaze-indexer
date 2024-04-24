@@ -60,3 +60,11 @@ jobs:
 
       - name: Test
         uses: robherley/go-test-action@v0
+        with:
+          testArguments: "-json ./... > test_output.json"
+
+      - name: Annotate Test Results
+        if: always()
+        uses: guyarb/golang-test-annotations@v0.5.1
+        with:
+          test-results: test_output.json"
