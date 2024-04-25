@@ -1,9 +1,13 @@
 package core
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
 
 func TestXxx(t *testing.T) {
 	if err := A(); err != nil {
-		t.Error("Test failed")
+		assert.NoError(t, err)
 	}
 }

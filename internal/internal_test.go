@@ -1,7 +1,11 @@
 package internal
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/stretchr/testify/require"
+)
 
 func TestCI(t *testing.T) {
-	t.Error("Test failed")
+	require.False(t, true)
 }
