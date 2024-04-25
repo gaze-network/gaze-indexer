@@ -58,6 +58,9 @@ jobs:
           cache: true # caching and restoring go modules and build outputs.
       - run: echo "GOVERSION=$(go version)" >> $GITHUB_ENV
 
+      - name: Build
+        run: go build -v ./...
+
       - name: Test
         run: go test -json ./... > test_output.json
 
