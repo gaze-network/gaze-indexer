@@ -10,6 +10,7 @@ import (
 
 	"github.com/Cleverse/go-utilities/utils"
 	"github.com/cockroachdb/errors"
+	"github.com/gaze-network/indexer-network/common/errs"
 	"github.com/gaze-network/indexer-network/pkg/logger"
 	"github.com/valyala/fasthttp"
 )
@@ -29,7 +30,7 @@ type Client struct {
 
 func New(baseURL string, config ...Config) (*Client, error) {
 	if _, err := url.Parse(baseURL); err != nil {
-		return nil, errors.Wrap(err, "can't parse base url")
+		return nil, errors.Join(errs.InvalidArgument, errors.Wrap(err, "can't parse base url"))
 	}
 	var cf Config
 	if len(config) > 0 {
