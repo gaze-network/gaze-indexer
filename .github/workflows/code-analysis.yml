@@ -16,7 +16,7 @@ jobs:
   lint:
     strategy:
       matrix:
-        os: ["ubuntu-latest", "macos-latest", "windows-latest"]
+        os: ["ubuntu-latest"]
     name: Lint (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
 
@@ -42,8 +42,8 @@ jobs:
   test:
     strategy:
       matrix:
-        os: ["ubuntu-latest"]
-        go-version: ["1.22.x"] # minimum version and latest version
+        os: ["ubuntu-latest", "macos-latest", "windows-latest"]
+        go-version: ["1.22.x", "1.x"] # minimum version and latest version
     name: Test (${{ matrix.os }}/${{ matrix.go-version }})
     runs-on: ${{ matrix.os }}
     steps:
