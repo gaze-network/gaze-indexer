@@ -3,6 +3,7 @@ package indexers
 import (
 	"context"
 	"log/slog"
+	"sync"
 	"time"
 
 	"github.com/cockroachdb/errors"
@@ -30,6 +31,10 @@ type BitcoinIndexer struct {
 	Processor    BitcoinProcessor
 	Datasource   BitcoinDatasource
 	currentBlock types.BlockHeader
+
+	quitOnce sync.Once
+	quit     chan struct{}
+	done     chan struct{}
 }
 
 // NewBitcoinIndexer create new BitcoinIndexer
@@ -37,10 +42,39 @@ func NewBitcoinIndexer(processor BitcoinProcessor, datasource BitcoinDatasource)
 	return &BitcoinIndexer{
 		Processor:  processor,
 		Datasource: datasource,
+
+		quit: make(chan struct{}),
+		done: make(chan struct{}),
 	}
 }
 
+func (i *BitcoinIndexer) Shutdown() error {
+	return i.ShutdownWithContext(context.Background())
+}
+
+func (i *BitcoinIndexer) ShutdownWithTimeout(timeout time.Duration) error {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	return i.ShutdownWithContext(ctx)
+}
+
+func (i *BitcoinIndexer) ShutdownWithContext(ctx context.Context) (err error) {
+	i.quitOnce.Do(func() {
+		close(i.quit)
+		select {
+		case <-i.done:
+		case <-time.After(180 * time.Second):
+			err = errors.Wrap(errs.Timeout, "indexer shutdown timeout")
+		case <-ctx.Done():
+			err = errors.Wrap(ctx.Err(), "indexer shutdown context canceled")
+		}
+	})
+	return
+}
+
 func (i *BitcoinIndexer) Run(ctx context.Context) (err error) {
+	defer close(i.done)
+
 	ctx = logger.WithContext(ctx,
 		slog.String("indexer", "bitcoin"),
 		slog.String("processor", i.Processor.Name()),
@@ -56,22 +90,21 @@ func (i *BitcoinIndexer) Run(ctx context.Context) (err error) {
 		i.currentBlock.Height = -1
 	}
 
-	// TODO:
-	// - compare db version in constants and database
-	// - compare current network and local indexed network
-	// - update indexer stats
-
 	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
 	for {
 		select {
+		case <-i.quit:
+			logger.InfoContext(ctx, "Got quit signal, stopping indexer")
+			return nil
 		case <-ctx.Done():
 			return nil
 		case <-ticker.C:
 			if err := i.process(ctx); err != nil {
-				logger.ErrorContext(ctx, "failed to process", slogx.Error(err))
-				return errors.Wrap(err, "failed to process")
+				logger.ErrorContext(ctx, "Failed while process", slogx.Error(err))
+				return errors.Wrap(err, "Failed while process")
 			}
+			logger.InfoContext(ctx, "Waiting for next round")
 		}
 	}
 }
@@ -88,6 +121,8 @@ func (i *BitcoinIndexer) process(ctx context.Context) (err error) {
 
 	for {
 		select {
+		case <-i.quit:
+			return nil
 		case blocks := <-ch:
 			// empty blocks
 			if len(blocks) == 0 {

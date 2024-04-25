@@ -37,7 +37,10 @@ import (
 	fiberrecover "github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/samber/lo"
 	"github.com/spf13/cobra"
-	"golang.org/x/sync/errgroup"
+)
+
+const (
+	shutdownTimeout = 60 * time.Second
 )
 
 type runCmdOptions struct {
@@ -84,12 +87,17 @@ type HttpHandler interface {
 func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 	conf := config.Load()
 
-	// Initialize context
+	// Initialize application process context
 	ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
+	// Initialize worker context to separate worker's lifecycle from main process
+	ctxWorker, stopWorker := context.WithCancel(context.Background())
+	defer stopWorker()
+
 	// Add logger context
 	ctx = logger.WithContext(ctx, slogx.Stringer("network", conf.Network))
+	ctxWorker = logger.WithContext(ctxWorker, slogx.Stringer("network", conf.Network))
 
 	// Initialize Bitcoin Core RPC Client
 	client, err := rpcclient.New(&rpcclient.ConnConfig{
@@ -121,9 +129,6 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 	// TODO: refactor module name to specific type instead of string?
 	httpHandlers := make(map[string]HttpHandler, 0)
 
-	// use gracefulEG to coordinate graceful shutdown after context is done. (e.g. shut down http server, shutdown logic of each module, etc.)
-	gracefulEG, gctx := errgroup.WithContext(context.Background())
-
 	var reportingClient *reportingclient.ReportingClient
 	if !conf.Reporting.Disabled {
 		reportingClient, err = reportingclient.New(conf.Reporting)
@@ -152,25 +157,30 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 			return errors.Wrapf(errs.Unsupported, "%q database is not supported", conf.Modules.Bitcoin.Database)
 		}
 		if !opts.APIOnly {
-			bitcoinProcessor := bitcoin.NewProcessor(conf, btcDB, indexerInfoDB)
-			bitcoinNodeDatasource := datasources.NewBitcoinNode(client)
-			bitcoinIndexer := indexers.NewBitcoinIndexer(bitcoinProcessor, bitcoinNodeDatasource)
+			processor := bitcoin.NewProcessor(conf, btcDB, indexerInfoDB)
+			datasource := datasources.NewBitcoinNode(client)
+			indexer := indexers.NewBitcoinIndexer(processor, datasource)
+			defer func() {
+				if err := indexer.ShutdownWithTimeout(shutdownTimeout); err != nil {
+					logger.ErrorContext(ctx, "Error during shutdown Bitcoin indexer", slogx.Error(err))
+				}
+				logger.InfoContext(ctx, "Bitcoin indexer stopped gracefully")
+			}()
 
 			// Verify states before running Indexer
-			if err := bitcoinProcessor.VerifyStates(ctx); err != nil {
+			if err := processor.VerifyStates(ctx); err != nil {
 				return errors.WithStack(err)
 			}
 
 			// Run Indexer
 			go func() {
-				logger.InfoContext(ctx, "Starting Bitcoin Indexer")
-				if err := bitcoinIndexer.Run(ctx); err != nil {
-					logger.ErrorContext(ctx, "Failed to run Bitcoin Indexer", slogx.Error(err))
-				}
+				// stop main process if indexer stopped
+				defer stop()
 
-				// stop main process if Bitcoin Indexer failed
-				logger.InfoContext(ctx, "Bitcoin Indexer stopped. Stopping main process...")
-				stop()
+				logger.InfoContext(ctx, "Starting Bitcoin Indexer")
+				if err := indexer.Run(ctxWorker); err != nil {
+					logger.PanicContext(ctx, "Failed to run Bitcoin Indexer", slogx.Error(err))
+				}
 			}()
 		}
 	}
@@ -212,24 +222,30 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 		default:
 			return errors.Wrapf(errs.Unsupported, "%q datasource is not supported", conf.Modules.Runes.Datasource)
 		}
-		if !opts.APIOnly {
-			runesProcessor := runes.NewProcessor(runesDg, indexerInfoDg, bitcoinClient, bitcoinDatasource, conf.Network, reportingClient)
-			runesIndexer := indexers.NewBitcoinIndexer(runesProcessor, bitcoinDatasource)
 
-			if err := runesProcessor.VerifyStates(ctx); err != nil {
+		if !opts.APIOnly {
+			processor := runes.NewProcessor(runesDg, indexerInfoDg, bitcoinClient, bitcoinDatasource, conf.Network, reportingClient)
+			indexer := indexers.NewBitcoinIndexer(processor, bitcoinDatasource)
+			defer func() {
+				if err := indexer.ShutdownWithTimeout(shutdownTimeout); err != nil {
+					logger.ErrorContext(ctx, "Error during shutdown Runes indexer", slogx.Error(err))
+				}
+				logger.InfoContext(ctx, "Runes indexer stopped gracefully")
+			}()
+
+			if err := processor.VerifyStates(ctx); err != nil {
 				return errors.WithStack(err)
 			}
 
 			// Run Indexer
 			go func() {
-				logger.InfoContext(ctx, "Started Runes Indexer")
-				if err := runesIndexer.Run(ctx); err != nil {
-					logger.ErrorContext(ctx, "Failed to run Runes Indexer", slogx.Error(err))
-				}
+				// stop main process if indexer stopped
+				defer stop()
 
-				// stop main process if Runes Indexer failed
-				logger.InfoContext(ctx, "Runes Indexer stopped. Stopping main process...")
-				stop()
+				logger.InfoContext(ctx, "Started Runes Indexer")
+				if err := indexer.Run(ctxWorker); err != nil {
+					logger.PanicContext(ctx, "Failed to run Runes Indexer", slogx.Error(err))
+				}
 			}()
 		}
 
@@ -251,7 +267,7 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 	// Setup HTTP server if there are any HTTP handlers
 	if len(httpHandlers) > 0 {
 		app := fiber.New(fiber.Config{
-			AppName:      "gaze",
+			AppName:      "Gaze Indexer",
 			ErrorHandler: errorhandler.NewHTTPErrorHandler(),
 		})
 		app.
@@ -266,7 +282,15 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 			Use(compress.New(compress.Config{
 				Level: compress.LevelDefault,
 			}))
-		// ping handler
+
+		defer func() {
+			if err := app.ShutdownWithTimeout(shutdownTimeout); err != nil {
+				logger.ErrorContext(ctx, "Error during shutdown HTTP server", slogx.Error(err))
+			}
+			logger.InfoContext(ctx, "HTTP server stopped gracefully")
+		}()
+
+		// Health check
 		app.Get("/", func(c *fiber.Ctx) error {
 			return errors.WithStack(c.SendStatus(http.StatusOK))
 		})
@@ -278,30 +302,43 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 			}
 			logger.InfoContext(ctx, "Mounted HTTP handler", slogx.String("module", module))
 		}
+
 		go func() {
+			// stop main process if API stopped
+			defer stop()
+
 			logger.InfoContext(ctx, "Started HTTP server", slog.Int("port", conf.HTTPServer.Port))
 			if err := app.Listen(fmt.Sprintf(":%d", conf.HTTPServer.Port)); err != nil {
 				logger.PanicContext(ctx, "Failed to start HTTP server", slogx.Error(err))
 			}
 		}()
-		// handle graceful shutdown
-		gracefulEG.Go(func() error {
-			<-ctx.Done()
-			logger.InfoContext(gctx, "Stopping HTTP server...")
-			if err := app.ShutdownWithTimeout(60 * time.Second); err != nil {
-				logger.ErrorContext(gctx, "Error during shutdown HTTP server", slogx.Error(err))
-			}
-			logger.InfoContext(gctx, "HTTP server stopped gracefully")
-			return nil
-		})
 	}
 
+	// Stop application if worker context is done
+	go func() {
+		<-ctxWorker.Done()
+		defer stop()
+
+		logger.InfoContext(ctx, "Worker is stopped. Stopping main process...")
+	}()
+
+	// Wait for interrupt signal to gracefully stop the server
 	<-ctx.Done()
-	// wait until all graceful shutdown goroutines are done before returning
-	if err := gracefulEG.Wait(); err != nil {
-		logger.ErrorContext(ctx, "Failed to shutdown gracefully", slogx.Error(err))
-	} else {
-		logger.InfoContext(ctx, "Successfully shut down gracefully")
-	}
+
+	// Force shutdown if timeout exceeded or got signal again
+	go func() {
+		defer os.Exit(1)
+
+		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+		defer stop()
+
+		select {
+		case <-ctx.Done():
+			logger.FatalContext(ctx, "Received exit signal again. Force shutdown...")
+		case <-time.After(shutdownTimeout + 15*time.Second):
+			logger.FatalContext(ctx, "Shutdown timeout exceeded. Force shutdown...")
+		}
+	}()
+
 	return nil
 }

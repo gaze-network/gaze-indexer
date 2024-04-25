@@ -2,12 +2,16 @@ package indexers
 
 import (
 	"context"
+	"time"
 
 	"github.com/gaze-network/indexer-network/core/types"
 )
 
 type IndexerWorker interface {
 	Run(ctx context.Context) error
+	Shutdown() error
+	ShutdownWithTimeout(timeout time.Duration) error
+	ShutdownWithContext(ctx context.Context) error
 }
 
 type Processor[T any] interface {
