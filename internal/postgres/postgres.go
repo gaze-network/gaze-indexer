@@ -40,7 +40,7 @@ func New(ctx context.Context, conf Config) (*pgx.Conn, error) {
 	// Prepare connection pool configuration
 	connConfig, err := pgx.ParseConfig(conf.String())
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to parse config to create a new connection")
+		return nil, errors.Join(errs.InvalidArgument, errors.Wrap(err, "failed while parse config"))
 	}
 	connConfig.Tracer = conf.QueryTracer()
 
