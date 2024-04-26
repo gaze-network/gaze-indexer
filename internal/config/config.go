@@ -19,6 +19,8 @@ import (
 
 var (
 	configOnce sync.Once
+	isInit     bool
+	mu         sync.Mutex
 	config     = &Config{
 		Logger: logger.Config{
 			Output: "TEXT",
@@ -58,6 +60,8 @@ type HTTPServerConfig struct {
 
 // Parse parse the configuration from environment variables
 func Parse(configFile ...string) Config {
+	mu.Lock()
+	defer mu.Unlock()
 	ctx := logger.WithContext(context.Background(), slog.String("package", "config"))
 
 	if len(configFile) > 0 && configFile[0] != "" {
@@ -72,24 +76,28 @@ func Parse(configFile ...string) Config {
 	if err := viper.ReadInConfig(); err != nil {
 		var errNotfound viper.ConfigFileNotFoundError
 		if errors.As(err, &errNotfound) {
-			logger.WarnContext(ctx, "config file not found, use default value", slogx.Error(err))
+			logger.WarnContext(ctx, "Config file not found, use default config value", slogx.Error(err))
 		} else {
-			logger.PanicContext(ctx, "invalid config file", slogx.Error(err))
+			logger.PanicContext(ctx, "Invalid config file", slogx.Error(err))
 		}
 	}
 
 	if err := viper.Unmarshal(&config); err != nil {
-		logger.PanicContext(ctx, "failed to unmarshal config", slogx.Error(err))
+		logger.PanicContext(ctx, "Something went wrong, failed to unmarshal config", slogx.Error(err))
 	}
 
+	isInit = true
 	return *config
 }
 
 // Load returns the loaded configuration
 func Load() Config {
-	configOnce.Do(func() {
-		_ = Parse()
-	})
+	mu.Lock()
+	defer mu.Unlock()
+	if !isInit {
+		return Parse()
+	}
+
 	return *config
 }
 
@@ -100,7 +108,7 @@ func Load() Config {
 //	Viper.BindPFlag("port", serverCmd.Flags().Lookup("port"))
 func BindPFlag(key string, flag *pflag.Flag) {
 	if err := viper.BindPFlag(key, flag); err != nil {
-		logger.Panic("Failed to bind pflag for config", slogx.Error(err))
+		logger.Panic("Something went wrong, failed to bind flag for config", slog.String("package", "config"), slogx.Error(err))
 	}
 }
 
