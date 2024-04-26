@@ -115,7 +115,7 @@ func (h *Client) request(ctx context.Context, reqOptions RequestOptions) (*HttpR
 				)
 			}
 
-			logger.Info("Finished make request")
+			logger.InfoContext(ctx, "Finished make request", slog.String("package", "httpclient"))
 		}
 
 		fasthttp.ReleaseResponse(resp)
