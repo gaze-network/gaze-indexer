@@ -229,8 +229,7 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 			bitcoinDatasource = bitcoinNodeDatasource
 			bitcoinClient = bitcoinNodeDatasource
 		case "database":
-			// TODO: use conf.Modules.Bitcoin.Postgres instead of conf.Modules.Runes.Postgres
-			pg, err := postgres.NewPool(ctx, conf.Modules.Runes.Postgres)
+			pg, err := postgres.NewPool(ctx, conf.Modules.Bitcoin.Postgres)
 			if err != nil {
 				if errors.Is(err, errs.InvalidArgument) {
 					logger.PanicContext(ctx, "Invalid Postgres configuration for datasource", slogx.Error(err))
