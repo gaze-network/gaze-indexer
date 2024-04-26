@@ -25,17 +25,20 @@ import (
 
 func (p *Processor) Process(ctx context.Context, blocks []*types.Block) error {
 	for _, block := range blocks {
-		ctx := logger.WithContext(ctx, slog.Int("block_height", int(block.Header.Height)))
-		logger.DebugContext(ctx, "[RunesProcessor] Processing block", slog.Int("txs", len(block.Transactions)))
+		ctx := logger.WithContext(ctx, slog.Int64("height", block.Header.Height))
+		logger.DebugContext(ctx, "Processing new block", slog.Int("txs", len(block.Transactions)))
 
 		for _, tx := range block.Transactions {
 			if err := p.processTx(ctx, tx, block.Header); err != nil {
 				return errors.Wrap(err, "failed to process tx")
 			}
 		}
+
 		if err := p.flushBlock(ctx, block.Header); err != nil {
 			return errors.Wrap(err, "failed to flush block")
 		}
+
+		logger.DebugContext(ctx, "Inserted new block")
 	}
 	return nil
 }
@@ -464,7 +467,7 @@ func (p *Processor) getEtchedRune(ctx context.Context, tx *types.Transaction, ru
 
 func (p *Processor) txCommitsToRune(ctx context.Context, tx *types.Transaction, rune runes.Rune) (bool, error) {
 	commitment := rune.Commitment()
-	for _, txIn := range tx.TxIn {
+	for i, txIn := range tx.TxIn {
 		tapscript, ok := extractTapScript(txIn.Witness)
 		if !ok {
 			continue
@@ -492,8 +495,7 @@ func (p *Processor) txCommitsToRune(ctx context.Context, tx *types.Transaction, 
 				continue
 			}
 			if err != nil {
-				logger.ErrorContext(ctx, "failed to get pk script at out point", err)
-				continue
+				return false, errors.Wrapf(err, "can't get previous txout for txin `%v:%v`", tx.TxHash.String(), i)
 			}
 			pkScript := prevTx.TxOut[txIn.PreviousOutIndex].PkScript
 			// input utxo must be P2TR
@@ -698,7 +700,10 @@ func (p *Processor) flushBlock(ctx context.Context, blockHeader types.BlockHeade
 	}
 	defer func() {
 		if err := runesDgTx.Rollback(ctx); err != nil {
-			logger.ErrorContext(ctx, "[RunesProcessor] failed to rollback runes tx", err)
+			logger.WarnContext(ctx, "failed to rollback transaction",
+				slogx.Error(err),
+				slogx.String("event", "rollback_runes_insertion"),
+			)
 		}
 	}()
 
@@ -824,6 +829,5 @@ func (p *Processor) flushBlock(ctx context.Context, blockHeader types.BlockHeade
 			return errors.Wrap(err, "failed to submit block report")
 		}
 	}
-	logger.InfoContext(ctx, "[RunesProcessor] block flushed")
 	return nil
 }
