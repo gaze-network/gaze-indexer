@@ -39,7 +39,7 @@ func NewBitcoinNode(btcclient *rpcclient.Client) *BitcoinNodeDatasource {
 }
 
 func (p BitcoinNodeDatasource) Name() string {
-	return "BitcoinNode"
+	return "bitcoin_node"
 }
 
 // Fetch polling blocks from Bitcoin node
@@ -83,6 +83,11 @@ func (d *BitcoinNodeDatasource) Fetch(ctx context.Context, from, to int64) ([]*t
 //   - from: block height to start fetching, if -1, it will start from genesis block
 //   - to: block height to stop fetching, if -1, it will fetch until the latest block
 func (d *BitcoinNodeDatasource) FetchAsync(ctx context.Context, from, to int64, ch chan<- []*types.Block) (*subscription.ClientSubscription[[]*types.Block], error) {
+	ctx = logger.WithContext(ctx,
+		slogx.String("package", "datasources"),
+		slogx.String("datasource", d.Name()),
+	)
+
 	from, to, skip, err := d.prepareRange(from, to)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to prepare fetch range")
@@ -138,10 +143,10 @@ func (d *BitcoinNodeDatasource) FetchAsync(ctx context.Context, from, to int64, 
 					if errors.Is(err, errs.Closed) {
 						return
 					}
-					logger.WarnContext(ctx, "failed while dispatch block",
-						slogx.Error(err),
+					logger.WarnContext(ctx, "Failed to send bitcoin blocks to subscription client",
 						slogx.Int64("start", data[0].Header.Height),
 						slogx.Int64("end", data[len(data)-1].Header.Height),
+						slogx.Error(err),
 					)
 				}
 			case <-ctx.Done():
@@ -168,12 +173,11 @@ func (d *BitcoinNodeDatasource) FetchAsync(ctx context.Context, from, to int64, 
 				stream.Go(func() []*types.Block {
 					startAt := time.Now()
 					defer func() {
-						logger.DebugContext(ctx, "[BitcoinNodeDatasource] Fetched blocks",
+						logger.DebugContext(ctx, "Fetched chunk of blocks from Bitcoin node",
 							slogx.Int("total_blocks", len(chunk)),
 							slogx.Int64("from", chunk[0]),
 							slogx.Int64("to", chunk[len(chunk)-1]),
-							slogx.Stringer("duration", time.Since(startAt)),
-							slogx.Int64("duration_ms", time.Since(startAt).Milliseconds()),
+							slogx.Duration("duration", time.Since(startAt)),
 						)
 					}()
 					// TODO: should concurrent fetch block or not ?
@@ -181,22 +185,21 @@ func (d *BitcoinNodeDatasource) FetchAsync(ctx context.Context, from, to int64, 
 					for _, height := range chunk {
 						hash, err := d.btcclient.GetBlockHash(height)
 						if err != nil {
-							logger.ErrorContext(ctx, "failed to get block hash", slogx.Error(err), slogx.Int64("height", height))
+							logger.ErrorContext(ctx, "Can't get block hash from Bitcoin node rpc", slogx.Error(err), slogx.Int64("height", height))
 							if err := subscription.SendError(ctx, errors.Wrapf(err, "failed to get block hash: height: %d", height)); err != nil {
-								logger.ErrorContext(ctx, "failed to send error", slogx.Error(err))
+								logger.WarnContext(ctx, "Failed to send datasource error to subscription client", slogx.Error(err))
 							}
 							return nil
 						}
 
 						block, err := d.btcclient.GetBlock(hash)
 						if err != nil {
-							logger.ErrorContext(ctx, "failed to get block", slogx.Error(err), slogx.Int64("height", height))
+							logger.ErrorContext(ctx, "Can't get block data from Bitcoin node rpc", slogx.Error(err), slogx.Int64("height", height))
 							if err := subscription.SendError(ctx, errors.Wrapf(err, "failed to get block: height: %d, hash: %s", height, hash)); err != nil {
-								logger.ErrorContext(ctx, "failed to send error", slogx.Error(err))
+								logger.WarnContext(ctx, "Failed to send datasource error to subscription client", slogx.Error(err))
 							}
 							return nil
 						}
-						logger.DebugContext(ctx, "[BitcoinNodeDatasource] Fetched block", slogx.Int64("height", height), slogx.String("hash", hash.String()))
 
 						blocks = append(blocks, types.ParseMsgBlock(block, height))
 					}
