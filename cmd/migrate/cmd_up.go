@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"net/url"
 	"strconv"
+	"strings"
 
 	"github.com/cockroachdb/errors"
+	"github.com/gaze-network/indexer-network/common/errs"
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
@@ -76,11 +78,14 @@ func migrateUpHandler(opts *migrateUpCmdOptions, _ *cobra.Command, args migrateU
 		newDatabaseURL := cloneURLWithQuery(databaseURL, url.Values{"x-migrations-table": {migrationTable}})
 		sourceURL := "file://" + sourcePath
 		m, err := migrate.New(sourceURL, newDatabaseURL.String())
+		if err != nil {
+			if strings.Contains(err.Error(), "no such file or directory") {
+				return errors.Wrap(errs.InternalError, "migrations directory not found")
+			}
+			return errors.Wrap(err, "failed to open database")
+		}
 		m.Log = &consoleLogger{
 			prefix: fmt.Sprintf("[%s] ", module),
-		}
-		if err != nil {
-			return errors.Wrap(err, "failed to create Migrate instance")
 		}
 		if args.N == 0 {
 			m.Log.Printf("Applying up migrations...\n")
