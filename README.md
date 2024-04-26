@@ -55,13 +55,13 @@ Here is our minimum database disk space requirement for each module.
 ```yaml
 # config.yaml
 logger:
-  output: text
+  output: text # Output format for logs. current supported formats: "text" | "json" | "gcp"
   debug: false
 
 bitcoin_node:
   host: "" # [Required] Host of Bitcoin Core RPC (without https://)
-  user: "" # [Required] Username to authenticate with Bitcoin Core RPC
-  pass: "" # [Required] Password to authenticate with Bitcoin Core RPC
+  user: "" # Username to authenticate with Bitcoin Core RPC
+  pass: "" # Password to authenticate with Bitcoin Core RPC
   disable_tls: false # Set to true to disable tls
 
 network: mainnet # Network to run the indexer on. Current supported networks: "mainnet" | "testnet"
