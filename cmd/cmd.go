@@ -21,6 +21,7 @@ var (
 	cmds = []*cobra.Command{
 		NewVersionCommand(),
 		NewRunCommand(),
+		NewMigrateCommand(),
 	}
 )
 
