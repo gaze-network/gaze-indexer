@@ -15,12 +15,10 @@ import (
 )
 
 type migrateDownCmdOptions struct {
-	DatabaseURL   string
-	BitcoinSource string
-	RunesSource   string
-	Bitcoin       bool
-	Runes         bool
-	All           bool
+	DatabaseURL string
+	Bitcoin     bool
+	Runes       bool
+	All         bool
 }
 
 type migrateDownCmdArgs struct {
@@ -62,9 +60,7 @@ func NewMigrateDownCommand() *cobra.Command {
 
 	flags := cmd.Flags()
 	flags.BoolVar(&opts.Bitcoin, "bitcoin", false, "Apply Bitcoin down migrations")
-	flags.StringVar(&opts.BitcoinSource, "bitcoin-source", "modules/bitcoin/database/postgresql/migrations", "Path to Bitcoin migrations directory. Default is \"modules/bitcoin/database/postgresql/migrations\".")
 	flags.BoolVar(&opts.Runes, "runes", false, "Apply Runes down migrations")
-	flags.StringVar(&opts.RunesSource, "runes-source", "modules/runes/database/postgresql/migrations", "Path to Runes migrations directory. Default is \"modules/runes/database/postgresql/migrations\".")
 	flags.StringVar(&opts.DatabaseURL, "database", "", "Database url to run migration on")
 	flags.BoolVar(&opts.All, "all", false, "Confirm apply ALL down migrations without prompt")
 
@@ -119,12 +115,12 @@ func migrateDownHandler(opts *migrateDownCmdOptions, _ *cobra.Command, args migr
 	}
 
 	if opts.Bitcoin {
-		if err := applyDownMigrations("Bitcoin", opts.BitcoinSource, "bitcoin_schema_migrations"); err != nil {
+		if err := applyDownMigrations("Bitcoin", bitcoinMigrationSource, "bitcoin_schema_migrations"); err != nil {
 			return errors.WithStack(err)
 		}
 	}
 	if opts.Runes {
-		if err := applyDownMigrations("Runes", opts.RunesSource, "runes_schema_migrations"); err != nil {
+		if err := applyDownMigrations("Runes", runesMigrationSource, "runes_schema_migrations"); err != nil {
 			return errors.WithStack(err)
 		}
 	}

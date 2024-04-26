@@ -13,11 +13,9 @@ import (
 )
 
 type migrateUpCmdOptions struct {
-	DatabaseURL   string
-	BitcoinSource string
-	RunesSource   string
-	Bitcoin       bool
-	Runes         bool
+	DatabaseURL string
+	Bitcoin     bool
+	Runes       bool
 }
 
 type migrateUpCmdArgs struct {
@@ -56,9 +54,7 @@ func NewMigrateUpCommand() *cobra.Command {
 
 	flags := cmd.Flags()
 	flags.BoolVar(&opts.Bitcoin, "bitcoin", false, "Apply Bitcoin up migrations")
-	flags.StringVar(&opts.BitcoinSource, "bitcoin-source", "modules/bitcoin/database/postgresql/migrations", "Path to Bitcoin migrations directory. Default is \"modules/bitcoin/database/postgresql/migrations\".")
 	flags.BoolVar(&opts.Runes, "runes", false, "Apply Runes up migrations")
-	flags.StringVar(&opts.RunesSource, "runes-source", "modules/runes/database/postgresql/migrations", "Path to Runes migrations directory. Default is \"modules/runes/database/postgresql/migrations\".")
 	flags.StringVar(&opts.DatabaseURL, "database", "", "Database url to run migration on")
 
 	return cmd
@@ -103,12 +99,12 @@ func migrateUpHandler(opts *migrateUpCmdOptions, _ *cobra.Command, args migrateU
 	}
 
 	if opts.Bitcoin {
-		if err := applyUpMigrations("Bitcoin", opts.BitcoinSource, "bitcoin_schema_migrations"); err != nil {
+		if err := applyUpMigrations("Bitcoin", bitcoinMigrationSource, "bitcoin_schema_migrations"); err != nil {
 			return errors.WithStack(err)
 		}
 	}
 	if opts.Runes {
-		if err := applyUpMigrations("Runes", opts.RunesSource, "runes_schema_migrations"); err != nil {
+		if err := applyUpMigrations("Runes", runesMigrationSource, "runes_schema_migrations"); err != nil {
 			return errors.WithStack(err)
 		}
 	}
