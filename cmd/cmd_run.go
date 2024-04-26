@@ -210,7 +210,7 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 			bitcoinDatasource = bitcoinNodeDatasource
 			bitcoinClient = bitcoinNodeDatasource
 		case "database":
-			pg, err := postgres.NewPool(ctx, conf.Modules.Runes.Postgres)
+			pg, err := postgres.NewPool(ctx, conf.Modules.Bitcoin.Postgres)
 			if err != nil {
 				logger.PanicContext(ctx, "Failed to create Postgres connection pool", slogx.Error(err))
 			}
