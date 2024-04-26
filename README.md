@@ -70,7 +70,7 @@ reporting: # Block reporting configuration options. See Block Reporting section 
   website_url: "" # Public website URL to show on the dashboard. Can be left empty.
   indexer_api_url: "" # Public url to access this indexer's API. Can be left empty if you want to keep your indexer private.
 
-้http_server:
+http_server:
   port: 8080 # Port to run the HTTP server on for modules with HTTP API handlers.
 
 modules:
