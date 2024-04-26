@@ -62,6 +62,36 @@ type HTTPServerConfig struct {
 func Parse(configFile ...string) Config {
 	mu.Lock()
 	defer mu.Unlock()
+	return parse(configFile...)
+}
+
+// Load returns the loaded configuration
+func Load() Config {
+	mu.Lock()
+	defer mu.Unlock()
+	if isInit {
+		return *config
+	}
+	return parse()
+}
+
+// BindPFlag binds a specific key to a pflag (as used by cobra).
+// Example (where serverCmd is a Cobra instance):
+//
+//	serverCmd.Flags().Int("port", 1138, "Port to run Application server on")
+//	Viper.BindPFlag("port", serverCmd.Flags().Lookup("port"))
+func BindPFlag(key string, flag *pflag.Flag) {
+	if err := viper.BindPFlag(key, flag); err != nil {
+		logger.Panic("Something went wrong, failed to bind flag for config", slog.String("package", "config"), slogx.Error(err))
+	}
+}
+
+// SetDefault sets the default value for this key.
+// SetDefault is case-insensitive for a key.
+// Default only used when no value is provided by the user via flag, config or ENV.
+func SetDefault(key string, value any) { viper.SetDefault(key, value) }
+
+func parse(configFile ...string) Config {
 	ctx := logger.WithContext(context.Background(), slog.String("package", "config"))
 
 	if len(configFile) > 0 && configFile[0] != "" {
@@ -89,30 +119,3 @@ func Parse(configFile ...string) Config {
 	isInit = true
 	return *config
 }
-
-// Load returns the loaded configuration
-func Load() Config {
-	mu.Lock()
-	defer mu.Unlock()
-	if !isInit {
-		return Parse()
-	}
-
-	return *config
-}
-
-// BindPFlag binds a specific key to a pflag (as used by cobra).
-// Example (where serverCmd is a Cobra instance):
-//
-//	serverCmd.Flags().Int("port", 1138, "Port to run Application server on")
-//	Viper.BindPFlag("port", serverCmd.Flags().Lookup("port"))
-func BindPFlag(key string, flag *pflag.Flag) {
-	if err := viper.BindPFlag(key, flag); err != nil {
-		logger.Panic("Something went wrong, failed to bind flag for config", slog.String("package", "config"), slogx.Error(err))
-	}
-}
-
-// SetDefault sets the default value for this key.
-// SetDefault is case-insensitive for a key.
-// Default only used when no value is provided by the user via flag, config or ENV.
-func SetDefault(key string, value any) { viper.SetDefault(key, value) }
