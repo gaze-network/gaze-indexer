@@ -34,6 +34,9 @@ func New(config Config) (*ReportingClient, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "can't create http client")
 	}
+	if config.Name == "" {
+		return nil, errors.New("reporting.name config is required if reporting is enabled")
+	}
 	return &ReportingClient{
 		httpClient: httpClient,
 		config:     config,
