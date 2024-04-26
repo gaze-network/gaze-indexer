@@ -82,6 +82,7 @@ func (p *Processor) getHashPayload(header types.BlockHeader) ([]byte, error) {
 func serializeNewRuneEntry(entry *runes.RuneEntry) []byte {
 	var sb strings.Builder
 	sb.WriteString("newRuneEntry:")
+	// nolint:goconst
 	sb.WriteString("runeId:" + entry.RuneId.String())
 	sb.WriteString("number:" + strconv.Itoa(int(entry.Number)))
 	sb.WriteString("divisibility:" + strconv.Itoa(int(entry.Divisibility)))
@@ -93,6 +94,7 @@ func serializeNewRuneEntry(entry *runes.RuneEntry) []byte {
 		sb.WriteString("terms:")
 		terms := entry.Terms
 		if terms.Amount != nil {
+			// nolint:goconst
 			sb.WriteString("amount:" + terms.Amount.String())
 		}
 		if terms.Cap != nil {
