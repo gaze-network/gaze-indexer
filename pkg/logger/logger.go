@@ -133,9 +133,7 @@ var (
 	}
 
 	// Default Middlewares
-	defaultMiddleware = []middleware{
-		middlewareError(),
-	}
+	defaultMiddleware = []middleware{}
 )
 
 // Init initializes global logger and slog logger with given configuration.
@@ -147,12 +145,14 @@ func Init(cfg Config) error {
 			Level:       lvl,
 			ReplaceAttr: attrReplacerChain(defaultAttrReplacers...),
 		}
+		middlewares = append([]middleware{}, defaultMiddleware...)
 	)
 
 	lvl.Set(slog.LevelInfo)
 	if cfg.Debug {
 		lvl.Set(slog.LevelDebug)
 		options.AddSource = true
+		middlewares = append(middlewares, middlewareErrorStackTrace())
 	}
 
 	switch strings.ToLower(cfg.Output) {
@@ -165,7 +165,7 @@ func Init(cfg Config) error {
 		handler = slog.NewTextHandler(os.Stdout, options)
 	}
 
-	logger = slog.New(newChainHandlers(handler, defaultMiddleware...))
+	logger = slog.New(newChainHandlers(handler, middlewares...))
 	slog.SetDefault(logger)
 	return nil
 }

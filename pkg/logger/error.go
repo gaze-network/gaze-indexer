@@ -8,7 +8,7 @@ import (
 	"github.com/gaze-network/indexer-network/pkg/stacktrace"
 )
 
-func middlewareError() middleware {
+func middlewareErrorStackTrace() middleware {
 	return func(next handleFunc) handleFunc {
 		return func(ctx context.Context, rec slog.Record) error {
 			rec.Attrs(func(attr slog.Attr) bool {
