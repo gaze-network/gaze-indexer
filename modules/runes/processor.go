@@ -158,7 +158,7 @@ func (p *Processor) ensureGenesisRune(ctx context.Context) error {
 }
 
 func (p *Processor) Name() string {
-	return "Runes"
+	return "runes"
 }
 
 func (p *Processor) CurrentBlock(ctx context.Context) (types.BlockHeader, error) {
@@ -192,7 +192,7 @@ func (p *Processor) RevertData(ctx context.Context, from int64) error {
 	}
 	defer func() {
 		if err := runesDgTx.Rollback(ctx); err != nil {
-			logger.ErrorContext(ctx, "failed to rollback transaction", err)
+			logger.WarnContext(ctx, "failed to rollback transaction", err)
 		}
 	}()
 
