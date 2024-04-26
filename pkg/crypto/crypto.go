@@ -19,7 +19,6 @@ type Client struct {
 func New(privateKeyStr string) (*Client, error) {
 	if privateKeyStr != "" {
 		privateKeyBytes, err := hex.DecodeString(privateKeyStr)
-		println(len(privateKeyBytes))
 		if err != nil {
 			return nil, errors.Wrap(err, "decode private key")
 		}
@@ -32,6 +31,10 @@ func New(privateKeyStr string) (*Client, error) {
 		}, nil
 	}
 	return &Client{}, nil
+}
+
+func (c *Client) PublicKey() string {
+	return hex.EncodeToString(c.privateKey.PubKey().SerializeCompressed())
 }
 
 func (c *Client) Sign(message string) string {
