@@ -109,7 +109,7 @@ func (i *BitcoinIndexer) Run(ctx context.Context) (err error) {
 				logger.ErrorContext(ctx, "Indexer failed while processing", slogx.Error(err))
 				return errors.Wrap(err, "process failed")
 			}
-			logger.InfoContext(ctx, "Waiting for next polling interval")
+			logger.DebugContext(ctx, "Waiting for next polling interval")
 		}
 	}
 }
@@ -122,7 +122,7 @@ func (i *BitcoinIndexer) process(ctx context.Context) (err error) {
 	ch := make(chan []*types.Block)
 	subscription, err := i.Datasource.FetchAsync(ctx, from, to, ch)
 	if err != nil {
-		return errors.Wrap(err, "failed to fetching data")
+		return errors.Wrap(err, "failed to fetch data")
 	}
 	defer subscription.Unsubscribe()
 
@@ -146,7 +146,7 @@ func (i *BitcoinIndexer) process(ctx context.Context) (err error) {
 			{
 				remoteBlockHeader := blocks[0].Header
 				if !remoteBlockHeader.PrevBlock.IsEqual(&i.currentBlock.Hash) {
-					logger.WarnContext(ctx, "Detected chain reorgation. Searching for fork point...",
+					logger.WarnContext(ctx, "Detected chain reorganization. Searching for fork point...",
 						slogx.String("event", "reorg_detected"),
 						slogx.Stringer("current_hash", i.currentBlock.Hash),
 						slogx.Stringer("expected_hash", remoteBlockHeader.PrevBlock),
@@ -202,7 +202,7 @@ func (i *BitcoinIndexer) process(ctx context.Context) (err error) {
 					// Set current block to before reorg block and
 					// end current round to fetch again
 					i.currentBlock = beforeReorgBlockHeader
-					logger.Info("Fixing chain reorgation completed",
+					logger.Info("Fixing chain reorganization completed",
 						slogx.Int64("current_block", i.currentBlock.Height),
 						slogx.Duration("duration", time.Since(start)),
 					)
