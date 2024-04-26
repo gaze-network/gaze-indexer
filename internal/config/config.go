@@ -18,10 +18,9 @@ import (
 )
 
 var (
-	configOnce sync.Once
-	isInit     bool
-	mu         sync.Mutex
-	config     = &Config{
+	isInit bool
+	mu     sync.Mutex
+	config = &Config{
 		Logger: logger.Config{
 			Output: "TEXT",
 		},
