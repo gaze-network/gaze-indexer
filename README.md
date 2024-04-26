@@ -1,10 +1,12 @@
 <!-- omit from toc -->
+
 # Gaze Indexer
+
 Gaze Indexer is an open-source and modular indexing client for Bitcoin meta-protocols. It has support for Bitcoin and Runes out of the box, with **Unified Consistent APIs** across fungible token protocols.
 
 Gaze Indexer is built with **modularity** in mind, allowing users to run all modules in one monolithic instance with a single command, or as a distributed cluster of micro-services.
 
-Gaze Indexer serves as a foundation for building ANY meta-protocol indexers, with efficient data fetching, reorg detection, and database migration tool. 
+Gaze Indexer serves as a foundation for building ANY meta-protocol indexers, with efficient data fetching, reorg detection, and database migration tool.
 This allows developers to focus on what **truly** matters: Meta-protocol indexing logic. New meta-protocols can be easily added by implementing new modules.
 
 Gaze Indexer also comes with a block reporting system for verifying data integrity of indexers. Visit the [Gaze Network dashboard](https://dash.gaze.network) to see the status of other indexers.
@@ -22,36 +24,45 @@ Gaze Indexer also comes with a block reporting system for verifying data integri
   - [Install from source](#install-from-source)
 
 ## Modules
+
 ### 1. Bitcoin
-The Bitcoin Indexer, the heart of every meta-protocol, is responsible for indexing **Bitcoin transactions, blocks, and UTXOs**. It requires a Bitcoin Core RPC as source of Bitcoin transactions, 
+
+The Bitcoin Indexer, the heart of every meta-protocol, is responsible for indexing **Bitcoin transactions, blocks, and UTXOs**. It requires a Bitcoin Core RPC as source of Bitcoin transactions,
 and stores the indexed data in database to be used by other modules.
 
 ### 2. Runes
+
 The Runes Indexer is our first meta-protocol indexer. It indexes Runes states, transactions, runestones, and balances using Bitcoin transactions.
 It comes with a set of APIs for querying historical Runes data. See our [API Reference](https://documenter.getpostman.com/view/28396285/2sA3Bn7Cxr) for full details.
 
 ## Installation
+
 ### Prerequisites
+
 #### 1. Hardware Requirements
+
 Each module requires different hardware requirements.
-| Module  | CPU        | RAM    |
+| Module | CPU | RAM |
 | ------- | ---------- | ------ |
 | Bitcoin | 0.25 cores | 256 MB |
-| Runes   | 0.5 cores  | 1 GB   |
+| Runes | 0.5 cores | 1 GB |
 
-#### 2. Prepare Bitcoin Core RPC server.  
+#### 2. Prepare Bitcoin Core RPC server.
+
 Gaze Indexer needs to fetch transaction data from a Bitcoin Core RPC, either self-hosted or using managed providers like QuickNode.
 To self host a Bitcoin Core, see https://bitcoin.org/en/full-node.
 
 #### 3. Prepare database.
+
 Gaze Indexer has first-class support for PostgreSQL. If you wish to use other databases, you can implement your own database repository that satisfies each module's Data Gateway interface.
 Here is our minimum database disk space requirement for each module.
-| Module  | Database Storage |
+| Module | Database Storage |
 | ------- | ---------------- |
-| Bitcoin | 240 GB           |
-| Runes   | 150 GB           |
+| Bitcoin | 240 GB |
+| Runes | 150 GB |
 
 #### 4. Prepare `config.yaml` file.
+
 ```yaml
 # config.yaml
 logger:
@@ -101,7 +112,9 @@ modules:
 ```
 
 ### Install with Docker (recommended)
+
 We will be using `docker-compose` for our installation guide. Make sure the `docker-compose.yaml` file is in the same directory as the `config.yaml` file.
+
 ```yaml
 # docker-compose.yaml
 services:
@@ -109,19 +122,25 @@ services:
     image: ghcr.io/gaze-network/gaze-indexer:v1.0.0
     container_name: gaze-indexer
     restart: unless-stopped
+    ports:
+      - 8080:8080 # Expose HTTP server port to host
     volumes:
-      - './config.yaml:/app/config.yaml' # mount config.yaml file to the container as "/app/config.yaml"
+      - "./config.yaml:/app/config.yaml" # mount config.yaml file to the container as "/app/config.yaml"
     command: ["/app/main", "run", "--bitcoin", "--runes"] # Put module flags after "run" commands to select which modules to run.
 ```
 
 ### Install from source
-1. Install `go` version 1.22 or higher. See Go installation guide [here](https://go.dev/doc/install). 
+
+1. Install `go` version 1.22 or higher. See Go installation guide [here](https://go.dev/doc/install).
 2. Clone this repository.
+
 ```bash
 git clone https://github.com/gaze-network/gaze-indexer.git
 cd gaze-indexer
 ```
+
 3. Build the main binary.
+
 ```bash
 # Get dependencies
 go mod download
@@ -129,11 +148,21 @@ go mod download
 # Build the main binary
 go build -o gaze main.go
 ```
-4. Run the main binary with the `run` command and module flags.
+
+4. Run database migrations with the `migrate` command and module flags.
+
+```bash
+./gaze migrate up --bitcoin --runes --database postgres://postgres:password@localhost:5432/postgres
+```
+
+5. Start the indexer with the `run` command and module flags.
+
 ```bash
 ./gaze run --bitcoin --runes
 ```
+
 If `config.yaml` is not located at `./app/config.yaml`, use the `--config` flag to specify the path to the `config.yaml` file.
+
 ```bash
 ./gaze run --bitcoin --runes --config /path/to/config.yaml
 ```
