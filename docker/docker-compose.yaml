@@ -1,0 +1,44 @@
+services:
+  gaze-migrator:
+    # image: ghcr.io/gaze-network/gaze-indexer:v0.1.0
+    build:
+      context: ../
+      dockerfile: ./docker/Dockerfile
+    restart: on-failure
+    depends_on:
+      - db
+    networks:
+      - indexer
+    command: ["/app/main", "migrate", "up", "--database", "postgres://postgres:password@db:5432/postgres?sslmode=disable"]
+
+  gaze-indexer:
+    # image: ghcr.io/gaze-network/gaze-indexer:v0.1.0
+    build:
+      context: ../
+      dockerfile: ./docker/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - db
+      - gaze-migrator
+    networks:
+      - indexer
+    ports:
+      - 8080:8080
+    volumes:
+      - "./config.example.yaml:/app/config.yaml"
+    command: ["/app/main", "run", "--bitcoin", "--runes"]
+
+  db:
+    image: postgres:16-alpine
+    volumes:
+      - "./volumes/postgresql/data:/var/lib/postgresql/data"
+    networks:
+      - indexer
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=postgres
+
+networks:
+  indexer:
+    driver: bridge

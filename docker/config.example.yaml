@@ -1,0 +1,43 @@
+logger:
+  output: text
+  debug: false
+
+bitcoin_node:
+  host: "bitcoin-mainnet-archive.allthatnode.com"
+  user: "user"
+  pass: "pass"
+  disable_tls: false
+
+network: mainnet
+
+reporting:
+  disabled: false
+  base_url: "https://staging.indexer.api.gaze.network" # defaults to "https://indexer.api.gaze.network" if empty
+  name: "Local Indexer"
+  website_url: "" # public website URL to show on the dashboard. Can be left empty.
+  indexer_api_url: "" # public url to access this api. Can be left empty.
+
+้http_server:
+  port: 8080
+
+modules:
+  bitcoin:
+    database: "postgres" # Store bitcoin data in postgres
+    postgres:
+      host: "db"
+      port: 5432
+      user: "postgres"
+      password: "password"
+      db_name: "postgres"
+
+  runes:
+    database: "postgres" # Store Runes data in postgres
+    datasource: "postgres" # Fetch bitcoin blocks from postgres
+    api_handlers:
+      - http
+    postgres:
+      host: "db"
+      port: 5432
+      user: "postgres"
+      password: "password"
+      db_name: "postgres"
