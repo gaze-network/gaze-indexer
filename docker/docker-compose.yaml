@@ -1,4 +1,5 @@
 services:
+  # TODO: need to mount migrations folder
   gaze-migrator:
     # image: ghcr.io/gaze-network/gaze-indexer:v0.1.0
     build:
@@ -9,7 +10,8 @@ services:
       - db
     networks:
       - indexer
-    command: ["/app/main", "migrate", "up", "--database", "postgres://postgres:password@db:5432/postgres?sslmode=disable"]
+    command:
+      ["/app/main", "migrate", "up", "--bitcoin", "--runes", "--database", "postgres://postgres:password@db:5432/postgres?sslmode=disable"]
 
   gaze-indexer:
     # image: ghcr.io/gaze-network/gaze-indexer:v0.1.0
