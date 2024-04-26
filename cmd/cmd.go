@@ -43,7 +43,7 @@ func Execute(ctx context.Context) {
 
 		// Initialize logger
 		if err := logger.Init(config.Logger); err != nil {
-			logger.Panic("Failed to initialize logger: %v", slogx.Error(err), slog.Any("config", config.Logger))
+			logger.PanicContext(ctx, "Something went wrong, can't init logger", slogx.Error(err), slog.Any("config", config.Logger))
 		}
 	})
 
@@ -52,7 +52,7 @@ func Execute(ctx context.Context) {
 
 	// Execute command
 	if err := cmd.ExecuteContext(ctx); err != nil {
-		// use cobra to log error message by default
-		logger.Debug("Failed to execute root command", slogx.Error(err))
+		// Cobra will print the error message by default
+		logger.DebugContext(ctx, "Error executing command", slogx.Error(err))
 	}
 }
