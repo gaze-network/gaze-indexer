@@ -14,22 +14,6 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-func mapBlockHeaderTypeToModel(src types.BlockHeader) gen.BitcoinBlock {
-	return gen.BitcoinBlock{
-		BlockHeight:   int32(src.Height),
-		BlockHash:     src.Hash.String(),
-		Version:       src.Version,
-		MerkleRoot:    src.MerkleRoot.String(),
-		PrevBlockHash: src.PrevBlock.String(),
-		Timestamp: pgtype.Timestamptz{
-			Time:  src.Timestamp,
-			Valid: true,
-		},
-		Bits:  int64(src.Bits),
-		Nonce: int64(src.Nonce),
-	}
-}
-
 func mapBlockHeaderModelToType(src gen.BitcoinBlock) (types.BlockHeader, error) {
 	hash, err := chainhash.NewHashFromStr(src.BlockHash)
 	if err != nil {
@@ -53,80 +37,6 @@ func mapBlockHeaderModelToType(src gen.BitcoinBlock) (types.BlockHeader, error) 
 		Bits:       uint32(src.Bits),
 		Nonce:      uint32(src.Nonce),
 	}, nil
-}
-
-func mapBlockTypeToParams(src *types.Block) (gen.InsertBlockParams, gen.BatchInsertTransactionsParams, gen.BatchInsertTransactionTxOutsParams, gen.BatchInsertTransactionTxInsParams) {
-	block := gen.InsertBlockParams{
-		BlockHeight:   int32(src.Header.Height),
-		BlockHash:     src.Header.Hash.String(),
-		Version:       src.Header.Version,
-		MerkleRoot:    src.Header.MerkleRoot.String(),
-		PrevBlockHash: src.Header.PrevBlock.String(),
-		Timestamp: pgtype.Timestamptz{
-			Time:  src.Header.Timestamp,
-			Valid: true,
-		},
-		Bits:  int64(src.Header.Bits),
-		Nonce: int64(src.Header.Nonce),
-	}
-	txs := gen.BatchInsertTransactionsParams{
-		TxHashArr:      []string{},
-		VersionArr:     []int32{},
-		LocktimeArr:    []int64{},
-		BlockHeightArr: []int32{},
-		BlockHashArr:   []string{},
-		IdxArr:         []int32{},
-	}
-	txouts := gen.BatchInsertTransactionTxOutsParams{
-		TxHashArr:   []string{},
-		TxIdxArr:    []int32{},
-		PkscriptArr: []string{},
-		ValueArr:    []int64{},
-	}
-	txins := gen.BatchInsertTransactionTxInsParams{
-		PrevoutTxHashArr: []string{},
-		PrevoutTxIdxArr:  []int32{},
-		TxHashArr:        []string{},
-		TxIdxArr:         []int32{},
-		ScriptsigArr:     []string{},
-		WitnessArr:       []string{},
-		SequenceArr:      []int32{},
-	}
-
-	for txIdx, srcTx := range src.Transactions {
-		txHash := srcTx.TxHash.String()
-		// Batch insert transactions
-		txs.TxHashArr = append(txs.TxHashArr, txHash)
-		txs.VersionArr = append(txs.VersionArr, srcTx.Version)
-		txs.LocktimeArr = append(txs.LocktimeArr, int64(srcTx.LockTime))
-		txs.BlockHeightArr = append(txs.BlockHeightArr, int32(src.Header.Height))
-		txs.BlockHashArr = append(txs.BlockHashArr, src.Header.Hash.String())
-		txs.IdxArr = append(txs.IdxArr, int32(txIdx))
-
-		// Batch insert txins
-		for idx, txin := range srcTx.TxIn {
-			var witness string
-			if len(txin.Witness) > 0 {
-				witness = btcutils.WitnessToString(txin.Witness)
-			}
-			txins.TxHashArr = append(txins.TxHashArr, txHash)
-			txins.TxIdxArr = append(txins.TxIdxArr, int32(idx))
-			txins.PrevoutTxHashArr = append(txins.PrevoutTxHashArr, txin.PreviousOutTxHash.String())
-			txins.PrevoutTxIdxArr = append(txins.PrevoutTxIdxArr, int32(txin.PreviousOutIndex))
-			txins.ScriptsigArr = append(txins.ScriptsigArr, hex.EncodeToString(txin.SignatureScript))
-			txins.WitnessArr = append(txins.WitnessArr, witness)
-			txins.SequenceArr = append(txins.SequenceArr, int32(txin.Sequence))
-		}
-
-		// Batch insert txouts
-		for idx, txout := range srcTx.TxOut {
-			txouts.TxHashArr = append(txouts.TxHashArr, txHash)
-			txouts.TxIdxArr = append(txouts.TxIdxArr, int32(idx))
-			txouts.PkscriptArr = append(txouts.PkscriptArr, hex.EncodeToString(txout.PkScript))
-			txouts.ValueArr = append(txouts.ValueArr, txout.Value)
-		}
-	}
-	return block, txs, txouts, txins
 }
 
 func mapBlocksTypeToParams(src []*types.Block) (gen.BatchInsertBlocksParams, gen.BatchInsertTransactionsParams, gen.BatchInsertTransactionTxOutsParams, gen.BatchInsertTransactionTxInsParams) {
