@@ -6,6 +6,7 @@ import (
 
 	"github.com/Cleverse/go-utilities/utils"
 	"github.com/cockroachdb/errors"
+	"github.com/gaze-network/indexer-network/common/errs"
 	"github.com/gaze-network/indexer-network/pkg/logger"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -16,7 +17,7 @@ import (
 const (
 	DefaultMaxConns = 16
 	DefaultMinConns = 0
-	DefaultLogLevel = tracelog.LogLevelError
+	DefaultLogLevel = tracelog.LogLevelDebug
 )
 
 type Config struct {
@@ -62,7 +63,7 @@ func NewPool(ctx context.Context, conf Config) (*pgxpool.Pool, error) {
 	// Prepare connection pool configuration
 	connConfig, err := pgxpool.ParseConfig(conf.String())
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to parse config to create a new connection pool")
+		return nil, errors.Join(errs.InvalidArgument, errors.Wrap(err, "failed while parse config"))
 	}
 	connConfig.MaxConns = utils.Default(conf.MaxConns, DefaultMaxConns)
 	connConfig.MinConns = utils.Default(conf.MinConns, DefaultMinConns)

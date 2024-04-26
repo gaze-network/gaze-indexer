@@ -18,8 +18,9 @@ import (
 )
 
 var (
-	configOnce sync.Once
-	config     = &Config{
+	isInit bool
+	mu     sync.Mutex
+	config = &Config{
 		Logger: logger.Config{
 			Output: "TEXT",
 		},
@@ -58,6 +59,38 @@ type HTTPServerConfig struct {
 
 // Parse parse the configuration from environment variables
 func Parse(configFile ...string) Config {
+	mu.Lock()
+	defer mu.Unlock()
+	return parse(configFile...)
+}
+
+// Load returns the loaded configuration
+func Load() Config {
+	mu.Lock()
+	defer mu.Unlock()
+	if isInit {
+		return *config
+	}
+	return parse()
+}
+
+// BindPFlag binds a specific key to a pflag (as used by cobra).
+// Example (where serverCmd is a Cobra instance):
+//
+//	serverCmd.Flags().Int("port", 1138, "Port to run Application server on")
+//	Viper.BindPFlag("port", serverCmd.Flags().Lookup("port"))
+func BindPFlag(key string, flag *pflag.Flag) {
+	if err := viper.BindPFlag(key, flag); err != nil {
+		logger.Panic("Something went wrong, failed to bind flag for config", slog.String("package", "config"), slogx.Error(err))
+	}
+}
+
+// SetDefault sets the default value for this key.
+// SetDefault is case-insensitive for a key.
+// Default only used when no value is provided by the user via flag, config or ENV.
+func SetDefault(key string, value any) { viper.SetDefault(key, value) }
+
+func parse(configFile ...string) Config {
 	ctx := logger.WithContext(context.Background(), slog.String("package", "config"))
 
 	if len(configFile) > 0 && configFile[0] != "" {
@@ -72,39 +105,16 @@ func Parse(configFile ...string) Config {
 	if err := viper.ReadInConfig(); err != nil {
 		var errNotfound viper.ConfigFileNotFoundError
 		if errors.As(err, &errNotfound) {
-			logger.WarnContext(ctx, "config file not found, use default value", slogx.Error(err))
+			logger.WarnContext(ctx, "Config file not found, use default config value", slogx.Error(err))
 		} else {
-			logger.PanicContext(ctx, "invalid config file", slogx.Error(err))
+			logger.PanicContext(ctx, "Invalid config file", slogx.Error(err))
 		}
 	}
 
 	if err := viper.Unmarshal(&config); err != nil {
-		logger.PanicContext(ctx, "failed to unmarshal config", slogx.Error(err))
+		logger.PanicContext(ctx, "Something went wrong, failed to unmarshal config", slogx.Error(err))
 	}
 
+	isInit = true
 	return *config
 }
-
-// Load returns the loaded configuration
-func Load() Config {
-	configOnce.Do(func() {
-		_ = Parse()
-	})
-	return *config
-}
-
-// BindPFlag binds a specific key to a pflag (as used by cobra).
-// Example (where serverCmd is a Cobra instance):
-//
-//	serverCmd.Flags().Int("port", 1138, "Port to run Application server on")
-//	Viper.BindPFlag("port", serverCmd.Flags().Lookup("port"))
-func BindPFlag(key string, flag *pflag.Flag) {
-	if err := viper.BindPFlag(key, flag); err != nil {
-		logger.Panic("Failed to bind pflag for config", slogx.Error(err))
-	}
-}
-
-// SetDefault sets the default value for this key.
-// SetDefault is case-insensitive for a key.
-// Default only used when no value is provided by the user via flag, config or ENV.
-func SetDefault(key string, value any) { viper.SetDefault(key, value) }

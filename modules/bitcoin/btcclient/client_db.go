@@ -37,13 +37,13 @@ func NewClientDatabase(bitcoinDg datagateway.BitcoinDataGateway) *ClientDatabase
 	}
 }
 
-func (c ClientDatabase) Name() string {
-	return "BitcoinDatabase"
+func (d ClientDatabase) Name() string {
+	return "bitcoin_database"
 }
 
-func (c *ClientDatabase) Fetch(ctx context.Context, from, to int64) ([]*types.Block, error) {
+func (d *ClientDatabase) Fetch(ctx context.Context, from, to int64) ([]*types.Block, error) {
 	ch := make(chan []*types.Block)
-	subscription, err := c.FetchAsync(ctx, from, to, ch)
+	subscription, err := d.FetchAsync(ctx, from, to, ch)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
@@ -73,8 +73,13 @@ func (c *ClientDatabase) Fetch(ctx context.Context, from, to int64) ([]*types.Bl
 	}
 }
 
-func (c *ClientDatabase) FetchAsync(ctx context.Context, from, to int64, ch chan<- []*types.Block) (*subscription.ClientSubscription[[]*types.Block], error) {
-	from, to, skip, err := c.prepareRange(ctx, from, to)
+func (d *ClientDatabase) FetchAsync(ctx context.Context, from, to int64, ch chan<- []*types.Block) (*subscription.ClientSubscription[[]*types.Block], error) {
+	ctx = logger.WithContext(ctx,
+		slogx.String("package", "datasources"),
+		slogx.String("datasource", d.Name()),
+	)
+
+	from, to, skip, err := d.prepareRange(ctx, from, to)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to prepare fetch range")
 	}
@@ -129,10 +134,10 @@ func (c *ClientDatabase) FetchAsync(ctx context.Context, from, to int64, ch chan
 					if errors.Is(err, errs.Closed) {
 						return
 					}
-					logger.WarnContext(ctx, "failed while dispatch block",
-						slogx.Error(err),
+					logger.WarnContext(ctx, "Failed to send bitcoin blocks to subscription client",
 						slogx.Int64("start", data[0].Header.Height),
 						slogx.Int64("end", data[len(data)-1].Header.Height),
+						slogx.Error(err),
 					)
 				}
 			case <-ctx.Done():
@@ -159,16 +164,26 @@ func (c *ClientDatabase) FetchAsync(ctx context.Context, from, to int64, ch chan
 					continue
 				}
 				stream.Go(func() []*types.Block {
+					startAt := time.Now()
+					defer func() {
+						logger.DebugContext(ctx, "Fetched chunk of blocks from Bitcoin node",
+							slogx.Int("total_blocks", len(chunk)),
+							slogx.Int64("from", chunk[0]),
+							slogx.Int64("to", chunk[len(chunk)-1]),
+							slogx.Duration("duration", time.Since(startAt)),
+						)
+					}()
+
 					fromHeight, toHeight := chunk[0], chunk[len(chunk)-1]
-					blocks, err := c.bitcoinDg.GetBlocksByHeightRange(ctx, fromHeight, toHeight)
+					blocks, err := d.bitcoinDg.GetBlocksByHeightRange(ctx, fromHeight, toHeight)
 					if err != nil {
-						logger.ErrorContext(ctx, "failed to get blocks",
+						logger.ErrorContext(ctx, "Can't get block data from Bitcoin database",
 							slogx.Error(err),
-							slogx.Int64("from_height", fromHeight),
-							slogx.Int64("to_height", toHeight),
+							slogx.Int64("from", fromHeight),
+							slogx.Int64("to", toHeight),
 						)
 						if err := subscription.SendError(ctx, errors.Wrapf(err, "failed to get blocks: from_height: %d, to_height: %d", fromHeight, toHeight)); err != nil {
-							logger.ErrorContext(ctx, "failed to send error", slogx.Error(err))
+							logger.WarnContext(ctx, "Failed to send datasource error to subscription client", slogx.Error(err))
 						}
 						return nil
 					}

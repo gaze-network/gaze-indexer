@@ -87,6 +87,13 @@ type HttpHandler interface {
 func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 	conf := config.Load()
 
+	// Validate inputs
+	{
+		if !conf.Network.IsSupported() {
+			return errors.Wrapf(errs.Unsupported, "%q network is not supported", conf.Network.String())
+		}
+	}
+
 	// Initialize application process context
 	ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
@@ -96,7 +103,6 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 	defer stopWorker()
 
 	// Add logger context
-	ctx = logger.WithContext(ctx, slogx.Stringer("network", conf.Network))
 	ctxWorker = logger.WithContext(ctxWorker, slogx.Stringer("network", conf.Network))
 
 	// Initialize Bitcoin Core RPC Client
@@ -108,19 +114,18 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 		HTTPPostMode: true,
 	}, nil)
 	if err != nil {
-		logger.PanicContext(ctx, "Failed to create Bitcoin Core RPC Client", slogx.Error(err))
+		logger.PanicContext(ctx, "Invalid Bitcoin node configuration", slogx.Error(err))
 	}
 	defer client.Shutdown()
 
-	logger.InfoContext(ctx, "Connecting to Bitcoin Core RPC Server...", slogx.String("host", conf.BitcoinNode.Host))
-	if err := client.Ping(); err != nil {
-		logger.PanicContext(ctx, "Failed to ping Bitcoin Core RPC Server", slogx.Error(err))
-	}
-	logger.InfoContext(ctx, "Connected to Bitcoin Core RPC Server")
-
-	// Validate network
-	if !conf.Network.IsSupported() {
-		return errors.Wrapf(errs.Unsupported, "%q network is not supported", conf.Network.String())
+	// Check Bitcoin RPC connection
+	{
+		start := time.Now()
+		logger.InfoContext(ctx, "Connecting to Bitcoin Core RPC Server...", slogx.String("host", conf.BitcoinNode.Host))
+		if err := client.Ping(); err != nil {
+			logger.PanicContext(ctx, "Can't connect to Bitcoin Core RPC Server", slogx.String("host", conf.BitcoinNode.Host), slogx.Error(err))
+		}
+		logger.InfoContext(ctx, "Connected to Bitcoin Core RPC Server", slog.Duration("latency", time.Since(start)))
 	}
 
 	// TODO: create module command package.
@@ -133,12 +138,16 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 	if !conf.Reporting.Disabled {
 		reportingClient, err = reportingclient.New(conf.Reporting)
 		if err != nil {
-			logger.PanicContext(ctx, "Failed to create reporting client", slogx.Error(err))
+			if errors.Is(err, errs.InvalidArgument) {
+				logger.PanicContext(ctx, "Invalid reporting configuration", slogx.Error(err))
+			}
+			logger.PanicContext(ctx, "Something went wrong, can't create reporting client", slogx.Error(err))
 		}
 	}
 
 	// Initialize Bitcoin Indexer
 	if opts.Bitcoin {
+		ctx := logger.WithContext(ctx, slogx.String("module", "bitcoin"))
 		var (
 			btcDB         btcdatagateway.BitcoinDataGateway
 			indexerInfoDB btcdatagateway.IndexerInformationDataGateway
@@ -147,14 +156,17 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 		case "postgresql", "postgres", "pg":
 			pg, err := postgres.NewPool(ctx, conf.Modules.Bitcoin.Postgres)
 			if err != nil {
-				logger.PanicContext(ctx, "Failed to create Postgres connection pool", slogx.Error(err))
+				if errors.Is(err, errs.InvalidArgument) {
+					logger.PanicContext(ctx, "Invalid Postgres configuration for indexer", slogx.Error(err))
+				}
+				logger.PanicContext(ctx, "Something went wrong, can't create Postgres connection pool", slogx.Error(err))
 			}
 			defer pg.Close()
 			repo := btcpostgres.NewRepository(pg)
 			btcDB = repo
 			indexerInfoDB = repo
 		default:
-			return errors.Wrapf(errs.Unsupported, "%q database is not supported", conf.Modules.Bitcoin.Database)
+			return errors.Wrapf(errs.Unsupported, "%q database for indexer is not supported", conf.Modules.Bitcoin.Database)
 		}
 		if !opts.APIOnly {
 			processor := bitcoin.NewProcessor(conf, btcDB, indexerInfoDB)
@@ -162,9 +174,10 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 			indexer := indexers.NewBitcoinIndexer(processor, datasource)
 			defer func() {
 				if err := indexer.ShutdownWithTimeout(shutdownTimeout); err != nil {
-					logger.ErrorContext(ctx, "Error during shutdown Bitcoin indexer", slogx.Error(err))
+					logger.ErrorContext(ctx, "Error during shutdown indexer", slogx.Error(err))
+					return
 				}
-				logger.InfoContext(ctx, "Bitcoin indexer stopped gracefully")
+				logger.InfoContext(ctx, "Indexer stopped gracefully")
 			}()
 
 			// Verify states before running Indexer
@@ -177,9 +190,9 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 				// stop main process if indexer stopped
 				defer stop()
 
-				logger.InfoContext(ctx, "Starting Bitcoin Indexer")
+				logger.InfoContext(ctx, "Starting Gaze Indexer")
 				if err := indexer.Run(ctxWorker); err != nil {
-					logger.PanicContext(ctx, "Failed to run Bitcoin Indexer", slogx.Error(err))
+					logger.PanicContext(ctx, "Something went wrong, error during running indexer", slogx.Error(err))
 				}
 			}()
 		}
@@ -187,20 +200,26 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 
 	// Initialize Runes Indexer
 	if opts.Runes {
-		var runesDg runesdatagateway.RunesDataGateway
-		var indexerInfoDg runesdatagateway.IndexerInfoDataGateway
+		ctx := logger.WithContext(ctx, slogx.String("module", "runes"))
+		var (
+			runesDg       runesdatagateway.RunesDataGateway
+			indexerInfoDg runesdatagateway.IndexerInfoDataGateway
+		)
 		switch strings.ToLower(conf.Modules.Runes.Database) {
 		case "postgresql", "postgres", "pg":
 			pg, err := postgres.NewPool(ctx, conf.Modules.Runes.Postgres)
 			if err != nil {
-				logger.PanicContext(ctx, "Failed to create Postgres connection pool", slogx.Error(err))
+				if errors.Is(err, errs.InvalidArgument) {
+					logger.PanicContext(ctx, "Invalid Postgres configuration for indexer", slogx.Error(err))
+				}
+				logger.PanicContext(ctx, "Something went wrong, can't create Postgres connection pool", slogx.Error(err))
 			}
 			defer pg.Close()
 			runesRepo := runespostgres.NewRepository(pg)
 			runesDg = runesRepo
 			indexerInfoDg = runesRepo
 		default:
-			logger.PanicContext(ctx, "Unsupported database", slogx.String("database", conf.Modules.Runes.Database))
+			return errors.Wrapf(errs.Unsupported, "%q database for indexer is not supported", conf.Modules.Runes.Database)
 		}
 		var bitcoinDatasource indexers.BitcoinDatasource
 		var bitcoinClient btcclient.Contract
@@ -212,7 +231,10 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 		case "database":
 			pg, err := postgres.NewPool(ctx, conf.Modules.Bitcoin.Postgres)
 			if err != nil {
-				logger.PanicContext(ctx, "Failed to create Postgres connection pool", slogx.Error(err))
+				if errors.Is(err, errs.InvalidArgument) {
+					logger.PanicContext(ctx, "Invalid Postgres configuration for datasource", slogx.Error(err))
+				}
+				logger.PanicContext(ctx, "Something went wrong, can't create Postgres connection pool", slogx.Error(err))
 			}
 			defer pg.Close()
 			btcRepo := btcpostgres.NewRepository(pg)
@@ -228,9 +250,10 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 			indexer := indexers.NewBitcoinIndexer(processor, bitcoinDatasource)
 			defer func() {
 				if err := indexer.ShutdownWithTimeout(shutdownTimeout); err != nil {
-					logger.ErrorContext(ctx, "Error during shutdown Runes indexer", slogx.Error(err))
+					logger.ErrorContext(ctx, "Error during shutdown indexer", slogx.Error(err))
+					return
 				}
-				logger.InfoContext(ctx, "Runes indexer stopped gracefully")
+				logger.InfoContext(ctx, "Indexer stopped gracefully")
 			}()
 
 			if err := processor.VerifyStates(ctx); err != nil {
@@ -242,9 +265,9 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 				// stop main process if indexer stopped
 				defer stop()
 
-				logger.InfoContext(ctx, "Started Runes Indexer")
+				logger.InfoContext(ctx, "Starting Gaze Indexer")
 				if err := indexer.Run(ctxWorker); err != nil {
-					logger.PanicContext(ctx, "Failed to run Runes Indexer", slogx.Error(err))
+					logger.PanicContext(ctx, "Something went wrong, error during running indexer", slogx.Error(err))
 				}
 			}()
 		}
@@ -258,7 +281,7 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 				runesHTTPHandler := runesapi.NewHTTPHandler(conf.Network, runesUsecase)
 				httpHandlers["runes"] = runesHTTPHandler
 			default:
-				logger.PanicContext(ctx, "Unsupported API handler", slogx.String("handler", handler))
+				logger.PanicContext(ctx, "Something went wrong, unsupported API handler", slogx.String("handler", handler))
 			}
 		}
 	}
@@ -276,7 +299,7 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 				StackTraceHandler: func(c *fiber.Ctx, e interface{}) {
 					buf := make([]byte, 1024) // bufLen = 1024
 					buf = buf[:runtime.Stack(buf, false)]
-					logger.ErrorContext(c.UserContext(), "panic in http handler", slogx.Any("panic", e), slog.String("stacktrace", string(buf)))
+					logger.ErrorContext(c.UserContext(), "Something went wrong, panic in http handler", slogx.Any("panic", e), slog.String("stacktrace", string(buf)))
 				},
 			})).
 			Use(compress.New(compress.Config{
@@ -286,6 +309,7 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 		defer func() {
 			if err := app.ShutdownWithTimeout(shutdownTimeout); err != nil {
 				logger.ErrorContext(ctx, "Error during shutdown HTTP server", slogx.Error(err))
+				return
 			}
 			logger.InfoContext(ctx, "HTTP server stopped gracefully")
 		}()
@@ -298,7 +322,7 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 		// mount http handlers from each http-enabled module
 		for module, handler := range httpHandlers {
 			if err := handler.Mount(app); err != nil {
-				logger.PanicContext(ctx, "Failed to mount HTTP handler", slogx.Error(err), slogx.String("module", module))
+				logger.PanicContext(ctx, "Something went wrong, can't mount HTTP handler", slogx.Error(err), slogx.String("module", module))
 			}
 			logger.InfoContext(ctx, "Mounted HTTP handler", slogx.String("module", module))
 		}
@@ -309,7 +333,7 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 
 			logger.InfoContext(ctx, "Started HTTP server", slog.Int("port", conf.HTTPServer.Port))
 			if err := app.Listen(fmt.Sprintf(":%d", conf.HTTPServer.Port)); err != nil {
-				logger.PanicContext(ctx, "Failed to start HTTP server", slogx.Error(err))
+				logger.PanicContext(ctx, "Something went wrong, error during running HTTP server", slogx.Error(err))
 			}
 		}()
 	}
@@ -319,8 +343,10 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 		<-ctxWorker.Done()
 		defer stop()
 
-		logger.InfoContext(ctx, "Worker is stopped. Stopping main process...")
+		logger.InfoContext(ctx, "Gaze Indexer Worker is stopped. Stopping application...")
 	}()
+
+	logger.InfoContext(ctxWorker, "Gaze Indexer started")
 
 	// Wait for interrupt signal to gracefully stop the server
 	<-ctx.Done()

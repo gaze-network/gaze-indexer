@@ -21,7 +21,11 @@ func NewHTTPErrorHandler() func(ctx *fiber.Ctx, err error) error {
 			return errors.WithStack(ctx.Status(e.Code).SendString(e.Error()))
 		}
 
-		logger.ErrorContext(ctx.UserContext(), "unhandled error", slogx.Error(err))
+		logger.ErrorContext(ctx.UserContext(), "Something went wrong, unhandled api error",
+			slogx.String("event", "api_unhandled_error"),
+			slogx.Error(err),
+		)
+
 		return errors.WithStack(ctx.Status(http.StatusInternalServerError).JSON(map[string]any{
 			"error": "Internal Server Error",
 		}))

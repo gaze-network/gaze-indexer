@@ -29,7 +29,7 @@ func NewProcessor(config config.Config, bitcoinDg datagateway.BitcoinDataGateway
 }
 
 func (p Processor) Name() string {
-	return "Bitcoin"
+	return "bitcoin"
 }
 
 func (p *Processor) Process(ctx context.Context, inputs []*types.Block) error {

@@ -7,7 +7,13 @@ import (
 	"github.com/gaze-network/indexer-network/core/types"
 )
 
+const (
+	// pollingInterval is the default polling interval for the indexer polling worker
+	pollingInterval = 15 * time.Second
+)
+
 type IndexerWorker interface {
+	Type() string
 	Run(ctx context.Context) error
 	Shutdown() error
 	ShutdownWithTimeout(timeout time.Duration) error

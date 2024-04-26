@@ -55,7 +55,7 @@ func (r *Repository) Rollback(ctx context.Context) error {
 		return errors.Wrap(err, "failed to rollback transaction")
 	}
 	if err == nil {
-		logger.InfoContext(ctx, "rolled back transaction")
+		logger.DebugContext(ctx, "rolled back transaction")
 	}
 	r.tx = nil
 	return nil

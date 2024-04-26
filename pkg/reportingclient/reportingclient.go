@@ -56,6 +56,8 @@ type SubmitBlockReportPayload struct {
 }
 
 func (r *ReportingClient) SubmitBlockReport(ctx context.Context, payload SubmitBlockReportPayload) error {
+	ctx = logger.WithContext(ctx, slog.String("package", "reporting_client"), slog.Any("payload", payload))
+
 	body, err := json.Marshal(payload)
 	if err != nil {
 		return errors.Wrap(err, "can't marshal payload")
@@ -67,9 +69,11 @@ func (r *ReportingClient) SubmitBlockReport(ctx context.Context, payload SubmitB
 		return errors.Wrap(err, "can't send request")
 	}
 	if resp.StatusCode() >= 400 {
-		logger.WarnContext(ctx, "failed to submit block report", slog.Any("payload", payload), slog.Any("responseBody", resp.Body()))
+		// TODO: unmashal response body and log it
+		logger.WarnContext(ctx, "Reporting block event failed", slog.Any("resp_body", resp.Body()))
+		return nil
 	}
-	logger.DebugContext(ctx, "block report submitted", slog.Any("payload", payload))
+	logger.DebugContext(ctx, "Reported block event")
 	return nil
 }
 
@@ -89,6 +93,9 @@ func (r *ReportingClient) SubmitNodeReport(ctx context.Context, module string, n
 		WebsiteURL:    r.config.WebsiteURL,
 		IndexerAPIURL: r.config.IndexerAPIURL,
 	}
+
+	ctx = logger.WithContext(ctx, slog.String("package", "reporting_client"), slog.Any("payload", payload))
+
 	body, err := json.Marshal(payload)
 	if err != nil {
 		return errors.Wrap(err, "can't marshal payload")
@@ -100,8 +107,8 @@ func (r *ReportingClient) SubmitNodeReport(ctx context.Context, module string, n
 		return errors.Wrap(err, "can't send request")
 	}
 	if resp.StatusCode() >= 400 {
-		logger.WarnContext(ctx, "failed to submit node report", slog.Any("payload", payload), slog.Any("responseBody", resp.Body()))
+		logger.WarnContext(ctx, "Reporting node info failed", slog.Any("resp_body", resp.Body()))
 	}
-	logger.InfoContext(ctx, "node report submitted", slog.Any("payload", payload))
+	logger.DebugContext(ctx, "Reported node info")
 	return nil
 }

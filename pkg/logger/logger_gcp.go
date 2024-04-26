@@ -7,12 +7,18 @@ import (
 	"github.com/gaze-network/indexer-network/pkg/logger/slogx"
 )
 
+// NewGCPHandler returns a new GCP handler.
+// The handler writes logs to the os.Stdout and
+// replaces the default attribute keys/values with the GCP logging attribute keys/values
+//
+// https://cloud.google.com/logging/docs/reference/v2/rest/v2/LogEntry
 func NewGCPHandler(opts *slog.HandlerOptions) slog.Handler {
 	return slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
 		AddSource: true,
 		Level:     opts.Level,
 		ReplaceAttr: attrReplacerChain(
 			GCPAttrReplacer,
+			durationToMsAttrReplacer,
 			opts.ReplaceAttr,
 		),
 	})
