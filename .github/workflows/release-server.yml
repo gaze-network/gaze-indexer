@@ -32,6 +32,6 @@ jobs:
     uses: ./.github/workflows/reusable-build-and-push-ghcr.yml
     with:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: ./docker/Dockerfile
       image-repo: "ghcr.io/gaze-network/gaze-indexer"
       image-tag: ${{ needs.prepare.outputs.tag }}
