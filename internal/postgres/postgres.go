@@ -17,7 +17,7 @@ import (
 const (
 	DefaultMaxConns = 16
 	DefaultMinConns = 0
-	DefaultLogLevel = tracelog.LogLevelError
+	DefaultLogLevel = tracelog.LogLevelDebug
 )
 
 type Config struct {
