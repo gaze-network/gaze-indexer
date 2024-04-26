@@ -13,10 +13,6 @@ but other meta-protocols can be easily implemented.
     - [3. Hardware Requirements](#3-hardware-requirements)
   - [Install with Docker (recommended)](#install-with-docker-recommended)
   - [Install from source](#install-from-source)
-- [Architecture](#architecture)
-- [Block Reporting](#block-reporting)
-- [Implementing a new meta-protocol module](#implementing-a-new-meta-protocol-module)
-- [Contributing](#contributing)
 
 ## Modules
 ### 1. Bitcoin
@@ -126,17 +122,3 @@ If `config.yaml` is not located at `./app/config.yaml`, use the `--config` flag 
 ```bash
 ./gaze run --bitcoin --runes --config /path/to/config.yaml
 ```
-
-## Architecture
-TODO
-
-## Block Reporting
-Gaze Indexer has a block reporting system for verifying data integrity of indexers. Visit the [Gaze Network dashboard](https://dash.gaze.network) to see the status of other indexers.
-By default, block reporting is enabled and will submit node and block reports to https://indexer.api.gaze.network.
-If you want to opt-out of block reporting, set `reporting.disabled` to `true` in the `config.yaml` file.
-
-## Implementing a new meta-protocol module
-TODO
-
-## Contributing
-TODO
