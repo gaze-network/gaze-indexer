@@ -1,7 +1,8 @@
 <!-- omit from toc -->
 # Gaze Indexer
-Gaze Indexer is an open-source and modular indexing client for Bitcoin meta-protocols. It has support for Bitcoin and Runes out of the box. 
-It is built with extensibility in mind, allowing developers to easily implement new indexer modules and APIs.
+Gaze Indexer is an open-source and modular indexing client for Bitcoin meta-protocols. It serves as a foundation for building ANY meta-protocol indexers, 
+complete with efficient source data fetching, reorg detection, and database migration tool. This allows developers to focus on what truly matters: Meta-protocol indexing logic.
+Gaze Indexer has support for Bitcoin and Runes out of the box, but can be easily extended to support other meta-protocols by implementing new modules. 
 
 Gaze Indexer also comes with a block reporting system for verifying data integrity of indexers. Visit the [Gaze Network dashboard](https://dash.gaze.network) to see the status of other indexers.
 
@@ -10,9 +11,10 @@ Gaze Indexer also comes with a block reporting system for verifying data integri
   - [2. Runes](#2-runes)
 - [Installation](#installation)
   - [Prerequisites](#prerequisites)
-    - [1. Prepare `config.yaml` file.](#1-prepare-configyaml-file)
+    - [1. Hardware Requirements](#1-hardware-requirements)
     - [2. Prepare Bitcoin Core RPC server.](#2-prepare-bitcoin-core-rpc-server)
-    - [3. Hardware Requirements](#3-hardware-requirements)
+    - [3. Prepare database.](#3-prepare-database)
+    - [4. Prepare `config.yaml` file.](#4-prepare-configyaml-file)
   - [Install with Docker (recommended)](#install-with-docker-recommended)
   - [Install from source](#install-from-source)
 
@@ -27,7 +29,26 @@ It comes with a set of APIs for querying historical Runes data. See our [API Ref
 
 ## Installation
 ### Prerequisites
-#### 1. Prepare `config.yaml` file.
+#### 1. Hardware Requirements
+Each module requires different hardware requirements.
+| Module  | CPU        | RAM    |
+| ------- | ---------- | ------ |
+| Bitcoin | 0.25 cores | 256 MB |
+| Runes   | 0.5 cores  | 1 GB   |
+
+#### 2. Prepare Bitcoin Core RPC server.  
+Gaze Indexer needs to fetch transaction data from a Bitcoin Core RPC, either self-hosted or using managed providers like QuickNode.
+To self host a Bitcoin Core, see https://bitcoin.org/en/full-node.
+
+#### 3. Prepare database.
+Gaze Indexer has first-class support for PostgreSQL. If you wish to use other databases, you can implement your own database repository that satisfies each module's Data Gateway interface.
+Here is our minimum database disk space requirement for each module.
+| Module  | Database Storage |
+| ------- | ---------------- |
+| Bitcoin | 240 GB           |
+| Runes   | 150 GB           |
+
+#### 4. Prepare `config.yaml` file.
 ```yaml
 # config.yaml
 logger:
@@ -75,17 +96,6 @@ modules:
       db_name: "postgres"
       # url: "postgres://postgres:password@localhost:5432/postgres?sslmode=prefer" # [Optional] This will override other database credentials above.
 ```
-
-#### 2. Prepare Bitcoin Core RPC server.  
-Gaze Indexer needs to fetch transaction data from a Bitcoin Core RPC, either self-hosted or using managed providers like QuickNode.
-To self host a Bitcoin Core, see https://bitcoin.org/en/full-node.
-
-#### 3. Hardware Requirements
-Each module requires different hardware requirements.
-| Module  | CPU        | RAM    | Database Storage |
-| ------- | ---------- | ------ | ---------------- |
-| Bitcoin | 0.25 cores | 256 MB | 240 GB           |
-| Runes   | 0.5 cores  | 1 GB   | 150 GB           |
 
 ### Install with Docker (recommended)
 We will be using `docker-compose` for our installation guide. Make sure the `docker-compose.yaml` file is in the same directory as the `config.yaml` file.
