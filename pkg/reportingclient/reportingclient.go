@@ -9,6 +9,7 @@ import (
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/common"
+	"github.com/gaze-network/indexer-network/common/errs"
 	"github.com/gaze-network/indexer-network/pkg/httpclient"
 	"github.com/gaze-network/indexer-network/pkg/logger"
 )
@@ -35,7 +36,7 @@ func New(config Config) (*ReportingClient, error) {
 		return nil, errors.Wrap(err, "can't create http client")
 	}
 	if config.Name == "" {
-		return nil, errors.New("reporting.name config is required if reporting is enabled")
+		return nil, errors.Wrap(errs.InvalidArgument, "reporting.name config is required if reporting is enabled")
 	}
 	return &ReportingClient{
 		httpClient: httpClient,
