@@ -66,29 +66,35 @@ Here is our minimum database disk space requirement for each module.
 ```yaml
 # config.yaml
 logger:
-  output: text # Output format for logs. current supported formats: "text" | "json" | "gcp"
+  output: TEXT # Output format for logs. current supported formats: "TEXT" | "JSON" | "GCP"
   debug: false
 
+# Network to run the indexer on. Current supported networks: "mainnet" | "testnet"
+network: mainnet
+
+# Bitcoin Core RPC configuration options.
 bitcoin_node:
   host: "" # [Required] Host of Bitcoin Core RPC (without https://)
   user: "" # Username to authenticate with Bitcoin Core RPC
   pass: "" # Password to authenticate with Bitcoin Core RPC
   disable_tls: false # Set to true to disable tls
 
-network: mainnet # Network to run the indexer on. Current supported networks: "mainnet" | "testnet"
-
-reporting: # Block reporting configuration options. See Block Reporting section for more details.
+# Block reporting configuration options. See Block Reporting section for more details.
+reporting:
   disabled: false # Set to true to disable block reporting to Gaze Network. Default is false.
   base_url: "https://indexer.api.gaze.network" # Defaults to "https://indexer.api.gaze.network" if left empty
   name: "" # [Required if not disabled] Name of this indexer to show on the Gaze Network dashboard
   website_url: "" # Public website URL to show on the dashboard. Can be left empty.
   indexer_api_url: "" # Public url to access this indexer's API. Can be left empty if you want to keep your indexer private.
 
+# HTTP server configuration options.
 http_server:
   port: 8080 # Port to run the HTTP server on for modules with HTTP API handlers.
 
+# Meta-protocol modules configuration options.
 modules:
-  bitcoin: # Configuration options for Bitcoin module. Can be removed if not used.
+  # Configuration options for Bitcoin module. Can be removed if not used.
+  bitcoin:
     database: "postgres" # Database to store bitcoin data. current supported databases: "postgres"
     postgres:
       host: "localhost"
@@ -97,7 +103,9 @@ modules:
       password: "password"
       db_name: "postgres"
       # url: "postgres://postgres:password@localhost:5432/postgres?sslmode=prefer" # [Optional] This will override other database credentials above.
-  runes: # Configuration options for Runes module. Can be removed if not used.
+
+  # Configuration options for Runes module. Can be removed if not used.
+  runes:
     database: "postgres" # Database to store Runes data. current supported databases: "postgres"
     datasource: "database" # Data source to be used for Bitcoin data. current supported data sources: "bitcoin-node" | "database". If "database" is used, it will use the database config in bitcoin module as datasource.
     api_handlers: # API handlers to enable. current supported handlers: "http"
