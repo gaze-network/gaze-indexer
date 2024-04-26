@@ -88,7 +88,7 @@ modules:
       # url: "postgres://postgres:password@localhost:5432/postgres?sslmode=prefer" # [Optional] This will override other database credentials above.
   runes: # Configuration options for Runes module. Can be removed if not used.
     database: "postgres" # Database to store Runes data. current supported databases: "postgres"
-    datasource: "bitcoin-node" # Data source to be used for Bitcoin data. current supported data sources: "bitcoin-node" | "database". If "database" is used, it will use the database config in bitcoin module as datasource.
+    datasource: "database" # Data source to be used for Bitcoin data. current supported data sources: "bitcoin-node" | "database". If "database" is used, it will use the database config in bitcoin module as datasource.
     api_handlers: # API handlers to enable. current supported handlers: "http"
       - http
     postgres:
