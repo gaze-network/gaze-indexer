@@ -98,7 +98,6 @@ func (p *Processor) ensureValidState(ctx context.Context) error {
 			return errors.Wrapf(errs.ConflictSetting, "db version mismatch: current version is %d. Please upgrade to version %d", indexerState.DBVersion, DBVersion)
 		}
 		if indexerState.EventHashVersion != EventHashVersion {
-			// TODO: automate reset db instead of returning error
 			return errors.Wrapf(errs.ConflictSetting, "event version mismatch: current version is %d. Please reset rune's db first.", indexerState.EventHashVersion, EventHashVersion)
 		}
 	}

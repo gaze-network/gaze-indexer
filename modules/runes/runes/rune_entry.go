@@ -117,7 +117,8 @@ func (e RuneEntry) Supply() (uint128.Uint128, error) {
 }
 
 func (e RuneEntry) MintedAmount() (uint128.Uint128, error) {
-	amount, overflow := e.Mints.MulOverflow(lo.FromPtr(e.Terms.Amount))
+	terms := lo.FromPtr(e.Terms)
+	amount, overflow := e.Mints.MulOverflow(lo.FromPtr(terms.Amount))
 	if overflow {
 		return uint128.Uint128{}, errors.WithStack(errs.OverflowUint128)
 	}

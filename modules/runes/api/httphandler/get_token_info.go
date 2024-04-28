@@ -124,6 +124,7 @@ func (h *HttpHandler) GetTokenInfo(ctx *fiber.Ctx) (err error) {
 	}
 	circulatingSupply := mintedAmount.Sub(runeEntry.BurnedAmount)
 
+	terms := lo.FromPtr(runeEntry.Terms)
 	resp := getTokenInfoResponse{
 		Result: &getTokenInfoResult{
 			Id:                runeId,
@@ -147,12 +148,12 @@ func (h *HttpHandler) GetTokenInfo(ctx *fiber.Ctx) (err error) {
 					Spacers:      runeEntry.SpacedRune.Spacers,
 					Symbol:       string(runeEntry.Symbol),
 					Terms: entryTerms{
-						Amount:      lo.FromPtr(runeEntry.Terms.Amount),
-						Cap:         lo.FromPtr(runeEntry.Terms.Cap),
-						HeightStart: runeEntry.Terms.HeightStart,
-						HeightEnd:   runeEntry.Terms.HeightEnd,
-						OffsetStart: runeEntry.Terms.OffsetStart,
-						OffsetEnd:   runeEntry.Terms.OffsetEnd,
+						Amount:      lo.FromPtr(terms.Amount),
+						Cap:         lo.FromPtr(terms.Cap),
+						HeightStart: terms.HeightStart,
+						HeightEnd:   terms.HeightEnd,
+						OffsetStart: terms.OffsetStart,
+						OffsetEnd:   terms.OffsetEnd,
 					},
 					Turbo: runeEntry.Turbo,
 				},
