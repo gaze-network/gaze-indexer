@@ -1,0 +1,82 @@
+{
+  "editor.formatOnSave": true,
+  "files.exclude": {
+    "**/.git": true,
+    "**/.svn": true,
+    "**/.hg": true,
+    "**/CVS": true,
+    "**/.DS_Store": true
+  },
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/build": true,
+    "**/dist": true
+  },
+  "[json]": {
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  // Golang
+  "[go]": {
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.organizeImports": "explicit"
+    },
+    "editor.codeLens": true
+  },
+  "go.useLanguageServer": true,
+  "go.lintTool": "golangci-lint",
+  "go.lintFlags": ["--fix"],
+  "go.lintOnSave": "package",
+  "go.toolsManagement.autoUpdate": true,
+  "gopls": {
+    "formatting.gofumpt": true, // https://github.com/mvdan/gofumpt
+    "ui.codelenses": {
+      "gc_details": true
+    },
+    "build.directoryFilters": ["-**/node_modules"],
+    "ui.semanticTokens": true,
+    "ui.completion.usePlaceholders": false,
+    "ui.diagnostic.analyses": {
+      // https://github.com/golang/tools/blob/master/gopls/doc/analyzers.md
+      // "fieldalignment": false,
+      "nilness": true,
+      "shadow": false,
+      "unusedparams": true,
+      "unusedvariable": true,
+      "unusedwrite": true, // ineffective assignment
+      "useany": true
+    },
+    "ui.diagnostic.staticcheck": false, // use golangci-lint instead
+    "ui.diagnostic.annotations": {
+      // CMD+P and run command `Go: Toggle gc details`
+      "bounds": true,
+      "escape": true,
+      "inline": true,
+      "nil": true
+    },
+    "ui.documentation.hoverKind": "FullDocumentation"
+  },
+  "go.editorContextMenuCommands": {
+    // Right click on code to use this command
+    "toggleTestFile": false,
+    "addTags": false,
+    "removeTags": false,
+    "fillStruct": true,
+    "testAtCursor": false,
+    "testFile": false,
+    "testPackage": false,
+    "generateTestForFunction": true,
+    "generateTestForFile": false,
+    "generateTestForPackage": false,
+    "addImport": false,
+    "testCoverage": false,
+    "playground": false,
+    "debugTestAtCursor": false,
+    "benchmarkAtCursor": false
+  },
+  "dotenv.enableAutocloaking": false,
+  "protoc": {
+    "options": ["--proto_path=pb"]
+  }
+}

@@ -51,6 +51,8 @@ linters:
     - prealloc # performance - Find slice declarations that could potentially be pre-allocated, https://github.com/alexkohler/prealloc
     - gosec # bugs - Inspects source code for security problems
     - wrapcheck # style, error - Checks that errors returned from external packages are wrapped, we should wrap the error from external library
+    - depguard # import - Go linter that checks if package imports are in a list of acceptable packages.
+    - sloglint # style, format Ensure consistent code style when using log/slog.
     ### Annoying Linters
     # - dupl # style - code clone detection
 
@@ -66,20 +68,36 @@ linters-settings:
   misspell:
     locale: US
     ignore-words: []
+  errcheck:
+    exclude-functions:
+      - (github.com/jackc/pgx/v5.Tx).Rollback
   wrapcheck:
     ignoreSigs:
       - .Errorf(
       - errors.New(
       - errors.Unwrap(
+      - errors.Join(
       - .Wrap(
       - .Wrapf(
       - .WithMessage(
       - .WithMessagef(
       - .WithStack(
+      - errs.NewPublicError(
+      - errs.WithPublicMessage(
+      - withstack.WithStackDepth(
     ignoreSigRegexps:
       - \.New.*Error\(
-    ignorePackageGlobs:
-      - "github.com/gofiber/fiber/*"
   goconst:
     ignore-tests: true
     min-occurrences: 5
+  depguard:
+    rules:
+      main:
+        # Packages that are not allowed.
+        deny:
+          - pkg: "github.com/pkg/errors"
+            desc: Should be replaced by "cockroachdb/errors" or "cleverse/go-utilities" package
+  sloglint:
+    attr-only: true
+    key-naming-case: snake
+    args-on-sep-lines: true
