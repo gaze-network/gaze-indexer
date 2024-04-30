@@ -1,5 +1,4 @@
 <!-- omit from toc -->
-
 # Gaze Indexer
 
 Gaze Indexer is an open-source and modular indexing client for Bitcoin meta-protocols. It has support for Bitcoin and Runes out of the box, with **Unified Consistent APIs** across fungible token protocols.
@@ -8,8 +7,6 @@ Gaze Indexer is built with **modularity** in mind, allowing users to run all mod
 
 Gaze Indexer serves as a foundation for building ANY meta-protocol indexers, with efficient data fetching, reorg detection, and database migration tool.
 This allows developers to focus on what **truly** matters: Meta-protocol indexing logic. New meta-protocols can be easily added by implementing new modules.
-
-Gaze Indexer also comes with a block reporting system for verifying data integrity of indexers. Visit the [Gaze Network dashboard](https://dash.gaze.network) to see the status of other indexers.
 
 - [Modules](#modules)
   - [1. Bitcoin](#1-bitcoin)
