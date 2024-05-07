@@ -67,6 +67,4 @@ CREATE TABLE IF NOT EXISTS "bitcoin_transaction_txins" (
 	PRIMARY KEY ("tx_hash", "tx_idx")
 );
 
-CREATE INDEX IF NOT EXISTS bitcoin_transaction_txins_prevout_idx ON "bitcoin_transaction_txins" USING BTREE ("prevout_tx_hash", "prevout_tx_idx");
-
 COMMIT;
