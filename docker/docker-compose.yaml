@@ -21,7 +21,8 @@ services:
     restart: unless-stopped
     depends_on:
       - db
-      - gaze-migrator
+      - gaze-migrator:
+          condition: service_completed_successfully
     networks:
       - indexer
     ports:
