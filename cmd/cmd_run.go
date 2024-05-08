@@ -28,6 +28,7 @@ import (
 	runesdatagateway "github.com/gaze-network/indexer-network/modules/runes/datagateway"
 	runespostgres "github.com/gaze-network/indexer-network/modules/runes/repository/postgres"
 	runesusecase "github.com/gaze-network/indexer-network/modules/runes/usecase"
+	"github.com/gaze-network/indexer-network/pkg/automaxprocs"
 	"github.com/gaze-network/indexer-network/pkg/errorhandler"
 	"github.com/gaze-network/indexer-network/pkg/logger"
 	"github.com/gaze-network/indexer-network/pkg/logger/slogx"
@@ -57,6 +58,9 @@ func NewRunCommand() *cobra.Command {
 		Use:   "run",
 		Short: "Start indexer-network service",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := automaxprocs.Init(); err != nil {
+				logger.Error("Failed to set GOMAXPROCS", slogx.Error(err))
+			}
 			return runHandler(opts, cmd, args)
 		},
 	}
