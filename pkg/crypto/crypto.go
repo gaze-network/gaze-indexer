@@ -6,6 +6,8 @@ import (
 
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/ecdsa"
+	"github.com/btcsuite/btcd/btcutil"
+	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/cockroachdb/errors"
 	ecies "github.com/ecies/go/v2"
@@ -35,6 +37,14 @@ func New(privateKeyStr string) (*Client, error) {
 
 func (c *Client) PublicKey() string {
 	return hex.EncodeToString(c.privateKey.PubKey().SerializeCompressed())
+}
+
+func (c *Client) WIF(params *chaincfg.Params) (string, error) {
+	wif, err := btcutil.NewWIF(c.privateKey, params, true)
+	if err != nil {
+		return "", errors.Wrap(err, "wif convert failed")
+	}
+	return wif.String(), nil
 }
 
 func (c *Client) Sign(message string) string {

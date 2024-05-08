@@ -3,11 +3,13 @@ package crypto
 import (
 	"testing"
 
+	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/stretchr/testify/assert"
 )
 
 const (
 	privateKeyStr = "ce9c2fd75623e82a83ed743518ec7749f6f355f7301dd432400b087717fed2f2"
+	mainnetKey    = "L49LKamtrPZxty5TG7jaFPHMRZbrvAr4Dvn5BHGdvmvbcTDNAbZj"
 	pubKeyStr     = "0251e2dfcdeea17cc9726e4be0855cd0bae19e64f3e247b10760cd76851e7df47e"
 )
 
@@ -50,4 +52,13 @@ func TestSignVerify(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.False(t, verified)
+}
+
+func TestWIF(t *testing.T) {
+	privClient, err := New(privateKeyStr)
+	assert.NoError(t, err)
+
+	wifPrivKey, err := privClient.WIF(&chaincfg.MainNetParams)
+	assert.NoError(t, err)
+	assert.Equal(t, wifPrivKey, mainnetKey)
 }
