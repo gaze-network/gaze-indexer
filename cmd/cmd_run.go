@@ -16,7 +16,8 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/common/errs"
 	"github.com/gaze-network/indexer-network/core/datasources"
-	"github.com/gaze-network/indexer-network/core/indexers"
+	"github.com/gaze-network/indexer-network/core/indexer"
+	"github.com/gaze-network/indexer-network/core/types"
 	"github.com/gaze-network/indexer-network/internal/config"
 	"github.com/gaze-network/indexer-network/internal/postgres"
 	"github.com/gaze-network/indexer-network/modules/bitcoin"
@@ -171,7 +172,7 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 		if !opts.APIOnly {
 			processor := bitcoin.NewProcessor(conf, btcDB, indexerInfoDB)
 			datasource := datasources.NewBitcoinNode(client)
-			indexer := indexers.NewBitcoinIndexer(processor, datasource)
+			indexer := indexer.New(processor, datasource)
 			defer func() {
 				if err := indexer.ShutdownWithTimeout(shutdownTimeout); err != nil {
 					logger.ErrorContext(ctx, "Error during shutdown indexer", slogx.Error(err))
@@ -221,7 +222,7 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 		default:
 			return errors.Wrapf(errs.Unsupported, "%q database for indexer is not supported", conf.Modules.Runes.Database)
 		}
-		var bitcoinDatasource indexers.BitcoinDatasource
+		var bitcoinDatasource datasources.Datasource[*types.Block]
 		var bitcoinClient btcclient.Contract
 		switch strings.ToLower(conf.Modules.Runes.Datasource) {
 		case "bitcoin-node":
@@ -246,8 +247,8 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 		}
 
 		if !opts.APIOnly {
-			processor := runes.NewProcessor(runesDg, indexerInfoDg, bitcoinClient, bitcoinDatasource, conf.Network, reportingClient)
-			indexer := indexers.NewBitcoinIndexer(processor, bitcoinDatasource)
+			processor := runes.NewProcessor(runesDg, indexerInfoDg, bitcoinClient, conf.Network, reportingClient)
+			indexer := indexer.New(processor, bitcoinDatasource)
 			defer func() {
 				if err := indexer.ShutdownWithTimeout(shutdownTimeout); err != nil {
 					logger.ErrorContext(ctx, "Error during shutdown indexer", slogx.Error(err))

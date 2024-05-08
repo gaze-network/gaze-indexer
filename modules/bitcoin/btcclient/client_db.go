@@ -24,7 +24,7 @@ const (
 )
 
 // Make sure to implement the BitcoinDatasource interface
-var _ datasources.Datasource[[]*types.Block] = (*ClientDatabase)(nil)
+var _ datasources.Datasource[*types.Block] = (*ClientDatabase)(nil)
 
 // ClientDatabase is a client to connect to the bitcoin database.
 type ClientDatabase struct {

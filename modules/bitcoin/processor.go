@@ -5,14 +5,14 @@ import (
 
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/common/errs"
-	"github.com/gaze-network/indexer-network/core/indexers"
+	"github.com/gaze-network/indexer-network/core/indexer"
 	"github.com/gaze-network/indexer-network/core/types"
 	"github.com/gaze-network/indexer-network/internal/config"
 	"github.com/gaze-network/indexer-network/modules/bitcoin/datagateway"
 )
 
-// Make sure to implement the BitcoinProcessor interface
-var _ indexers.BitcoinProcessor = (*Processor)(nil)
+// Make sure to implement the Bitcoin Processor interface
+var _ indexer.Processor[*types.Block] = (*Processor)(nil)
 
 type Processor struct {
 	config        config.Config
