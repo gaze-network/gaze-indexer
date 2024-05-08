@@ -38,6 +38,10 @@ type Block struct {
 	Transactions []*Transaction
 }
 
+func (b *Block) BlockHeader() BlockHeader {
+	return b.Header
+}
+
 func ParseMsgBlock(src *wire.MsgBlock, height int64) *Block {
 	hash := src.Header.BlockHash()
 	return &Block{
