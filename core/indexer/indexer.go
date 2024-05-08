@@ -108,11 +108,11 @@ func (i *Indexer[T]) process(ctx context.Context) (err error) {
 	// height range to fetch data
 	from, to := i.currentBlock.Height+1, int64(-1)
 
-	logger.InfoContext(ctx, "Start fetching bitcoin blocks", slog.Int64("from", from))
+	logger.InfoContext(ctx, "Start fetching input data", slog.Int64("from", from))
 	ch := make(chan []T)
 	subscription, err := i.Datasource.FetchAsync(ctx, from, to, ch)
 	if err != nil {
-		return errors.Wrap(err, "failed to fetch data")
+		return errors.Wrap(err, "failed to fetch input data")
 	}
 	defer subscription.Unsubscribe()
 
@@ -121,7 +121,7 @@ func (i *Indexer[T]) process(ctx context.Context) (err error) {
 		case <-i.quit:
 			return nil
 		case inputs := <-ch:
-			// empty blocks
+			// empty inputs
 			if len(inputs) == 0 {
 				continue
 			}
@@ -135,7 +135,7 @@ func (i *Indexer[T]) process(ctx context.Context) (err error) {
 				slogx.Int64("to", inputs[len(inputs)-1].BlockHeader().Height),
 			)
 
-			// validate reorg from first block
+			// validate reorg from first input
 			{
 				remoteBlockHeader := firstInputHeader
 				if !remoteBlockHeader.PrevBlock.IsEqual(&i.currentBlock.Hash) {
@@ -203,26 +203,26 @@ func (i *Indexer[T]) process(ctx context.Context) (err error) {
 				}
 			}
 
-			// validate is block is continuous and no reorg
+			// validate is input is continuous and no reorg
 			for i := 1; i < len(inputs); i++ {
 				header := inputs[i].BlockHeader()
 				prevHeader := inputs[i-1].BlockHeader()
 				if header.Height != prevHeader.Height+1 {
-					return errors.Wrapf(errs.InternalError, "block is not continuous, block[%d] height: %d, block[%d] height: %d", i-1, prevHeader.Height, i, header.Height)
+					return errors.Wrapf(errs.InternalError, "input is not continuous, input[%d] height: %d, input[%d] height: %d", i-1, prevHeader.Height, i, header.Height)
 				}
 
 				if !header.PrevBlock.IsEqual(&prevHeader.Hash) {
-					logger.WarnContext(ctx, "Chain Reorganization occurred in the middle of batch fetching blocks, need to try to fetch again")
+					logger.WarnContext(ctx, "Chain Reorganization occurred in the middle of batch fetching inputs, need to try to fetch again")
 
 					// end current round
 					return nil
 				}
 			}
 
-			ctx = logger.WithContext(ctx, slog.Int("total_blocks", len(inputs)))
+			ctx = logger.WithContext(ctx, slog.Int("total_inputs", len(inputs)))
 
-			// Start processing blocks
-			logger.InfoContext(ctx, "Processing blocks")
+			// Start processing input
+			logger.InfoContext(ctx, "Processing inputs")
 			if err := i.Processor.Process(ctx, inputs); err != nil {
 				return errors.WithStack(err)
 			}
@@ -230,8 +230,8 @@ func (i *Indexer[T]) process(ctx context.Context) (err error) {
 			// Update current state
 			i.currentBlock = inputs[len(inputs)-1].BlockHeader()
 
-			logger.InfoContext(ctx, "Processed blocks successfully",
-				slogx.String("event", "processed_blocks"),
+			logger.InfoContext(ctx, "Processed inputs successfully",
+				slogx.String("event", "processed_inputs"),
 				slogx.Int64("current_block", i.currentBlock.Height),
 				slogx.Duration("duration", time.Since(startAt)),
 			)
