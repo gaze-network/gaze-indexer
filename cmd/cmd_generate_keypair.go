@@ -8,8 +8,10 @@ import (
 	"path"
 
 	"github.com/btcsuite/btcd/btcec/v2"
+	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/common/errs"
+	"github.com/gaze-network/indexer-network/pkg/crypto"
 	"github.com/spf13/cobra"
 )
 
@@ -71,6 +73,22 @@ func generateKeypairHandler(opts *generateKeypairCmdOptions, _ *cobra.Command, _
 		return errors.Wrap(err, "write private key file")
 	}
 	fmt.Printf("Private key saved at %s\n", privateKeyPath)
+
+	wifKeyPath := path.Join(opts.Path, "priv_wif_mainnet.key")
+	client, err := crypto.New(hex.EncodeToString(privKeyBytes))
+	if err != nil {
+		return errors.Wrap(err, "new crypto client")
+	}
+	wifKey, err := client.WIF(&chaincfg.MainNetParams)
+	if err != nil {
+		return errors.Wrap(err, "get WIF key")
+	}
+
+	err = os.WriteFile(wifKeyPath, []byte(wifKey), 0o644)
+	if err != nil {
+		return errors.Wrap(err, "write WIF private key file")
+	}
+	fmt.Printf("WIF private key saved at %s\n", wifKeyPath)
 
 	publicKeyPath := path.Join(opts.Path, "pub.key")
 	err = os.WriteFile(publicKeyPath, []byte(hex.EncodeToString(serializedPubKey)), 0o644)
