@@ -41,7 +41,7 @@ It comes with a set of APIs for querying historical Runes data. See our [API Ref
 Each module requires different hardware requirements.
 | Module | CPU | RAM |
 | ------- | ---------- | ------ |
-| Bitcoin | 0.25 cores | 256 MB |
+| Bitcoin | 0.25 cores | 512 MB |
 | Runes | 0.5 cores | 1 GB |
 
 #### 2. Prepare Bitcoin Core RPC server.
