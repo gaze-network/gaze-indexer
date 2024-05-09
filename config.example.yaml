@@ -26,21 +26,10 @@ http_server:
 
 # Meta-protocol modules configuration options.
 modules:
-  # Configuration options for Bitcoin module. Can be removed if not used.
-  bitcoin:
-    database: "postgres" # Database to store bitcoin data. current supported databases: "postgres"
-    postgres:
-      host: "localhost"
-      port: 5432
-      user: "postgres"
-      password: "password"
-      db_name: "postgres"
-      # url: "postgres://postgres:password@localhost:5432/postgres?sslmode=prefer" # [Optional] This will override other database credentials above.
-
   # Configuration options for Runes module. Can be removed if not used.
   runes:
     database: "postgres" # Database to store Runes data. current supported databases: "postgres"
-    datasource: "database" # Data source to be used for Bitcoin data. current supported data sources: "bitcoin-node" | "database". If "database" is used, it will use the database config in bitcoin module as datasource.
+    datasource: "database" # Data source to be used for Bitcoin data. current supported data sources: "bitcoin-node".
     api_handlers: # API handlers to enable. current supported handlers: "http"
       - http
     postgres:

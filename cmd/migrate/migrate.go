@@ -3,8 +3,7 @@ package migrate
 import "net/url"
 
 const (
-	bitcoinMigrationSource = "modules/bitcoin/database/postgresql/migrations"
-	runesMigrationSource   = "modules/runes/database/postgresql/migrations"
+	runesMigrationSource = "modules/runes/database/postgresql/migrations"
 )
 
 func cloneURLWithQuery(u *url.URL, newQuery url.Values) *url.URL {

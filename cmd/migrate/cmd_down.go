@@ -17,7 +17,6 @@ import (
 
 type migrateDownCmdOptions struct {
 	DatabaseURL string
-	Bitcoin     bool
 	Runes       bool
 	All         bool
 }
@@ -60,7 +59,6 @@ func NewMigrateDownCommand() *cobra.Command {
 	}
 
 	flags := cmd.Flags()
-	flags.BoolVar(&opts.Bitcoin, "bitcoin", false, "Apply Bitcoin down migrations")
 	flags.BoolVar(&opts.Runes, "runes", false, "Apply Runes down migrations")
 	flags.StringVar(&opts.DatabaseURL, "database", "", "Database url to run migration on")
 	flags.BoolVar(&opts.All, "all", false, "Confirm apply ALL down migrations without prompt")
@@ -118,11 +116,6 @@ func migrateDownHandler(opts *migrateDownCmdOptions, _ *cobra.Command, args migr
 		return nil
 	}
 
-	if opts.Bitcoin {
-		if err := applyDownMigrations("Bitcoin", bitcoinMigrationSource, "bitcoin_schema_migrations"); err != nil {
-			return errors.WithStack(err)
-		}
-	}
 	if opts.Runes {
 		if err := applyDownMigrations("Runes", runesMigrationSource, "runes_schema_migrations"); err != nil {
 			return errors.WithStack(err)

@@ -16,7 +16,6 @@ import (
 
 type migrateUpCmdOptions struct {
 	DatabaseURL string
-	Bitcoin     bool
 	Runes       bool
 }
 
@@ -55,7 +54,6 @@ func NewMigrateUpCommand() *cobra.Command {
 	}
 
 	flags := cmd.Flags()
-	flags.BoolVar(&opts.Bitcoin, "bitcoin", false, "Apply Bitcoin up migrations")
 	flags.BoolVar(&opts.Runes, "runes", false, "Apply Runes up migrations")
 	flags.StringVar(&opts.DatabaseURL, "database", "", "Database url to run migration on")
 
@@ -103,11 +101,6 @@ func migrateUpHandler(opts *migrateUpCmdOptions, _ *cobra.Command, args migrateU
 		return nil
 	}
 
-	if opts.Bitcoin {
-		if err := applyUpMigrations("Bitcoin", bitcoinMigrationSource, "bitcoin_schema_migrations"); err != nil {
-			return errors.WithStack(err)
-		}
-	}
 	if opts.Runes {
 		if err := applyUpMigrations("Runes", runesMigrationSource, "runes_schema_migrations"); err != nil {
 			return errors.WithStack(err)

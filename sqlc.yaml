@@ -7,16 +7,6 @@
 # https://docs.sqlc.dev/en/stable/howto/ddl.html#golang-migrate
 version: "2"
 sql:
-  - schema: "./modules/bitcoin/database/postgresql/migrations"
-    queries: "./modules/bitcoin/database/postgresql/queries"
-    engine: "postgresql"
-    gen:
-      go:
-        package: "gen"
-        out: "./modules/bitcoin/repository/postgres/gen"
-        sql_package: "pgx/v5"
-        rename:
-          id: "Id"
   - schema: "./modules/runes/database/postgresql/migrations"
     queries: "./modules/runes/database/postgresql/queries"
     engine: "postgresql"
