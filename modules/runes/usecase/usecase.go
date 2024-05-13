@@ -1,8 +1,8 @@
 package usecase
 
 import (
-	"github.com/gaze-network/indexer-network/modules/bitcoin/btcclient"
 	"github.com/gaze-network/indexer-network/modules/runes/datagateway"
+	"github.com/gaze-network/indexer-network/pkg/btcclient"
 )
 
 type Usecase struct {
