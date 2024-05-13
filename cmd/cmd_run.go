@@ -64,10 +64,9 @@ func NewRunCommand() *cobra.Command {
 	flags.BoolVar(&opts.APIOnly, "api-only", false, "Run only API server")
 	flags.BoolVar(&opts.Runes, "runes", false, "Enable Runes indexer module")
 	flags.String("runes-db", "postgres", `Database to store runes data. current supported databases: "postgres"`)
-	flags.String("runes-datasource", "bitcoin-node", `Datasource to fetch bitcoin data for processing Meta-Protocol data. current supported datasources: "bitcoin-node" | "database"`)
+	flags.String("runes-datasource", "bitcoin-node", `Datasource to fetch bitcoin data for processing Meta-Protocol data. current supported datasources: "bitcoin-node"`)
 
 	// Bind flags to configuration
-	config.BindPFlag("modules.bitcoin.database", flags.Lookup("bitcoin-db"))
 	config.BindPFlag("modules.runes.database", flags.Lookup("runes-db"))
 	config.BindPFlag("modules.runes.datasource", flags.Lookup("runes-datasource"))
 
