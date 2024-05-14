@@ -24,6 +24,9 @@ var (
 			Output: "TEXT",
 		},
 		Network: common.NetworkMainnet,
+		HTTPServer: HTTPServerConfig{
+			Port: 8080,
+		},
 		BitcoinNode: BitcoinNodeClient{
 			User: "user",
 			Pass: "pass",
