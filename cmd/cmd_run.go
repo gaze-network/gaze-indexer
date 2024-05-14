@@ -49,8 +49,6 @@ func NewRunCommand() *cobra.Command {
 		},
 	}
 
-	// TODO: separate flags and bind flags to each module cmd package.
-
 	// Add local flags
 	flags := runCmd.Flags()
 	flags.Bool("api-only", false, "Run only API server")
