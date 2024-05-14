@@ -27,6 +27,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/compress"
 	fiberrecover "github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/samber/do/v2"
+	"github.com/samber/lo"
 	"github.com/spf13/cobra"
 )
 
@@ -172,6 +173,9 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 	// Run modules
 	if !opts.APIOnly {
 		modules := strings.Split(opts.Modules, ",")
+		modules = lo.Map(modules, func(item string, _ int) string { return strings.TrimSpace(item) })
+		modules = lo.Filter(modules, func(item string, _ int) bool { return item != "" })
+		modules = lo.Uniq(modules)
 		for _, module := range modules {
 			module := strings.TrimSpace(module)
 			ctx := logger.WithContext(ctxWorker, slogx.String("module", module))
