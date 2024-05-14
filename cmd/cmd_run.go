@@ -79,6 +79,13 @@ type runCmdOptions struct {
 func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 	conf := config.Load()
 
+	// Validate inputs and configurations
+	{
+		if !conf.Network.IsSupported() {
+			return errors.Wrapf(errs.Unsupported, "%q network is not supported", conf.Network.String())
+		}
+	}
+
 	// Initialize application process context
 	ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
@@ -86,13 +93,6 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 	injector := do.New(Modules)
 	do.ProvideValue(injector, conf)
 	do.ProvideValue(injector, ctx)
-
-	// Validate inputs
-	{
-		if !conf.Network.IsSupported() {
-			return errors.Wrapf(errs.Unsupported, "%q network is not supported", conf.Network.String())
-		}
-	}
 
 	// Initialize Bitcoin RPC client
 	do.Provide(injector, func(i do.Injector) (*rpcclient.Client, error) {
