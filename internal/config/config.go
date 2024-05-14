@@ -28,6 +28,12 @@ var (
 			User: "user",
 			Pass: "pass",
 		},
+		Modules: Modules{
+			Runes: runesconfig.Config{
+				Datasource: "bitcoin-node",
+				Database:   "postgres",
+			},
+		},
 	}
 )
 
