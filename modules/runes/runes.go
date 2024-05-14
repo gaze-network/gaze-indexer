@@ -27,9 +27,7 @@ import (
 func New(injector do.Injector) (indexer.IndexerWorker, error) {
 	ctx := do.MustInvoke[context.Context](injector)
 	conf := do.MustInvoke[config.Config](injector)
-	btcClient := do.MustInvoke[*rpcclient.Client](injector)
 	reportingClient := do.MustInvoke[*reportingclient.ReportingClient](injector)
-	httpServer := do.MustInvoke[*fiber.App](injector)
 
 	var (
 		runesDg       runesdatagateway.RunesDataGateway
@@ -56,6 +54,7 @@ func New(injector do.Injector) (indexer.IndexerWorker, error) {
 	var bitcoinClient btcclient.Contract
 	switch strings.ToLower(conf.Modules.Runes.Datasource) {
 	case "bitcoin-node":
+		btcClient := do.MustInvoke[*rpcclient.Client](injector)
 		bitcoinNodeDatasource := datasources.NewBitcoinNode(btcClient)
 		bitcoinDatasource = bitcoinNodeDatasource
 		bitcoinClient = bitcoinNodeDatasource
@@ -73,6 +72,7 @@ func New(injector do.Injector) (indexer.IndexerWorker, error) {
 	for _, handler := range apiHandlers {
 		switch handler { // TODO: support more handlers (e.g. gRPC)
 		case "http":
+			httpServer := do.MustInvoke[*fiber.App](injector)
 			runesUsecase := runesusecase.New(runesDg, bitcoinClient)
 			runesHTTPHandler := runesapi.NewHTTPHandler(conf.Network, runesUsecase)
 			if err := runesHTTPHandler.Mount(httpServer); err != nil {
