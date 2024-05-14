@@ -37,8 +37,6 @@ var Modules = do.Package(
 )
 
 func NewRunCommand() *cobra.Command {
-	opts := &runCmdOptions{}
-
 	// Create command
 	runCmd := &cobra.Command{
 		Use:   "run",
@@ -47,7 +45,7 @@ func NewRunCommand() *cobra.Command {
 			if err := automaxprocs.Init(); err != nil {
 				logger.Error("Failed to set GOMAXPROCS", slogx.Error(err))
 			}
-			return runHandler(opts, cmd, args)
+			return runHandler(cmd, args)
 		},
 	}
 
@@ -55,8 +53,12 @@ func NewRunCommand() *cobra.Command {
 
 	// Add local flags
 	flags := runCmd.Flags()
-	flags.BoolVar(&opts.APIOnly, "api-only", false, "Run only API server")
-	flags.StringVar(&opts.Modules, "modules", "", "Enable specific modules to run. E.g. `runes,brc20`")
+	flags.Bool("api-only", false, "Run only API server")
+	flags.String("modules", "", "Enable specific modules to run. E.g. `runes,brc20`")
+
+	// Bind flags to configuration
+	config.BindPFlag("api_only", flags.Lookup("api-only"))
+	config.BindPFlag("enable_modules", flags.Lookup("modules"))
 
 	return runCmd
 }
@@ -65,12 +67,7 @@ const (
 	shutdownTimeout = 60 * time.Second
 )
 
-type runCmdOptions struct {
-	APIOnly bool
-	Modules string // comma separated modules to run
-}
-
-func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
+func runHandler(cmd *cobra.Command, _ []string) error {
 	conf := config.Load()
 
 	// Validate inputs and configurations
@@ -166,12 +163,10 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 
 	// Run modules
 	{
-		modules := strings.Split(opts.Modules, ",")
+		modules := lo.Uniq(conf.EnableModules)
 		modules = lo.Map(modules, func(item string, _ int) string { return strings.TrimSpace(item) })
 		modules = lo.Filter(modules, func(item string, _ int) bool { return item != "" })
-		modules = lo.Uniq(modules)
 		for _, module := range modules {
-			module := strings.TrimSpace(module)
 			ctx := logger.WithContext(ctxWorker, slogx.String("module", module))
 
 			indexer, err := do.InvokeNamed[indexer.IndexerWorker](injector, module)
@@ -183,7 +178,7 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 			}
 
 			// Run Indexer
-			if !opts.APIOnly {
+			if !conf.APIOnly {
 				go func() {
 					// stop main process if indexer stopped
 					defer stop()

@@ -38,12 +38,14 @@ var (
 )
 
 type Config struct {
-	Logger      logger.Config          `mapstructure:"logger"`
-	BitcoinNode BitcoinNodeClient      `mapstructure:"bitcoin_node"`
-	Network     common.Network         `mapstructure:"network"`
-	HTTPServer  HTTPServerConfig       `mapstructure:"http_server"`
-	Modules     Modules                `mapstructure:"modules"`
-	Reporting   reportingclient.Config `mapstructure:"reporting"`
+	EnableModules []string               `mapstructure:"enable_modules"`
+	APIOnly       bool                   `mapstructure:"api_only"`
+	Logger        logger.Config          `mapstructure:"logger"`
+	BitcoinNode   BitcoinNodeClient      `mapstructure:"bitcoin_node"`
+	Network       common.Network         `mapstructure:"network"`
+	HTTPServer    HTTPServerConfig       `mapstructure:"http_server"`
+	Modules       Modules                `mapstructure:"modules"`
+	Reporting     reportingclient.Config `mapstructure:"reporting"`
 }
 
 type BitcoinNodeClient struct {
