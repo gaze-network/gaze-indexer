@@ -8,7 +8,6 @@ import (
 
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/common"
-	btcconfig "github.com/gaze-network/indexer-network/modules/bitcoin/config"
 	runesconfig "github.com/gaze-network/indexer-network/modules/runes/config"
 	"github.com/gaze-network/indexer-network/pkg/logger"
 	"github.com/gaze-network/indexer-network/pkg/logger/slogx"
@@ -49,8 +48,7 @@ type BitcoinNodeClient struct {
 }
 
 type Modules struct {
-	Bitcoin btcconfig.Config   `mapstructure:"bitcoin"`
-	Runes   runesconfig.Config `mapstructure:"runes"`
+	Runes runesconfig.Config `mapstructure:"runes"`
 }
 
 type HTTPServerConfig struct {

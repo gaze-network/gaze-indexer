@@ -20,16 +20,13 @@ import (
 	"github.com/gaze-network/indexer-network/core/types"
 	"github.com/gaze-network/indexer-network/internal/config"
 	"github.com/gaze-network/indexer-network/internal/postgres"
-	"github.com/gaze-network/indexer-network/modules/bitcoin"
-	"github.com/gaze-network/indexer-network/modules/bitcoin/btcclient"
-	btcdatagateway "github.com/gaze-network/indexer-network/modules/bitcoin/datagateway"
-	btcpostgres "github.com/gaze-network/indexer-network/modules/bitcoin/repository/postgres"
 	"github.com/gaze-network/indexer-network/modules/runes"
 	runesapi "github.com/gaze-network/indexer-network/modules/runes/api"
 	runesdatagateway "github.com/gaze-network/indexer-network/modules/runes/datagateway"
 	runespostgres "github.com/gaze-network/indexer-network/modules/runes/repository/postgres"
 	runesusecase "github.com/gaze-network/indexer-network/modules/runes/usecase"
 	"github.com/gaze-network/indexer-network/pkg/automaxprocs"
+	"github.com/gaze-network/indexer-network/pkg/btcclient"
 	"github.com/gaze-network/indexer-network/pkg/errorhandler"
 	"github.com/gaze-network/indexer-network/pkg/logger"
 	"github.com/gaze-network/indexer-network/pkg/logger/slogx"
@@ -47,7 +44,6 @@ const (
 
 type runCmdOptions struct {
 	APIOnly bool
-	Bitcoin bool
 	Runes   bool
 }
 
@@ -71,14 +67,11 @@ func NewRunCommand() *cobra.Command {
 	// Add local flags
 	flags := runCmd.Flags()
 	flags.BoolVar(&opts.APIOnly, "api-only", false, "Run only API server")
-	flags.BoolVar(&opts.Bitcoin, "bitcoin", false, "Enable Bitcoin indexer module")
-	flags.String("bitcoin-db", "postgres", `Database to store bitcoin data. current supported databases: "postgres"`)
 	flags.BoolVar(&opts.Runes, "runes", false, "Enable Runes indexer module")
 	flags.String("runes-db", "postgres", `Database to store runes data. current supported databases: "postgres"`)
-	flags.String("runes-datasource", "bitcoin-node", `Datasource to fetch bitcoin data for processing Meta-Protocol data. current supported datasources: "bitcoin-node" | "database"`)
+	flags.String("runes-datasource", "bitcoin-node", `Datasource to fetch bitcoin data for processing Meta-Protocol data. current supported datasources: "bitcoin-node"`)
 
 	// Bind flags to configuration
-	config.BindPFlag("modules.bitcoin.database", flags.Lookup("bitcoin-db"))
 	config.BindPFlag("modules.runes.database", flags.Lookup("runes-db"))
 	config.BindPFlag("modules.runes.datasource", flags.Lookup("runes-datasource"))
 
@@ -150,59 +143,6 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 		}
 	}
 
-	// Initialize Bitcoin Indexer
-	if opts.Bitcoin {
-		ctx := logger.WithContext(ctx, slogx.String("module", "bitcoin"))
-		var (
-			btcDB         btcdatagateway.BitcoinDataGateway
-			indexerInfoDB btcdatagateway.IndexerInformationDataGateway
-		)
-		switch strings.ToLower(conf.Modules.Bitcoin.Database) {
-		case "postgresql", "postgres", "pg":
-			pg, err := postgres.NewPool(ctx, conf.Modules.Bitcoin.Postgres)
-			if err != nil {
-				if errors.Is(err, errs.InvalidArgument) {
-					logger.PanicContext(ctx, "Invalid Postgres configuration for indexer", slogx.Error(err))
-				}
-				logger.PanicContext(ctx, "Something went wrong, can't create Postgres connection pool", slogx.Error(err))
-			}
-			defer pg.Close()
-			repo := btcpostgres.NewRepository(pg)
-			btcDB = repo
-			indexerInfoDB = repo
-		default:
-			return errors.Wrapf(errs.Unsupported, "%q database for indexer is not supported", conf.Modules.Bitcoin.Database)
-		}
-		if !opts.APIOnly {
-			processor := bitcoin.NewProcessor(conf, btcDB, indexerInfoDB)
-			datasource := datasources.NewBitcoinNode(client)
-			indexer := indexer.New(processor, datasource)
-			defer func() {
-				if err := indexer.ShutdownWithTimeout(shutdownTimeout); err != nil {
-					logger.ErrorContext(ctx, "Error during shutdown indexer", slogx.Error(err))
-					return
-				}
-				logger.InfoContext(ctx, "Indexer stopped gracefully")
-			}()
-
-			// Verify states before running Indexer
-			if err := processor.VerifyStates(ctx); err != nil {
-				return errors.WithStack(err)
-			}
-
-			// Run Indexer
-			go func() {
-				// stop main process if indexer stopped
-				defer stop()
-
-				logger.InfoContext(ctx, "Starting Gaze Indexer")
-				if err := indexer.Run(ctxWorker); err != nil {
-					logger.PanicContext(ctx, "Something went wrong, error during running indexer", slogx.Error(err))
-				}
-			}()
-		}
-	}
-
 	// Initialize Runes Indexer
 	if opts.Runes {
 		ctx := logger.WithContext(ctx, slogx.String("module", "runes"))
@@ -233,19 +173,6 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 			bitcoinNodeDatasource := datasources.NewBitcoinNode(client)
 			bitcoinDatasource = bitcoinNodeDatasource
 			bitcoinClient = bitcoinNodeDatasource
-		case "database":
-			pg, err := postgres.NewPool(ctx, conf.Modules.Bitcoin.Postgres)
-			if err != nil {
-				if errors.Is(err, errs.InvalidArgument) {
-					logger.PanicContext(ctx, "Invalid Postgres configuration for datasource", slogx.Error(err))
-				}
-				logger.PanicContext(ctx, "Something went wrong, can't create Postgres connection pool", slogx.Error(err))
-			}
-			defer pg.Close()
-			btcRepo := btcpostgres.NewRepository(pg)
-			btcClientDB := btcclient.NewClientDatabase(btcRepo)
-			bitcoinDatasource = btcClientDB
-			bitcoinClient = btcClientDB
 		default:
 			return errors.Wrapf(errs.Unsupported, "%q datasource is not supported", conf.Modules.Runes.Datasource)
 		}
