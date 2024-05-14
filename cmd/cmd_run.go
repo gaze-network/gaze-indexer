@@ -171,7 +171,7 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 	defer stopWorker()
 
 	// Run modules
-	if !opts.APIOnly {
+	{
 		modules := strings.Split(opts.Modules, ",")
 		modules = lo.Map(modules, func(item string, _ int) string { return strings.TrimSpace(item) })
 		modules = lo.Filter(modules, func(item string, _ int) bool { return item != "" })
@@ -189,15 +189,17 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 			}
 
 			// Run Indexer
-			go func() {
-				// stop main process if indexer stopped
-				defer stop()
+			if !opts.APIOnly {
+				go func() {
+					// stop main process if indexer stopped
+					defer stop()
 
-				logger.InfoContext(ctx, "Starting Gaze Indexer")
-				if err := indexer.Run(ctx); err != nil {
-					logger.PanicContext(ctx, "Something went wrong, error during running indexer", slogx.Error(err))
-				}
-			}()
+					logger.InfoContext(ctx, "Starting Gaze Indexer")
+					if err := indexer.Run(ctx); err != nil {
+						logger.PanicContext(ctx, "Something went wrong, error during running indexer", slogx.Error(err))
+					}
+				}()
+			}
 		}
 	}
 
