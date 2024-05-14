@@ -159,6 +159,9 @@ func runHandler(cmd *cobra.Command, _ []string) error {
 	ctxWorker, stopWorker := context.WithCancel(context.Background())
 	defer stopWorker()
 
+	// Add logger context
+	ctxWorker = logger.WithContext(ctxWorker, slogx.Stringer("network", conf.Network))
+
 	// Run modules
 	{
 		modules := lo.Uniq(conf.EnableModules)
