@@ -42,7 +42,7 @@ func NewRunCommand() *cobra.Command {
 	// Create command
 	runCmd := &cobra.Command{
 		Use:   "run",
-		Short: "Start indexer-network service Version 2",
+		Short: "Start indexer-network service",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := automaxprocs.Init(); err != nil {
 				logger.Error("Failed to set GOMAXPROCS", slogx.Error(err))
