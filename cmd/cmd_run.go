@@ -16,7 +16,8 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/common/errs"
 	"github.com/gaze-network/indexer-network/core/datasources"
-	"github.com/gaze-network/indexer-network/core/indexers"
+	"github.com/gaze-network/indexer-network/core/indexer"
+	"github.com/gaze-network/indexer-network/core/types"
 	"github.com/gaze-network/indexer-network/internal/config"
 	"github.com/gaze-network/indexer-network/internal/postgres"
 	"github.com/gaze-network/indexer-network/modules/runes"
@@ -24,6 +25,7 @@ import (
 	runesdatagateway "github.com/gaze-network/indexer-network/modules/runes/datagateway"
 	runespostgres "github.com/gaze-network/indexer-network/modules/runes/repository/postgres"
 	runesusecase "github.com/gaze-network/indexer-network/modules/runes/usecase"
+	"github.com/gaze-network/indexer-network/pkg/automaxprocs"
 	"github.com/gaze-network/indexer-network/pkg/btcclient"
 	"github.com/gaze-network/indexer-network/pkg/errorhandler"
 	"github.com/gaze-network/indexer-network/pkg/logger"
@@ -53,6 +55,9 @@ func NewRunCommand() *cobra.Command {
 		Use:   "run",
 		Short: "Start indexer-network service",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := automaxprocs.Init(); err != nil {
+				logger.Error("Failed to set GOMAXPROCS", slogx.Error(err))
+			}
 			return runHandler(opts, cmd, args)
 		},
 	}
@@ -161,7 +166,7 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 		default:
 			return errors.Wrapf(errs.Unsupported, "%q database for indexer is not supported", conf.Modules.Runes.Database)
 		}
-		var bitcoinDatasource indexers.BitcoinDatasource
+		var bitcoinDatasource datasources.Datasource[*types.Block]
 		var bitcoinClient btcclient.Contract
 		switch strings.ToLower(conf.Modules.Runes.Datasource) {
 		case "bitcoin-node":
@@ -173,8 +178,8 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 		}
 
 		if !opts.APIOnly {
-			processor := runes.NewProcessor(runesDg, indexerInfoDg, bitcoinClient, bitcoinDatasource, conf.Network, reportingClient)
-			indexer := indexers.NewBitcoinIndexer(processor, bitcoinDatasource)
+			processor := runes.NewProcessor(runesDg, indexerInfoDg, bitcoinClient, conf.Network, reportingClient)
+			indexer := indexer.New(processor, bitcoinDatasource)
 			defer func() {
 				if err := indexer.ShutdownWithTimeout(shutdownTimeout); err != nil {
 					logger.ErrorContext(ctx, "Error during shutdown indexer", slogx.Error(err))
