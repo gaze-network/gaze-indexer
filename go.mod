@@ -15,6 +15,7 @@ require (
 	github.com/jackc/pgx/v5 v5.5.5
 	github.com/mcosta74/pgx-slog v0.3.0
 	github.com/planxnx/concurrent-stream v0.1.5
+	github.com/samber/do/v2 v2.0.0-beta.7
 	github.com/samber/lo v1.39.0
 	github.com/shopspring/decimal v1.3.1
 	github.com/spf13/cobra v1.8.0
@@ -64,6 +65,7 @@ require (
 	github.com/rogpeppe/go-internal v1.9.0 // indirect
 	github.com/sagikazarmark/locafero v0.4.0 // indirect
 	github.com/sagikazarmark/slog-shim v0.1.0 // indirect
+	github.com/samber/go-type-to-string v1.4.0 // indirect
 	github.com/sourcegraph/conc v0.3.0 // indirect
 	github.com/spf13/afero v1.11.0 // indirect
 	github.com/spf13/cast v1.6.0 // indirect
