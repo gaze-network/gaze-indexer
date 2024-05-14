@@ -6,7 +6,7 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/modules/runes/datagateway"
 	"github.com/gaze-network/indexer-network/pkg/logger"
-	"github.com/jackc/pgx"
+	"github.com/jackc/pgx/v5"
 )
 
 var ErrTxAlreadyExists = errors.New("Transaction already exists. Call Commit() or Rollback() first.")
