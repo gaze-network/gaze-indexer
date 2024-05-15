@@ -16,7 +16,7 @@ import (
 	"github.com/gaze-network/indexer-network/modules/runes/internal/entity"
 	"github.com/gaze-network/indexer-network/modules/runes/runes"
 	"github.com/gaze-network/indexer-network/pkg/logger"
-	"github.com/gaze-network/indexer-network/pkg/reportingclient"
+	"github.com/gaze-network/indexer-network/pkg/reportingclientv2"
 	"github.com/gaze-network/uint128"
 	"github.com/samber/lo"
 )
@@ -29,7 +29,7 @@ type Processor struct {
 	bitcoinClient     btcclient.Contract
 	bitcoinDataSource indexers.BitcoinDatasource
 	network           common.Network
-	reportingClient   *reportingclient.ReportingClient
+	reportingClient   *reportingclientv2.ReportingClient
 
 	newRuneEntries      map[runes.RuneId]*runes.RuneEntry
 	newRuneEntryStates  map[runes.RuneId]*runes.RuneEntry
@@ -39,7 +39,7 @@ type Processor struct {
 	newRuneTxs          []*entity.RuneTransaction
 }
 
-func NewProcessor(runesDg datagateway.RunesDataGateway, indexerInfoDg datagateway.IndexerInfoDataGateway, bitcoinClient btcclient.Contract, bitcoinDataSource indexers.BitcoinDatasource, network common.Network, reportingClient *reportingclient.ReportingClient) *Processor {
+func NewProcessor(runesDg datagateway.RunesDataGateway, indexerInfoDg datagateway.IndexerInfoDataGateway, bitcoinClient btcclient.Contract, bitcoinDataSource indexers.BitcoinDatasource, network common.Network, reportingClient *reportingclientv2.ReportingClient) *Processor {
 	return &Processor{
 		runesDg:             runesDg,
 		indexerInfoDg:       indexerInfoDg,
@@ -72,7 +72,7 @@ func (p *Processor) VerifyStates(ctx context.Context) error {
 		}
 	}
 	if p.reportingClient != nil {
-		if err := p.reportingClient.SubmitNodeReport(ctx, "runes", p.network); err != nil {
+		if err := p.reportingClient.SubmitNodeReport(ctx, "runes", p.network, Version); err != nil {
 			return errors.Wrap(err, "failed to submit node report")
 		}
 	}

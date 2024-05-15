@@ -30,7 +30,7 @@ import (
 	"github.com/gaze-network/indexer-network/pkg/errorhandler"
 	"github.com/gaze-network/indexer-network/pkg/logger"
 	"github.com/gaze-network/indexer-network/pkg/logger/slogx"
-	"github.com/gaze-network/indexer-network/pkg/reportingclient"
+	"github.com/gaze-network/indexer-network/pkg/reportingclientv2"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/compress"
 	fiberrecover "github.com/gofiber/fiber/v2/middleware/recover"
@@ -123,9 +123,9 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 	// use gracefulEG to coordinate graceful shutdown after context is done. (e.g. shut down http server, shutdown logic of each module, etc.)
 	gracefulEG, gctx := errgroup.WithContext(context.Background())
 
-	var reportingClient *reportingclient.ReportingClient
+	var reportingClient *reportingclientv2.ReportingClient
 	if !conf.Reporting.Disabled {
-		reportingClient, err = reportingclient.New(conf.Reporting)
+		reportingClient, err = reportingclientv2.New(conf.Reporting) // TODO: read private key from file
 		if err != nil {
 			logger.PanicContext(ctx, "Failed to create reporting client", slogx.Error(err))
 		}

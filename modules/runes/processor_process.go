@@ -18,7 +18,7 @@ import (
 	"github.com/gaze-network/indexer-network/modules/runes/runes"
 	"github.com/gaze-network/indexer-network/pkg/logger"
 	"github.com/gaze-network/indexer-network/pkg/logger/slogx"
-	"github.com/gaze-network/indexer-network/pkg/reportingclient"
+	"github.com/gaze-network/indexer-network/pkg/reportingclientv2"
 	"github.com/gaze-network/uint128"
 	"github.com/samber/lo"
 )
@@ -810,7 +810,7 @@ func (p *Processor) flushBlock(ctx context.Context, blockHeader types.BlockHeade
 
 	// submit event to reporting system
 	if p.reportingClient != nil {
-		if err := p.reportingClient.SubmitBlockReport(ctx, reportingclient.SubmitBlockReportPayload{
+		if err := p.reportingClient.SubmitBlockReport(ctx, reportingclientv2.SubmitBlockReportPayload{
 			Type:                "runes",
 			ClientVersion:       Version,
 			DBVersion:           DBVersion,

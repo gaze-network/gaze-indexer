@@ -39,7 +39,7 @@ type ReportingClient struct {
 
 const (
 	defaultBaseURL   = "https://indexer.api.gaze.network"
-	defaultPublicKey = "0251e2dfcdeea17cc9726e4be0855cd0bae19e64f3e247b10760cd76851e7df47e"
+	defaultPublicKey = "039298683d53a1cbdb6f318d5ad4b12bc0d752f3a6cd62c19b2c22b1ae1e12fe05"
 )
 
 func New(config Config, indexerPrivateKey string) (*ReportingClient, error) {
@@ -118,21 +118,25 @@ type SubmitNodeReportPayload struct {
 }
 
 type SubmitNodeReportPayloadData struct {
-	Name       string         `json:"name"`
-	Type       string         `json:"type"`
-	Network    common.Network `json:"network"`
-	WebsiteURL string         `json:"websiteUrl,omitempty"`
-	APIURL     string         `json:"apiUrl,omitempty"`
+	Name             string         `json:"name"`
+	Type             string         `json:"type"`
+	Network          common.Network `json:"network"`
+	WebsiteURL       string         `json:"websiteUrl,omitempty"`
+	APIURL           string         `json:"apiUrl,omitempty"`
+	IndexerPublicKey string         `json:"indexerPublicKey"`
+	ClientVersion    string         `json:"clientVersion"`
 }
 
-func (r *ReportingClient) SubmitNodeReport(ctx context.Context, module string, network common.Network) error {
+func (r *ReportingClient) SubmitNodeReport(ctx context.Context, module string, network common.Network, clientVersion string) error {
 	payload := SubmitNodeReportPayload{
 		Data: SubmitNodeReportPayloadData{
-			Name:       r.config.NodeInfo.Name,
-			Type:       module,
-			Network:    network,
-			WebsiteURL: r.config.NodeInfo.WebsiteURL,
-			APIURL:     r.config.NodeInfo.APIURL,
+			Name:             r.config.NodeInfo.Name,
+			Type:             module,
+			Network:          network,
+			WebsiteURL:       r.config.NodeInfo.WebsiteURL,
+			APIURL:           r.config.NodeInfo.APIURL,
+			IndexerPublicKey: r.cryptoClient.PublicKey(),
+			ClientVersion:    clientVersion,
 		},
 		IndexerPublicKey: r.cryptoClient.PublicKey(),
 	}
