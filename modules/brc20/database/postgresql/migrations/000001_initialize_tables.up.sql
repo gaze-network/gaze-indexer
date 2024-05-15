@@ -121,4 +121,14 @@ CREATE TABLE IF NOT EXISTS "brc20_inscriptions" (
 	"content_type" TEXT NOT NULL,
 );
 
+CREATE TABLE IF NOT EXISTS "brc20_inscription_locations" (
+	"inscription_id" TEXT NOT NULL,
+	"block_height" INT NOT NULL,
+	"tx_hash" TEXT NOT NULL,
+	"tx_idx" INT NOT NULL, -- output index
+	"sat_offset" BIGINT NOT NULL
+	PRIMARY KEY ("inscription_id", "block_height")
+);
+CREATE INDEX IF NOT EXISTS brc20_inscription_locations_tx_hash_tx_idx_idx ON "brc20_inscription_locations" USING BTREE ("tx_hash", "tx_idx");
+
 COMMIT;
