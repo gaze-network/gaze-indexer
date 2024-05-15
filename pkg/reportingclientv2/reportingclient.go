@@ -105,9 +105,10 @@ func (r *ReportingClient) SubmitBlockReport(ctx context.Context, payload SubmitB
 		return errors.Wrap(err, "can't send request")
 	}
 	if resp.StatusCode() >= 400 {
-		logger.WarnContext(ctx, "failed to submit block report", slog.Any("payload", payload), slog.Any("responseBody", resp.Body()))
+		logger.WarnContext(ctx, "failed to submit block report", slog.Any("payload", bodyStruct), slog.Any("responseBody", resp.Body()))
+	} else {
+		logger.DebugContext(ctx, "block report submitted", slog.Any("payload", bodyStruct))
 	}
-	logger.DebugContext(ctx, "block report submitted", slog.Any("payload", payload))
 	return nil
 }
 
@@ -160,7 +161,8 @@ func (r *ReportingClient) SubmitNodeReport(ctx context.Context, module string, n
 	}
 	if resp.StatusCode() >= 400 {
 		logger.WarnContext(ctx, "failed to submit node report", slog.Any("payload", payload), slog.Any("responseBody", resp.Body()))
+	} else {
+		logger.InfoContext(ctx, "node report submitted", slog.Any("payload", payload))
 	}
-	logger.InfoContext(ctx, "node report submitted", slog.Any("payload", payload))
 	return nil
 }

@@ -810,7 +810,7 @@ func (p *Processor) flushBlock(ctx context.Context, blockHeader types.BlockHeade
 
 	// submit event to reporting system
 	if p.reportingClient != nil {
-		if err := p.reportingClient.SubmitBlockReport(ctx, reportingclientv2.SubmitBlockReportPayload{
+		if err := p.reportingClient.SubmitBlockReport(ctx, reportingclientv2.SubmitBlockReportPayloadData{
 			Type:                "runes",
 			ClientVersion:       Version,
 			DBVersion:           DBVersion,

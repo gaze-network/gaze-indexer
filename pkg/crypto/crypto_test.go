@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// Key for test only. DO NOT USE IN PRODUCTION
 const (
 	privateKeyStr = "ce9c2fd75623e82a83ed743518ec7749f6f355f7301dd432400b087717fed2f2"
 	mainnetKey    = "L49LKamtrPZxty5TG7jaFPHMRZbrvAr4Dvn5BHGdvmvbcTDNAbZj"
