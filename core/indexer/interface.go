@@ -2,6 +2,7 @@ package indexer
 
 import (
 	"context"
+	"time"
 
 	"github.com/gaze-network/indexer-network/core/types"
 )
@@ -28,4 +29,11 @@ type Processor[T Input] interface {
 	// VerifyStates verifies the states of the indexed data and the indexer
 	// to ensure the last shutdown was graceful and no missing data.
 	VerifyStates(ctx context.Context) error
+}
+
+type IndexerWorker interface {
+	Shutdown() error
+	ShutdownWithTimeout(timeout time.Duration) error
+	ShutdownWithContext(ctx context.Context) (err error)
+	Run(ctx context.Context) (err error)
 }
