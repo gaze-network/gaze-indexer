@@ -24,7 +24,7 @@ const (
 )
 
 // Make sure to implement the BitcoinDatasource interface
-var _ Datasource[[]*types.Block] = (*BitcoinNodeDatasource)(nil)
+var _ Datasource[*types.Block] = (*BitcoinNodeDatasource)(nil)
 
 // BitcoinNodeDatasource fetch data from Bitcoin node for Bitcoin Indexer
 type BitcoinNodeDatasource struct {

@@ -69,8 +69,26 @@ func ParseTag(input interface{}) (Tag, error) {
 		return input, nil
 	case uint128.Uint128:
 		return Tag(input), nil
-	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
-		return Tag(uint128.From64(input.(uint64))), nil
+	case int:
+		return Tag(uint128.From64(uint64(input))), nil
+	case int8:
+		return Tag(uint128.From64(uint64(input))), nil
+	case int16:
+		return Tag(uint128.From64(uint64(input))), nil
+	case int32:
+		return Tag(uint128.From64(uint64(input))), nil
+	case int64:
+		return Tag(uint128.From64(uint64(input))), nil
+	case uint:
+		return Tag(uint128.From64(uint64(input))), nil
+	case uint8:
+		return Tag(uint128.From64(uint64(input))), nil
+	case uint16:
+		return Tag(uint128.From64(uint64(input))), nil
+	case uint32:
+		return Tag(uint128.From64(uint64(input))), nil
+	case uint64:
+		return Tag(uint128.From64(input)), nil
 	case big.Int:
 		u128, err := uint128.FromBig(&input)
 		if err != nil {

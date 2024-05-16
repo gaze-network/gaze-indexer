@@ -9,7 +9,7 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/common"
 	"github.com/gaze-network/indexer-network/common/errs"
-	"github.com/gaze-network/indexer-network/core/indexers"
+	"github.com/gaze-network/indexer-network/core/indexer"
 	"github.com/gaze-network/indexer-network/core/types"
 	"github.com/gaze-network/indexer-network/modules/runes/datagateway"
 	"github.com/gaze-network/indexer-network/modules/runes/internal/entity"
@@ -22,15 +22,15 @@ import (
 	"github.com/samber/lo"
 )
 
-var _ indexers.BitcoinProcessor = (*Processor)(nil)
+// Make sure to implement the Bitcoin Processor interface
+var _ indexer.Processor[*types.Block] = (*Processor)(nil)
 
 type Processor struct {
-	runesDg           datagateway.RunesDataGateway
-	indexerInfoDg     datagateway.IndexerInfoDataGateway
-	bitcoinClient     btcclient.Contract
-	bitcoinDataSource indexers.BitcoinDatasource
-	network           common.Network
-	reportingClient   *reportingclient.ReportingClient
+	runesDg         datagateway.RunesDataGateway
+	indexerInfoDg   datagateway.IndexerInfoDataGateway
+	bitcoinClient   btcclient.Contract
+	network         common.Network
+	reportingClient *reportingclient.ReportingClient
 
 	newRuneEntries      map[runes.RuneId]*runes.RuneEntry
 	newRuneEntryStates  map[runes.RuneId]*runes.RuneEntry
@@ -40,12 +40,11 @@ type Processor struct {
 	newRuneTxs          []*entity.RuneTransaction
 }
 
-func NewProcessor(runesDg datagateway.RunesDataGateway, indexerInfoDg datagateway.IndexerInfoDataGateway, bitcoinClient btcclient.Contract, bitcoinDataSource indexers.BitcoinDatasource, network common.Network, reportingClient *reportingclient.ReportingClient) *Processor {
+func NewProcessor(runesDg datagateway.RunesDataGateway, indexerInfoDg datagateway.IndexerInfoDataGateway, bitcoinClient btcclient.Contract, network common.Network, reportingClient *reportingclient.ReportingClient) *Processor {
 	return &Processor{
 		runesDg:             runesDg,
 		indexerInfoDg:       indexerInfoDg,
 		bitcoinClient:       bitcoinClient,
-		bitcoinDataSource:   bitcoinDataSource,
 		network:             network,
 		reportingClient:     reportingClient,
 		newRuneEntries:      make(map[runes.RuneId]*runes.RuneEntry),

@@ -1,4 +1,5 @@
 <!-- omit from toc -->
+
 # Gaze Indexer
 
 Gaze Indexer is an open-source and modular indexing client for Bitcoin meta-protocols. It has support for Runes out of the box, with **Unified Consistent APIs** across fungible token protocols.
@@ -146,11 +147,11 @@ go build -o gaze main.go
 5. Start the indexer with the `run` command and module flags.
 
 ```bash
-./gaze run --runes
+./gaze run --modules runes
 ```
 
 If `config.yaml` is not located at `./app/config.yaml`, use the `--config` flag to specify the path to the `config.yaml` file.
 
 ```bash
-./gaze run --runes --config /path/to/config.yaml
+./gaze run --modules runes --config /path/to/config.yaml
 ```

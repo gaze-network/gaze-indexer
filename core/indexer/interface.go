@@ -1,4 +1,4 @@
-package indexers
+package indexer
 
 import (
 	"context"
@@ -7,24 +7,15 @@ import (
 	"github.com/gaze-network/indexer-network/core/types"
 )
 
-const (
-	// pollingInterval is the default polling interval for the indexer polling worker
-	pollingInterval = 15 * time.Second
-)
-
-type IndexerWorker interface {
-	Type() string
-	Run(ctx context.Context) error
-	Shutdown() error
-	ShutdownWithTimeout(timeout time.Duration) error
-	ShutdownWithContext(ctx context.Context) error
+type Input interface {
+	BlockHeader() types.BlockHeader
 }
 
-type Processor[T any] interface {
+type Processor[T Input] interface {
 	Name() string
 
 	// Process processes the input data and indexes it.
-	Process(ctx context.Context, inputs T) error
+	Process(ctx context.Context, inputs []T) error
 
 	// CurrentBlock returns the latest indexed block header.
 	CurrentBlock(ctx context.Context) (types.BlockHeader, error)
@@ -38,4 +29,11 @@ type Processor[T any] interface {
 	// VerifyStates verifies the states of the indexed data and the indexer
 	// to ensure the last shutdown was graceful and no missing data.
 	VerifyStates(ctx context.Context) error
+}
+
+type IndexerWorker interface {
+	Shutdown() error
+	ShutdownWithTimeout(timeout time.Duration) error
+	ShutdownWithContext(ctx context.Context) (err error)
+	Run(ctx context.Context) (err error)
 }
