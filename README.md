@@ -88,7 +88,7 @@ modules:
   # Configuration options for Runes module. Can be removed if not used.
   runes:
     database: "postgres" # Database to store Runes data. current supported databases: "postgres"
-    datasource: "database" # Data source to be used for Bitcoin data. current supported data sources: "bitcoin-node".
+    datasource: "bitcoin-node" # Data source to be used for Bitcoin data. current supported data sources: "bitcoin-node".
     api_handlers: # API handlers to enable. current supported handlers: "http"
       - http
     postgres:
