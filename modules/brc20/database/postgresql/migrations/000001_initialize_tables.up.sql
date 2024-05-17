@@ -115,10 +115,13 @@ CREATE TABLE IF NOT EXISTS "brc20_inscriptions" (
 	"delegate" TEXT, -- delegate inscription id
 	"metadata" BYTEA,
 	"metaprotocol" TEXT,
-	"parent_ids" TEXT[] NOT NULL DEFAULT '{}', -- parent inscription ids
+	"parent" TEXT, -- parent inscription id
 	"pointer" BIGINT,
 	"content" JSONB NOT NULL, -- can use jsonb because we only track brc20 inscriptions
 	"content_type" TEXT NOT NULL,
+	"transfer_count" INT NOT NULL,
+	"created_at" TIMESTAMP NOT NULL,
+	"created_at_height" INT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS "brc20_inscription_locations" (
