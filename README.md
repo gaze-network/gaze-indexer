@@ -25,7 +25,7 @@ This allows developers to focus on what **truly** matters: Meta-protocol indexin
 ### 1. Runes
 
 The Runes Indexer is our first meta-protocol indexer. It indexes Runes states, transactions, runestones, and balances using Bitcoin transactions.
-It comes with a set of APIs for querying historical Runes data. See our [API Reference](https://documenter.getpostman.com/view/28396285/2sA3Bn7Cxr) for full details.
+It comes with a set of APIs for querying historical Runes data. See our [API Reference](https://api-docs.gaze.network) for full details.
 
 ## Installation
 
