@@ -88,7 +88,7 @@ func (d *BitcoinNodeDatasource) FetchAsync(ctx context.Context, from, to int64, 
 		slogx.String("datasource", d.Name()),
 	)
 
-	from, to, skip, err := d.prepareRange(from, to)
+	from, to, skip, err := d.prepareRange(ctx, from, to)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to prepare fetch range")
 	}
@@ -212,12 +212,12 @@ func (d *BitcoinNodeDatasource) FetchAsync(ctx context.Context, from, to int64, 
 	return subscription.Client(), nil
 }
 
-func (d *BitcoinNodeDatasource) prepareRange(fromHeight, toHeight int64) (start, end int64, skip bool, err error) {
+func (d *BitcoinNodeDatasource) prepareRange(ctx context.Context, fromHeight, toHeight int64) (start, end int64, skip bool, err error) {
 	start = fromHeight
 	end = toHeight
 
 	// get current bitcoin block height
-	latestBlockHeight, err := d.btcclient.GetBlockCount()
+	latestBlockHeight, err := d.GetCurrentBlockHeight(ctx)
 	if err != nil {
 		return -1, -1, false, errors.Wrap(err, "failed to get block count")
 	}
@@ -227,7 +227,7 @@ func (d *BitcoinNodeDatasource) prepareRange(fromHeight, toHeight int64) (start,
 		start = 0
 	}
 
-	// set end to current bitcoin block height if
+	// set end to current bitcoin block height if     d
 	// - end is -1
 	// - end is greater that current bitcoin block height
 	if end < 0 || end > latestBlockHeight {
@@ -291,4 +291,13 @@ func (d *BitcoinNodeDatasource) GetBlockHeader(ctx context.Context, height int64
 	}
 
 	return types.ParseMsgBlockHeader(*block, height), nil
+}
+
+// GetCurrentBlockHeight fetch current block height from Bitcoin node
+func (d *BitcoinNodeDatasource) GetCurrentBlockHeight(ctx context.Context) (int64, error) {
+	height, err := d.btcclient.GetBlockCount()
+	if err != nil {
+		return -1, errors.Wrap(err, "failed to get block height")
+	}
+	return height, nil
 }

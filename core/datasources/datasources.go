@@ -13,4 +13,5 @@ type Datasource[T any] interface {
 	Fetch(ctx context.Context, from, to int64) ([]T, error)
 	FetchAsync(ctx context.Context, from, to int64, ch chan<- []T) (*subscription.ClientSubscription[[]T], error)
 	GetBlockHeader(ctx context.Context, height int64) (types.BlockHeader, error)
+	GetCurrentBlockHeight(ctx context.Context) (int64, error)
 }
