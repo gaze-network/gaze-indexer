@@ -4,6 +4,7 @@ package ordinals
 type Tag uint8
 
 var (
+	TagBody    = Tag(0)
 	TagPointer = Tag(2)
 	// TagUnbound is unrecognized
 	TagUnbound = Tag(66)
@@ -32,6 +33,22 @@ var allTags = map[Tag]struct{}{
 func (t Tag) IsValid() bool {
 	_, ok := allTags[t]
 	return ok
+}
+
+var chunkedTags = map[Tag]struct{}{
+	TagMetadata: {},
+}
+
+func (t Tag) IsChunked() bool {
+	_, ok := chunkedTags[t]
+	return ok
+}
+
+func (t Tag) Bytes() []byte {
+	if t == TagBody {
+		return []byte{} // body tag is empty data push
+	}
+	return []byte{byte(t)}
 }
 
 func ParseTag(input interface{}) (Tag, error) {

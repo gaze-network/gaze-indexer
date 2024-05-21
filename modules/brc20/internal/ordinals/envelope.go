@@ -38,7 +38,7 @@ func ParseEnvelopesFromTx(tx *wire.MsgTx) []*Envelope {
 	return envelopes
 }
 
-const protocolId = "ord"
+var protocolId = []byte("ord")
 
 func envelopesFromTapScript(tokenizer txscript.ScriptTokenizer, inputIndex int) []*Envelope {
 	envelopes := make([]*Envelope, 0)
@@ -71,7 +71,7 @@ func envelopeFromTokenizer(tokenizer txscript.ScriptTokenizer, inputIndex int, o
 	}
 
 	tokenizer.Next()
-	if !bytes.Equal(tokenizer.Data(), []byte(protocolId)) {
+	if !bytes.Equal(tokenizer.Data(), protocolId) {
 		return nil, tokenizer.Opcode() == txscript.OP_FALSE
 	}
 
@@ -149,19 +149,25 @@ func envelopeFromTokenizer(tokenizer txscript.ScriptTokenizer, inputIndex int, o
 		}
 	}
 	// incomplete envelope
-	if tokenizer.Done() {
+	if tokenizer.Done() && tokenizer.Opcode() != txscript.OP_ENDIF {
 		return nil, false
 	}
 
-	_, bodyIndex, ok := lo.FindIndexOf(payload, func(value []byte) bool {
-		return len(value) == 0
-	})
-	var fieldPayloads, bodyPayloads [][]byte
-	if ok {
-		fieldPayloads = payload[:]
-	} else {
+	// find body (empty data push in even index payload)
+	bodyIndex := -1
+	for i, value := range payload {
+		if i%2 == 0 && len(value) == 0 {
+			bodyIndex = i
+			break
+		}
+	}
+	var fieldPayloads [][]byte
+	var body []byte
+	if bodyIndex != -1 {
 		fieldPayloads = payload[:bodyIndex]
-		bodyPayloads = payload[bodyIndex+1:]
+		body = lo.Flatten(payload[bodyIndex+1:])
+	} else {
+		fieldPayloads = payload[:]
 	}
 
 	var incompleteField bool
@@ -203,8 +209,6 @@ func envelopeFromTokenizer(tokenizer txscript.ScriptTokenizer, inputIndex int, o
 		return key%2 == 0
 	})
 
-	body := lo.Flatten(bodyPayloads)
-
 	var delegate, parent *InscriptionId
 	inscriptionId, err := NewInscriptionIdFromString(string(rawDelegate))
 	if err == nil {
@@ -216,10 +220,14 @@ func envelopeFromTokenizer(tokenizer txscript.ScriptTokenizer, inputIndex int, o
 	}
 
 	var pointer *uint64
-	// if rawPointer fits in uint64
-	if len(rawPointer) <= 8 || lo.EveryBy(rawPointer[8:], func(value byte) bool {
+	// if rawPointer is not nil and fits in uint64
+	if rawPointer != nil && (len(rawPointer) <= 8 || lo.EveryBy(rawPointer[8:], func(value byte) bool {
 		return value != 0
-	}) {
+	})) {
+		// pad zero bytes to 8 bytes
+		if len(rawPointer) < 8 {
+			rawPointer = append(rawPointer, make([]byte, 8-len(rawPointer))...)
+		}
 		pointer = lo.ToPtr(binary.LittleEndian.Uint64(rawPointer))
 	}
 
@@ -252,19 +260,19 @@ func (fields Fields) Take(tag Tag) []byte {
 	if !ok {
 		return nil
 	}
-	first := values[0]
-	values = values[1:]
-	if len(values) == 0 {
+	if tag.IsChunked() {
 		delete(fields, tag)
+		return lo.Flatten(values)
 	} else {
-		fields[tag] = values
+		first := values[0]
+		values = values[1:]
+		if len(values) == 0 {
+			delete(fields, tag)
+		} else {
+			fields[tag] = values
+		}
+		return first
 	}
-	return first
-}
-
-func isDataPushOpCode(opCode byte) bool {
-	// includes OP_0, OP_DATA_1 to OP_DATA_75, OP_PUSHDATA1, OP_PUSHDATA2, OP_PUSHDATA4
-	return opCode <= txscript.OP_PUSHDATA4
 }
 
 func extractTapScript(witness [][]byte) (txscript.ScriptTokenizer, bool) {
