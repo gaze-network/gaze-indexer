@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS "brc20_tickers" (
 	"limit_per_mint" DECIMAL NOT NULL,
 	"is_self_mint" BOOLEAN NOT NULL,
 	"deploy_inscription_id" TEXT NOT NULL,
-	"created_at" TIMESTAMP NOT NULL
+	"created_at" TIMESTAMP NOT NULL,
 	"created_at_height" INT NOT NULL
 );
 
@@ -69,7 +69,7 @@ CREATE INDEX IF NOT EXISTS brc20_deploy_events_block_height_idx ON "brc20_deploy
 
 CREATE TABLE IF NOT EXISTS "brc20_mint_events" (
 	"id" BIGSERIAL PRIMARY KEY,
-	"inscription_id" TEXT NOT NULL,,
+	"inscription_id" TEXT NOT NULL,
 	"tick" TEXT NOT NULL, -- lowercase of original_tick
 	"original_tick" TEXT NOT NULL,
 	"tx_hash" TEXT NOT NULL,
@@ -79,13 +79,13 @@ CREATE TABLE IF NOT EXISTS "brc20_mint_events" (
 
 	"pkscript" TEXT NOT NULL,
 	"amount" DECIMAL NOT NULL,
-	"parent_id" TEXT, -- requires parent deploy inscription id if minting a self-mint ticker
+	"parent_id" TEXT -- requires parent deploy inscription id if minting a self-mint ticker
 );
 CREATE INDEX IF NOT EXISTS brc20_mint_events_block_height_idx ON "brc20_mint_events" USING BTREE ("block_height");
 
 CREATE TABLE IF NOT EXISTS "brc20_transfer_events" (
 	"id" BIGSERIAL PRIMARY KEY,
-	"inscription_id" TEXT NOT NULL,,
+	"inscription_id" TEXT NOT NULL,
 	"tick" TEXT NOT NULL, -- lowercase of original_tick
 	"original_tick" TEXT NOT NULL,
 	"tx_hash" TEXT NOT NULL,
@@ -95,7 +95,7 @@ CREATE TABLE IF NOT EXISTS "brc20_transfer_events" (
 
 	"from_pkscript" TEXT, -- if null, it's inscribe transfer. Otherwise, it's transfer transfer
 	"to_pkscript" TEXT NOT NULL,
-	"amount" DECIMAL NOT NULL,
+	"amount" DECIMAL NOT NULL
 );
 CREATE INDEX IF NOT EXISTS brc20_transfer_events_block_height_idx ON "brc20_transfer_events" USING BTREE ("block_height");
 
@@ -129,7 +129,7 @@ CREATE TABLE IF NOT EXISTS "brc20_inscription_locations" (
 	"block_height" INT NOT NULL,
 	"tx_hash" TEXT NOT NULL,
 	"tx_idx" INT NOT NULL, -- output index
-	"sat_offset" BIGINT NOT NULL
+	"sat_offset" BIGINT NOT NULL,
 	PRIMARY KEY ("inscription_id", "block_height")
 );
 CREATE INDEX IF NOT EXISTS brc20_inscription_locations_tx_hash_tx_idx_idx ON "brc20_inscription_locations" USING BTREE ("tx_hash", "tx_idx");
