@@ -90,6 +90,16 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 	// Add logger context
 	ctx = logger.WithContext(ctx, slogx.Stringer("network", conf.Network))
 
+	// Load private key
+	privKeyPath := conf.NodeKey.Path
+	if privKeyPath == "" {
+		privKeyPath = "/data/keys/priv.key"
+	}
+	privKeyByte, err := os.ReadFile(privKeyPath)
+	if err != nil {
+		logger.PanicContext(ctx, "Failed to read private key file", slogx.Error(err))
+	}
+
 	// Initialize Bitcoin Core RPC Client
 	client, err := rpcclient.New(&rpcclient.ConnConfig{
 		Host:         conf.BitcoinNode.Host,
@@ -125,7 +135,7 @@ func runHandler(opts *runCmdOptions, cmd *cobra.Command, _ []string) error {
 
 	var reportingClient *reportingclientv2.ReportingClient
 	if !conf.Reporting.Disabled {
-		reportingClient, err = reportingclientv2.New(conf.Reporting) // TODO: read private key from file
+		reportingClient, err = reportingclientv2.New(conf.Reporting, string(privKeyByte)) // TODO: read private key from file
 		if err != nil {
 			logger.PanicContext(ctx, "Failed to create reporting client", slogx.Error(err))
 		}

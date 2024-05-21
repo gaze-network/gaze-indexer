@@ -38,6 +38,11 @@ type Config struct {
 	HTTPServer  HTTPServerConfig         `mapstructure:"http_server"`
 	Modules     Modules                  `mapstructure:"modules"`
 	Reporting   reportingclientv2.Config `mapstructure:"reporting"`
+	NodeKey     NodeKey                  `mapstructure:"node_key"`
+}
+
+type NodeKey struct {
+	Path string `mapstructure:"path"`
 }
 
 type BitcoinNodeClient struct {
