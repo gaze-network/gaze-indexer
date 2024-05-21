@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -29,6 +30,7 @@ import (
 	"github.com/gaze-network/indexer-network/pkg/parquetutils"
 	"github.com/samber/lo"
 	"github.com/xitongsys/parquet-go/reader"
+	parquettypes "github.com/xitongsys/parquet-go/types"
 )
 
 const (
@@ -433,7 +435,7 @@ type (
 		Version           int64   `parquet:"name=version, type=INT64, repetitiontype=OPTIONAL"`
 		MedianTime        string  `parquet:"name=mediantime, type=INT96, repetitiontype=OPTIONAL"`
 		Nonce             int64   `parquet:"name=nonce, type=INT64, repetitiontype=OPTIONAL"`
-		Bits              string  `parquet:"name=bits, type=BYTE_ARRAY, convertedtype=UTF8, repetitiontype=OPTIONAL"`
+		Bits              string  `parquet:"name=bits, type=BYTE_ARRAY, convertedtype=UTF8, repetitiontype=OPTIONAL"` // Hex string format
 		Difficulty        float64 `parquet:"name=difficulty, type=DOUBLE, repetitiontype=OPTIONAL"`
 		Chainwork         string  `parquet:"name=chainwork, type=BYTE_ARRAY, convertedtype=UTF8, repetitiontype=OPTIONAL"`
 		PreviousBlockHash string  `parquet:"name=previousblockhash, type=BYTE_ARRAY, convertedtype=UTF8, repetitiontype=OPTIONAL"`
@@ -504,14 +506,20 @@ func (a awsBlock) ToBlockHeader() (types.BlockHeader, error) {
 	if err != nil {
 		return types.BlockHeader{}, errors.Wrap(err, "can't convert merkle root")
 	}
+
+	bits, err := strconv.ParseUint(a.Bits, 16, 32)
+	if err != nil {
+		return types.BlockHeader{}, errors.Wrap(err, "can't convert bits from hex str to uint32")
+	}
+
 	return types.BlockHeader{
 		Hash:       *hash,
 		Height:     a.Number,
 		Version:    int32(a.Version),
 		PrevBlock:  *prevBlockHash,
 		MerkleRoot: *merkleRoot,
-		Timestamp:  time.Time{}, // TODO:  parse timestamp
-		Bits:       0,           // TODO: parse bits
+		Timestamp:  parquettypes.INT96ToTime(a.Timestamp),
+		Bits:       uint32(bits),
 		Nonce:      uint32(a.Nonce),
 	}, nil
 }
