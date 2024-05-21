@@ -115,7 +115,7 @@ services:
       - 8080:8080 # Expose HTTP server port to host
     volumes:
       - "./config.yaml:/app/config.yaml" # mount config.yaml file to the container as "/app/config.yaml"
-    command: ["/app/main", "run", "--runes"] # Put module flags after "run" commands to select which modules to run.
+    command: ["/app/main", "run", "--modules", "runes"] # Put module flags after "run" commands to select which modules to run.
 ```
 
 ### Install from source
