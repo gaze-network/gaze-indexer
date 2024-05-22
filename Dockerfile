@@ -25,4 +25,4 @@ COPY --from=builder /app/main .
 # You can set TZ indentifier to change the timezone, See https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#List
 # ENV TZ=US/Central
 
-CMD ["/app/main", "run"]
+ENTRYPOINT ["/app/main"]
