@@ -3,15 +3,15 @@ FROM golang:1.22 as builder
 WORKDIR /app
 
 COPY go.mod go.sum ./
-RUN go mod download
+RUN --mount=type=cache,target=/go/pkg/mod/ go mod download
 
 COPY ./ ./
 
 ENV GOOS=linux
 ENV CGO_ENABLED=0
 
-RUN go build \
-          -o main ./main.go
+RUN --mount=type=cache,target=/go/pkg/mod/ \
+    go build -o main ./main.go
 
 FROM alpine:latest
 
