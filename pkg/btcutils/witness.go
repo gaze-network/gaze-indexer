@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"strings"
 
+	"github.com/Cleverse/go-utilities/utils"
 	"github.com/btcsuite/btcd/wire"
 	"github.com/cockroachdb/errors"
 )
@@ -11,6 +12,9 @@ import (
 const (
 	witnessSeparator = " "
 )
+
+// CoinbaseWitness is the witness data for a coinbase transaction.
+var CoinbaseWitness = utils.Must(WitnessFromHex([]string{"0000000000000000000000000000000000000000000000000000000000000000"}))
 
 // WitnessToHex formats the passed witness stack as a slice of hex-encoded strings.
 func WitnessToHex(witness wire.TxWitness) []string {

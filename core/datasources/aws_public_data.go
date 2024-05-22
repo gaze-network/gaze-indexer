@@ -8,8 +8,10 @@ package datasources
 import (
 	"cmp"
 	"context"
+	"encoding/hex"
 	"fmt"
 	"io"
+	"math"
 	"slices"
 	"strconv"
 	"strings"
@@ -21,10 +23,13 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
+	"github.com/btcsuite/btcd/wire"
 	"github.com/cockroachdb/errors"
+	"github.com/gaze-network/indexer-network/common"
 	"github.com/gaze-network/indexer-network/common/errs"
 	"github.com/gaze-network/indexer-network/core/types"
 	"github.com/gaze-network/indexer-network/internal/subscription"
+	"github.com/gaze-network/indexer-network/pkg/btcutils"
 	"github.com/gaze-network/indexer-network/pkg/logger"
 	"github.com/gaze-network/indexer-network/pkg/logger/slogx"
 	"github.com/gaze-network/indexer-network/pkg/parquetutils"
@@ -290,7 +295,7 @@ func (d *AWSPublicDataDatasource) FetchAsync(ctx context.Context, from, to int64
 
 				txs := make([]*types.Transaction, 0, len(groupRawTxs[blockHeader.Height]))
 				for _, rawTx := range groupRawTxs[rawBlock.Number] {
-					tx, err := rawTx.ToTransaction()
+					tx, err := rawTx.ToTransaction(rawBlock)
 					if err != nil {
 						logger.ErrorContext(ctx, "Failed to convert aws transaction to type transaction", slogx.Error(err))
 						if err := subscription.SendError(ctx, errors.Wrap(err, "can't convert aws transaction to type transaction")); err != nil {
@@ -451,52 +456,54 @@ type (
 		LastModified      string  `parquet:"name=last_modified, type=INT96, repetitiontype=OPTIONAL"`
 	}
 	awsTransaction struct {
-		Hash         string  `parquet:"name=hash, type=BYTE_ARRAY, convertedtype=UTF8, repetitiontype=OPTIONAL"`
-		Version      int64   `parquet:"name=version, type=INT64, repetitiontype=OPTIONAL"`
-		Size         int64   `parquet:"name=size, type=INT64, repetitiontype=OPTIONAL"`
-		BlockHash    string  `parquet:"name=block_hash, type=BYTE_ARRAY, convertedtype=UTF8, repetitiontype=OPTIONAL"`
-		BlockNumber  int64   `parquet:"name=block_number, type=INT64, repetitiontype=OPTIONAL"`
-		Index        int64   `parquet:"name=index, type=INT64, repetitiontype=OPTIONAL"`
-		Virtual_size int64   `parquet:"name=virtual_size, type=INT64, repetitiontype=OPTIONAL"`
-		Lock_time    int64   `parquet:"name=lock_time, type=INT64, repetitiontype=OPTIONAL"`
-		Input_count  int64   `parquet:"name=input_count, type=INT64, repetitiontype=OPTIONAL"`
-		Output_count int64   `parquet:"name=output_count, type=INT64, repetitiontype=OPTIONAL"`
-		Is_coinbase  bool    `parquet:"name=is_coinbase, type=BOOLEAN, repetitiontype=OPTIONAL"`
-		Output_value float64 `parquet:"name=output_value, type=DOUBLE, repetitiontype=OPTIONAL"`
-		Outputs      []*struct {
-			Address             string  `parquet:"name=address, type=BYTE_ARRAY, convertedtype=UTF8, repetitiontype=OPTIONAL"`
-			Index               int64   `parquet:"name=index, type=INT64, repetitiontype=OPTIONAL"`
-			Required_signatures int64   `parquet:"name=required_signatures, type=INT64, repetitiontype=OPTIONAL"`
-			Script_asm          string  `parquet:"name=script_asm, type=BYTE_ARRAY, convertedtype=UTF8, repetitiontype=OPTIONAL"`
-			Script_hex          string  `parquet:"name=script_hex, type=BYTE_ARRAY, convertedtype=UTF8, repetitiontype=OPTIONAL"`
-			Type                string  `parquet:"name=type, type=BYTE_ARRAY, convertedtype=UTF8, repetitiontype=OPTIONAL"`
-			Value               float64 `parquet:"name=value, type=DOUBLE, repetitiontype=OPTIONAL"`
-		} `parquet:"name=outputs, type=LIST, repetitiontype=OPTIONAL, valuetype=STRUCT"`
-		Block_timestamp string  `parquet:"name=block_timestamp, type=INT96, repetitiontype=OPTIONAL"`
-		Date            string  `parquet:"name=date, type=BYTE_ARRAY, convertedtype=UTF8, repetitiontype=OPTIONAL"`
-		Last_modified   string  `parquet:"name=last_modified, type=INT96, repetitiontype=OPTIONAL"`
-		Fee             float64 `parquet:"name=fee, type=DOUBLE, repetitiontype=OPTIONAL"`
-		Input_value     float64 `parquet:"name=input_value, type=DOUBLE, repetitiontype=OPTIONAL"`
-		Inputs          []*struct {
-			Address                string    `parquet:"name=address, type=BYTE_ARRAY, convertedtype=UTF8, repetitiontype=OPTIONAL"`
-			Index                  int64     `parquet:"name=index, type=INT64, repetitiontype=OPTIONAL"`
-			Required_signatures    int64     `parquet:"name=required_signatures, type=INT64, repetitiontype=OPTIONAL"`
-			Script_asm             string    `parquet:"name=script_asm, type=BYTE_ARRAY, convertedtype=UTF8, repetitiontype=OPTIONAL"`
-			Script_hex             string    `parquet:"name=script_hex, type=BYTE_ARRAY, convertedtype=UTF8, repetitiontype=OPTIONAL"`
-			Sequence               int64     `parquet:"name=sequence, type=INT64, repetitiontype=OPTIONAL"`
-			Spent_output_index     int64     `parquet:"name=spent_output_index, type=INT64, repetitiontype=OPTIONAL"`
-			Spent_transaction_hash string    `parquet:"name=spent_transaction_hash, type=BYTE_ARRAY, convertedtype=UTF8, repetitiontype=OPTIONAL"`
-			Txinwitness            []*string `parquet:"name=txinwitness, type=LIST, repetitiontype=OPTIONAL, valuetype=BYTE_ARRAY, convertedtype=UTF8"`
-			Type                   string    `parquet:"name=type, type=BYTE_ARRAY, convertedtype=UTF8, repetitiontype=OPTIONAL"`
-			Value                  float64   `parquet:"name=value, type=DOUBLE, repetitiontype=OPTIONAL"`
-		} `parquet:"name=inputs, type=LIST, repetitiontype=OPTIONAL, valuetype=STRUCT"`
+		Hash           string         `parquet:"name=hash, type=BYTE_ARRAY, convertedtype=UTF8, repetitiontype=OPTIONAL"`
+		Version        int64          `parquet:"name=version, type=INT64, repetitiontype=OPTIONAL"`
+		Size           int64          `parquet:"name=size, type=INT64, repetitiontype=OPTIONAL"`
+		BlockHash      string         `parquet:"name=block_hash, type=BYTE_ARRAY, convertedtype=UTF8, repetitiontype=OPTIONAL"`
+		BlockNumber    int64          `parquet:"name=block_number, type=INT64, repetitiontype=OPTIONAL"`
+		Index          int64          `parquet:"name=index, type=INT64, repetitiontype=OPTIONAL"`
+		VirtualSize    int64          `parquet:"name=virtual_size, type=INT64, repetitiontype=OPTIONAL"`
+		LockTime       int64          `parquet:"name=lock_time, type=INT64, repetitiontype=OPTIONAL"`
+		InputCount     int64          `parquet:"name=input_count, type=INT64, repetitiontype=OPTIONAL"`
+		OutputCount    int64          `parquet:"name=output_count, type=INT64, repetitiontype=OPTIONAL"`
+		IsCoinbase     bool           `parquet:"name=is_coinbase, type=BOOLEAN, repetitiontype=OPTIONAL"`
+		OutputValue    float64        `parquet:"name=output_value, type=DOUBLE, repetitiontype=OPTIONAL"`
+		Outputs        []*awsTxOutput `parquet:"name=outputs, type=LIST, repetitiontype=OPTIONAL, valuetype=STRUCT"`
+		BlockTimestamp string         `parquet:"name=block_timestamp, type=INT96, repetitiontype=OPTIONAL"`
+		Date           string         `parquet:"name=date, type=BYTE_ARRAY, convertedtype=UTF8, repetitiontype=OPTIONAL"`
+		LastModified   string         `parquet:"name=last_modified, type=INT96, repetitiontype=OPTIONAL"`
+		Fee            float64        `parquet:"name=fee, type=DOUBLE, repetitiontype=OPTIONAL"`
+		InputValue     float64        `parquet:"name=input_value, type=DOUBLE, repetitiontype=OPTIONAL"`
+		Inputs         []*awsTxInput  `parquet:"name=inputs, type=LIST, repetitiontype=OPTIONAL, valuetype=STRUCT"`
+	}
+	awsTxInput struct {
+		Address              string    `parquet:"name=address, type=BYTE_ARRAY, convertedtype=UTF8, repetitiontype=OPTIONAL"`
+		Index                int64     `parquet:"name=index, type=INT64, repetitiontype=OPTIONAL"`
+		RequiredSignatures   int64     `parquet:"name=required_signatures, type=INT64, repetitiontype=OPTIONAL"`
+		ScriptAsm            string    `parquet:"name=script_asm, type=BYTE_ARRAY, convertedtype=UTF8, repetitiontype=OPTIONAL"`
+		ScriptHex            string    `parquet:"name=script_hex, type=BYTE_ARRAY, convertedtype=UTF8, repetitiontype=OPTIONAL"`
+		Sequence             int64     `parquet:"name=sequence, type=INT64, repetitiontype=OPTIONAL"`
+		SpentOutputIndex     int64     `parquet:"name=spent_output_index, type=INT64, repetitiontype=OPTIONAL"`
+		SpentTransactionHash string    `parquet:"name=spent_transaction_hash, type=BYTE_ARRAY, convertedtype=UTF8, repetitiontype=OPTIONAL"`
+		TxInWitness          []*string `parquet:"name=txinwitness, type=LIST, repetitiontype=OPTIONAL, valuetype=BYTE_ARRAY, convertedtype=UTF8"`
+		Type                 string    `parquet:"name=type, type=BYTE_ARRAY, convertedtype=UTF8, repetitiontype=OPTIONAL"`
+		Value                float64   `parquet:"name=value, type=DOUBLE, repetitiontype=OPTIONAL"`
+	}
+	awsTxOutput struct {
+		Address             string  `parquet:"name=address, type=BYTE_ARRAY, convertedtype=UTF8, repetitiontype=OPTIONAL"`
+		Index               int64   `parquet:"name=index, type=INT64, repetitiontype=OPTIONAL"`
+		Required_signatures int64   `parquet:"name=required_signatures, type=INT64, repetitiontype=OPTIONAL"`
+		Script_asm          string  `parquet:"name=script_asm, type=BYTE_ARRAY, convertedtype=UTF8, repetitiontype=OPTIONAL"`
+		Script_hex          string  `parquet:"name=script_hex, type=BYTE_ARRAY, convertedtype=UTF8, repetitiontype=OPTIONAL"`
+		Type                string  `parquet:"name=type, type=BYTE_ARRAY, convertedtype=UTF8, repetitiontype=OPTIONAL"`
+		Value               float64 `parquet:"name=value, type=DOUBLE, repetitiontype=OPTIONAL"`
 	}
 )
 
 func (a awsBlock) ToBlockHeader() (types.BlockHeader, error) {
 	hash, err := chainhash.NewHashFromStr(a.Hash)
 	if err != nil {
-		return types.BlockHeader{}, errors.Wrap(err, "can't convert hash")
+		return types.BlockHeader{}, errors.Wrap(err, "can't convert block hash")
 	}
 	prevBlockHash, err := chainhash.NewHashFromStr(a.PreviousBlockHash)
 	if err != nil {
@@ -524,16 +531,87 @@ func (a awsBlock) ToBlockHeader() (types.BlockHeader, error) {
 	}, nil
 }
 
-func (a awsTransaction) ToTransaction() (*types.Transaction, error) {
-	// TODO: implement this
-	return &types.Transaction{
-		BlockHeight: 0,
-		BlockHash:   [32]byte{},
-		Index:       0,
-		TxHash:      [32]byte{},
-		Version:     0,
-		LockTime:    0,
-		TxIn:        []*types.TxIn{},
-		TxOut:       []*types.TxOut{},
+func (a awsTransaction) ToTransaction(block awsBlock) (*types.Transaction, error) {
+	blockhash, err := chainhash.NewHashFromStr(block.Hash)
+	if err != nil {
+		return nil, errors.Wrap(err, "can't convert block hash")
+	}
+	msgtx, err := a.MsgTx(block)
+	if err != nil {
+		return nil, errors.Wrap(err, "can't convert aws tx to wire.msgtx")
+	}
+	return types.ParseMsgTx(msgtx, a.BlockNumber, *blockhash, uint32(a.Index)), nil
+}
+
+func (a awsTransaction) MsgTx(block awsBlock) (*wire.MsgTx, error) {
+	txIn := make([]*wire.TxIn, 0, len(a.Inputs))
+	txOut := make([]*wire.TxOut, 0, len(a.Outputs))
+
+	// coinbase tx from AWS S3 has no inputs, so we need to add it manually
+	if a.IsCoinbase {
+		scriptsig, err := hex.DecodeString(block.CoinbaseParam)
+		if err != nil {
+			return nil, errors.Wrap(err, "can't decode script hex")
+		}
+
+		txIn = append(txIn, &wire.TxIn{
+			PreviousOutPoint: wire.OutPoint{
+				Hash:  common.ZeroHash,
+				Index: math.MaxUint32,
+			},
+			SignatureScript: scriptsig,
+			Witness:         btcutils.CoinbaseWitness,
+			Sequence:        0,
+		})
+	}
+
+	for _, in := range a.Inputs {
+		scriptsig, err := hex.DecodeString(in.ScriptHex)
+		if err != nil {
+			return nil, errors.Wrap(err, "can't decode script hex")
+		}
+
+		witness, err := btcutils.WitnessFromHex(lo.Map(in.TxInWitness, func(src *string, _ int) string {
+			if src == nil {
+				return ""
+			}
+			return *src
+		}))
+		if err != nil {
+			return nil, errors.Wrap(err, "can't convert witness")
+		}
+
+		prevOutHash, err := chainhash.NewHashFromStr(in.SpentTransactionHash)
+		if err != nil {
+			return nil, errors.Wrap(err, "can't convert prevout hash")
+		}
+
+		txIn = append(txIn, &wire.TxIn{
+			PreviousOutPoint: wire.OutPoint{
+				Hash:  *prevOutHash,
+				Index: uint32(in.SpentOutputIndex),
+			},
+			SignatureScript: scriptsig,
+			Witness:         witness,
+			Sequence:        uint32(in.Sequence),
+		})
+	}
+
+	for _, out := range a.Outputs {
+		scriptpubkey, err := hex.DecodeString(out.Script_hex)
+		if err != nil {
+			return nil, errors.Wrap(err, "can't decode script hex")
+		}
+		txOut = append(txOut, &wire.TxOut{
+			Value:    btcutils.BitcoinToSatoshi(out.Value),
+			PkScript: scriptpubkey,
+		})
+	}
+
+	return &wire.MsgTx{
+		Version:  int32(a.Version),
+		TxIn:     txIn,
+		TxOut:    txOut,
+		LockTime: uint32(a.LockTime),
 	}, nil
 }
