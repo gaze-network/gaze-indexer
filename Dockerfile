@@ -22,7 +22,7 @@ RUN apk --no-cache add ca-certificates tzdata
 COPY --from=builder /app/main .
 COPY --from=builder /app/modules ./modules
 
-# You can set TZ indentifier to change the timezone, See https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#List
+# You can set TZ identifier to change the timezone, See https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#List
 # ENV TZ=US/Central
 
 ENTRYPOINT ["/app/main"]
