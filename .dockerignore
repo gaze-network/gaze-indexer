@@ -1,8 +1,18 @@
-Dockerfile
-.dockerignore
 .git
+.gitignore
 .github
 .vscode
 **/*.md
 **/*.log
+.DS_Store
+
+# Docker
+Dockerfile
+.dockerignore
+docker-compose.yml
+
+# Go
+.golangci.yaml
 cmd.local
+config.*.y*ml
+config.y*ml
