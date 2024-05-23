@@ -1,0 +1,8 @@
+Dockerfile
+.dockerignore
+.git
+.github
+.vscode
+**/*.md
+**/*.log
+cmd.local
