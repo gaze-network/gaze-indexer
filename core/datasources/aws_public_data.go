@@ -601,8 +601,9 @@ func (a awsTransaction) MsgTx(block awsBlock) (*wire.MsgTx, error) {
 	txIn := make([]*wire.TxIn, 0, len(a.Inputs))
 	txOut := make([]*wire.TxOut, 0, len(a.Outputs))
 
-	// coinbase tx from AWS S3 has no inputs, so we need to add it manually
-	if a.IsCoinbase {
+	// NOTE: coinbase tx from AWS S3 has no inputs, so we need to add it manually,
+	// but we can't guarantee this data is correct especially the sequence number.
+	if a.IsCoinbase && len(a.Inputs) == 0 {
 		scriptsig, err := hex.DecodeString(block.CoinbaseParam)
 		if err != nil {
 			return nil, errors.Wrap(err, "can't decode script hex")
@@ -615,7 +616,7 @@ func (a awsTransaction) MsgTx(block awsBlock) (*wire.MsgTx, error) {
 			},
 			SignatureScript: scriptsig,
 			Witness:         btcutils.CoinbaseWitness,
-			Sequence:        0,
+			Sequence:        math.MaxUint32, // most coinbase tx are using max sequence number
 		})
 	}
 
