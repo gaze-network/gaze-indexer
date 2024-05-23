@@ -11,6 +11,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"log/slog"
 	"math"
 	"slices"
 	"strconv"
@@ -56,10 +57,10 @@ type AWSPublicDataDatasource struct {
 	s3Bucket      string
 }
 
-func NewAWSPublicData(ctx context.Context, btcDatasource Datasource[*types.Block]) (*AWSPublicDataDatasource, error) {
-	sdkConfig, err := config.LoadDefaultConfig(ctx)
+func NewAWSPublicData(btcDatasource Datasource[*types.Block]) *AWSPublicDataDatasource {
+	sdkConfig, err := config.LoadDefaultConfig(context.Background())
 	if err != nil {
-		return nil, errors.Wrap(err, "can't load aws user config")
+		logger.Panic("Can't load AWS SDK user config", slogx.Error(err), slog.String("package", "datasources"))
 	}
 
 	// TODO: support user defined config (self-hosted s3 bucket)
@@ -72,7 +73,7 @@ func NewAWSPublicData(ctx context.Context, btcDatasource Datasource[*types.Block
 		btcDatasource: btcDatasource,
 		s3Client:      s3client,
 		s3Bucket:      awsPublicDataS3Bucket,
-	}, nil
+	}
 }
 
 func (d AWSPublicDataDatasource) Name() string {
