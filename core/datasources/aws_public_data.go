@@ -303,7 +303,7 @@ func (d *AWSPublicDataDatasource) FetchAsync(ctx context.Context, from, to int64
 			rawFilteredBlocks := lo.Filter(rawAllBlocks, func(block awsBlock, _ int) bool {
 				return block.Number >= start.Height && block.Number <= end.Height
 			})
-			slices.SortFunc(rawAllBlocks, func(i, j awsBlock) int {
+			slices.SortFunc(rawFilteredBlocks, func(i, j awsBlock) int {
 				return cmp.Compare(i.Number, j.Number)
 			})
 
