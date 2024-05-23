@@ -37,6 +37,7 @@ import (
 	"github.com/samber/lo"
 	"github.com/xitongsys/parquet-go/reader"
 	parquettypes "github.com/xitongsys/parquet-go/types"
+	"golang.org/x/sync/errgroup"
 )
 
 const (
@@ -118,7 +119,7 @@ func (d *AWSPublicDataDatasource) FetchAsync(ctx context.Context, from, to int64
 		slogx.String("datasource", d.Name()),
 	)
 
-	from, to, skip, err := d.prepareRange(ctx, from, to)
+	start, end, skip, err := d.prepareRange(ctx, from, to)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to prepare fetch range")
 	}
@@ -131,15 +132,7 @@ func (d *AWSPublicDataDatasource) FetchAsync(ctx context.Context, from, to int64
 		return subscription.Client(), nil
 	}
 
-	startBlockHeader, err := d.GetBlockHeader(ctx, from)
-	if err != nil {
-		if err := subscription.UnsubscribeWithContext(ctx); err != nil {
-			return nil, errors.Wrap(err, "failed to unsubscribe")
-		}
-		return nil, errors.Wrapf(err, "failed to get block header for %v", from)
-	}
-
-	startFiles, err := d.listBlocksFilesByDate(ctx, startBlockHeader.Timestamp)
+	startFiles, err := d.listBlocksFilesByDate(ctx, start.Timestamp)
 	if err != nil {
 		if err := subscription.UnsubscribeWithContext(ctx); err != nil {
 			return nil, errors.Wrap(err, "failed to unsubscribe")
@@ -157,18 +150,27 @@ func (d *AWSPublicDataDatasource) FetchAsync(ctx context.Context, from, to int64
 		if err := subscription.UnsubscribeWithContext(ctx); err != nil {
 			return nil, errors.Wrap(err, "failed to unsubscribe")
 		}
-		s, err := d.btcDatasource.FetchAsync(ctx, from, to, ch)
+		s, err := d.btcDatasource.FetchAsync(ctx, start.Height, end.Height, ch)
 		return s, errors.WithStack(err)
 	}
 
 	go func() {
-		// loop through each day until reach the end of supported data.
-		for ts := startBlockHeader.Timestamp; ts.Before(time.Now()); ts = ts.Add(24 * time.Hour) {
-			ctx = logger.WithContext(ctx,
+		defer func() {
+			// add a bit delay to prevent shutdown before client receive all blocks
+			time.Sleep(100 * time.Millisecond)
+
+			subscription.Unsubscribe()
+		}()
+		// loop through each day until reach the end of supported data or within end block date
+		for ts := start.Timestamp; ts.Before(end.Timestamp.Round(24*time.Hour)) && ts.Before(time.Now()); ts = ts.Add(24 * time.Hour) {
+			ctx := logger.WithContext(ctx,
 				slogx.Time("date", ts),
+				slogx.Int64("date_unix", ts.Unix()),
 			)
 
-			blocksFiles, err := d.listBlocksFilesByDate(ctx, ts)
+			logger.DebugContext(ctx, "Fetching data from AWS S3", slogx.Int64("start", start.Height), slogx.Int64("end", end.Height))
+
+			allBlocksFiles, err := d.listBlocksFilesByDate(ctx, ts)
 			if err != nil {
 				logger.ErrorContext(ctx, "Failed to list blocks files by date from aws s3", slogx.Error(err))
 				if err := subscription.SendError(ctx, errors.WithStack(err)); err != nil {
@@ -177,7 +179,7 @@ func (d *AWSPublicDataDatasource) FetchAsync(ctx context.Context, from, to int64
 				return
 			}
 
-			txsFiles, err := d.listTxsFilesByDate(ctx, ts)
+			allTxsFiles, err := d.listTxsFilesByDate(ctx, ts)
 			if err != nil {
 				logger.ErrorContext(ctx, "Failed to list txs files by date from aws s3", slogx.Error(err))
 				if err := subscription.SendError(ctx, errors.WithStack(err)); err != nil {
@@ -186,16 +188,24 @@ func (d *AWSPublicDataDatasource) FetchAsync(ctx context.Context, from, to int64
 				return
 			}
 
-			blocksFiles = lo.Filter(blocksFiles, func(key string, _ int) bool {
+			blocksFiles := lo.Filter(allBlocksFiles, func(key string, _ int) bool {
 				return strings.Contains(key, "part-")
 			})
-			txsFiles = lo.Filter(txsFiles, func(key string, _ int) bool {
+			txsFiles := lo.Filter(allTxsFiles, func(key string, _ int) bool {
 				return strings.Contains(key, "part-")
 			})
+
+			logger.DebugContext(ctx, "Found files in AWS S3 bucket",
+				slogx.Int("files_blocks", len(allBlocksFiles)),
+				slogx.Int("files_blocks_merged", len(blocksFiles)),
+				slogx.Int("files_txs_all", len(allTxsFiles)),
+				slogx.Int("files_txs_merged", len(txsFiles)),
+			)
 
 			// Reach the end of supported data,
 			// stop fetching data from AWS S3
 			if len(blocksFiles) == 0 || len(txsFiles) == 0 {
+				logger.DebugContext(ctx, "No blocks files found, stop fetching data from AWS S3")
 				return
 			}
 
@@ -226,6 +236,7 @@ func (d *AWSPublicDataDatasource) FetchAsync(ctx context.Context, from, to int64
 				blocksBuffer = manager.NewWriteAtBuffer([]byte{})
 				txsBuffer    = manager.NewWriteAtBuffer([]byte{})
 			)
+			startDownload := time.Now()
 			if err := d.downloadFile(ctx, blocksFiles[0], blocksBuffer); err != nil {
 				logger.ErrorContext(ctx, "Failed to download blocks file from AWS S3", slogx.Int("count", len(txsFiles)))
 				if err := subscription.SendError(ctx, errors.Wrap(err, "can't download blocks file")); err != nil {
@@ -238,9 +249,15 @@ func (d *AWSPublicDataDatasource) FetchAsync(ctx context.Context, from, to int64
 					logger.WarnContext(ctx, "Failed to send datasource error to subscription client", slogx.Error(err))
 				}
 			}
+			logger.DebugContext(ctx, "Downloaded files from AWS S3",
+				slogx.Duration("duration", time.Since(startDownload)),
+				slogx.Int("sizes_blocks", len(blocksBuffer.Bytes())),
+				slogx.Int("sizes_txs", len(txsBuffer.Bytes())),
+			)
 
 			// read parquet files
 			// TODO: create read function to reduce duplicate code
+			startRead := time.Now()
 			blocksReader, err := reader.NewParquetReader(parquetutils.NewBufferFile(blocksBuffer.Bytes()), new(awsBlock), parquetReaderConcurrency)
 			if err != nil {
 				logger.ErrorContext(ctx, "Failed to create parquet reader for blocks data", slogx.Error(err))
@@ -249,17 +266,15 @@ func (d *AWSPublicDataDatasource) FetchAsync(ctx context.Context, from, to int64
 				}
 			}
 
-			rawBlocks := make([]awsBlock, blocksReader.GetNumRows())
-			if err = blocksReader.Read(&rawBlocks); err != nil {
+			// we can read all blocks data at once because it's small
+			rawAllBlocks := make([]awsBlock, blocksReader.GetNumRows())
+			if err = blocksReader.Read(&rawAllBlocks); err != nil {
 				logger.ErrorContext(ctx, "Failed to read parquet blocks data", slogx.Error(err))
 				if err := subscription.SendError(ctx, errors.Wrap(err, "can't read parquet blocks data")); err != nil {
 					logger.WarnContext(ctx, "Failed to send datasource error to subscription client", slogx.Error(err))
 				}
 			}
 			blocksReader.ReadStop()
-			slices.SortFunc(rawBlocks, func(i, j awsBlock) int {
-				return cmp.Compare(i.Number, j.Number)
-			})
 
 			// TODO: partial read txs data to reduce memory usage
 			// (use txs_count from block data to read only needed txs and stream to subscription)
@@ -271,20 +286,37 @@ func (d *AWSPublicDataDatasource) FetchAsync(ctx context.Context, from, to int64
 				}
 			}
 
-			rawTxs := make([]awsTransaction, txsReader.GetNumRows())
-			if err = txsReader.Read(&rawTxs); err != nil {
+			// TODO: read only needed txs data
+			rawAllTxs := make([]awsTransaction, txsReader.GetNumRows())
+			if err = txsReader.Read(&rawAllTxs); err != nil {
 				logger.ErrorContext(ctx, "Failed to read parquet txs data", slogx.Error(err))
 				if err := subscription.SendError(ctx, errors.Wrap(err, "can't read parquet txs data")); err != nil {
 					logger.WarnContext(ctx, "Failed to send datasource error to subscription client", slogx.Error(err))
 				}
 			}
 			txsReader.ReadStop()
-			groupRawTxs := lo.GroupBy(rawTxs, func(tx awsTransaction) int64 {
+			groupRawTxs := lo.GroupBy(rawAllTxs, func(tx awsTransaction) int64 {
 				return tx.BlockNumber
 			})
 
-			blocks := make([]*types.Block, 0, len(rawBlocks))
-			for _, rawBlock := range rawBlocks {
+			// filter blocks data by height range
+			rawFilteredBlocks := lo.Filter(rawAllBlocks, func(block awsBlock, _ int) bool {
+				return block.Number >= start.Height && block.Number <= end.Height
+			})
+			slices.SortFunc(rawAllBlocks, func(i, j awsBlock) int {
+				return cmp.Compare(i.Number, j.Number)
+			})
+
+			logger.DebugContext(ctx, "Read parquet files",
+				slogx.Duration("duration", time.Since(startRead)),
+				slogx.Int("total_blocks", len(rawAllBlocks)),
+				slogx.Int("filtered_blocks", len(rawFilteredBlocks)),
+				slogx.Int("total_txs", len(rawAllTxs)),
+				slogx.Int("total_txs_grouped", len(groupRawTxs)),
+			)
+
+			blocks := make([]*types.Block, 0, len(rawFilteredBlocks))
+			for _, rawBlock := range rawFilteredBlocks {
 				blockHeader, err := rawBlock.ToBlockHeader()
 				if err != nil {
 					logger.ErrorContext(ctx, "Failed to convert aws block to type block header", slogx.Error(err))
@@ -310,14 +342,17 @@ func (d *AWSPublicDataDatasource) FetchAsync(ctx context.Context, from, to int64
 					return cmp.Compare(i.Index, j.Index)
 				})
 
+				logger.DebugContext(ctx, "Append block to blocks slice", slogx.Int64("height", blockHeader.Height), slogx.Int("txs", len(txs)))
 				blocks = append(blocks, &types.Block{
 					Header:       blockHeader,
 					Transactions: txs,
 				})
 			}
 
+			logger.DebugContext(ctx, "Send blocks to subscription client", slogx.Int("count", len(blocks)))
 			if err := subscription.Send(ctx, blocks); err != nil {
 				if errors.Is(err, errs.Closed) {
+					logger.DebugContext(ctx, "Subscription client closed, can't send", slogx.Error(err))
 					return
 				}
 				logger.WarnContext(ctx, "Failed to send bitcoin blocks to subscription client",
@@ -326,6 +361,7 @@ func (d *AWSPublicDataDatasource) FetchAsync(ctx context.Context, from, to int64
 					slogx.Error(err),
 				)
 			}
+			logger.DebugContext(ctx, "Blocks sent to subscription client", slogx.Int("count", len(blocks)))
 		}
 	}()
 
@@ -342,14 +378,14 @@ func (d *AWSPublicDataDatasource) GetCurrentBlockHeight(ctx context.Context) (in
 	return height, errors.WithStack(err)
 }
 
-func (d *AWSPublicDataDatasource) prepareRange(ctx context.Context, fromHeight, toHeight int64) (start, end int64, skip bool, err error) {
-	start = fromHeight
-	end = toHeight
+func (d *AWSPublicDataDatasource) prepareRange(ctx context.Context, fromHeight, toHeight int64) (startHeader, endHeader types.BlockHeader, skip bool, err error) {
+	start := fromHeight
+	end := toHeight
 
 	// get current bitcoin block height
 	latestBlockHeight, err := d.btcDatasource.GetCurrentBlockHeight(ctx)
 	if err != nil {
-		return -1, -1, false, errors.Wrap(err, "failed to get block count")
+		return types.BlockHeader{}, types.BlockHeader{}, false, errors.Wrap(err, "failed to get block count")
 	}
 
 	// set start to genesis block height
@@ -366,10 +402,27 @@ func (d *AWSPublicDataDatasource) prepareRange(ctx context.Context, fromHeight, 
 
 	// if start is greater than end, skip this round
 	if start > end {
-		return -1, -1, true, nil
+		return types.BlockHeader{}, types.BlockHeader{}, true, nil
 	}
 
-	return start, end, false, nil
+	if err != nil {
+		return types.BlockHeader{}, types.BlockHeader{}, false, errors.Wrapf(err, "block %v", end)
+	}
+
+	group, groupctx := errgroup.WithContext(ctx)
+	group.Go(func() error {
+		startHeader, err = d.GetBlockHeader(groupctx, start)
+		return errors.Wrapf(err, "block %v", start)
+	})
+	group.Go(func() error {
+		endHeader, err = d.GetBlockHeader(ctx, end)
+		return errors.Wrapf(err, "block %v", end)
+	})
+	if err := group.Wait(); err != nil {
+		return types.BlockHeader{}, types.BlockHeader{}, false, errors.Wrap(err, "failed to get block header")
+	}
+
+	return startHeader, endHeader, false, nil
 }
 
 func (d *AWSPublicDataDatasource) listFiles(ctx context.Context, prefix string) ([]string, error) {
@@ -393,7 +446,7 @@ func (d *AWSPublicDataDatasource) listBlocksFilesByDate(ctx context.Context, dat
 	if date.Before(firstBitcoinTimestamp) {
 		return nil, errors.Wrapf(errs.InvalidArgument, "date %v is before first bitcoin timestamp %v", date, firstBitcoinTimestamp)
 	}
-	prefix := "v1.0/btc/blocks/date=" + date.Format(time.DateOnly)
+	prefix := "v1.0/btc/blocks/date=" + date.UTC().Format(time.DateOnly)
 	files, err := d.listFiles(ctx, prefix)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to list blocks files by date")
@@ -405,7 +458,7 @@ func (d *AWSPublicDataDatasource) listTxsFilesByDate(ctx context.Context, date t
 	if date.Before(firstBitcoinTimestamp) {
 		return nil, errors.Wrapf(errs.InvalidArgument, "date %v is before first bitcoin timestamp %v", date, firstBitcoinTimestamp)
 	}
-	prefix := "v1.0/btc/transactions/date=" + date.Format(time.DateOnly)
+	prefix := "v1.0/btc/transactions/date=" + date.UTC().Format(time.DateOnly)
 	files, err := d.listFiles(ctx, prefix)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to list txs files by date")
