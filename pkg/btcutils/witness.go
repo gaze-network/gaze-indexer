@@ -41,7 +41,10 @@ func WitnessToString(witness wire.TxWitness) string {
 
 // WitnessFromHex parses the passed slice of hex-encoded strings into a witness stack.
 func WitnessFromHex(witnesses []string) (wire.TxWitness, error) {
+	// NOTE: some witness from bitcoin node are empty and some are nil(most are nil), it's not clear why.
+	// For now, we will return nil for both cases.
 	if len(witnesses) == 0 {
+		// return wire.TxWitness{}, nil
 		return nil, nil
 	}
 
