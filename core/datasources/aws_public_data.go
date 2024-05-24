@@ -35,7 +35,6 @@ import (
 	"github.com/gaze-network/indexer-network/pkg/logger/slogx"
 	"github.com/gaze-network/indexer-network/pkg/parquetutils"
 	"github.com/samber/lo"
-	"github.com/xitongsys/parquet-go/reader"
 	parquettypes "github.com/xitongsys/parquet-go/types"
 	"golang.org/x/sync/errgroup"
 )
@@ -253,31 +252,15 @@ func (d *AWSPublicDataDatasource) FetchAsync(ctx context.Context, from, to int64
 				slogx.Int("sizes_txs", len(txsBuffer.Bytes())),
 			)
 
-			// read parquet files
-			// TODO: create read function to reduce duplicate code
+			// Read parquet files
 			startRead := time.Now()
-			blocksReader, err := reader.NewParquetReader(parquetutils.NewBufferFile(blocksBuffer.Bytes()), new(awsBlock), parquetReaderConcurrency)
-			if err != nil {
-				logger.ErrorContext(ctx, "Failed to create parquet reader for blocks data", slogx.Error(err))
-				if err := subscription.SendError(ctx, errors.Wrap(err, "can't create parquet reader for blocks data")); err != nil {
-					logger.WarnContext(ctx, "Failed to send datasource error to subscription client", slogx.Error(err))
-				}
-			}
 
 			// we can read all blocks data at once because it's small
-			rawAllBlocks := make([]awsBlock, blocksReader.GetNumRows())
-			if err = blocksReader.Read(&rawAllBlocks); err != nil {
+
+			rawAllBlocks, err := parquetutils.ReadAll[awsBlock](parquetutils.NewBufferFile(blocksBuffer.Bytes()))
+			if err != nil {
 				logger.ErrorContext(ctx, "Failed to read parquet blocks data", slogx.Error(err))
 				if err := subscription.SendError(ctx, errors.Wrap(err, "can't read parquet blocks data")); err != nil {
-					logger.WarnContext(ctx, "Failed to send datasource error to subscription client", slogx.Error(err))
-				}
-			}
-			blocksReader.ReadStop()
-
-			txsReader, err := reader.NewParquetReader(parquetutils.NewBufferFile(txsBuffer.Bytes()), new(awsTransaction), parquetReaderConcurrency)
-			if err != nil {
-				logger.ErrorContext(ctx, "Failed to create parquet reader for txs data", slogx.Error(err))
-				if err := subscription.SendError(ctx, errors.Wrap(err, "can't create parquet reader for txs data")); err != nil {
 					logger.WarnContext(ctx, "Failed to send datasource error to subscription client", slogx.Error(err))
 				}
 			}
@@ -287,14 +270,14 @@ func (d *AWSPublicDataDatasource) FetchAsync(ctx context.Context, from, to int64
 			// But AWS Public Dataset are not sorted by block number and index,
 			// so we can't avoid reading all transactions data by skip unnecessary transactions
 			// or chunk data by block number to reduce memory usage :(
-			rawAllTxs := make([]awsTransaction, txsReader.GetNumRows())
-			if err = txsReader.Read(&rawAllTxs); err != nil {
+			rawAllTxs, err := parquetutils.ReadAll[awsTransaction](parquetutils.NewBufferFile(txsBuffer.Bytes()))
+			if err != nil {
 				logger.ErrorContext(ctx, "Failed to read parquet txs data", slogx.Error(err))
-				if err := subscription.SendError(ctx, errors.Wrap(err, "can't read parquet txs data")); err != nil {
+				if err := subscription.SendError(ctx, errors.Wrap(err, "can't read parquet blocks data")); err != nil {
 					logger.WarnContext(ctx, "Failed to send datasource error to subscription client", slogx.Error(err))
 				}
 			}
-			txsReader.ReadStop()
+
 			groupRawTxs := lo.GroupBy(rawAllTxs, func(tx awsTransaction) int64 {
 				return tx.BlockNumber
 			})
