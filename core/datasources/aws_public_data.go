@@ -229,8 +229,6 @@ func (d *AWSPublicDataDatasource) FetchAsync(ctx context.Context, from, to int64
 
 			// TODO: use concurrent stream (max 2 goroutine) to download files then sequentially read parquet files
 			// to improve performance while not consuming too much memory (increase around 500 MB per goroutine)
-
-			// TODO: create iobuffer that's implement io.WriterAt and parquetsource.ParquetFile interface
 			var (
 				// TODO: create []byte pool to reduce alloc
 				blocksBuffer = manager.NewWriteAtBuffer([]byte{})
