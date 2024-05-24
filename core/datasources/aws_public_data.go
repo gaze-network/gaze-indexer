@@ -229,9 +229,9 @@ func (d *AWSPublicDataDatasource) FetchAsync(ctx context.Context, from, to int64
 			// TODO: use concurrent stream (max 2 goroutine) to download files then sequentially read parquet files
 			// to improve performance while not consuming too much memory (increase around 500 MB per goroutine)
 			var (
-				// TODO: create []byte pool to reduce alloc
-				blocksBuffer = manager.NewWriteAtBuffer([]byte{})
-				txsBuffer    = manager.NewWriteAtBuffer([]byte{})
+				// TODO: create []byte pool to reduce alloc ops (reduce GC pressure)
+				blocksBuffer = parquetutils.NewBuffer()
+				txsBuffer    = parquetutils.NewBuffer()
 			)
 			startDownload := time.Now()
 			if err := d.downloadFile(ctx, blocksFiles[0], blocksBuffer); err != nil {
@@ -256,8 +256,7 @@ func (d *AWSPublicDataDatasource) FetchAsync(ctx context.Context, from, to int64
 			startRead := time.Now()
 
 			// we can read all blocks data at once because it's small
-
-			rawAllBlocks, err := parquetutils.ReadAll[awsBlock](parquetutils.NewBufferFile(blocksBuffer.Bytes()))
+			rawAllBlocks, err := parquetutils.ReadAll[awsBlock](blocksBuffer)
 			if err != nil {
 				logger.ErrorContext(ctx, "Failed to read parquet blocks data", slogx.Error(err))
 				if err := subscription.SendError(ctx, errors.Wrap(err, "can't read parquet blocks data")); err != nil {
@@ -270,7 +269,7 @@ func (d *AWSPublicDataDatasource) FetchAsync(ctx context.Context, from, to int64
 			// But AWS Public Dataset are not sorted by block number and index,
 			// so we can't avoid reading all transactions data by skip unnecessary transactions
 			// or chunk data by block number to reduce memory usage :(
-			rawAllTxs, err := parquetutils.ReadAll[awsTransaction](parquetutils.NewBufferFile(txsBuffer.Bytes()))
+			rawAllTxs, err := parquetutils.ReadAll[awsTransaction](blocksBuffer)
 			if err != nil {
 				logger.ErrorContext(ctx, "Failed to read parquet txs data", slogx.Error(err))
 				if err := subscription.SendError(ctx, errors.Wrap(err, "can't read parquet blocks data")); err != nil {
