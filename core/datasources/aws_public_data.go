@@ -276,8 +276,6 @@ func (d *AWSPublicDataDatasource) FetchAsync(ctx context.Context, from, to int64
 			}
 			blocksReader.ReadStop()
 
-			// TODO: partial read txs data to reduce memory usage
-			// (use txs_count from block data to read only needed txs and stream to subscription)
 			txsReader, err := reader.NewParquetReader(parquetutils.NewBufferFile(txsBuffer.Bytes()), new(awsTransaction), parquetReaderConcurrency)
 			if err != nil {
 				logger.ErrorContext(ctx, "Failed to create parquet reader for txs data", slogx.Error(err))
@@ -286,7 +284,11 @@ func (d *AWSPublicDataDatasource) FetchAsync(ctx context.Context, from, to int64
 				}
 			}
 
-			// TODO: read only needed txs data
+			// NOTE: We shouldn't read all txs data at once because it's very huge (up to ~1.5GB memory usage)
+			// we should read it by chunk and send it to subscription client to reduce memory usage.
+			// But AWS Public Dataset are not sorted by block number and index,
+			// so we can't avoid reading all transactions data by skip unnecessary transactions
+			// or chunk data by block number to reduce memory usage :(
 			rawAllTxs := make([]awsTransaction, txsReader.GetNumRows())
 			if err = txsReader.Read(&rawAllTxs); err != nil {
 				logger.ErrorContext(ctx, "Failed to read parquet txs data", slogx.Error(err))
@@ -342,7 +344,6 @@ func (d *AWSPublicDataDatasource) FetchAsync(ctx context.Context, from, to int64
 					return cmp.Compare(i.Index, j.Index)
 				})
 
-				logger.DebugContext(ctx, "Append block to blocks slice", slogx.Int64("height", blockHeader.Height), slogx.Int("txs", len(txs)))
 				blocks = append(blocks, &types.Block{
 					Header:       blockHeader,
 					Transactions: txs,
@@ -361,7 +362,6 @@ func (d *AWSPublicDataDatasource) FetchAsync(ctx context.Context, from, to int64
 					slogx.Error(err),
 				)
 			}
-			logger.DebugContext(ctx, "Blocks sent to subscription client", slogx.Int("count", len(blocks)))
 		}
 	}()
 
