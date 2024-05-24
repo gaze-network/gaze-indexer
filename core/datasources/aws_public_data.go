@@ -490,67 +490,67 @@ func (d *AWSPublicDataDatasource) downloadFile(ctx context.Context, key string, 
 // TODO: remove unused fields to reduce memory usage
 type (
 	awsBlock struct {
-		Hash              string  `parquet:"name=hash, type=BYTE_ARRAY, convertedtype=UTF8, repetitiontype=OPTIONAL"`
-		Version           int64   `parquet:"name=version, type=INT64, repetitiontype=OPTIONAL"`
-		MedianTime        string  `parquet:"name=mediantime, type=INT96, repetitiontype=OPTIONAL"`
-		Nonce             int64   `parquet:"name=nonce, type=INT64, repetitiontype=OPTIONAL"`
-		Bits              string  `parquet:"name=bits, type=BYTE_ARRAY, convertedtype=UTF8, repetitiontype=OPTIONAL"` // Hex string format
-		Difficulty        float64 `parquet:"name=difficulty, type=DOUBLE, repetitiontype=OPTIONAL"`
-		Chainwork         string  `parquet:"name=chainwork, type=BYTE_ARRAY, convertedtype=UTF8, repetitiontype=OPTIONAL"`
-		PreviousBlockHash string  `parquet:"name=previousblockhash, type=BYTE_ARRAY, convertedtype=UTF8, repetitiontype=OPTIONAL"`
-		Size              int64   `parquet:"name=size, type=INT64, repetitiontype=OPTIONAL"`
-		Weight            int64   `parquet:"name=weight, type=INT64, repetitiontype=OPTIONAL"`
-		CoinbaseParam     string  `parquet:"name=coinbase_param, type=BYTE_ARRAY, convertedtype=UTF8, repetitiontype=OPTIONAL"`
-		Number            int64   `parquet:"name=number, type=INT64, repetitiontype=OPTIONAL"`
-		TransactionCount  int64   `parquet:"name=transaction_count, type=INT64, repetitiontype=OPTIONAL"`
-		MerkleRoot        string  `parquet:"name=merkle_root, type=BYTE_ARRAY, convertedtype=UTF8, repetitiontype=OPTIONAL"`
-		StrippedSize      int64   `parquet:"name=stripped_size, type=INT64, repetitiontype=OPTIONAL"`
-		Timestamp         string  `parquet:"name=timestamp, type=INT96, repetitiontype=OPTIONAL"`
-		Date              string  `parquet:"name=date, type=BYTE_ARRAY, convertedtype=UTF8, repetitiontype=OPTIONAL"`
-		LastModified      string  `parquet:"name=last_modified, type=INT96, repetitiontype=OPTIONAL"`
+		Hash              string `parquet:"name=hash, type=BYTE_ARRAY, convertedtype=UTF8, repetitiontype=OPTIONAL"`
+		Bits              string `parquet:"name=bits, type=BYTE_ARRAY, convertedtype=UTF8, repetitiontype=OPTIONAL"` // Hex string format
+		PreviousBlockHash string `parquet:"name=previousblockhash, type=BYTE_ARRAY, convertedtype=UTF8, repetitiontype=OPTIONAL"`
+		MerkleRoot        string `parquet:"name=merkle_root, type=BYTE_ARRAY, convertedtype=UTF8, repetitiontype=OPTIONAL"`
+		CoinbaseParam     string `parquet:"name=coinbase_param, type=BYTE_ARRAY, convertedtype=UTF8, repetitiontype=OPTIONAL"`
+		Timestamp         string `parquet:"name=timestamp, type=INT96, repetitiontype=OPTIONAL"`
+		Number            int64  `parquet:"name=number, type=INT64, repetitiontype=OPTIONAL"`
+		Version           int64  `parquet:"name=version, type=INT64, repetitiontype=OPTIONAL"`
+		Nonce             int64  `parquet:"name=nonce, type=INT64, repetitiontype=OPTIONAL"`
+		// MedianTime string `parquet:"name=mediantime, type=INT96, repetitiontype=OPTIONAL"`
+		// Difficulty float64 `parquet:"name=difficulty, type=DOUBLE, repetitiontype=OPTIONAL"`
+		// Chainwork         string  `parquet:"name=chainwork, type=BYTE_ARRAY, convertedtype=UTF8, repetitiontype=OPTIONAL"`
+		// Size              int64   `parquet:"name=size, type=INT64, repetitiontype=OPTIONAL"`
+		// Weight            int64   `parquet:"name=weight, type=INT64, repetitiontype=OPTIONAL"`
+		// TransactionCount  int64   `parquet:"name=transaction_count, type=INT64, repetitiontype=OPTIONAL"`
+		// StrippedSize      int64   `parquet:"name=stripped_size, type=INT64, repetitiontype=OPTIONAL"`
+		// Date              string  `parquet:"name=date, type=BYTE_ARRAY, convertedtype=UTF8, repetitiontype=OPTIONAL"`
+		// LastModified      string  `parquet:"name=last_modified, type=INT96, repetitiontype=OPTIONAL"`
 	}
 	awsTransaction struct {
-		Hash           string         `parquet:"name=hash, type=BYTE_ARRAY, convertedtype=UTF8, repetitiontype=OPTIONAL"`
-		Version        int64          `parquet:"name=version, type=INT64, repetitiontype=OPTIONAL"`
-		Size           int64          `parquet:"name=size, type=INT64, repetitiontype=OPTIONAL"`
-		BlockHash      string         `parquet:"name=block_hash, type=BYTE_ARRAY, convertedtype=UTF8, repetitiontype=OPTIONAL"`
-		BlockNumber    int64          `parquet:"name=block_number, type=INT64, repetitiontype=OPTIONAL"`
-		Index          int64          `parquet:"name=index, type=INT64, repetitiontype=OPTIONAL"`
-		VirtualSize    int64          `parquet:"name=virtual_size, type=INT64, repetitiontype=OPTIONAL"`
-		LockTime       int64          `parquet:"name=lock_time, type=INT64, repetitiontype=OPTIONAL"`
-		InputCount     int64          `parquet:"name=input_count, type=INT64, repetitiontype=OPTIONAL"`
-		OutputCount    int64          `parquet:"name=output_count, type=INT64, repetitiontype=OPTIONAL"`
-		IsCoinbase     bool           `parquet:"name=is_coinbase, type=BOOLEAN, repetitiontype=OPTIONAL"`
-		OutputValue    float64        `parquet:"name=output_value, type=DOUBLE, repetitiontype=OPTIONAL"`
-		Outputs        []*awsTxOutput `parquet:"name=outputs, type=LIST, repetitiontype=OPTIONAL, valuetype=STRUCT"`
-		BlockTimestamp string         `parquet:"name=block_timestamp, type=INT96, repetitiontype=OPTIONAL"`
-		Date           string         `parquet:"name=date, type=BYTE_ARRAY, convertedtype=UTF8, repetitiontype=OPTIONAL"`
-		LastModified   string         `parquet:"name=last_modified, type=INT96, repetitiontype=OPTIONAL"`
-		Fee            float64        `parquet:"name=fee, type=DOUBLE, repetitiontype=OPTIONAL"`
-		InputValue     float64        `parquet:"name=input_value, type=DOUBLE, repetitiontype=OPTIONAL"`
-		Inputs         []*awsTxInput  `parquet:"name=inputs, type=LIST, repetitiontype=OPTIONAL, valuetype=STRUCT"`
+		Hash        string         `parquet:"name=hash, type=BYTE_ARRAY, convertedtype=UTF8, repetitiontype=OPTIONAL"`
+		BlockHash   string         `parquet:"name=block_hash, type=BYTE_ARRAY, convertedtype=UTF8, repetitiontype=OPTIONAL"`
+		Outputs     []*awsTxOutput `parquet:"name=outputs, type=LIST, repetitiontype=OPTIONAL, valuetype=STRUCT"`
+		Inputs      []*awsTxInput  `parquet:"name=inputs, type=LIST, repetitiontype=OPTIONAL, valuetype=STRUCT"`
+		Version     int64          `parquet:"name=version, type=INT64, repetitiontype=OPTIONAL"`
+		Size        int64          `parquet:"name=size, type=INT64, repetitiontype=OPTIONAL"`
+		BlockNumber int64          `parquet:"name=block_number, type=INT64, repetitiontype=OPTIONAL"`
+		Index       int64          `parquet:"name=index, type=INT64, repetitiontype=OPTIONAL"`
+		LockTime    int64          `parquet:"name=lock_time, type=INT64, repetitiontype=OPTIONAL"`
+		IsCoinbase  bool           `parquet:"name=is_coinbase, type=BOOLEAN, repetitiontype=OPTIONAL"`
+		// VirtualSize int64  `parquet:"name=virtual_size, type=INT64, repetitiontype=OPTIONAL"`
+		// InputCount  int64  `parquet:"name=input_count, type=INT64, repetitiontype=OPTIONAL"`
+		// OutputCount int64  `parquet:"name=output_count, type=INT64, repetitiontype=OPTIONAL"`
+		// OutputValue    float64        `parquet:"name=output_value, type=DOUBLE, repetitiontype=OPTIONAL"`
+		// BlockTimestamp string         `parquet:"name=block_timestamp, type=INT96, repetitiontype=OPTIONAL"`
+		// Date           string         `parquet:"name=date, type=BYTE_ARRAY, convertedtype=UTF8, repetitiontype=OPTIONAL"`
+		// LastModified   string         `parquet:"name=last_modified, type=INT96, repetitiontype=OPTIONAL"`
+		// Fee            float64        `parquet:"name=fee, type=DOUBLE, repetitiontype=OPTIONAL"`
+		// InputValue     float64        `parquet:"name=input_value, type=DOUBLE, repetitiontype=OPTIONAL"`
 	}
 	awsTxInput struct {
-		Address              string    `parquet:"name=address, type=BYTE_ARRAY, convertedtype=UTF8, repetitiontype=OPTIONAL"`
-		Index                int64     `parquet:"name=index, type=INT64, repetitiontype=OPTIONAL"`
-		RequiredSignatures   int64     `parquet:"name=required_signatures, type=INT64, repetitiontype=OPTIONAL"`
-		ScriptAsm            string    `parquet:"name=script_asm, type=BYTE_ARRAY, convertedtype=UTF8, repetitiontype=OPTIONAL"`
 		ScriptHex            string    `parquet:"name=script_hex, type=BYTE_ARRAY, convertedtype=UTF8, repetitiontype=OPTIONAL"`
-		Sequence             int64     `parquet:"name=sequence, type=INT64, repetitiontype=OPTIONAL"`
-		SpentOutputIndex     int64     `parquet:"name=spent_output_index, type=INT64, repetitiontype=OPTIONAL"`
 		SpentTransactionHash string    `parquet:"name=spent_transaction_hash, type=BYTE_ARRAY, convertedtype=UTF8, repetitiontype=OPTIONAL"`
 		TxInWitness          []*string `parquet:"name=txinwitness, type=LIST, repetitiontype=OPTIONAL, valuetype=BYTE_ARRAY, convertedtype=UTF8"`
-		Type                 string    `parquet:"name=type, type=BYTE_ARRAY, convertedtype=UTF8, repetitiontype=OPTIONAL"`
-		Value                float64   `parquet:"name=value, type=DOUBLE, repetitiontype=OPTIONAL"`
+		SpentOutputIndex     int64     `parquet:"name=spent_output_index, type=INT64, repetitiontype=OPTIONAL"`
+		Sequence             int64     `parquet:"name=sequence, type=INT64, repetitiontype=OPTIONAL"`
+		// Address              string    `parquet:"name=address, type=BYTE_ARRAY, convertedtype=UTF8, repetitiontype=OPTIONAL"`
+		// Index                int64     `parquet:"name=index, type=INT64, repetitiontype=OPTIONAL"`
+		// RequiredSignatures   int64     `parquet:"name=required_signatures, type=INT64, repetitiontype=OPTIONAL"`
+		// ScriptAsm            string    `parquet:"name=script_asm, type=BYTE_ARRAY, convertedtype=UTF8, repetitiontype=OPTIONAL"`
+		// Type                 string    `parquet:"name=type, type=BYTE_ARRAY, convertedtype=UTF8, repetitiontype=OPTIONAL"`
+		// Value                float64   `parquet:"name=value, type=DOUBLE, repetitiontype=OPTIONAL"`
 	}
 	awsTxOutput struct {
-		Address             string  `parquet:"name=address, type=BYTE_ARRAY, convertedtype=UTF8, repetitiontype=OPTIONAL"`
-		Index               int64   `parquet:"name=index, type=INT64, repetitiontype=OPTIONAL"`
-		Required_signatures int64   `parquet:"name=required_signatures, type=INT64, repetitiontype=OPTIONAL"`
-		Script_asm          string  `parquet:"name=script_asm, type=BYTE_ARRAY, convertedtype=UTF8, repetitiontype=OPTIONAL"`
-		Script_hex          string  `parquet:"name=script_hex, type=BYTE_ARRAY, convertedtype=UTF8, repetitiontype=OPTIONAL"`
-		Type                string  `parquet:"name=type, type=BYTE_ARRAY, convertedtype=UTF8, repetitiontype=OPTIONAL"`
-		Value               float64 `parquet:"name=value, type=DOUBLE, repetitiontype=OPTIONAL"`
+		Script_hex string  `parquet:"name=script_hex, type=BYTE_ARRAY, convertedtype=UTF8, repetitiontype=OPTIONAL"`
+		Value      float64 `parquet:"name=value, type=DOUBLE, repetitiontype=OPTIONAL"`
+		// Address             string  `parquet:"name=address, type=BYTE_ARRAY, convertedtype=UTF8, repetitiontype=OPTIONAL"`
+		// Index               int64   `parquet:"name=index, type=INT64, repetitiontype=OPTIONAL"`
+		// Required_signatures int64   `parquet:"name=required_signatures, type=INT64, repetitiontype=OPTIONAL"`
+		// Script_asm          string  `parquet:"name=script_asm, type=BYTE_ARRAY, convertedtype=UTF8, repetitiontype=OPTIONAL"`
+		// Type                string  `parquet:"name=type, type=BYTE_ARRAY, convertedtype=UTF8, repetitiontype=OPTIONAL"`
 	}
 )
 
