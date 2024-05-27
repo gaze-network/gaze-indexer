@@ -448,7 +448,7 @@ func (d *AWSPublicDataDatasource) listTxsFilesByDate(ctx context.Context, date t
 
 func (d *AWSPublicDataDatasource) downloadFile(ctx context.Context, key string, w io.WriterAt) error {
 	downloader := manager.NewDownloader(d.s3Client, func(d *manager.Downloader) {
-		d.Concurrency = 16
+		d.Concurrency = 32
 		d.PartSize = 10 * 1024 * 1024
 	})
 
