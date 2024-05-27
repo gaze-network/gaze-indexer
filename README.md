@@ -25,7 +25,7 @@ This allows developers to focus on what **truly** matters: Meta-protocol indexin
 ### 1. Runes
 
 The Runes Indexer is our first meta-protocol indexer. It indexes Runes states, transactions, runestones, and balances using Bitcoin transactions.
-It comes with a set of APIs for querying historical Runes data. See our [API Reference](https://documenter.getpostman.com/view/28396285/2sA3Bn7Cxr) for full details.
+It comes with a set of APIs for querying historical Runes data. See our [API Reference](https://api-docs.gaze.network) for full details.
 
 ## Installation
 
@@ -115,7 +115,7 @@ services:
       - 8080:8080 # Expose HTTP server port to host
     volumes:
       - "./config.yaml:/app/config.yaml" # mount config.yaml file to the container as "/app/config.yaml"
-    command: ["/app/main", "run", "--runes"] # Put module flags after "run" commands to select which modules to run.
+    command: ["/app/main", "run", "--modules", "runes"] # Put module flags after "run" commands to select which modules to run.
 ```
 
 ### Install from source
