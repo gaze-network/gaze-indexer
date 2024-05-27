@@ -11,6 +11,7 @@ require (
 	github.com/gaze-network/uint128 v1.3.0
 	github.com/gofiber/fiber/v2 v2.52.4
 	github.com/golang-migrate/migrate/v4 v4.17.1
+	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/jackc/pgx/v5 v5.5.5
 	github.com/mcosta74/pgx-slog v0.3.0
 	github.com/planxnx/concurrent-stream v0.1.5

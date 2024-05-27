@@ -24,8 +24,14 @@ CREATE TABLE IF NOT EXISTS "brc20_indexed_blocks" (
 	"hash" TEXT NOT NULL,
 	"prev_hash" TEXT NOT NULL,
 	"event_hash" TEXT NOT NULL,
-	"cumulative_event_hash" TEXT NOT NULL
+	"cumulative_event_hash" TEXT NOT NULL,
 );
+
+CREATE TABLE IF NOT EXISTS "brc20_processor_stats" (
+	"block_height" INT NOT NULL PRIMARY KEY,
+	"cursed_inscription_count" INT NOT NULL,
+	"blessed_inscription_count" INT NOT NULL,
+)
 
 CREATE TABLE IF NOT EXISTS "brc20_tickers" (
 	"tick" TEXT NOT NULL PRIMARY KEY, -- lowercase of original_tick
@@ -108,30 +114,44 @@ CREATE TABLE IF NOT EXISTS "brc20_balances" (
 	PRIMARY KEY ("pkscript", "ticker", "block_height")
 );
 
-CREATE TABLE IF NOT EXISTS "brc20_inscriptions" (
+CREATE TABLE IF NOT EXISTS "brc20_inscription_entries" (
 	"id" TEXT NOT NULL PRIMARY KEY,
 	"number" BIGINT NOT NULL,
 	"sequence_number" BIGINT NOT NULL,
 	"delegate" TEXT, -- delegate inscription id
 	"metadata" BYTEA,
 	"metaprotocol" TEXT,
-	"parent" TEXT, -- parent inscription id
+	"parents" TEXT[], -- parent inscription id, 0.14 only supports 1 parent per inscription
 	"pointer" BIGINT,
 	"content" JSONB NOT NULL, -- can use jsonb because we only track brc20 inscriptions
 	"content_type" TEXT NOT NULL,
-	"transfer_count" INT NOT NULL,
+	"cursed" BOOLEAN NOT NULL, -- inscriptions after jubilee are no longer cursed in 0.14, which affects inscription number
+	"cursed_for_brc20" BOOLEAN NOT NULL, -- however, inscriptions that would normally be cursed are still considered cursed for brc20
 	"created_at" TIMESTAMP NOT NULL,
 	"created_at_height" INT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS "brc20_inscription_locations" (
+CREATE TABLE IF NOT EXISTS "brc20_inscription_states" (
+	"id" TEXT NOT NULL PRIMARY KEY,
+	"block_height" INT NOT NULL,
+	"transfer_count" INT NOT NULL,
+);
+
+CREATE TABLE IF NOT EXISTS "brc20_inscription_transfers" (
 	"inscription_id" TEXT NOT NULL,
 	"block_height" INT NOT NULL,
-	"tx_hash" TEXT NOT NULL,
-	"tx_idx" INT NOT NULL, -- output index
-	"sat_offset" BIGINT NOT NULL,
+	"old_satpoint_tx_hash" TEXT NOT NULL,
+	"old_satpoint_out_idx" INT NOT NULL,
+	"old_satpoint_offset" BIGINT NOT NULL,
+	"new_satpoint_tx_hash" TEXT NOT NULL,
+	"new_satpoint_out_idx" INT NOT NULL,
+	"new_satpoint_offset" BIGINT NOT NULL,
+	"new_pkscript" TEXT NOT NULL,
+	"new_output_value" DECIMAL NOT NULL
+	"sent_as_fee" BOOLEAN NOT NULL,
 	PRIMARY KEY ("inscription_id", "block_height")
 );
-CREATE INDEX IF NOT EXISTS brc20_inscription_locations_tx_hash_tx_idx_idx ON "brc20_inscription_locations" USING BTREE ("tx_hash", "tx_idx");
+CREATE INDEX IF NOT EXISTS brc20_inscription_transfers_block_height_idx ON "brc20_inscription_transfers" USING BTREE ("block_height");
+CREATE INDEX IF NOT EXISTS brc20_inscription_transfers_new_satpoint_idx ON "brc20_inscription_transfers" USING BTREE ("new_satpoint_tx_hash", "new_satpoint_out_idx", "new_satpoint_offset");
 
 COMMIT;

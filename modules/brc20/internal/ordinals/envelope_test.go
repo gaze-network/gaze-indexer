@@ -6,12 +6,13 @@ import (
 	"github.com/Cleverse/go-utilities/utils"
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/btcsuite/btcd/wire"
+	"github.com/gaze-network/indexer-network/core/types"
 	"github.com/samber/lo"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestParseEnvelopesFromTx(t *testing.T) {
-	testTx := func(t *testing.T, tx *wire.MsgTx, expected []*Envelope) {
+	testTx := func(t *testing.T, tx *types.Transaction, expected []*Envelope) {
 		t.Helper()
 
 		envelopes := ParseEnvelopesFromTx(tx)
@@ -20,10 +21,10 @@ func TestParseEnvelopesFromTx(t *testing.T) {
 	testParseWitness := func(t *testing.T, tapScript []byte, expected []*Envelope) {
 		t.Helper()
 
-		tx := &wire.MsgTx{
+		tx := &types.Transaction{
 			Version:  2,
 			LockTime: 0,
-			TxIn: []*wire.TxIn{
+			TxIn: []*types.TxIn{
 				{
 					Witness: wire.TxWitness{
 						tapScript,
@@ -55,19 +56,19 @@ func TestParseEnvelopesFromTx(t *testing.T) {
 	}
 
 	t.Run("empty_witness", func(t *testing.T) {
-		testTx(t, &wire.MsgTx{
+		testTx(t, &types.Transaction{
 			Version:  2,
 			LockTime: 0,
-			TxIn: []*wire.TxIn{{
+			TxIn: []*types.TxIn{{
 				Witness: wire.TxWitness{},
 			}},
 		}, []*Envelope{})
 	})
 	t.Run("ignore_key_path_spends", func(t *testing.T) {
-		testTx(t, &wire.MsgTx{
+		testTx(t, &types.Transaction{
 			Version:  2,
 			LockTime: 0,
-			TxIn: []*wire.TxIn{{
+			TxIn: []*types.TxIn{{
 				Witness: wire.TxWitness{
 					utils.Must(NewPushScriptBuilder().
 						AddOp(txscript.OP_FALSE).
@@ -80,10 +81,10 @@ func TestParseEnvelopesFromTx(t *testing.T) {
 		}, []*Envelope{})
 	})
 	t.Run("ignore_key_path_spends_with_annex", func(t *testing.T) {
-		testTx(t, &wire.MsgTx{
+		testTx(t, &types.Transaction{
 			Version:  2,
 			LockTime: 0,
-			TxIn: []*wire.TxIn{{
+			TxIn: []*types.TxIn{{
 				Witness: wire.TxWitness{
 					utils.Must(NewPushScriptBuilder().
 						AddOp(txscript.OP_FALSE).
@@ -462,10 +463,10 @@ func TestParseEnvelopesFromTx(t *testing.T) {
 	t.Run("extract_from_second_input", func(t *testing.T) {
 		testTx(
 			t,
-			&wire.MsgTx{
+			&types.Transaction{
 				Version:  2,
 				LockTime: 0,
-				TxIn: []*wire.TxIn{{}, {
+				TxIn: []*types.TxIn{{}, {
 					Witness: wire.TxWitness{
 						utils.Must(NewPushScriptBuilder().
 							AddOp(txscript.OP_FALSE).

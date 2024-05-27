@@ -292,3 +292,19 @@ func (d *BitcoinNodeDatasource) GetBlockHeader(ctx context.Context, height int64
 
 	return types.ParseMsgBlockHeader(*block, height), nil
 }
+
+// GetTransaction fetch transaction from Bitcoin node
+func (d *BitcoinNodeDatasource) GetTransactionOutputs(ctx context.Context, txHash chainhash.Hash) ([]*types.TxOut, error) {
+	rawTx, err := d.btcclient.GetRawTransaction(&txHash)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get raw transaction")
+	}
+
+	msgTx := rawTx.MsgTx()
+	txOuts := make([]*types.TxOut, 0, len(msgTx.TxOut))
+	for _, txOut := range msgTx.TxOut {
+		txOuts = append(txOuts, types.ParseTxOut(txOut))
+	}
+
+	return txOuts, nil
+}

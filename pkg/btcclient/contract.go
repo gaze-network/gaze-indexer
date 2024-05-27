@@ -9,4 +9,5 @@ import (
 
 type Contract interface {
 	GetTransactionByHash(ctx context.Context, txHash chainhash.Hash) (*types.Transaction, error)
+	GetTransactionOutputs(ctx context.Context, txHash chainhash.Hash) ([]*types.TxOut, error)
 }

@@ -5,7 +5,7 @@ import (
 	"encoding/binary"
 
 	"github.com/btcsuite/btcd/txscript"
-	"github.com/btcsuite/btcd/wire"
+	"github.com/gaze-network/indexer-network/core/types"
 	"github.com/gaze-network/indexer-network/pkg/logger"
 	"github.com/gaze-network/indexer-network/pkg/logger/slogx"
 	"github.com/samber/lo"
@@ -22,7 +22,7 @@ type Envelope struct {
 	UnrecognizedEvenField bool   // True if payload contains unrecognized even field
 }
 
-func ParseEnvelopesFromTx(tx *wire.MsgTx) []*Envelope {
+func ParseEnvelopesFromTx(tx *types.Transaction) []*Envelope {
 	envelopes := make([]*Envelope, 0)
 
 	for i, txIn := range tx.TxIn {

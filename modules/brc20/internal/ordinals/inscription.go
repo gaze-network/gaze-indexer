@@ -9,7 +9,7 @@ type Inscription struct {
 	Delegate        *InscriptionId
 	Metadata        []byte
 	Metaprotocol    string
-	Parent          *InscriptionId
+	Parent          *InscriptionId // in 0.14, inscription has only one parent
 	Pointer         *uint64
 }
 
@@ -18,9 +18,9 @@ type InscriptionEntry struct {
 	Number          int64
 	SequenceNumber  uint64
 	Cursed          bool
-	Vindicated      bool
+	CursedForBRC20  bool
 	CreatedAt       time.Time
 	CreatedAtHeight uint64
-	TransferCount   uint32
 	Inscription     Inscription
+	TransferCount   uint32
 }
