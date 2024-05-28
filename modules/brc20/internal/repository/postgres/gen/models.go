@@ -54,28 +54,42 @@ type Brc20IndexerState struct {
 	CreatedAt        pgtype.Timestamptz
 }
 
-type Brc20Inscription struct {
+type Brc20InscriptionEntry struct {
 	Id              string
 	Number          int64
 	SequenceNumber  int64
 	Delegate        pgtype.Text
 	Metadata        []byte
 	Metaprotocol    pgtype.Text
-	Parent          pgtype.Text
+	Parents         []string
 	Pointer         pgtype.Int8
 	Content         []byte
-	ContentType     string
-	TransferCount   int32
+	ContentEncoding pgtype.Text
+	ContentType     pgtype.Text
+	Cursed          bool
+	CursedForBrc20  bool
 	CreatedAt       pgtype.Timestamp
 	CreatedAtHeight int32
 }
 
-type Brc20InscriptionLocation struct {
-	InscriptionID string
+type Brc20InscriptionEntryState struct {
+	Id            string
 	BlockHeight   int32
-	TxHash        string
-	TxIdx         int32
-	SatOffset     int64
+	TransferCount int32
+}
+
+type Brc20InscriptionTransfer struct {
+	InscriptionID     string
+	BlockHeight       int32
+	OldSatpointTxHash pgtype.Text
+	OldSatpointOutIdx pgtype.Int4
+	OldSatpointOffset pgtype.Int8
+	NewSatpointTxHash pgtype.Text
+	NewSatpointOutIdx pgtype.Int4
+	NewSatpointOffset pgtype.Int8
+	NewPkscript       string
+	NewOutputValue    int64
+	SentAsFee         bool
 }
 
 type Brc20MintEvent struct {
@@ -90,6 +104,13 @@ type Brc20MintEvent struct {
 	Pkscript      string
 	Amount        pgtype.Numeric
 	ParentID      pgtype.Text
+}
+
+type Brc20ProcessorStat struct {
+	BlockHeight             int32
+	CursedInscriptionCount  int32
+	BlessedInscriptionCount int32
+	LostSats                int64
 }
 
 type Brc20Ticker struct {

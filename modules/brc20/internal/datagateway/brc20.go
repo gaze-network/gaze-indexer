@@ -23,14 +23,13 @@ type BRC20DataGatewayWithTx interface {
 
 type BRC20ReaderDataGateway interface {
 	GetProcessorStats(ctx context.Context) (*entity.ProcessorStats, error)
-
-	GetInscriptionsInOutPoint(ctx context.Context, outPoint wire.OutPoint) (map[ordinals.SatPoint]ordinals.InscriptionId, error)
+	GetInscriptionIdsInOutPoint(ctx context.Context, outPoint wire.OutPoint) (map[ordinals.SatPoint][]ordinals.InscriptionId, error)
 	GetInscriptionEntryById(ctx context.Context, id ordinals.InscriptionId) (*ordinals.InscriptionEntry, error)
 }
 
 type BRC20WriterDataGateway interface {
+	CreateProcessorStats(ctx context.Context, stats *entity.ProcessorStats) error
 	CreateInscriptionEntries(ctx context.Context, blockHeight uint64, entries []*ordinals.InscriptionEntry) error
 	CreateInscriptionEntryStates(ctx context.Context, blockHeight uint64, entryStates []*ordinals.InscriptionEntry) error
 	CreateInscriptionTransfers(ctx context.Context, transfers []*entity.InscriptionTransfer) error
-	CreateProcessorStats(ctx context.Context, stats *entity.ProcessorStats) error
 }

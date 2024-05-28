@@ -24,14 +24,15 @@ CREATE TABLE IF NOT EXISTS "brc20_indexed_blocks" (
 	"hash" TEXT NOT NULL,
 	"prev_hash" TEXT NOT NULL,
 	"event_hash" TEXT NOT NULL,
-	"cumulative_event_hash" TEXT NOT NULL,
+	"cumulative_event_hash" TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS "brc20_processor_stats" (
 	"block_height" INT NOT NULL PRIMARY KEY,
 	"cursed_inscription_count" INT NOT NULL,
 	"blessed_inscription_count" INT NOT NULL,
-)
+	"lost_sats" BIGINT NOT NULL
+);
 
 CREATE TABLE IF NOT EXISTS "brc20_tickers" (
 	"tick" TEXT NOT NULL PRIMARY KEY, -- lowercase of original_tick
@@ -124,30 +125,32 @@ CREATE TABLE IF NOT EXISTS "brc20_inscription_entries" (
 	"parents" TEXT[], -- parent inscription id, 0.14 only supports 1 parent per inscription
 	"pointer" BIGINT,
 	"content" JSONB NOT NULL, -- can use jsonb because we only track brc20 inscriptions
-	"content_type" TEXT NOT NULL,
+	"content_encoding" TEXT,
+	"content_type" TEXT,
 	"cursed" BOOLEAN NOT NULL, -- inscriptions after jubilee are no longer cursed in 0.14, which affects inscription number
 	"cursed_for_brc20" BOOLEAN NOT NULL, -- however, inscriptions that would normally be cursed are still considered cursed for brc20
 	"created_at" TIMESTAMP NOT NULL,
 	"created_at_height" INT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS "brc20_inscription_states" (
-	"id" TEXT NOT NULL PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS "brc20_inscription_entry_states" (
+	"id" TEXT NOT NULL,
 	"block_height" INT NOT NULL,
 	"transfer_count" INT NOT NULL,
+	PRIMARY KEY ("id", "block_height")
 );
 
 CREATE TABLE IF NOT EXISTS "brc20_inscription_transfers" (
 	"inscription_id" TEXT NOT NULL,
 	"block_height" INT NOT NULL,
-	"old_satpoint_tx_hash" TEXT NOT NULL,
-	"old_satpoint_out_idx" INT NOT NULL,
-	"old_satpoint_offset" BIGINT NOT NULL,
-	"new_satpoint_tx_hash" TEXT NOT NULL,
-	"new_satpoint_out_idx" INT NOT NULL,
-	"new_satpoint_offset" BIGINT NOT NULL,
+	"old_satpoint_tx_hash" TEXT,
+	"old_satpoint_out_idx" INT,
+	"old_satpoint_offset" BIGINT,
+	"new_satpoint_tx_hash" TEXT,
+	"new_satpoint_out_idx" INT,
+	"new_satpoint_offset" BIGINT,
 	"new_pkscript" TEXT NOT NULL,
-	"new_output_value" DECIMAL NOT NULL
+	"new_output_value" BIGINT NOT NULL,
 	"sent_as_fee" BOOLEAN NOT NULL,
 	PRIMARY KEY ("inscription_id", "block_height")
 );

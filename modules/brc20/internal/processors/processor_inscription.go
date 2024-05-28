@@ -48,27 +48,29 @@ func (p *Processor) processTx(ctx context.Context, tx *types.Transaction, blockH
 			continue
 		}
 
-		inscriptions, err := p.getInscriptionsInOutPoint(ctx, inputOutPoint)
+		inscriptions, err := p.getInscriptionIdsInOutPoint(ctx, inputOutPoint)
 		if err != nil {
 			return errors.Wrap(err, "failed to get inscriptions in outpoint")
 		}
-		for satPoint, inscriptionId := range inscriptions {
+		for satPoint, inscriptionIds := range inscriptions {
 			offset := totalInputValue + satPoint.Offset
-			floatingInscriptions = append(floatingInscriptions, &Flotsam{
-				Offset:        offset,
-				InscriptionId: inscriptionId,
-				Tx:            tx,
-				OriginOld: &OriginOld{
-					OldSatPoint: satPoint,
-				},
-			})
-			if _, ok := inscribeOffsets[offset]; !ok {
-				inscribeOffsets[offset] = &struct {
-					inscriptionId ordinals.InscriptionId
-					count         int
-				}{inscriptionId, 0}
+			for _, inscriptionId := range inscriptionIds {
+				floatingInscriptions = append(floatingInscriptions, &Flotsam{
+					Offset:        offset,
+					InscriptionId: inscriptionId,
+					Tx:            tx,
+					OriginOld: &OriginOld{
+						OldSatPoint: satPoint,
+					},
+				})
+				if _, ok := inscribeOffsets[offset]; !ok {
+					inscribeOffsets[offset] = &struct {
+						inscriptionId ordinals.InscriptionId
+						count         int
+					}{inscriptionId, 0}
+				}
+				inscribeOffsets[offset].count++
 			}
-			inscribeOffsets[offset].count++
 		}
 		// offset on output to inscribe new inscriptions from this input
 		offset := totalInputValue
@@ -404,8 +406,8 @@ func (p *Processor) getOutPointValues(ctx context.Context, outPoints []wire.OutP
 	return outPointValues, nil
 }
 
-func (p *Processor) getInscriptionsInOutPoint(ctx context.Context, outPoint wire.OutPoint) (map[ordinals.SatPoint]ordinals.InscriptionId, error) {
-	inscriptions, err := p.brc20Dg.GetInscriptionsInOutPoint(ctx, outPoint)
+func (p *Processor) getInscriptionIdsInOutPoint(ctx context.Context, outPoint wire.OutPoint) (map[ordinals.SatPoint][]ordinals.InscriptionId, error) {
+	inscriptions, err := p.brc20Dg.GetInscriptionIdsInOutPoint(ctx, outPoint)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get inscriptions by outpoint")
 	}
