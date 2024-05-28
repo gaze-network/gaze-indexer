@@ -1,4 +1,4 @@
-package processors
+package brc20
 
 import (
 	"github.com/gaze-network/indexer-network/core/types"
