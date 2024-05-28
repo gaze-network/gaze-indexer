@@ -31,6 +31,7 @@ type Processor struct {
 	bitcoinClient   btcclient.Contract
 	network         common.Network
 	reportingClient *reportingclient.ReportingClient
+	cleanupFuncs    []func(context.Context) error
 
 	newRuneEntries      map[runes.RuneId]*runes.RuneEntry
 	newRuneEntryStates  map[runes.RuneId]*runes.RuneEntry
@@ -40,13 +41,14 @@ type Processor struct {
 	newRuneTxs          []*entity.RuneTransaction
 }
 
-func NewProcessor(runesDg datagateway.RunesDataGateway, indexerInfoDg datagateway.IndexerInfoDataGateway, bitcoinClient btcclient.Contract, network common.Network, reportingClient *reportingclient.ReportingClient) *Processor {
+func NewProcessor(runesDg datagateway.RunesDataGateway, indexerInfoDg datagateway.IndexerInfoDataGateway, bitcoinClient btcclient.Contract, network common.Network, reportingClient *reportingclient.ReportingClient, cleanupFuncs []func(context.Context) error) *Processor {
 	return &Processor{
 		runesDg:             runesDg,
 		indexerInfoDg:       indexerInfoDg,
 		bitcoinClient:       bitcoinClient,
 		network:             network,
 		reportingClient:     reportingClient,
+		cleanupFuncs:        cleanupFuncs,
 		newRuneEntries:      make(map[runes.RuneId]*runes.RuneEntry),
 		newRuneEntryStates:  make(map[runes.RuneId]*runes.RuneEntry),
 		newOutPointBalances: make(map[wire.OutPoint][]*entity.OutPointBalance),
@@ -227,4 +229,14 @@ func (p *Processor) RevertData(ctx context.Context, from int64) error {
 		return errors.Wrap(err, "failed to commit transaction")
 	}
 	return nil
+}
+
+func (p *Processor) Shutdown(ctx context.Context) error {
+	var errs []error
+	for _, cleanup := range p.cleanupFuncs {
+		if err := cleanup(ctx); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	return errors.WithStack(errors.Join(errs...))
 }
