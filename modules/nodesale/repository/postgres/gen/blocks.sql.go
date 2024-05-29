@@ -9,6 +9,22 @@ import (
 	"context"
 )
 
+const addBlock = `-- name: AddBlock :exec
+INSERT INTO blocks("block_height", "block_hash", "module")
+VALUES ($1, $2, $3)
+`
+
+type AddBlockParams struct {
+	BlockHeight int32
+	BlockHash   string
+	Module      string
+}
+
+func (q *Queries) AddBlock(ctx context.Context, arg AddBlockParams) error {
+	_, err := q.db.Exec(ctx, addBlock, arg.BlockHeight, arg.BlockHash, arg.Module)
+	return err
+}
+
 const getBlock = `-- name: GetBlock :one
 SELECT block_height, block_hash, module FROM blocks
 WHERE "block_height" = $1

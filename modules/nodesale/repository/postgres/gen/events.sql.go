@@ -7,7 +7,40 @@ package gen
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
+
+const addEvent = `-- name: AddEvent :exec
+INSERT INTO events("tx_hash", "block_height", "tx_index", "action", 
+                    "raw_message", "parsed_message", "block_timestamp", "block_hash")
+VALUES ( $1, $2, $3, $4, $5, $6, $7, $8)
+`
+
+type AddEventParams struct {
+	TxHash         string
+	BlockHeight    int32
+	TxIndex        int32
+	Action         int32
+	RawMessage     []byte
+	ParsedMessage  []byte
+	BlockTimestamp pgtype.Timestamp
+	BlockHash      string
+}
+
+func (q *Queries) AddEvent(ctx context.Context, arg AddEventParams) error {
+	_, err := q.db.Exec(ctx, addEvent,
+		arg.TxHash,
+		arg.BlockHeight,
+		arg.TxIndex,
+		arg.Action,
+		arg.RawMessage,
+		arg.ParsedMessage,
+		arg.BlockTimestamp,
+		arg.BlockHash,
+	)
+	return err
+}
 
 const removeEventsFromBlock = `-- name: RemoveEventsFromBlock :execrows
 DELETE FROM events

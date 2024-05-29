@@ -11,7 +11,7 @@ import (
 type Block struct {
 	BlockHeight int32
 	BlockHash   string
-	Module      pgtype.Text
+	Module      string
 }
 
 type Event struct {
@@ -41,7 +41,7 @@ type NodeSale struct {
 	TxIndex         int32
 	StartsAt        pgtype.Timestamp
 	EndsAt          pgtype.Timestamp
-	Tiers           []byte
+	Tiers           [][]byte
 	SellerPublicKey string
 	MaxPerAddress   int32
 	DeployTxHash    string

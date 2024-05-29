@@ -9,6 +9,9 @@ import (
 )
 
 type Querier interface {
+	AddBlock(ctx context.Context, arg AddBlockParams) error
+	AddEvent(ctx context.Context, arg AddEventParams) error
+	AddNodesale(ctx context.Context, arg AddNodesaleParams) error
 	ClearDelegate(ctx context.Context) (int64, error)
 	GetBlock(ctx context.Context, blockHeight int32) (Block, error)
 	GetLastProcessedBlock(ctx context.Context) (Block, error)

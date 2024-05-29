@@ -1,9 +1,9 @@
 BEGIN;
 
 CREATE TABLE IF NOT EXISTS blocks (
-    "block_height" INTEGER,
-    "block_hash" TEXT,
-    "module" TEXT,
+    "block_height" INTEGER NOT NULL,
+    "block_hash" TEXT NOT NULL,
+    "module" TEXT NOT NULL,
     PRIMARY KEY("block_height", "block_hash")
 );
 
@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS node_sales (
     "tx_index" INTEGER NOT NULL,
     "starts_at" TIMESTAMP NOT NULL,
     "ends_at" TIMESTAMP NOT NULL,
-    "tiers" JSONB NOT NULL,
+    "tiers" JSONB[] NOT NULL,
     "seller_public_key" TEXT NOT NULL,
     "max_per_address" INTEGER NOT NULL,
     "deploy_tx_hash" TEXT NOT NULL REFERENCES events(tx_hash) ON DELETE CASCADE,
