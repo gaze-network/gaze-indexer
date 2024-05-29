@@ -329,32 +329,36 @@ func (p *Processor) updateInscriptionLocation(ctx context.Context, newSatPoint o
 			inscriptionNumber = int64(p.blessedInscriptionCount)
 			p.blessedInscriptionCount++
 		}
-		// insert only brc20 inscriptions to save space
-		if isBRC20Inscription(origin.Inscription) {
-			transfer := &entity.InscriptionTransfer{
-				InscriptionId:  flotsam.InscriptionId,
-				BlockHeight:    uint64(tx.BlockHeight),
-				OldSatPoint:    ordinals.SatPoint{},
-				NewSatPoint:    newSatPoint,
-				NewPkScript:    txOut.PkScript,
-				NewOutputValue: uint64(txOut.Value),
-				SentAsFee:      sentAsFee,
-			}
-			entry := &ordinals.InscriptionEntry{
-				Id:              flotsam.InscriptionId,
-				Number:          inscriptionNumber,
-				SequenceNumber:  sequenceNumber,
-				Cursed:          origin.Cursed,
-				CursedForBRC20:  origin.CursedForBRC20,
-				CreatedAt:       blockHeader.Timestamp,
-				CreatedAtHeight: uint64(tx.BlockHeight),
-				Inscription:     origin.Inscription,
-				TransferCount:   1, // count inscription as first transfer
-			}
-			p.newInscriptionTransfers = append(p.newInscriptionTransfers, transfer)
-			p.newInscriptionEntries[entry.Id] = entry
-			p.newInscriptionEntryStates[entry.Id] = entry
+		// if not valid brc20 inscription, delete content to save space
+		if !isBRC20Inscription(origin.Inscription) {
+			origin.Inscription.Content = nil
+			origin.Inscription.ContentType = ""
+			origin.Inscription.ContentEncoding = ""
 		}
+		transfer := &entity.InscriptionTransfer{
+			InscriptionId:  flotsam.InscriptionId,
+			BlockHeight:    uint64(tx.BlockHeight),
+			OldSatPoint:    ordinals.SatPoint{},
+			NewSatPoint:    newSatPoint,
+			NewPkScript:    txOut.PkScript,
+			NewOutputValue: uint64(txOut.Value),
+			SentAsFee:      sentAsFee,
+		}
+		entry := &ordinals.InscriptionEntry{
+			Id:              flotsam.InscriptionId,
+			Number:          inscriptionNumber,
+			SequenceNumber:  sequenceNumber,
+			Cursed:          origin.Cursed,
+			CursedForBRC20:  origin.CursedForBRC20,
+			CreatedAt:       blockHeader.Timestamp,
+			CreatedAtHeight: uint64(tx.BlockHeight),
+			Inscription:     origin.Inscription,
+			TransferCount:   1, // count inscription as first transfer
+		}
+		p.newInscriptionTransfers = append(p.newInscriptionTransfers, transfer)
+		p.newInscriptionEntries[entry.Id] = entry
+		p.newInscriptionEntryStates[entry.Id] = entry
+
 		return nil
 	}
 	panic("unreachable")

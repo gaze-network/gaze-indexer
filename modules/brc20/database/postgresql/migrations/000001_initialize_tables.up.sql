@@ -118,7 +118,7 @@ CREATE TABLE IF NOT EXISTS "brc20_inscription_entries" (
 	"metaprotocol" TEXT,
 	"parents" TEXT[], -- parent inscription id, 0.14 only supports 1 parent per inscription
 	"pointer" BIGINT,
-	"content" JSONB NOT NULL, -- can use jsonb because we only track brc20 inscriptions
+	"content" JSONB, -- can use jsonb because we only track brc20 inscriptions
 	"content_encoding" TEXT,
 	"content_type" TEXT,
 	"cursed" BOOLEAN NOT NULL, -- inscriptions after jubilee are no longer cursed in 0.14, which affects inscription number
