@@ -17,7 +17,7 @@ import (
 
 type migrateDownCmdOptions struct {
 	DatabaseURL string
-	Runes       bool
+	Modules     string
 	All         bool
 }
 
@@ -59,7 +59,7 @@ func NewMigrateDownCommand() *cobra.Command {
 	}
 
 	flags := cmd.Flags()
-	flags.BoolVar(&opts.Runes, "runes", false, "Apply Runes down migrations")
+	flags.StringVar(&opts.Modules, "modules", "", "Modules to apply up migrations")
 	flags.StringVar(&opts.DatabaseURL, "database", "", "Database url to run migration on")
 	flags.BoolVar(&opts.All, "all", false, "Confirm apply ALL down migrations without prompt")
 
@@ -86,6 +86,8 @@ func migrateDownHandler(opts *migrateDownCmdOptions, _ *cobra.Command, args migr
 			return nil
 		}
 	}
+
+	modules := strings.Split(opts.Modules, ",")
 
 	applyDownMigrations := func(module string, sourcePath string, migrationTable string) error {
 		newDatabaseURL := cloneURLWithQuery(databaseURL, url.Values{"x-migrations-table": {migrationTable}})
@@ -116,8 +118,13 @@ func migrateDownHandler(opts *migrateDownCmdOptions, _ *cobra.Command, args migr
 		return nil
 	}
 
-	if opts.Runes {
+	if lo.Contains(modules, "runes") {
 		if err := applyDownMigrations("Runes", runesMigrationSource, "runes_schema_migrations"); err != nil {
+			return errors.WithStack(err)
+		}
+	}
+	if lo.Contains(modules, "brc20") {
+		if err := applyDownMigrations("BRC20", brc20MigrationSource, "brc20_schema_migrations"); err != nil {
 			return errors.WithStack(err)
 		}
 	}

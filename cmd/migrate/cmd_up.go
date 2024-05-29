@@ -11,12 +11,13 @@ import (
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
+	"github.com/samber/lo"
 	"github.com/spf13/cobra"
 )
 
 type migrateUpCmdOptions struct {
 	DatabaseURL string
-	Runes       bool
+	Modules     string
 }
 
 type migrateUpCmdArgs struct {
@@ -54,7 +55,7 @@ func NewMigrateUpCommand() *cobra.Command {
 	}
 
 	flags := cmd.Flags()
-	flags.BoolVar(&opts.Runes, "runes", false, "Apply Runes up migrations")
+	flags.StringVar(&opts.Modules, "modules", "", "Modules to apply up migrations")
 	flags.StringVar(&opts.DatabaseURL, "database", "", "Database url to run migration on")
 
 	return cmd
@@ -71,6 +72,8 @@ func migrateUpHandler(opts *migrateUpCmdOptions, _ *cobra.Command, args migrateU
 	if _, ok := supportedDrivers[databaseURL.Scheme]; !ok {
 		return errors.Errorf("unsupported database driver: %s", databaseURL.Scheme)
 	}
+
+	modules := strings.Split(opts.Modules, ",")
 
 	applyUpMigrations := func(module string, sourcePath string, migrationTable string) error {
 		newDatabaseURL := cloneURLWithQuery(databaseURL, url.Values{"x-migrations-table": {migrationTable}})
@@ -101,8 +104,13 @@ func migrateUpHandler(opts *migrateUpCmdOptions, _ *cobra.Command, args migrateU
 		return nil
 	}
 
-	if opts.Runes {
+	if lo.Contains(modules, "runes") {
 		if err := applyUpMigrations("Runes", runesMigrationSource, "runes_schema_migrations"); err != nil {
+			return errors.WithStack(err)
+		}
+	}
+	if lo.Contains(modules, "brc20") {
+		if err := applyUpMigrations("BRC20", brc20MigrationSource, "brc20_schema_migrations"); err != nil {
 			return errors.WithStack(err)
 		}
 	}

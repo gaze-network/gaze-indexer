@@ -4,6 +4,7 @@ import "net/url"
 
 const (
 	runesMigrationSource = "modules/runes/database/postgresql/migrations"
+	brc20MigrationSource = "modules/brc20/database/postgresql/migrations"
 )
 
 func cloneURLWithQuery(u *url.URL, newQuery url.Values) *url.URL {
