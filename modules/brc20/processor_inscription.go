@@ -358,15 +358,23 @@ func (p *Processor) updateInscriptionLocation(ctx context.Context, newSatPoint o
 	panic("unreachable")
 }
 
+type brc20Inscription struct {
+	P string `json:"p"`
+}
+
 func isBRC20Inscription(inscription ordinals.Inscription) bool {
 	// attempt to parse content as json
-	if inscription.Content != nil {
-		var parsed interface{}
-		if err := json.Unmarshal(inscription.Content, &parsed); err == nil {
-			return true
-		}
+	if inscription.Content == nil {
+		return false
 	}
-	return false
+	var parsed brc20Inscription
+	if err := json.Unmarshal(inscription.Content, &parsed); err != nil {
+		return false
+	}
+	if parsed.P != "brc-20" {
+		return false
+	}
+	return true
 }
 
 func (p *Processor) getOutPointValues(ctx context.Context, outPoints []wire.OutPoint) (map[wire.OutPoint]uint64, error) {
@@ -407,6 +415,9 @@ func (p *Processor) getOutPointValues(ctx context.Context, outPoints []wire.OutP
 			}
 			return nil
 		})
+	}
+	if err := eg.Wait(); err != nil {
+		return nil, errors.WithStack(err)
 	}
 	for i := range outPoints {
 		if result[outPoints[i]] == 0 {
