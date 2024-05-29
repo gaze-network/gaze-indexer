@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"slices"
+	"sync"
 
 	"github.com/btcsuite/btcd/blockchain"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
@@ -16,6 +17,7 @@ import (
 	"github.com/gaze-network/indexer-network/pkg/logger"
 	"github.com/gaze-network/indexer-network/pkg/logger/slogx"
 	"github.com/samber/lo"
+	"golang.org/x/sync/errgroup"
 )
 
 func (p *Processor) processInscriptionTx(ctx context.Context, tx *types.Transaction, blockHeader types.BlockHeader) error {
@@ -370,40 +372,48 @@ func isBRC20Inscription(inscription ordinals.Inscription) bool {
 func (p *Processor) getOutPointValues(ctx context.Context, outPoints []wire.OutPoint) (map[wire.OutPoint]uint64, error) {
 	// try to get from cache if exists
 	cacheValues := p.outPointValueCache.MGet(outPoints)
-	outPointValues := make(map[wire.OutPoint]uint64)
+	result := make(map[wire.OutPoint]uint64)
 
 	outPointsToFetch := make([]wire.OutPoint, 0)
 	for i, outPoint := range outPoints {
 		if cacheValues[i] != 0 {
-			outPointValues[outPoint] = cacheValues[i]
+			result[outPoint] = cacheValues[i]
 		} else {
 			outPointsToFetch = append(outPointsToFetch, outPoint)
 		}
 	}
-	// TODO: optimize fetching outpoint values
+	eg, ectx := errgroup.WithContext(ctx)
 	txHashes := make(map[chainhash.Hash]struct{})
 	for _, outPoint := range outPointsToFetch {
 		txHashes[outPoint.Hash] = struct{}{}
 	}
 	txOutsByHash := make(map[chainhash.Hash][]*types.TxOut)
+	var mutex sync.Mutex
 	for txHash := range txHashes {
-		txOuts, err := p.btcClient.GetTransactionOutputs(ctx, txHash)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to get transaction")
-		}
-		txOutsByHash[txHash] = txOuts
+		txHash := txHash
+		eg.Go(func() error {
+			txOuts, err := p.btcClient.GetTransactionOutputs(ectx, txHash)
+			if err != nil {
+				return errors.Wrap(err, "failed to get transaction outputs")
+			}
 
-		// update cache
-		for i, txOut := range txOuts {
-			p.outPointValueCache.Add(wire.OutPoint{Hash: txHash, Index: uint32(i)}, uint64(txOut.Value))
-		}
+			// update cache
+			mutex.Lock()
+			defer mutex.Unlock()
+
+			txOutsByHash[txHash] = txOuts
+			for i, txOut := range txOuts {
+				p.outPointValueCache.Add(wire.OutPoint{Hash: txHash, Index: uint32(i)}, uint64(txOut.Value))
+			}
+			return nil
+		})
 	}
 	for i := range outPoints {
-		if outPointValues[outPoints[i]] == 0 {
-			outPointValues[outPoints[i]] = uint64(txOutsByHash[outPoints[i].Hash][outPoints[i].Index].Value)
+		if result[outPoints[i]] == 0 {
+			result[outPoints[i]] = uint64(txOutsByHash[outPoints[i].Hash][outPoints[i].Index].Value)
 		}
 	}
-	return outPointValues, nil
+	return result, nil
 }
 
 func (p *Processor) getInscriptionIdsInOutPoints(ctx context.Context, outPoints []wire.OutPoint) (map[wire.OutPoint]map[ordinals.SatPoint][]ordinals.InscriptionId, error) {
