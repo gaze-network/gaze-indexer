@@ -28,8 +28,6 @@ var startingBlockData = map[common.Network]StartingBlockData{
 			BlessedInscriptionCount: 348020,
 			LostSats:                0, // TODO: need to check lost sats at block 779831
 		},
-		// Height: 767429, // inscriptions start block
-		// Hash:   *utils.Must(chainhash.NewHashFromStr("00000000000000000002b35aef66eb15cd2b232a800f75a2f25cedca4cfe52c4")),
 	},
 	common.NetworkTestnet: {
 		Height: 2413342,

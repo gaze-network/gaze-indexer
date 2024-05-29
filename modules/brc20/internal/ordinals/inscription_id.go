@@ -30,7 +30,6 @@ var ErrInscriptionIdInvalidSeparator = fmt.Errorf("invalid inscription id: must 
 func NewInscriptionIdFromString(s string) (InscriptionId, error) {
 	parts := strings.SplitN(s, "i", 2)
 	if len(parts) != 2 {
-		fmt.Print(len(parts))
 		return InscriptionId{}, errors.WithStack(ErrInscriptionIdInvalidSeparator)
 	}
 	txHash, err := chainhash.NewHashFromStr(parts[0])

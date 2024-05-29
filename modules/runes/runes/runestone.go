@@ -1,7 +1,6 @@
 package runes
 
 import (
-	"fmt"
 	"log"
 	"slices"
 	"unicode/utf8"
@@ -335,7 +334,6 @@ func runestonePayloadFromTx(tx *types.Transaction) ([]byte, Flaws) {
 			continue
 		}
 		if err := tokenizer.Err(); err != nil {
-			fmt.Println(err.Error())
 			continue
 		}
 		if opCode := tokenizer.Opcode(); opCode != RUNESTONE_PAYLOAD_MAGIC_NUMBER {
