@@ -2,27 +2,21 @@ BEGIN;
 
 -- Indexer Client Information
 
-CREATE TABLE IF NOT EXISTS "brc20_indexer_stats" (
+CREATE TABLE IF NOT EXISTS "brc20_indexer_states" (
 	"id" BIGSERIAL PRIMARY KEY,
 	"client_version" TEXT NOT NULL,
 	"network" TEXT NOT NULL,
-	"created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS "brc20_indexer_state" (
-	"id" BIGSERIAL PRIMARY KEY,
 	"db_version" INT NOT NULL,
 	"event_hash_version" INT NOT NULL,
 	"created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
-CREATE INDEX IF NOT EXISTS brc20_indexer_state_created_at_idx ON "brc20_indexer_state" USING BTREE ("created_at" DESC);
+CREATE INDEX IF NOT EXISTS brc20_indexer_state_created_at_idx ON "brc20_indexer_states" USING BTREE ("created_at" DESC);
 
 -- BRC20 data
 
 CREATE TABLE IF NOT EXISTS "brc20_indexed_blocks" (
 	"height" INT NOT NULL PRIMARY KEY,
 	"hash" TEXT NOT NULL,
-	"prev_hash" TEXT NOT NULL,
 	"event_hash" TEXT NOT NULL,
 	"cumulative_event_hash" TEXT NOT NULL
 );

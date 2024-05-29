@@ -9,8 +9,29 @@ import (
 	"context"
 )
 
+const createIndexerState = `-- name: CreateIndexerState :exec
+INSERT INTO brc20_indexer_states (client_version, network, db_version, event_hash_version) VALUES ($1, $2, $3, $4)
+`
+
+type CreateIndexerStateParams struct {
+	ClientVersion    string
+	Network          string
+	DbVersion        int32
+	EventHashVersion int32
+}
+
+func (q *Queries) CreateIndexerState(ctx context.Context, arg CreateIndexerStateParams) error {
+	_, err := q.db.Exec(ctx, createIndexerState,
+		arg.ClientVersion,
+		arg.Network,
+		arg.DbVersion,
+		arg.EventHashVersion,
+	)
+	return err
+}
+
 const getLatestIndexerState = `-- name: GetLatestIndexerState :one
-SELECT id, db_version, event_hash_version, created_at FROM brc20_indexer_state ORDER BY created_at DESC LIMIT 1
+SELECT id, client_version, network, db_version, event_hash_version, created_at FROM brc20_indexer_states ORDER BY created_at DESC LIMIT 1
 `
 
 func (q *Queries) GetLatestIndexerState(ctx context.Context) (Brc20IndexerState, error) {
@@ -18,53 +39,11 @@ func (q *Queries) GetLatestIndexerState(ctx context.Context) (Brc20IndexerState,
 	var i Brc20IndexerState
 	err := row.Scan(
 		&i.Id,
+		&i.ClientVersion,
+		&i.Network,
 		&i.DbVersion,
 		&i.EventHashVersion,
 		&i.CreatedAt,
 	)
 	return i, err
-}
-
-const getLatestIndexerStats = `-- name: GetLatestIndexerStats :one
-SELECT "client_version", "network" FROM brc20_indexer_stats ORDER BY id DESC LIMIT 1
-`
-
-type GetLatestIndexerStatsRow struct {
-	ClientVersion string
-	Network       string
-}
-
-func (q *Queries) GetLatestIndexerStats(ctx context.Context) (GetLatestIndexerStatsRow, error) {
-	row := q.db.QueryRow(ctx, getLatestIndexerStats)
-	var i GetLatestIndexerStatsRow
-	err := row.Scan(&i.ClientVersion, &i.Network)
-	return i, err
-}
-
-const setIndexerState = `-- name: SetIndexerState :exec
-INSERT INTO brc20_indexer_state (db_version, event_hash_version) VALUES ($1, $2)
-`
-
-type SetIndexerStateParams struct {
-	DbVersion        int32
-	EventHashVersion int32
-}
-
-func (q *Queries) SetIndexerState(ctx context.Context, arg SetIndexerStateParams) error {
-	_, err := q.db.Exec(ctx, setIndexerState, arg.DbVersion, arg.EventHashVersion)
-	return err
-}
-
-const updateIndexerStats = `-- name: UpdateIndexerStats :exec
-INSERT INTO brc20_indexer_stats (client_version, network) VALUES ($1, $2)
-`
-
-type UpdateIndexerStatsParams struct {
-	ClientVersion string
-	Network       string
-}
-
-func (q *Queries) UpdateIndexerStats(ctx context.Context, arg UpdateIndexerStatsParams) error {
-	_, err := q.db.Exec(ctx, updateIndexerStats, arg.ClientVersion, arg.Network)
-	return err
 }

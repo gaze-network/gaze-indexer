@@ -35,20 +35,14 @@ type Brc20DeployEvent struct {
 type Brc20IndexedBlock struct {
 	Height              int32
 	Hash                string
-	PrevHash            string
 	EventHash           string
 	CumulativeEventHash string
 }
 
-type Brc20IndexerStat struct {
-	Id            int64
-	ClientVersion string
-	Network       string
-	CreatedAt     pgtype.Timestamptz
-}
-
 type Brc20IndexerState struct {
 	Id               int64
+	ClientVersion    string
+	Network          string
 	DbVersion        int32
 	EventHashVersion int32
 	CreatedAt        pgtype.Timestamptz

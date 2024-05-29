@@ -7,12 +7,66 @@ import (
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/wire"
 	"github.com/cockroachdb/errors"
+	"github.com/gaze-network/indexer-network/common"
 	"github.com/gaze-network/indexer-network/modules/brc20/internal/entity"
 	"github.com/gaze-network/indexer-network/modules/brc20/internal/ordinals"
 	"github.com/gaze-network/indexer-network/modules/brc20/internal/repository/postgres/gen"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/samber/lo"
 )
+
+func mapIndexerStatesModelToType(src gen.Brc20IndexerState) entity.IndexerState {
+	var createdAt time.Time
+	if src.CreatedAt.Valid {
+		createdAt = src.CreatedAt.Time
+	}
+	return entity.IndexerState{
+		ClientVersion:    src.ClientVersion,
+		Network:          common.Network(src.Network),
+		DBVersion:        int32(src.DbVersion),
+		EventHashVersion: int32(src.EventHashVersion),
+		CreatedAt:        createdAt,
+	}
+}
+
+func mapIndexerStatesTypeToParams(src entity.IndexerState) gen.CreateIndexerStateParams {
+	return gen.CreateIndexerStateParams{
+		ClientVersion:    src.ClientVersion,
+		Network:          string(src.Network),
+		DbVersion:        int32(src.DBVersion),
+		EventHashVersion: int32(src.EventHashVersion),
+	}
+}
+
+func mapIndexedBlockModelToType(src gen.Brc20IndexedBlock) (entity.IndexedBlock, error) {
+	hash, err := chainhash.NewHashFromStr(src.Hash)
+	if err != nil {
+		return entity.IndexedBlock{}, errors.Wrap(err, "invalid block hash")
+	}
+	eventHash, err := chainhash.NewHashFromStr(src.EventHash)
+	if err != nil {
+		return entity.IndexedBlock{}, errors.Wrap(err, "invalid event hash")
+	}
+	cumulativeEventHash, err := chainhash.NewHashFromStr(src.CumulativeEventHash)
+	if err != nil {
+		return entity.IndexedBlock{}, errors.Wrap(err, "invalid cumulative event hash")
+	}
+	return entity.IndexedBlock{
+		Height:              uint64(src.Height),
+		Hash:                *hash,
+		EventHash:           *eventHash,
+		CumulativeEventHash: *cumulativeEventHash,
+	}, nil
+}
+
+func mapIndexedBlockTypeToParams(src entity.IndexedBlock) gen.CreateIndexedBlockParams {
+	return gen.CreateIndexedBlockParams{
+		Height:              int32(src.Height),
+		Hash:                src.Hash.String(),
+		EventHash:           src.EventHash.String(),
+		CumulativeEventHash: src.CumulativeEventHash.String(),
+	}
+}
 
 func mapProcessorStatsModelToType(src gen.Brc20ProcessorStat) entity.ProcessorStats {
 	return entity.ProcessorStats{

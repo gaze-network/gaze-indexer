@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"slices"
-	"strings"
 
 	"github.com/btcsuite/btcd/blockchain"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
@@ -14,12 +13,34 @@ import (
 	"github.com/gaze-network/indexer-network/core/types"
 	"github.com/gaze-network/indexer-network/modules/brc20/internal/entity"
 	"github.com/gaze-network/indexer-network/modules/brc20/internal/ordinals"
+	"github.com/gaze-network/indexer-network/pkg/logger"
+	"github.com/gaze-network/indexer-network/pkg/logger/slogx"
 	"github.com/samber/lo"
 )
 
-func (p *Processor) processTx(ctx context.Context, tx *types.Transaction, blockHeader types.BlockHeader) error {
-	floatingInscriptions := make([]*Flotsam, 0)
+func (p *Processor) processInscriptionTx(ctx context.Context, tx *types.Transaction, blockHeader types.BlockHeader) error {
+	ctx = logger.WithContext(ctx, slogx.String("tx_hash", tx.TxHash.String()))
 	envelopes := ordinals.ParseEnvelopesFromTx(tx)
+	inputOutPoints := lo.Map(tx.TxIn, func(txIn *types.TxIn, _ int) wire.OutPoint {
+		return wire.OutPoint{
+			Hash:  txIn.PreviousOutTxHash,
+			Index: txIn.PreviousOutIndex,
+		}
+	})
+	inscriptionIdsInOutPoints, err := p.getInscriptionIdsInOutPoints(ctx, inputOutPoints)
+	if err != nil {
+		return errors.Wrap(err, "failed to get inscriptions in outpoints")
+	}
+	if len(envelopes) == 0 && len(inscriptionIdsInOutPoints) == 0 {
+		// no inscription activity, skip
+		return nil
+	}
+	logger.DebugContext(ctx, "Processing new tx",
+		slogx.String("tx_hash", tx.TxHash.String()),
+		slogx.Uint32("tx_index", tx.Index),
+	)
+
+	floatingInscriptions := make([]*Flotsam, 0)
 	totalInputValue := uint64(0)
 	totalOutputValue := lo.SumBy(tx.TxOut, func(txOut *types.TxOut) uint64 { return uint64(txOut.Value) })
 	inscribeOffsets := make(map[uint64]*struct {
@@ -27,12 +48,7 @@ func (p *Processor) processTx(ctx context.Context, tx *types.Transaction, blockH
 		count         int
 	})
 	idCounter := uint32(0)
-	inputValues, err := p.getOutPointValues(ctx, lo.Map(tx.TxIn, func(txIn *types.TxIn, _ int) wire.OutPoint {
-		return wire.OutPoint{
-			Hash:  txIn.PreviousOutTxHash,
-			Index: txIn.PreviousOutIndex,
-		}
-	}))
+	inputValues, err := p.getOutPointValues(ctx, inputOutPoints)
 	if err != nil {
 		return errors.Wrap(err, "failed to get outpoint values")
 	}
@@ -48,11 +64,8 @@ func (p *Processor) processTx(ctx context.Context, tx *types.Transaction, blockH
 			continue
 		}
 
-		inscriptions, err := p.getInscriptionIdsInOutPoint(ctx, inputOutPoint)
-		if err != nil {
-			return errors.Wrap(err, "failed to get inscriptions in outpoint")
-		}
-		for satPoint, inscriptionIds := range inscriptions {
+		inscriptionIdsInOutPoint := inscriptionIdsInOutPoints[inputOutPoint]
+		for satPoint, inscriptionIds := range inscriptionIdsInOutPoint {
 			offset := totalInputValue + satPoint.Offset
 			for _, inscriptionId := range inscriptionIds {
 				floatingInscriptions = append(floatingInscriptions, &Flotsam{
@@ -344,19 +357,6 @@ func (p *Processor) updateInscriptionLocation(ctx context.Context, newSatPoint o
 }
 
 func isBRC20Inscription(inscription ordinals.Inscription) bool {
-	// check content type
-	if inscription.ContentType != "" {
-		contentType := inscription.ContentType
-		if lo.Contains([]string{"text/plain", "application/json"}, contentType) {
-			return true
-		}
-		prefixes := []string{"text/plain;", "application/json;"}
-		for _, prefix := range prefixes {
-			if strings.HasPrefix(contentType, prefix) {
-				return true
-			}
-		}
-	}
 	// attempt to parse content as json
 	if inscription.Content != nil {
 		var parsed interface{}
@@ -406,12 +406,19 @@ func (p *Processor) getOutPointValues(ctx context.Context, outPoints []wire.OutP
 	return outPointValues, nil
 }
 
-func (p *Processor) getInscriptionIdsInOutPoint(ctx context.Context, outPoint wire.OutPoint) (map[ordinals.SatPoint][]ordinals.InscriptionId, error) {
-	inscriptions, err := p.brc20Dg.GetInscriptionIdsInOutPoint(ctx, outPoint)
+func (p *Processor) getInscriptionIdsInOutPoints(ctx context.Context, outPoints []wire.OutPoint) (map[wire.OutPoint]map[ordinals.SatPoint][]ordinals.InscriptionId, error) {
+	inscriptionIds, err := p.brc20Dg.GetInscriptionIdsInOutPoints(ctx, outPoints)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get inscriptions by outpoint")
 	}
-	return inscriptions, nil
+	result := make(map[wire.OutPoint]map[ordinals.SatPoint][]ordinals.InscriptionId)
+	for satPoint, inscriptionIds := range inscriptionIds {
+		if _, ok := result[satPoint.OutPoint]; !ok {
+			result[satPoint.OutPoint] = make(map[ordinals.SatPoint][]ordinals.InscriptionId)
+		}
+		result[satPoint.OutPoint][satPoint] = append(result[satPoint.OutPoint][satPoint], inscriptionIds...)
+	}
+	return result, nil
 }
 
 func (p *Processor) getInscriptionEntryById(ctx context.Context, inscriptionId ordinals.InscriptionId) (*ordinals.InscriptionEntry, error) {

@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/btcsuite/btcd/wire"
+	"github.com/gaze-network/indexer-network/core/types"
 	"github.com/gaze-network/indexer-network/modules/brc20/internal/entity"
 	"github.com/gaze-network/indexer-network/modules/brc20/internal/ordinals"
 )
@@ -22,12 +23,15 @@ type BRC20DataGatewayWithTx interface {
 }
 
 type BRC20ReaderDataGateway interface {
+	GetLatestBlock(ctx context.Context) (types.BlockHeader, error)
+	GetIndexedBlockByHeight(ctx context.Context, height int64) (*entity.IndexedBlock, error)
 	GetProcessorStats(ctx context.Context) (*entity.ProcessorStats, error)
-	GetInscriptionIdsInOutPoint(ctx context.Context, outPoint wire.OutPoint) (map[ordinals.SatPoint][]ordinals.InscriptionId, error)
+	GetInscriptionIdsInOutPoints(ctx context.Context, outPoints []wire.OutPoint) (map[ordinals.SatPoint][]ordinals.InscriptionId, error)
 	GetInscriptionEntryById(ctx context.Context, id ordinals.InscriptionId) (*ordinals.InscriptionEntry, error)
 }
 
 type BRC20WriterDataGateway interface {
+	CreateIndexedBlock(ctx context.Context, block *entity.IndexedBlock) error
 	CreateProcessorStats(ctx context.Context, stats *entity.ProcessorStats) error
 	CreateInscriptionEntries(ctx context.Context, blockHeight uint64, entries []*ordinals.InscriptionEntry) error
 	CreateInscriptionEntryStates(ctx context.Context, blockHeight uint64, entryStates []*ordinals.InscriptionEntry) error

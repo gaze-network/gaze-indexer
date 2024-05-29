@@ -6,8 +6,6 @@ import (
 
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/gaze-network/indexer-network/core/types"
-	"github.com/gaze-network/indexer-network/pkg/logger"
-	"github.com/gaze-network/indexer-network/pkg/logger/slogx"
 	"github.com/samber/lo"
 )
 
@@ -58,7 +56,6 @@ func envelopesFromTapScript(tokenizer txscript.ScriptTokenizer, inputIndex int) 
 		}
 	}
 	if tokenizer.Err() != nil {
-		logger.Warn("failed to parse tapscript", slogx.Error(tokenizer.Err()))
 		return envelopes
 	}
 	return envelopes
