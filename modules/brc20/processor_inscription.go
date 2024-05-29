@@ -33,6 +33,13 @@ func (p *Processor) processInscriptionTx(ctx context.Context, tx *types.Transact
 	if err != nil {
 		return errors.Wrap(err, "failed to get inscriptions in outpoints")
 	}
+	// cache outpoint values for future blocks
+	for outIndex, txOut := range tx.TxOut {
+		p.outPointValueCache.Add(wire.OutPoint{
+			Hash:  tx.TxHash,
+			Index: uint32(outIndex),
+		}, uint64(txOut.Value))
+	}
 	if len(envelopes) == 0 && len(inscriptionIdsInOutPoints) == 0 {
 		// no inscription activity, skip
 		return nil
@@ -230,11 +237,6 @@ func (p *Processor) processInscriptionTx(ctx context.Context, tx *types.Transact
 
 		outputValue = end
 		outputToSumValue = append(outputToSumValue, outputValue)
-
-		p.outPointValueCache.Add(wire.OutPoint{
-			Hash:  tx.TxHash,
-			Index: uint32(outIndex),
-		}, uint64(txOut.Value))
 	}
 
 	for _, loc := range newLocations {
