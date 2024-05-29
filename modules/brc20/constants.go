@@ -4,7 +4,7 @@ import (
 	"github.com/Cleverse/go-utilities/utils"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/gaze-network/indexer-network/common"
-	"github.com/gaze-network/indexer-network/core/types"
+	"github.com/gaze-network/indexer-network/modules/brc20/internal/entity"
 )
 
 const (
@@ -13,13 +13,31 @@ const (
 	EventHashVersion = 1
 )
 
-var startingBlockHeader = map[common.Network]types.BlockHeader{
+type StartingBlockData struct {
+	Height int64
+	Hash   chainhash.Hash
+	Stats  entity.ProcessorStats
+}
+
+var startingBlockData = map[common.Network]StartingBlockData{
 	common.NetworkMainnet: {
-		Height: 767429,
-		Hash:   *utils.Must(chainhash.NewHashFromStr("00000000000000000002b35aef66eb15cd2b232a800f75a2f25cedca4cfe52c4")),
+		Height: 779831, // first brc20 inscription
+		Hash:   *utils.Must(chainhash.NewHashFromStr("00000000000000000003f079883a81997d3238b287ea53904f1ecd3d1f225209")),
+		Stats: entity.ProcessorStats{ // need to seed these stats to keep sequence number the same
+			CursedInscriptionCount:  155,
+			BlessedInscriptionCount: 348020,
+			LostSats:                0, // TODO: need to check lost sats at block 779831
+		},
+		// Height: 767429, // inscriptions start block
+		// Hash:   *utils.Must(chainhash.NewHashFromStr("00000000000000000002b35aef66eb15cd2b232a800f75a2f25cedca4cfe52c4")),
 	},
 	common.NetworkTestnet: {
 		Height: 2413342,
 		Hash:   *utils.Must(chainhash.NewHashFromStr("00000000000022e97030b143af785de812f836dd0651b6ac2b7dd9e90dc9abf9")),
+		Stats: entity.ProcessorStats{
+			CursedInscriptionCount:  0,
+			BlessedInscriptionCount: 0,
+			LostSats:                0,
+		},
 	},
 }

@@ -243,7 +243,7 @@ func (p *Processor) processInscriptionTx(ctx context.Context, tx *types.Transact
 		satPoint := loc.satPoint
 		flotsam := loc.flotsam
 		sentAsFee := loc.sentAsFee
-		// TODO: not sure if we still need to handle pointer here, it's already handled above.
+		// TODO: not sure if we still need to handle pointer here, it's already handled above. (referred from ord)
 		if flotsam.OriginNew != nil && flotsam.OriginNew.Pointer != nil {
 			pointer := *flotsam.OriginNew.Pointer
 			for outIndex, outputValue := range outputToSumValue {

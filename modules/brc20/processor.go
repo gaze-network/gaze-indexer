@@ -110,10 +110,10 @@ func (p *Processor) VerifyStates(ctx context.Context) error {
 			return errors.Wrap(err, "failed to count cursed inscriptions")
 		}
 		stats = &entity.ProcessorStats{
-			BlockHeight:             uint64(startingBlockHeader[p.network].Height),
-			CursedInscriptionCount:  0,
-			BlessedInscriptionCount: 0,
-			LostSats:                0,
+			BlockHeight:             uint64(startingBlockData[p.network].Height),
+			CursedInscriptionCount:  startingBlockData[p.network].Stats.CursedInscriptionCount,
+			BlessedInscriptionCount: startingBlockData[p.network].Stats.BlessedInscriptionCount,
+			LostSats:                startingBlockData[p.network].Stats.LostSats,
 		}
 	}
 	p.cursedInscriptionCount = stats.CursedInscriptionCount
@@ -127,7 +127,10 @@ func (p *Processor) CurrentBlock(ctx context.Context) (types.BlockHeader, error)
 	blockHeader, err := p.brc20Dg.GetLatestBlock(ctx)
 	if err != nil {
 		if errors.Is(err, errs.NotFound) {
-			return startingBlockHeader[p.network], nil
+			return types.BlockHeader{
+				Height: startingBlockData[p.network].Height,
+				Hash:   startingBlockData[p.network].Hash,
+			}, nil
 		}
 		return types.BlockHeader{}, errors.Wrap(err, "failed to get latest block")
 	}
