@@ -205,7 +205,7 @@ func (i *Indexer[T]) process(ctx context.Context) (err error) {
 
 			// validate is input is continuous and no reorg
 			prevHeader := i.currentBlock
-			for _, input := range inputs {
+			for i, input := range inputs {
 				header := input.BlockHeader()
 				if header.Height != prevHeader.Height+1 {
 					return errors.Wrapf(errs.InternalError, "input is not continuous, input[%d] height: %d, input[%d] height: %d", i-1, prevHeader.Height, i, header.Height)
@@ -217,6 +217,7 @@ func (i *Indexer[T]) process(ctx context.Context) (err error) {
 					// end current round
 					return nil
 				}
+				prevHeader = header
 			}
 
 			ctx = logger.WithContext(ctx, slog.Int("total_inputs", len(inputs)))
