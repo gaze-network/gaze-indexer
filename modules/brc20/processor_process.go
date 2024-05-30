@@ -19,7 +19,7 @@ func (p *Processor) Process(ctx context.Context, blocks []*types.Block) error {
 		ctx = logger.WithContext(ctx, slogx.Uint64("height", uint64(block.Header.Height)))
 		logger.DebugContext(ctx, "Processing new block")
 		p.blockReward = p.getBlockSubsidy(uint64(block.Header.Height))
-		p.flotsamsSentAsFee = make([]*Flotsam, 0)
+		p.flotsamsSentAsFee = make([]*entity.Flotsam, 0)
 		for _, tx := range block.Transactions {
 			if err := p.processInscriptionTx(ctx, tx, block.Header); err != nil {
 				return errors.Wrap(err, "failed to process tx")

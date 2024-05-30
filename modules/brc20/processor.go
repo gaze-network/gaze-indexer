@@ -28,7 +28,7 @@ type Processor struct {
 	cleanupFuncs       []func(context.Context) error
 
 	// block states
-	flotsamsSentAsFee []*Flotsam
+	flotsamsSentAsFee []*entity.Flotsam
 	blockReward       uint64
 
 	// processor stats
@@ -62,7 +62,7 @@ func NewProcessor(brc20Dg datagateway.BRC20DataGateway, indexerInfoDg datagatewa
 		transferCountLimit: transferCountLimit,
 		cleanupFuncs:       cleanupFuncs,
 
-		flotsamsSentAsFee: make([]*Flotsam, 0),
+		flotsamsSentAsFee: make([]*entity.Flotsam, 0),
 		blockReward:       0,
 
 		cursedInscriptionCount:  0, // to be initialized by p.VerifyStates()

@@ -49,7 +49,7 @@ func (p *Processor) processInscriptionTx(ctx context.Context, tx *types.Transact
 		slogx.Uint32("tx_index", tx.Index),
 	)
 
-	floatingInscriptions := make([]*Flotsam, 0)
+	floatingInscriptions := make([]*entity.Flotsam, 0)
 	totalInputValue := uint64(0)
 	totalOutputValue := lo.SumBy(tx.TxOut, func(txOut *types.TxOut) uint64 { return uint64(txOut.Value) })
 	inscribeOffsets := make(map[uint64]*struct {
@@ -77,11 +77,11 @@ func (p *Processor) processInscriptionTx(ctx context.Context, tx *types.Transact
 		for satPoint, inscriptionIds := range inscriptionIdsInOutPoint {
 			offset := totalInputValue + satPoint.Offset
 			for _, inscriptionId := range inscriptionIds {
-				floatingInscriptions = append(floatingInscriptions, &Flotsam{
+				floatingInscriptions = append(floatingInscriptions, &entity.Flotsam{
 					Offset:        offset,
 					InscriptionId: inscriptionId,
 					Tx:            tx,
-					OriginOld: &OriginOld{
+					OriginOld: &entity.OriginOld{
 						OldSatPoint: satPoint,
 					},
 				})
@@ -145,11 +145,11 @@ func (p *Processor) processInscriptionTx(ctx context.Context, tx *types.Transact
 				offset = *envelope.Inscription.Pointer
 			}
 
-			floatingInscriptions = append(floatingInscriptions, &Flotsam{
+			floatingInscriptions = append(floatingInscriptions, &entity.Flotsam{
 				Offset:        offset,
 				InscriptionId: inscriptionId,
 				Tx:            tx,
-				OriginNew: &OriginNew{
+				OriginNew: &entity.OriginNew{
 					Reinscription:  inscribeOffsets[offset] != nil,
 					Cursed:         cursed,
 					CursedForBRC20: cursedForBRC20,
@@ -200,7 +200,7 @@ func (p *Processor) processInscriptionTx(ctx context.Context, tx *types.Transact
 	if isCoinbase {
 		floatingInscriptions = append(floatingInscriptions, p.flotsamsSentAsFee...)
 	}
-	slices.SortFunc(floatingInscriptions, func(i, j *Flotsam) int {
+	slices.SortFunc(floatingInscriptions, func(i, j *entity.Flotsam) int {
 		return int(i.Offset) - int(j.Offset)
 	})
 
@@ -209,7 +209,7 @@ func (p *Processor) processInscriptionTx(ctx context.Context, tx *types.Transact
 	// newLocations := make(map[ordinals.SatPoint][]*Flotsam)
 	type location struct {
 		satPoint  ordinals.SatPoint
-		flotsam   *Flotsam
+		flotsam   *entity.Flotsam
 		sentAsFee bool
 	}
 	newLocations := make([]*location, 0)
@@ -288,7 +288,7 @@ func (p *Processor) processInscriptionTx(ctx context.Context, tx *types.Transact
 	return nil
 }
 
-func (p *Processor) updateInscriptionLocation(ctx context.Context, newSatPoint ordinals.SatPoint, flotsam *Flotsam, sentAsFee bool, tx *types.Transaction, blockHeader types.BlockHeader) error {
+func (p *Processor) updateInscriptionLocation(ctx context.Context, newSatPoint ordinals.SatPoint, flotsam *entity.Flotsam, sentAsFee bool, tx *types.Transaction, blockHeader types.BlockHeader) error {
 	txOut := tx.TxOut[newSatPoint.OutPoint.Index]
 	if flotsam.OriginOld != nil {
 		transfer := &entity.InscriptionTransfer{

@@ -1,4 +1,4 @@
-package brc20
+package entity
 
 import (
 	"github.com/gaze-network/indexer-network/core/types"
