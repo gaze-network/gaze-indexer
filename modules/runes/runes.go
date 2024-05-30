@@ -33,6 +33,7 @@ func New(injector do.Injector) (indexer.IndexerWorker, error) {
 		runesDg       runesdatagateway.RunesDataGateway
 		indexerInfoDg runesdatagateway.IndexerInfoDataGateway
 	)
+	var cleanupFuncs []func(context.Context) error
 	switch strings.ToLower(conf.Modules.Runes.Database) {
 	case "postgresql", "postgres", "pg":
 		pg, err := postgres.NewPool(ctx, conf.Modules.Runes.Postgres)
@@ -42,7 +43,10 @@ func New(injector do.Injector) (indexer.IndexerWorker, error) {
 			}
 			return nil, errors.Wrap(err, "can't create Postgres connection pool")
 		}
-		defer pg.Close()
+		cleanupFuncs = append(cleanupFuncs, func(ctx context.Context) error {
+			pg.Close()
+			return nil
+		})
 		runesRepo := runespostgres.NewRepository(pg)
 		runesDg = runesRepo
 		indexerInfoDg = runesRepo
@@ -62,7 +66,7 @@ func New(injector do.Injector) (indexer.IndexerWorker, error) {
 		return nil, errors.Wrapf(errs.Unsupported, "%q datasource is not supported", conf.Modules.Runes.Datasource)
 	}
 
-	processor := NewProcessor(runesDg, indexerInfoDg, bitcoinClient, conf.Network, reportingClient)
+	processor := NewProcessor(runesDg, indexerInfoDg, bitcoinClient, conf.Network, reportingClient, cleanupFuncs)
 	if err := processor.VerifyStates(ctx); err != nil {
 		return nil, errors.WithStack(err)
 	}
