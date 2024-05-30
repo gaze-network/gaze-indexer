@@ -140,7 +140,7 @@ func (q *Queries) GetInscriptionEntriesByIds(ctx context.Context, inscriptionIds
 }
 
 const getInscriptionsInOutPoints = `-- name: GetInscriptionsInOutPoints :many
-SELECT brc20_inscription_transfers.inscription_id, brc20_inscription_transfers.block_height, brc20_inscription_transfers.old_satpoint_tx_hash, brc20_inscription_transfers.old_satpoint_out_idx, brc20_inscription_transfers.old_satpoint_offset, brc20_inscription_transfers.new_satpoint_tx_hash, brc20_inscription_transfers.new_satpoint_out_idx, brc20_inscription_transfers.new_satpoint_offset, brc20_inscription_transfers.new_pkscript, brc20_inscription_transfers.new_output_value, brc20_inscription_transfers.sent_as_fee FROM (
+SELECT brc20_inscription_transfers.inscription_id, brc20_inscription_transfers.block_height, brc20_inscription_transfers.tx_index, brc20_inscription_transfers.old_satpoint_tx_hash, brc20_inscription_transfers.old_satpoint_out_idx, brc20_inscription_transfers.old_satpoint_offset, brc20_inscription_transfers.new_satpoint_tx_hash, brc20_inscription_transfers.new_satpoint_out_idx, brc20_inscription_transfers.new_satpoint_offset, brc20_inscription_transfers.new_pkscript, brc20_inscription_transfers.new_output_value, brc20_inscription_transfers.sent_as_fee FROM (
     SELECT
       unnest($1::text[]) AS "tx_hash",
       unnest($2::int[]) AS "tx_out_idx"
@@ -165,6 +165,7 @@ func (q *Queries) GetInscriptionsInOutPoints(ctx context.Context, arg GetInscrip
 		if err := rows.Scan(
 			&i.InscriptionID,
 			&i.BlockHeight,
+			&i.TxIndex,
 			&i.OldSatpointTxHash,
 			&i.OldSatpointOutIdx,
 			&i.OldSatpointOffset,

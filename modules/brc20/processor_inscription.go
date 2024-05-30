@@ -200,6 +200,7 @@ func (p *Processor) processInscriptionTx(ctx context.Context, tx *types.Transact
 	if isCoinbase {
 		floatingInscriptions = append(floatingInscriptions, p.flotsamsSentAsFee...)
 	}
+	// sort floatingInscriptions by offset
 	slices.SortFunc(floatingInscriptions, func(i, j *entity.Flotsam) int {
 		return int(i.Offset) - int(j.Offset)
 	})
@@ -293,7 +294,8 @@ func (p *Processor) updateInscriptionLocation(ctx context.Context, newSatPoint o
 	if flotsam.OriginOld != nil {
 		transfer := &entity.InscriptionTransfer{
 			InscriptionId:  flotsam.InscriptionId,
-			BlockHeight:    uint64(tx.BlockHeight),
+			BlockHeight:    uint64(flotsam.Tx.BlockHeight), // use flotsam's tx to track tx that initiated the transfer
+			TxIndex:        flotsam.Tx.Index,               // use flotsam's tx to track tx that initiated the transfer
 			OldSatPoint:    flotsam.OriginOld.OldSatPoint,
 			NewSatPoint:    newSatPoint,
 			NewPkScript:    txOut.PkScript,
@@ -337,7 +339,8 @@ func (p *Processor) updateInscriptionLocation(ctx context.Context, newSatPoint o
 		}
 		transfer := &entity.InscriptionTransfer{
 			InscriptionId:  flotsam.InscriptionId,
-			BlockHeight:    uint64(tx.BlockHeight),
+			BlockHeight:    uint64(flotsam.Tx.BlockHeight), // use flotsam's tx to track tx that initiated the transfer
+			TxIndex:        flotsam.Tx.Index,               // use flotsam's tx to track tx that initiated the transfer
 			OldSatPoint:    ordinals.SatPoint{},
 			NewSatPoint:    newSatPoint,
 			NewPkScript:    txOut.PkScript,

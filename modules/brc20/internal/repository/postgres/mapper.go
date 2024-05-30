@@ -224,6 +224,7 @@ func mapInscriptionTransferModelToType(src gen.Brc20InscriptionTransfer) (entity
 	return entity.InscriptionTransfer{
 		InscriptionId:  inscriptionId,
 		BlockHeight:    uint64(src.BlockHeight),
+		TxIndex:        uint32(src.TxIndex),
 		OldSatPoint:    oldSatPoint,
 		NewSatPoint:    newSatPoint,
 		NewPkScript:    newPkScript,
@@ -236,6 +237,7 @@ func mapInscriptionTransferTypeToParams(src entity.InscriptionTransfer) gen.Crea
 	return gen.CreateInscriptionTransfersParams{
 		InscriptionID:     src.InscriptionId.String(),
 		BlockHeight:       int32(src.BlockHeight),
+		TxIndex:           int32(src.TxIndex),
 		OldSatpointTxHash: lo.Ternary(src.OldSatPoint.OutPoint.Hash != chainhash.Hash{}, pgtype.Text{String: src.OldSatPoint.OutPoint.Hash.String(), Valid: true}, pgtype.Text{}),
 		OldSatpointOutIdx: lo.Ternary(src.OldSatPoint.OutPoint.Index != 0, pgtype.Int4{Int32: int32(src.OldSatPoint.OutPoint.Index), Valid: true}, pgtype.Int4{}),
 		OldSatpointOffset: lo.Ternary(src.OldSatPoint.Offset != 0, pgtype.Int8{Int64: int64(src.OldSatPoint.Offset), Valid: true}, pgtype.Int8{}),

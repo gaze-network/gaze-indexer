@@ -2,6 +2,7 @@ package brc20
 
 import (
 	"context"
+	"slices"
 
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/gaze-network/indexer-network/core/types"
@@ -20,11 +21,28 @@ func (p *Processor) Process(ctx context.Context, blocks []*types.Block) error {
 		logger.DebugContext(ctx, "Processing new block")
 		p.blockReward = p.getBlockSubsidy(uint64(block.Header.Height))
 		p.flotsamsSentAsFee = make([]*entity.Flotsam, 0)
-		for _, tx := range block.Transactions {
+
+		// put coinbase tx (first tx) at the end of block
+		coinbaseTx := block.Transactions[0]
+		transactions := append(block.Transactions[:len(block.Transactions)-1], coinbaseTx)
+		for _, tx := range transactions {
 			if err := p.processInscriptionTx(ctx, tx, block.Header); err != nil {
 				return errors.Wrap(err, "failed to process tx")
 			}
 		}
+
+		// sort transfers by tx index, output index, output sat offset
+		// NOTE: ord indexes inscription transfers spent as fee at the end of the block, but brc20 indexes them as soon as they are sent
+		slices.SortFunc(p.newInscriptionTransfers, func(t1, t2 *entity.InscriptionTransfer) int {
+			if t1.TxIndex != t2.TxIndex {
+				return int(t1.TxIndex) - int(t2.TxIndex)
+			}
+			if t1.NewSatPoint.OutPoint.Index != t2.NewSatPoint.OutPoint.Index {
+				return int(t1.NewSatPoint.OutPoint.Index) - int(t2.NewSatPoint.OutPoint.Index)
+			}
+			return int(t1.NewSatPoint.Offset) - int(t2.NewSatPoint.Offset)
+		})
+
 		// TODO: add brc20 processing
 		if err := p.flushBlock(ctx, block.Header); err != nil {
 			return errors.Wrap(err, "failed to flush block")

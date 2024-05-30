@@ -137,6 +137,7 @@ CREATE TABLE IF NOT EXISTS "brc20_inscription_entry_states" (
 CREATE TABLE IF NOT EXISTS "brc20_inscription_transfers" (
 	"inscription_id" TEXT NOT NULL,
 	"block_height" INT NOT NULL,
+	"tx_index" INT NOT NULL,
 	"old_satpoint_tx_hash" TEXT,
 	"old_satpoint_out_idx" INT,
 	"old_satpoint_offset" BIGINT,

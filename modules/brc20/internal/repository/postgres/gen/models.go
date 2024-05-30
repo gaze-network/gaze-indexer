@@ -75,6 +75,7 @@ type Brc20InscriptionEntryState struct {
 type Brc20InscriptionTransfer struct {
 	InscriptionID     string
 	BlockHeight       int32
+	TxIndex           int32
 	OldSatpointTxHash pgtype.Text
 	OldSatpointOutIdx pgtype.Int4
 	OldSatpointOffset pgtype.Int8

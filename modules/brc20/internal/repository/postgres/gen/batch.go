@@ -144,7 +144,7 @@ func (b *CreateInscriptionEntryStatesBatchResults) Close() error {
 }
 
 const createInscriptionTransfers = `-- name: CreateInscriptionTransfers :batchexec
-INSERT INTO "brc20_inscription_transfers" ("inscription_id", "block_height", "old_satpoint_tx_hash", "old_satpoint_out_idx", "old_satpoint_offset", "new_satpoint_tx_hash", "new_satpoint_out_idx", "new_satpoint_offset", "new_pkscript", "new_output_value", "sent_as_fee") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+INSERT INTO "brc20_inscription_transfers" ("inscription_id", "block_height", "tx_index", "old_satpoint_tx_hash", "old_satpoint_out_idx", "old_satpoint_offset", "new_satpoint_tx_hash", "new_satpoint_out_idx", "new_satpoint_offset", "new_pkscript", "new_output_value", "sent_as_fee") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 `
 
 type CreateInscriptionTransfersBatchResults struct {
@@ -156,6 +156,7 @@ type CreateInscriptionTransfersBatchResults struct {
 type CreateInscriptionTransfersParams struct {
 	InscriptionID     string
 	BlockHeight       int32
+	TxIndex           int32
 	OldSatpointTxHash pgtype.Text
 	OldSatpointOutIdx pgtype.Int4
 	OldSatpointOffset pgtype.Int8
@@ -173,6 +174,7 @@ func (q *Queries) CreateInscriptionTransfers(ctx context.Context, arg []CreateIn
 		vals := []interface{}{
 			a.InscriptionID,
 			a.BlockHeight,
+			a.TxIndex,
 			a.OldSatpointTxHash,
 			a.OldSatpointOutIdx,
 			a.OldSatpointOffset,
