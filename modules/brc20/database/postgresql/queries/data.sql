@@ -7,13 +7,15 @@ SELECT * FROM "brc20_indexed_blocks" WHERE "height" = $1;
 -- name: GetLatestProcessorStats :one
 SELECT * FROM "brc20_processor_stats" ORDER BY "block_height" DESC LIMIT 1;
 
--- name: GetInscriptionsInOutPoints :many
-SELECT "brc20_inscription_transfers".* FROM (
+-- name: GetInscriptionTransfersInOutPoints :many
+SELECT "it".*, "ie"."content"   FROM (
     SELECT
       unnest(@tx_hash_arr::text[]) AS "tx_hash",
       unnest(@tx_out_idx_arr::int[]) AS "tx_out_idx"
   ) "inputs"
-  INNER JOIN "brc20_inscription_transfers" ON "inputs"."tx_hash" = "brc20_inscription_transfers"."new_satpoint_tx_hash" AND "inputs"."tx_out_idx" = "brc20_inscription_transfers"."new_satpoint_out_idx";
+  INNER JOIN "brc20_inscription_transfers" it ON "inputs"."tx_hash" = "it"."new_satpoint_tx_hash" AND "inputs"."tx_out_idx" = "it"."new_satpoint_out_idx"
+  LEFT JOIN "brc20_inscription_entries" ie ON "it"."inscription_id" = "ie"."id";
+  ;
 
 -- name: GetInscriptionEntriesByIds :many
 WITH "states" AS (

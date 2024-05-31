@@ -6,24 +6,25 @@ import (
 )
 
 type OriginOld struct {
+	Content     []byte
 	OldSatPoint ordinals.SatPoint
 }
 type OriginNew struct {
-	Cursed         bool
-	CursedForBRC20 bool
-	Fee            uint64
-	Hidden         bool
+	Inscription    ordinals.Inscription
 	Parent         *ordinals.InscriptionId
 	Pointer        *uint64
+	Fee            uint64
+	Cursed         bool
+	CursedForBRC20 bool
+	Hidden         bool
 	Reinscription  bool
 	Unbound        bool
-	Inscription    ordinals.Inscription
 }
 
 type Flotsam struct {
-	Offset        uint64
-	InscriptionId ordinals.InscriptionId
 	Tx            *types.Transaction
 	OriginOld     *OriginOld // OriginOld and OriginNew are mutually exclusive
 	OriginNew     *OriginNew // OriginOld and OriginNew are mutually exclusive
+	Offset        uint64
+	InscriptionId ordinals.InscriptionId
 }

@@ -26,7 +26,7 @@ type BRC20ReaderDataGateway interface {
 	GetLatestBlock(ctx context.Context) (types.BlockHeader, error)
 	GetIndexedBlockByHeight(ctx context.Context, height int64) (*entity.IndexedBlock, error)
 	GetProcessorStats(ctx context.Context) (*entity.ProcessorStats, error)
-	GetInscriptionIdsInOutPoints(ctx context.Context, outPoints []wire.OutPoint) (map[ordinals.SatPoint][]ordinals.InscriptionId, error)
+	GetInscriptionTransfersInOutPoints(ctx context.Context, outPoints []wire.OutPoint) (map[ordinals.SatPoint][]*entity.InscriptionTransfer, error)
 	GetInscriptionEntryById(ctx context.Context, id ordinals.InscriptionId) (*ordinals.InscriptionEntry, error)
 }
 

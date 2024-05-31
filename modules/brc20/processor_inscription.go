@@ -29,7 +29,7 @@ func (p *Processor) processInscriptionTx(ctx context.Context, tx *types.Transact
 			Index: txIn.PreviousOutIndex,
 		}
 	})
-	inscriptionIdsInOutPoints, err := p.getInscriptionIdsInOutPoints(ctx, inputOutPoints)
+	transfersInOutPoints, err := p.getInscriptionTransfersInOutPoints(ctx, inputOutPoints)
 	if err != nil {
 		return errors.Wrap(err, "failed to get inscriptions in outpoints")
 	}
@@ -40,7 +40,7 @@ func (p *Processor) processInscriptionTx(ctx context.Context, tx *types.Transact
 			Index: uint32(outIndex),
 		}, uint64(txOut.Value))
 	}
-	if len(envelopes) == 0 && len(inscriptionIdsInOutPoints) == 0 {
+	if len(envelopes) == 0 && len(transfersInOutPoints) == 0 {
 		// no inscription activity, skip
 		return nil
 	}
@@ -73,23 +73,24 @@ func (p *Processor) processInscriptionTx(ctx context.Context, tx *types.Transact
 			continue
 		}
 
-		inscriptionIdsInOutPoint := inscriptionIdsInOutPoints[inputOutPoint]
-		for satPoint, inscriptionIds := range inscriptionIdsInOutPoint {
+		transfersInOutPoint := transfersInOutPoints[inputOutPoint]
+		for satPoint, transfers := range transfersInOutPoint {
 			offset := totalInputValue + satPoint.Offset
-			for _, inscriptionId := range inscriptionIds {
+			for _, transfer := range transfers {
 				floatingInscriptions = append(floatingInscriptions, &entity.Flotsam{
 					Offset:        offset,
-					InscriptionId: inscriptionId,
+					InscriptionId: transfer.InscriptionId,
 					Tx:            tx,
 					OriginOld: &entity.OriginOld{
 						OldSatPoint: satPoint,
+						Content:     transfer.Content,
 					},
 				})
 				if _, ok := inscribeOffsets[offset]; !ok {
 					inscribeOffsets[offset] = &struct {
 						inscriptionId ordinals.InscriptionId
 						count         int
-					}{inscriptionId, 0}
+					}{transfer.InscriptionId, 0}
 				}
 				inscribeOffsets[offset].count++
 			}
@@ -296,6 +297,7 @@ func (p *Processor) updateInscriptionLocation(ctx context.Context, newSatPoint o
 			InscriptionId:  flotsam.InscriptionId,
 			BlockHeight:    uint64(flotsam.Tx.BlockHeight), // use flotsam's tx to track tx that initiated the transfer
 			TxIndex:        flotsam.Tx.Index,               // use flotsam's tx to track tx that initiated the transfer
+			Content:        flotsam.OriginOld.Content,
 			OldSatPoint:    flotsam.OriginOld.OldSatPoint,
 			NewSatPoint:    newSatPoint,
 			NewPkScript:    txOut.PkScript,
@@ -341,6 +343,7 @@ func (p *Processor) updateInscriptionLocation(ctx context.Context, newSatPoint o
 			InscriptionId:  flotsam.InscriptionId,
 			BlockHeight:    uint64(flotsam.Tx.BlockHeight), // use flotsam's tx to track tx that initiated the transfer
 			TxIndex:        flotsam.Tx.Index,               // use flotsam's tx to track tx that initiated the transfer
+			Content:        origin.Inscription.Content,
 			OldSatPoint:    ordinals.SatPoint{},
 			NewSatPoint:    newSatPoint,
 			NewPkScript:    txOut.PkScript,
@@ -436,17 +439,17 @@ func (p *Processor) getOutPointValues(ctx context.Context, outPoints []wire.OutP
 	return result, nil
 }
 
-func (p *Processor) getInscriptionIdsInOutPoints(ctx context.Context, outPoints []wire.OutPoint) (map[wire.OutPoint]map[ordinals.SatPoint][]ordinals.InscriptionId, error) {
-	inscriptionIds, err := p.brc20Dg.GetInscriptionIdsInOutPoints(ctx, outPoints)
+func (p *Processor) getInscriptionTransfersInOutPoints(ctx context.Context, outPoints []wire.OutPoint) (map[wire.OutPoint]map[ordinals.SatPoint][]*entity.InscriptionTransfer, error) {
+	transfers, err := p.brc20Dg.GetInscriptionTransfersInOutPoints(ctx, outPoints)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get inscriptions by outpoint")
 	}
-	result := make(map[wire.OutPoint]map[ordinals.SatPoint][]ordinals.InscriptionId)
-	for satPoint, inscriptionIds := range inscriptionIds {
+	result := make(map[wire.OutPoint]map[ordinals.SatPoint][]*entity.InscriptionTransfer)
+	for satPoint, transfer := range transfers {
 		if _, ok := result[satPoint.OutPoint]; !ok {
-			result[satPoint.OutPoint] = make(map[ordinals.SatPoint][]ordinals.InscriptionId)
+			result[satPoint.OutPoint] = make(map[ordinals.SatPoint][]*entity.InscriptionTransfer)
 		}
-		result[satPoint.OutPoint][satPoint] = append(result[satPoint.OutPoint][satPoint], inscriptionIds...)
+		result[satPoint.OutPoint][satPoint] = append(result[satPoint.OutPoint][satPoint], transfer...)
 	}
 	return result, nil
 }

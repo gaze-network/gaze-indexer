@@ -139,29 +139,46 @@ func (q *Queries) GetInscriptionEntriesByIds(ctx context.Context, inscriptionIds
 	return items, nil
 }
 
-const getInscriptionsInOutPoints = `-- name: GetInscriptionsInOutPoints :many
-SELECT brc20_inscription_transfers.inscription_id, brc20_inscription_transfers.block_height, brc20_inscription_transfers.tx_index, brc20_inscription_transfers.old_satpoint_tx_hash, brc20_inscription_transfers.old_satpoint_out_idx, brc20_inscription_transfers.old_satpoint_offset, brc20_inscription_transfers.new_satpoint_tx_hash, brc20_inscription_transfers.new_satpoint_out_idx, brc20_inscription_transfers.new_satpoint_offset, brc20_inscription_transfers.new_pkscript, brc20_inscription_transfers.new_output_value, brc20_inscription_transfers.sent_as_fee FROM (
+const getInscriptionTransfersInOutPoints = `-- name: GetInscriptionTransfersInOutPoints :many
+SELECT it.inscription_id, it.block_height, it.tx_index, it.old_satpoint_tx_hash, it.old_satpoint_out_idx, it.old_satpoint_offset, it.new_satpoint_tx_hash, it.new_satpoint_out_idx, it.new_satpoint_offset, it.new_pkscript, it.new_output_value, it.sent_as_fee, "ie"."content"   FROM (
     SELECT
       unnest($1::text[]) AS "tx_hash",
       unnest($2::int[]) AS "tx_out_idx"
   ) "inputs"
-  INNER JOIN "brc20_inscription_transfers" ON "inputs"."tx_hash" = "brc20_inscription_transfers"."new_satpoint_tx_hash" AND "inputs"."tx_out_idx" = "brc20_inscription_transfers"."new_satpoint_out_idx"
+  INNER JOIN "brc20_inscription_transfers" it ON "inputs"."tx_hash" = "it"."new_satpoint_tx_hash" AND "inputs"."tx_out_idx" = "it"."new_satpoint_out_idx"
+  LEFT JOIN "brc20_inscription_entries" ie ON "it"."inscription_id" = "ie"."id"
 `
 
-type GetInscriptionsInOutPointsParams struct {
+type GetInscriptionTransfersInOutPointsParams struct {
 	TxHashArr   []string
 	TxOutIdxArr []int32
 }
 
-func (q *Queries) GetInscriptionsInOutPoints(ctx context.Context, arg GetInscriptionsInOutPointsParams) ([]Brc20InscriptionTransfer, error) {
-	rows, err := q.db.Query(ctx, getInscriptionsInOutPoints, arg.TxHashArr, arg.TxOutIdxArr)
+type GetInscriptionTransfersInOutPointsRow struct {
+	InscriptionID     string
+	BlockHeight       int32
+	TxIndex           int32
+	OldSatpointTxHash pgtype.Text
+	OldSatpointOutIdx pgtype.Int4
+	OldSatpointOffset pgtype.Int8
+	NewSatpointTxHash pgtype.Text
+	NewSatpointOutIdx pgtype.Int4
+	NewSatpointOffset pgtype.Int8
+	NewPkscript       string
+	NewOutputValue    int64
+	SentAsFee         bool
+	Content           []byte
+}
+
+func (q *Queries) GetInscriptionTransfersInOutPoints(ctx context.Context, arg GetInscriptionTransfersInOutPointsParams) ([]GetInscriptionTransfersInOutPointsRow, error) {
+	rows, err := q.db.Query(ctx, getInscriptionTransfersInOutPoints, arg.TxHashArr, arg.TxOutIdxArr)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Brc20InscriptionTransfer
+	var items []GetInscriptionTransfersInOutPointsRow
 	for rows.Next() {
-		var i Brc20InscriptionTransfer
+		var i GetInscriptionTransfersInOutPointsRow
 		if err := rows.Scan(
 			&i.InscriptionID,
 			&i.BlockHeight,
@@ -175,6 +192,7 @@ func (q *Queries) GetInscriptionsInOutPoints(ctx context.Context, arg GetInscrip
 			&i.NewPkscript,
 			&i.NewOutputValue,
 			&i.SentAsFee,
+			&i.Content,
 		); err != nil {
 			return nil, err
 		}

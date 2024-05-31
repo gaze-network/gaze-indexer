@@ -6,6 +6,7 @@ type InscriptionTransfer struct {
 	InscriptionId  ordinals.InscriptionId
 	BlockHeight    uint64
 	TxIndex        uint32
+	Content        []byte
 	OldSatPoint    ordinals.SatPoint
 	NewSatPoint    ordinals.SatPoint
 	NewPkScript    []byte

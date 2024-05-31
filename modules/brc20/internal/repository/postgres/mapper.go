@@ -178,7 +178,7 @@ func mapInscriptionEntryTypeToParams(src ordinals.InscriptionEntry, blockHeight 
 		}, nil
 }
 
-func mapInscriptionTransferModelToType(src gen.Brc20InscriptionTransfer) (entity.InscriptionTransfer, error) {
+func mapInscriptionTransferModelToType(src gen.GetInscriptionTransfersInOutPointsRow) (entity.InscriptionTransfer, error) {
 	inscriptionId, err := ordinals.NewInscriptionIdFromString(src.InscriptionID)
 	if err != nil {
 		return entity.InscriptionTransfer{}, errors.Wrap(err, "invalid inscription id")
@@ -225,6 +225,7 @@ func mapInscriptionTransferModelToType(src gen.Brc20InscriptionTransfer) (entity
 		InscriptionId:  inscriptionId,
 		BlockHeight:    uint64(src.BlockHeight),
 		TxIndex:        uint32(src.TxIndex),
+		Content:        src.Content,
 		OldSatPoint:    oldSatPoint,
 		NewSatPoint:    newSatPoint,
 		NewPkScript:    newPkScript,

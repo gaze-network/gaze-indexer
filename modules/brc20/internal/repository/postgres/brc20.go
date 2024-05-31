@@ -67,44 +67,29 @@ func (r *Repository) GetProcessorStats(ctx context.Context) (*entity.ProcessorSt
 	return &stats, nil
 }
 
-func (r *Repository) GetInscriptionIdsInOutPoints(ctx context.Context, outPoints []wire.OutPoint) (map[ordinals.SatPoint][]ordinals.InscriptionId, error) {
+func (r *Repository) GetInscriptionTransfersInOutPoints(ctx context.Context, outPoints []wire.OutPoint) (map[ordinals.SatPoint][]*entity.InscriptionTransfer, error) {
 	txHashArr := lo.Map(outPoints, func(outPoint wire.OutPoint, _ int) string {
 		return outPoint.Hash.String()
 	})
 	txOutIdxArr := lo.Map(outPoints, func(outPoint wire.OutPoint, _ int) int32 {
 		return int32(outPoint.Index)
 	})
-	models, err := r.queries.GetInscriptionsInOutPoints(ctx, gen.GetInscriptionsInOutPointsParams{
+	models, err := r.queries.GetInscriptionTransfersInOutPoints(ctx, gen.GetInscriptionTransfersInOutPointsParams{
 		TxHashArr:   txHashArr,
 		TxOutIdxArr: txOutIdxArr,
 	})
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
-	inscriptionIds := make(map[ordinals.SatPoint][]ordinals.InscriptionId)
+	results := make(map[ordinals.SatPoint][]*entity.InscriptionTransfer)
 	for _, model := range models {
-		// sanity check
-		if !model.NewSatpointTxHash.Valid || !model.NewSatpointOutIdx.Valid || !model.NewSatpointOffset.Valid {
-			return nil, errors.New("invalid satpoint: missing required satpoint fields")
-		}
-		txHash, err := chainhash.NewHashFromStr(model.NewSatpointTxHash.String)
+		inscriptionTransfer, err := mapInscriptionTransferModelToType(model)
 		if err != nil {
-			return nil, errors.Wrap(err, "invalid satpoint: cannot parse txHash")
+			return nil, errors.WithStack(err)
 		}
-		satPoint := ordinals.SatPoint{
-			OutPoint: wire.OutPoint{
-				Hash:  *txHash,
-				Index: uint32(model.NewSatpointOutIdx.Int32),
-			},
-			Offset: uint64(model.NewSatpointOffset.Int64),
-		}
-		inscriptionId, err := ordinals.NewInscriptionIdFromString(model.InscriptionID)
-		if err != nil {
-			return nil, errors.Wrap(err, "invalid inscription id")
-		}
-		inscriptionIds[satPoint] = append(inscriptionIds[satPoint], inscriptionId)
+		results[inscriptionTransfer.NewSatPoint] = append(results[inscriptionTransfer.NewSatPoint], &inscriptionTransfer)
 	}
-	return inscriptionIds, nil
+	return results, nil
 }
 
 func (r *Repository) GetInscriptionEntryById(ctx context.Context, id ordinals.InscriptionId) (*ordinals.InscriptionEntry, error) {
