@@ -23,8 +23,7 @@ func (p *Processor) Process(ctx context.Context, blocks []*types.Block) error {
 		p.flotsamsSentAsFee = make([]*entity.Flotsam, 0)
 
 		// put coinbase tx (first tx) at the end of block
-		coinbaseTx := block.Transactions[0]
-		transactions := append(block.Transactions[:len(block.Transactions)-1], coinbaseTx)
+		transactions := append(block.Transactions[1:], block.Transactions[0])
 		for _, tx := range transactions {
 			if err := p.processInscriptionTx(ctx, tx, block.Header); err != nil {
 				return errors.Wrap(err, "failed to process tx")
