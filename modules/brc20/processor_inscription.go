@@ -44,10 +44,6 @@ func (p *Processor) processInscriptionTx(ctx context.Context, tx *types.Transact
 		// no inscription activity, skip
 		return nil
 	}
-	logger.DebugContext(ctx, "Processing new tx",
-		slogx.String("tx_hash", tx.TxHash.String()),
-		slogx.Uint32("tx_index", tx.Index),
-	)
 
 	floatingInscriptions := make([]*entity.Flotsam, 0)
 	totalInputValue := uint64(0)
