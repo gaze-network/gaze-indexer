@@ -187,3 +187,80 @@ func (r *Repository) CreateInscriptionTransfers(ctx context.Context, transfers [
 	}
 	return nil
 }
+
+func (r *Repository) DeleteIndexedBlocksSinceHeight(ctx context.Context, height uint64) error {
+	if err := r.queries.DeleteIndexedBlocksSinceHeight(ctx, int32(height)); err != nil {
+		return errors.Wrap(err, "error during exec")
+	}
+	return nil
+}
+
+func (r *Repository) DeleteProcessorStatsSinceHeight(ctx context.Context, height uint64) error {
+	if err := r.queries.DeleteProcessorStatsSinceHeight(ctx, int32(height)); err != nil {
+		return errors.Wrap(err, "error during exec")
+	}
+	return nil
+}
+
+func (r *Repository) DeleteTicksSinceHeight(ctx context.Context, height uint64) error {
+	if err := r.queries.DeleteTicksSinceHeight(ctx, int32(height)); err != nil {
+		return errors.Wrap(err, "error during exec")
+	}
+	return nil
+}
+
+func (r *Repository) DeleteTickStatesSinceHeight(ctx context.Context, height uint64) error {
+	if err := r.queries.DeleteTickStatesSinceHeight(ctx, int32(height)); err != nil {
+		return errors.Wrap(err, "error during exec")
+	}
+	return nil
+}
+
+func (r *Repository) DeleteDeployEventsSinceHeight(ctx context.Context, height uint64) error {
+	if err := r.queries.DeleteDeployEventsSinceHeight(ctx, int32(height)); err != nil {
+		return errors.Wrap(err, "error during exec")
+	}
+	return nil
+}
+
+func (r *Repository) DeleteMintEventsSinceHeight(ctx context.Context, height uint64) error {
+	if err := r.queries.DeleteMintEventsSinceHeight(ctx, int32(height)); err != nil {
+		return errors.Wrap(err, "error during exec")
+	}
+	return nil
+}
+
+func (r *Repository) DeleteTransferEventsSinceHeight(ctx context.Context, height uint64) error {
+	if err := r.queries.DeleteTransferEventsSinceHeight(ctx, int32(height)); err != nil {
+		return errors.Wrap(err, "error during exec")
+	}
+	return nil
+}
+
+func (r *Repository) DeleteBalancesSinceHeight(ctx context.Context, height uint64) error {
+	if err := r.queries.DeleteBalancesSinceHeight(ctx, int32(height)); err != nil {
+		return errors.Wrap(err, "error during exec")
+	}
+	return nil
+}
+
+func (r *Repository) DeleteInscriptionEntriesSinceHeight(ctx context.Context, height uint64) error {
+	if err := r.queries.DeleteInscriptionEntriesSinceHeight(ctx, int32(height)); err != nil {
+		return errors.Wrap(err, "error during exec")
+	}
+	return nil
+}
+
+func (r *Repository) DeleteInscriptionEntryStatesSinceHeight(ctx context.Context, height uint64) error {
+	if err := r.queries.DeleteInscriptionEntryStatesSinceHeight(ctx, int32(height)); err != nil {
+		return errors.Wrap(err, "error during exec")
+	}
+	return nil
+}
+
+func (r *Repository) DeleteInscriptionTransfersSinceHeight(ctx context.Context, height uint64) error {
+	if err := r.queries.DeleteInscriptionTransfersSinceHeight(ctx, int32(height)); err != nil {
+		return errors.Wrap(err, "error during exec")
+	}
+	return nil
+}

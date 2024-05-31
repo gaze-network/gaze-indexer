@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS "brc20_processor_stats" (
 	"lost_sats" BIGINT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS "brc20_tickers" (
+CREATE TABLE IF NOT EXISTS "brc20_ticks" (
 	"tick" TEXT NOT NULL PRIMARY KEY, -- lowercase of original_tick
 	"original_tick" TEXT NOT NULL,
 	"total_supply" DECIMAL NOT NULL,
@@ -40,7 +40,7 @@ CREATE TABLE IF NOT EXISTS "brc20_tickers" (
 	"created_at_height" INT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS "brc20_ticker_states" (
+CREATE TABLE IF NOT EXISTS "brc20_tick_states" (
 	"tick" TEXT NOT NULL,
 	"block_height" INT NOT NULL,
 	"minted_amount" DECIMAL NOT NULL,
@@ -103,10 +103,10 @@ CREATE INDEX IF NOT EXISTS brc20_transfer_events_block_height_idx ON "brc20_tran
 CREATE TABLE IF NOT EXISTS "brc20_balances" (
 	"pkscript" TEXT NOT NULL,
 	"block_height" INT NOT NULL,
-	"ticker" TEXT NOT NULL,
+	"tick" TEXT NOT NULL,
 	"overall_balance" DECIMAL NOT NULL,
 	"available_balance" DECIMAL NOT NULL,
-	PRIMARY KEY ("pkscript", "ticker", "block_height")
+	PRIMARY KEY ("pkscript", "tick", "block_height")
 );
 
 CREATE TABLE IF NOT EXISTS "brc20_inscription_entries" (

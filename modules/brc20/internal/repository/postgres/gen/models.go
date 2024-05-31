@@ -11,7 +11,7 @@ import (
 type Brc20Balance struct {
 	Pkscript         string
 	BlockHeight      int32
-	Ticker           string
+	Tick             string
 	OverallBalance   pgtype.Numeric
 	AvailableBalance pgtype.Numeric
 }
@@ -108,7 +108,7 @@ type Brc20ProcessorStat struct {
 	LostSats                int64
 }
 
-type Brc20Ticker struct {
+type Brc20Tick struct {
 	Tick                string
 	OriginalTick        string
 	TotalSupply         pgtype.Numeric
@@ -120,7 +120,7 @@ type Brc20Ticker struct {
 	CreatedAtHeight     int32
 }
 
-type Brc20TickerState struct {
+type Brc20TickState struct {
 	Tick              string
 	BlockHeight       int32
 	MintedAmount      pgtype.Numeric

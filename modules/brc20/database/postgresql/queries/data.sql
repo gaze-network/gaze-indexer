@@ -40,3 +40,36 @@ INSERT INTO "brc20_inscription_entry_states" ("id", "block_height", "transfer_co
 
 -- name: CreateInscriptionTransfers :batchexec
 INSERT INTO "brc20_inscription_transfers" ("inscription_id", "block_height", "tx_index", "old_satpoint_tx_hash", "old_satpoint_out_idx", "old_satpoint_offset", "new_satpoint_tx_hash", "new_satpoint_out_idx", "new_satpoint_offset", "new_pkscript", "new_output_value", "sent_as_fee") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12);
+
+-- name: DeleteIndexedBlocksSinceHeight :exec
+DELETE FROM "brc20_indexed_blocks" WHERE "height" >= $1;
+
+-- name: DeleteProcessorStatsSinceHeight :exec
+DELETE FROM "brc20_processor_stats" WHERE "block_height" >= $1;
+
+-- name: DeleteTicksSinceHeight :exec
+DELETE FROM "brc20_ticks" WHERE "created_at_height" >= $1;
+
+-- name: DeleteTickStatesSinceHeight :exec
+DELETE FROM "brc20_tick_states" WHERE "block_height" >= $1;
+
+-- name: DeleteDeployEventsSinceHeight :exec
+DELETE FROM "brc20_deploy_events" WHERE "block_height" >= $1;
+
+-- name: DeleteMintEventsSinceHeight :exec
+DELETE FROM "brc20_mint_events" WHERE "block_height" >= $1;
+
+-- name: DeleteTransferEventsSinceHeight :exec
+DELETE FROM "brc20_transfer_events" WHERE "block_height" >= $1;
+
+-- name: DeleteBalancesSinceHeight :exec
+DELETE FROM "brc20_balances" WHERE "block_height" >= $1;
+
+-- name: DeleteInscriptionEntriesSinceHeight :exec
+DELETE FROM "brc20_inscription_entries" WHERE "created_at_height" >= $1;
+
+-- name: DeleteInscriptionEntryStatesSinceHeight :exec
+DELETE FROM "brc20_inscription_entry_states" WHERE "block_height" >= $1;
+
+-- name: DeleteInscriptionTransfersSinceHeight :exec
+DELETE FROM "brc20_inscription_transfers" WHERE "block_height" >= $1;

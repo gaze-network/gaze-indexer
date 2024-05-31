@@ -53,6 +53,105 @@ func (q *Queries) CreateProcessorStats(ctx context.Context, arg CreateProcessorS
 	return err
 }
 
+const deleteBalancesSinceHeight = `-- name: DeleteBalancesSinceHeight :exec
+DELETE FROM "brc20_balances" WHERE "block_height" >= $1
+`
+
+func (q *Queries) DeleteBalancesSinceHeight(ctx context.Context, blockHeight int32) error {
+	_, err := q.db.Exec(ctx, deleteBalancesSinceHeight, blockHeight)
+	return err
+}
+
+const deleteDeployEventsSinceHeight = `-- name: DeleteDeployEventsSinceHeight :exec
+DELETE FROM "brc20_deploy_events" WHERE "block_height" >= $1
+`
+
+func (q *Queries) DeleteDeployEventsSinceHeight(ctx context.Context, blockHeight int32) error {
+	_, err := q.db.Exec(ctx, deleteDeployEventsSinceHeight, blockHeight)
+	return err
+}
+
+const deleteIndexedBlocksSinceHeight = `-- name: DeleteIndexedBlocksSinceHeight :exec
+DELETE FROM "brc20_indexed_blocks" WHERE "height" >= $1
+`
+
+func (q *Queries) DeleteIndexedBlocksSinceHeight(ctx context.Context, height int32) error {
+	_, err := q.db.Exec(ctx, deleteIndexedBlocksSinceHeight, height)
+	return err
+}
+
+const deleteInscriptionEntriesSinceHeight = `-- name: DeleteInscriptionEntriesSinceHeight :exec
+DELETE FROM "brc20_inscription_entries" WHERE "created_at_height" >= $1
+`
+
+func (q *Queries) DeleteInscriptionEntriesSinceHeight(ctx context.Context, createdAtHeight int32) error {
+	_, err := q.db.Exec(ctx, deleteInscriptionEntriesSinceHeight, createdAtHeight)
+	return err
+}
+
+const deleteInscriptionEntryStatesSinceHeight = `-- name: DeleteInscriptionEntryStatesSinceHeight :exec
+DELETE FROM "brc20_inscription_entry_states" WHERE "block_height" >= $1
+`
+
+func (q *Queries) DeleteInscriptionEntryStatesSinceHeight(ctx context.Context, blockHeight int32) error {
+	_, err := q.db.Exec(ctx, deleteInscriptionEntryStatesSinceHeight, blockHeight)
+	return err
+}
+
+const deleteInscriptionTransfersSinceHeight = `-- name: DeleteInscriptionTransfersSinceHeight :exec
+DELETE FROM "brc20_inscription_transfers" WHERE "block_height" >= $1
+`
+
+func (q *Queries) DeleteInscriptionTransfersSinceHeight(ctx context.Context, blockHeight int32) error {
+	_, err := q.db.Exec(ctx, deleteInscriptionTransfersSinceHeight, blockHeight)
+	return err
+}
+
+const deleteMintEventsSinceHeight = `-- name: DeleteMintEventsSinceHeight :exec
+DELETE FROM "brc20_mint_events" WHERE "block_height" >= $1
+`
+
+func (q *Queries) DeleteMintEventsSinceHeight(ctx context.Context, blockHeight int32) error {
+	_, err := q.db.Exec(ctx, deleteMintEventsSinceHeight, blockHeight)
+	return err
+}
+
+const deleteProcessorStatsSinceHeight = `-- name: DeleteProcessorStatsSinceHeight :exec
+DELETE FROM "brc20_processor_stats" WHERE "block_height" >= $1
+`
+
+func (q *Queries) DeleteProcessorStatsSinceHeight(ctx context.Context, blockHeight int32) error {
+	_, err := q.db.Exec(ctx, deleteProcessorStatsSinceHeight, blockHeight)
+	return err
+}
+
+const deleteTickStatesSinceHeight = `-- name: DeleteTickStatesSinceHeight :exec
+DELETE FROM "brc20_tick_states" WHERE "block_height" >= $1
+`
+
+func (q *Queries) DeleteTickStatesSinceHeight(ctx context.Context, blockHeight int32) error {
+	_, err := q.db.Exec(ctx, deleteTickStatesSinceHeight, blockHeight)
+	return err
+}
+
+const deleteTicksSinceHeight = `-- name: DeleteTicksSinceHeight :exec
+DELETE FROM "brc20_ticks" WHERE "created_at_height" >= $1
+`
+
+func (q *Queries) DeleteTicksSinceHeight(ctx context.Context, createdAtHeight int32) error {
+	_, err := q.db.Exec(ctx, deleteTicksSinceHeight, createdAtHeight)
+	return err
+}
+
+const deleteTransferEventsSinceHeight = `-- name: DeleteTransferEventsSinceHeight :exec
+DELETE FROM "brc20_transfer_events" WHERE "block_height" >= $1
+`
+
+func (q *Queries) DeleteTransferEventsSinceHeight(ctx context.Context, blockHeight int32) error {
+	_, err := q.db.Exec(ctx, deleteTransferEventsSinceHeight, blockHeight)
+	return err
+}
+
 const getIndexedBlockByHeight = `-- name: GetIndexedBlockByHeight :one
 SELECT height, hash, event_hash, cumulative_event_hash FROM "brc20_indexed_blocks" WHERE "height" = $1
 `
