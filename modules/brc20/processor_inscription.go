@@ -131,7 +131,7 @@ func (p *Processor) processInscriptionTx(ctx context.Context, tx *types.Transact
 					if !initialInscriptionEntry.Cursed {
 						cursed = true // reinscription curse if initial inscription is not cursed
 					}
-					if initialInscriptionEntry.CursedForBRC20 {
+					if !initialInscriptionEntry.CursedForBRC20 {
 						cursedForBRC20 = true
 					}
 				}
