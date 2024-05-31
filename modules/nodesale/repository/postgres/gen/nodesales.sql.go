@@ -12,13 +12,14 @@ import (
 )
 
 const addNodesale = `-- name: AddNodesale :exec
-INSERT INTO node_sales("block_height", "tx_index", "starts_at", "ends_at", "tiers", "seller_public_key", "max_per_address", "deploy_tx_hash")
-VALUES ( $1, $2, $3, $4, $5, $6, $7, $8)
+INSERT INTO node_sales("block_height", "tx_index", "name", "starts_at", "ends_at", "tiers", "seller_public_key", "max_per_address", "deploy_tx_hash")
+VALUES ( $1, $2, $3, $4, $5, $6, $7, $8, $9)
 `
 
 type AddNodesaleParams struct {
 	BlockHeight     int32
 	TxIndex         int32
+	Name            string
 	StartsAt        pgtype.Timestamp
 	EndsAt          pgtype.Timestamp
 	Tiers           [][]byte
@@ -31,6 +32,7 @@ func (q *Queries) AddNodesale(ctx context.Context, arg AddNodesaleParams) error 
 	_, err := q.db.Exec(ctx, addNodesale,
 		arg.BlockHeight,
 		arg.TxIndex,
+		arg.Name,
 		arg.StartsAt,
 		arg.EndsAt,
 		arg.Tiers,

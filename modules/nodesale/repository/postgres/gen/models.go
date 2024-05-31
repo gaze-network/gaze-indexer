@@ -18,11 +18,14 @@ type Event struct {
 	TxHash         string
 	BlockHeight    int32
 	TxIndex        int32
+	WalletAddress  string
+	Valid          bool
 	Action         int32
 	RawMessage     []byte
 	ParsedMessage  []byte
 	BlockTimestamp pgtype.Timestamp
 	BlockHash      string
+	Metadata       []byte
 }
 
 type Node struct {
@@ -39,6 +42,7 @@ type Node struct {
 type NodeSale struct {
 	BlockHeight     int32
 	TxIndex         int32
+	Name            string
 	StartsAt        pgtype.Timestamp
 	EndsAt          pgtype.Timestamp
 	Tiers           [][]byte

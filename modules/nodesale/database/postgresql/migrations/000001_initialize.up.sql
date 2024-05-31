@@ -11,16 +11,20 @@ CREATE TABLE IF NOT EXISTS events (
     "tx_hash" TEXT NOT NULL PRIMARY KEY,
     "block_height" INTEGER NOT NULL,
     "tx_index" INTEGER NOT NULL,
+    "wallet_address" TEXT NOT NULL,
+    "valid" BOOLEAN NOT NULL,
     "action" INTEGER NOT NULL,
     "raw_message" BYTEA NOT NULL,
     "parsed_message" JSONB NOT NULL,
     "block_timestamp" TIMESTAMP NOT NULL,
-    "block_hash" TEXT NOT NULL
+    "block_hash" TEXT NOT NULL,
+    "metadata" JSONB NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS node_sales (
     "block_height" INTEGER NOT NULL,
     "tx_index" INTEGER NOT NULL,
+    "name" TEXT NOT NULL,
     "starts_at" TIMESTAMP NOT NULL,
     "ends_at" TIMESTAMP NOT NULL,
     "tiers" JSONB[] NOT NULL,

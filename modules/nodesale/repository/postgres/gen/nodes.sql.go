@@ -22,3 +22,74 @@ func (q *Queries) ClearDelegate(ctx context.Context) (int64, error) {
 	}
 	return result.RowsAffected(), nil
 }
+
+const getNodes = `-- name: GetNodes :many
+SELECT sale_block, sale_tx_index, node_id, tier_index, delegated_to, owner_public_key, purchase_tx_hash, delegate_tx_hash
+FROM nodes
+WHERE sale_block = $1 AND
+    sale_tx_index = $2 AND
+    node_id = ANY ($3::int[])
+`
+
+type GetNodesParams struct {
+	SaleBlock   int32
+	SaleTxIndex int32
+	NodeIds     []int32
+}
+
+func (q *Queries) GetNodes(ctx context.Context, arg GetNodesParams) ([]Node, error) {
+	rows, err := q.db.Query(ctx, getNodes, arg.SaleBlock, arg.SaleTxIndex, arg.NodeIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Node
+	for rows.Next() {
+		var i Node
+		if err := rows.Scan(
+			&i.SaleBlock,
+			&i.SaleTxIndex,
+			&i.NodeID,
+			&i.TierIndex,
+			&i.DelegatedTo,
+			&i.OwnerPublicKey,
+			&i.PurchaseTxHash,
+			&i.DelegateTxHash,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const setDelegates = `-- name: SetDelegates :execrows
+UPDATE nodes
+SET delegated_to = $3
+WHERE sale_block = $1 AND
+    sale_tx_index = $2 AND
+    node_id = ANY ($4::int[])
+`
+
+type SetDelegatesParams struct {
+	SaleBlock   int32
+	SaleTxIndex int32
+	Delegatee   string
+	NodeIds     []int32
+}
+
+func (q *Queries) SetDelegates(ctx context.Context, arg SetDelegatesParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setDelegates,
+		arg.SaleBlock,
+		arg.SaleTxIndex,
+		arg.Delegatee,
+		arg.NodeIds,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}

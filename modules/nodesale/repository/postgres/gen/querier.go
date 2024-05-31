@@ -15,8 +15,10 @@ type Querier interface {
 	ClearDelegate(ctx context.Context) (int64, error)
 	GetBlock(ctx context.Context, blockHeight int32) (Block, error)
 	GetLastProcessedBlock(ctx context.Context) (Block, error)
+	GetNodes(ctx context.Context, arg GetNodesParams) ([]Node, error)
 	RemoveBlockFrom(ctx context.Context, fromBlock int32) (int64, error)
 	RemoveEventsFromBlock(ctx context.Context, fromBlock int32) (int64, error)
+	SetDelegates(ctx context.Context, arg SetDelegatesParams) (int64, error)
 }
 
 var _ Querier = (*Queries)(nil)

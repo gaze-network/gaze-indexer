@@ -53,4 +53,5 @@ message ActionID {
 message ActionDelegate {
 	bytes delegateePublicKey = 1;
 	repeated uint32 nodeIDs = 2;
+    ActionID deployID = 3;
 }
