@@ -33,20 +33,21 @@ type Node struct {
 	SaleTxIndex    int32
 	NodeID         int32
 	TierIndex      int32
-	DelegatedTo    string
+	DelegatedTo    pgtype.Text
 	OwnerPublicKey string
 	PurchaseTxHash string
-	DelegateTxHash string
+	DelegateTxHash pgtype.Text
 }
 
 type NodeSale struct {
-	BlockHeight     int32
-	TxIndex         int32
-	Name            string
-	StartsAt        pgtype.Timestamp
-	EndsAt          pgtype.Timestamp
-	Tiers           [][]byte
-	SellerPublicKey string
-	MaxPerAddress   int32
-	DeployTxHash    string
+	BlockHeight           int32
+	TxIndex               int32
+	Name                  string
+	StartsAt              pgtype.Timestamp
+	EndsAt                pgtype.Timestamp
+	Tiers                 [][]byte
+	SellerPublicKey       string
+	MaxPerAddress         int32
+	DeployTxHash          string
+	MaxDiscountPercentage int32
 }

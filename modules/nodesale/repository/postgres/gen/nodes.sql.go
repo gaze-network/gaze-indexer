@@ -7,7 +7,39 @@ package gen
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
+
+const addNode = `-- name: AddNode :exec
+INSERT INTO nodes(sale_block, sale_tx_index, node_id, tier_index, delegated_to, owner_public_key, purchase_tx_hash, delegate_tx_hash)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+`
+
+type AddNodeParams struct {
+	SaleBlock      int32
+	SaleTxIndex    int32
+	NodeID         int32
+	TierIndex      int32
+	DelegatedTo    pgtype.Text
+	OwnerPublicKey string
+	PurchaseTxHash string
+	DelegateTxHash pgtype.Text
+}
+
+func (q *Queries) AddNode(ctx context.Context, arg AddNodeParams) error {
+	_, err := q.db.Exec(ctx, addNode,
+		arg.SaleBlock,
+		arg.SaleTxIndex,
+		arg.NodeID,
+		arg.TierIndex,
+		arg.DelegatedTo,
+		arg.OwnerPublicKey,
+		arg.PurchaseTxHash,
+		arg.DelegateTxHash,
+	)
+	return err
+}
 
 const clearDelegate = `-- name: ClearDelegate :execrows
 UPDATE nodes
@@ -66,6 +98,50 @@ func (q *Queries) GetNodes(ctx context.Context, arg GetNodesParams) ([]Node, err
 	return items, nil
 }
 
+const getNodesByOwner = `-- name: GetNodesByOwner :many
+SELECT sale_block, sale_tx_index, node_id, tier_index, delegated_to, owner_public_key, purchase_tx_hash, delegate_tx_hash 
+FROM nodes
+WHERE sale_block = $1 AND
+    sale_tx_index = $2 AND
+    owner_public_key = $3
+ORDER BY tier_index
+`
+
+type GetNodesByOwnerParams struct {
+	SaleBlock      int32
+	SaleTxIndex    int32
+	OwnerPublicKey string
+}
+
+func (q *Queries) GetNodesByOwner(ctx context.Context, arg GetNodesByOwnerParams) ([]Node, error) {
+	rows, err := q.db.Query(ctx, getNodesByOwner, arg.SaleBlock, arg.SaleTxIndex, arg.OwnerPublicKey)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Node
+	for rows.Next() {
+		var i Node
+		if err := rows.Scan(
+			&i.SaleBlock,
+			&i.SaleTxIndex,
+			&i.NodeID,
+			&i.TierIndex,
+			&i.DelegatedTo,
+			&i.OwnerPublicKey,
+			&i.PurchaseTxHash,
+			&i.DelegateTxHash,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const setDelegates = `-- name: SetDelegates :execrows
 UPDATE nodes
 SET delegated_to = $3
@@ -77,7 +153,7 @@ WHERE sale_block = $1 AND
 type SetDelegatesParams struct {
 	SaleBlock   int32
 	SaleTxIndex int32
-	Delegatee   string
+	Delegatee   pgtype.Text
 	NodeIds     []int32
 }
 

@@ -13,8 +13,8 @@ import (
 
 const addEvent = `-- name: AddEvent :exec
 INSERT INTO events("tx_hash", "block_height", "tx_index", "wallet_address", "valid", "action", 
-                    "raw_message", "parsed_message", "block_timestamp", "block_hash")
-VALUES ( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                    "raw_message", "parsed_message", "block_timestamp", "block_hash", "metadata")
+VALUES ( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 `
 
 type AddEventParams struct {
@@ -28,6 +28,7 @@ type AddEventParams struct {
 	ParsedMessage  []byte
 	BlockTimestamp pgtype.Timestamp
 	BlockHash      string
+	Metadata       []byte
 }
 
 func (q *Queries) AddEvent(ctx context.Context, arg AddEventParams) error {
@@ -42,6 +43,7 @@ func (q *Queries) AddEvent(ctx context.Context, arg AddEventParams) error {
 		arg.ParsedMessage,
 		arg.BlockTimestamp,
 		arg.BlockHash,
+		arg.Metadata,
 	)
 	return err
 }

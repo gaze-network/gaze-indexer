@@ -3,13 +3,9 @@ package nodesale
 import (
 	"bytes"
 	"context"
-	"encoding/hex"
 	"fmt"
 	"log/slog"
-	"time"
 
-	"github.com/btcsuite/btcd/btcec/v2"
-	"github.com/btcsuite/btcd/btcec/v2/schnorr"
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/txscript"
@@ -17,7 +13,6 @@ import (
 	"github.com/gaze-network/indexer-network/core/indexer"
 	"github.com/gaze-network/indexer-network/core/types"
 	"github.com/gaze-network/indexer-network/pkg/logger"
-	"github.com/jackc/pgx/v5/pgtype"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
@@ -173,138 +168,6 @@ func (p *Processor) parseTransactions(ctx context.Context, transactions []*types
 	return events, nil
 }
 
-func (p *Processor) pubkeyToAddress(pubkey string) btcutil.Address {
-	pubKeyBytes, _ := hex.DecodeString(pubkey)
-	pubKey, _ := btcec.ParsePubKey(pubKeyBytes)
-	sellerAddr, _ := btcutil.NewAddressTaproot(schnorr.SerializePubKey(pubKey), p.network.ChainParams())
-	return sellerAddr
-}
-
-func (p *Processor) processDeploy(ctx context.Context, qtx gen.Querier, block *types.Block, event nodesaleEvent) error {
-	valid := true
-	deploy := event.eventMessage.Deploy
-	sellerAddr := p.pubkeyToAddress(string(deploy.SellerPublicKey))
-	if !bytes.Equal(
-		[]byte(sellerAddr.EncodeAddress()),
-		[]byte(event.txAddress.EncodeAddress()),
-	) {
-		valid = false
-	}
-	tiers := make([][]byte, len(deploy.Tiers))
-	for _, tier := range deploy.Tiers {
-		tierJson, err := protojson.Marshal(tier)
-		if err != nil {
-			return fmt.Errorf("Failed to parse tiers to json : %w", err)
-		}
-		tiers = append(tiers, tierJson)
-	}
-
-	err := qtx.AddEvent(ctx, gen.AddEventParams{
-		TxHash:         event.transaction.TxHash.String(),
-		TxIndex:        int32(event.transaction.Index),
-		Action:         int32(event.eventMessage.Action),
-		RawMessage:     event.rawData,
-		ParsedMessage:  event.eventJson,
-		BlockTimestamp: pgtype.Timestamp{Time: block.Header.Timestamp, Valid: true},
-		BlockHash:      block.Header.Hash.String(),
-		BlockHeight:    int32(block.Header.Height),
-		Valid:          valid,
-		WalletAddress:  event.txAddress.EncodeAddress(),
-	})
-	if err != nil {
-		return fmt.Errorf("Failed to insert event : %w", err)
-	}
-	if valid {
-		err = qtx.AddNodesale(ctx, gen.AddNodesaleParams{
-			BlockHeight: int32(event.transaction.BlockHeight),
-			TxIndex:     int32(event.transaction.Index),
-			Name:        deploy.Name,
-			StartsAt: pgtype.Timestamp{
-				Time:  time.Unix(int64(deploy.StartsAt), 0).UTC(),
-				Valid: true,
-			},
-			EndsAt: pgtype.Timestamp{
-				Time:  time.Unix(int64(deploy.EndsAt), 0).UTC(),
-				Valid: true,
-			},
-			Tiers:           tiers,
-			SellerPublicKey: string(deploy.SellerPublicKey),
-			MaxPerAddress:   int32(deploy.MaxPerAddress),
-			DeployTxHash:    event.transaction.TxHash.String(),
-		})
-		if err != nil {
-			return fmt.Errorf("Failed to insert nodesale : %w", err)
-		}
-	}
-
-	return nil
-}
-
-func (p *Processor) processDelegate(ctx context.Context, qtx gen.Querier, block *types.Block, event nodesaleEvent) error {
-	valid := true
-	delegate := event.eventMessage.Delegate
-	nodeIds := make([]int32, len(delegate.NodeIDs))
-	for _, id := range delegate.NodeIDs {
-		nodeIds = append(nodeIds, int32(id))
-	}
-	nodes, err := qtx.GetNodes(ctx, gen.GetNodesParams{
-		SaleBlock:   int32(delegate.DeployID.Block),
-		SaleTxIndex: int32(delegate.DeployID.TxIndex),
-		NodeIds:     nodeIds,
-	})
-	if err != nil {
-		return fmt.Errorf("Failed to get nodes : %w", err)
-	}
-
-	if len(nodeIds) != len(nodes) {
-		valid = false
-	}
-
-	for _, node := range nodes {
-		ownerAddress := p.pubkeyToAddress(node.OwnerPublicKey)
-		if !bytes.Equal(
-			[]byte(ownerAddress.EncodeAddress()),
-			[]byte(event.txAddress.EncodeAddress()),
-		) {
-			valid = false
-		}
-	}
-
-	err = qtx.AddEvent(ctx, gen.AddEventParams{
-		TxHash:         event.transaction.TxHash.String(),
-		TxIndex:        int32(event.transaction.Index),
-		Action:         int32(event.eventMessage.Action),
-		RawMessage:     event.rawData,
-		ParsedMessage:  event.eventJson,
-		BlockTimestamp: pgtype.Timestamp{Time: block.Header.Timestamp, Valid: true},
-		BlockHash:      block.Header.Hash.String(),
-		BlockHeight:    int32(block.Header.Height),
-		Valid:          valid,
-		WalletAddress:  event.txAddress.EncodeAddress(),
-	})
-	if err != nil {
-		return fmt.Errorf("Failed to insert event : %w", err)
-	}
-
-	if valid {
-		_, err = qtx.SetDelegates(ctx, gen.SetDelegatesParams{
-			SaleBlock:   int32(event.transaction.BlockHeight),
-			SaleTxIndex: int32(event.transaction.Index),
-			Delegatee:   string(delegate.DelegateePublicKey),
-			NodeIds:     nodeIds,
-		})
-		if err != nil {
-			return fmt.Errorf("Failed to set delegate : %w", err)
-		}
-	}
-
-	return nil
-}
-
-func (p *Processor) processPurchase(ctx context.Context, qtx gen.Querier, block *types.Block, event nodesaleEvent) error {
-	panic("unimplemented")
-}
-
 // Process implements indexer.Processor.
 func (p *Processor) Process(ctx context.Context, inputs []*types.Block) error {
 	for _, block := range inputs {
@@ -313,7 +176,6 @@ func (p *Processor) Process(ctx context.Context, inputs []*types.Block) error {
 		if err != nil {
 			return fmt.Errorf("Invalid data from bitcoin client : %w", err)
 		}
-		// events[]
 
 		// open transaction
 		tx, err := p.repository.Db.Begin(ctx)
@@ -353,16 +215,11 @@ func (p *Processor) Process(ctx context.Context, inputs []*types.Block) error {
 				}
 			}
 		}
-
 		// close transaction
 		err = tx.Commit(ctx)
 		if err != nil {
 			return fmt.Errorf("Failed to commit transaction : %w", err)
 		}
-
-		/*if err := p.processBlock(ctx, block); err != nil {
-			return fmt.Errorf("Process block %d failed. : %w", block.Header.Height, err)
-		}*/
 	}
 	return nil
 }

@@ -11,11 +11,14 @@ import (
 type Querier interface {
 	AddBlock(ctx context.Context, arg AddBlockParams) error
 	AddEvent(ctx context.Context, arg AddEventParams) error
+	AddNode(ctx context.Context, arg AddNodeParams) error
 	AddNodesale(ctx context.Context, arg AddNodesaleParams) error
 	ClearDelegate(ctx context.Context) (int64, error)
 	GetBlock(ctx context.Context, blockHeight int32) (Block, error)
 	GetLastProcessedBlock(ctx context.Context) (Block, error)
 	GetNodes(ctx context.Context, arg GetNodesParams) ([]Node, error)
+	GetNodesByOwner(ctx context.Context, arg GetNodesByOwnerParams) ([]Node, error)
+	GetNodesale(ctx context.Context, arg GetNodesaleParams) ([]NodeSale, error)
 	RemoveBlockFrom(ctx context.Context, fromBlock int32) (int64, error)
 	RemoveEventsFromBlock(ctx context.Context, fromBlock int32) (int64, error)
 	SetDelegates(ctx context.Context, arg SetDelegatesParams) (int64, error)

@@ -25,6 +25,7 @@ message ActionDeploy {
 	repeated Tier tiers = 4;
 	bytes sellerPublicKey = 5;
 	uint32 maxPerAddress = 6;
+    uint32 maxDiscountPercentage = 7;
 }
 
 message Tier {
@@ -42,7 +43,7 @@ message PurchasePayload {
 	ActionID deployID = 1;
 	bytes buyerPublicKey = 2;
 	repeated uint32 nodeIDs = 3;
-	uint64 totalAmount = 4;
+	int64 totalAmountSat = 4;
 }
 
 message ActionID {

@@ -12,20 +12,21 @@ import (
 )
 
 const addNodesale = `-- name: AddNodesale :exec
-INSERT INTO node_sales("block_height", "tx_index", "name", "starts_at", "ends_at", "tiers", "seller_public_key", "max_per_address", "deploy_tx_hash")
-VALUES ( $1, $2, $3, $4, $5, $6, $7, $8, $9)
+INSERT INTO node_sales("block_height", "tx_index", "name", "starts_at", "ends_at", "tiers", "seller_public_key", "max_per_address", "deploy_tx_hash", "max_discount_percentage")
+VALUES ( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 `
 
 type AddNodesaleParams struct {
-	BlockHeight     int32
-	TxIndex         int32
-	Name            string
-	StartsAt        pgtype.Timestamp
-	EndsAt          pgtype.Timestamp
-	Tiers           [][]byte
-	SellerPublicKey string
-	MaxPerAddress   int32
-	DeployTxHash    string
+	BlockHeight           int32
+	TxIndex               int32
+	Name                  string
+	StartsAt              pgtype.Timestamp
+	EndsAt                pgtype.Timestamp
+	Tiers                 [][]byte
+	SellerPublicKey       string
+	MaxPerAddress         int32
+	DeployTxHash          string
+	MaxDiscountPercentage int32
 }
 
 func (q *Queries) AddNodesale(ctx context.Context, arg AddNodesaleParams) error {
@@ -39,6 +40,50 @@ func (q *Queries) AddNodesale(ctx context.Context, arg AddNodesaleParams) error 
 		arg.SellerPublicKey,
 		arg.MaxPerAddress,
 		arg.DeployTxHash,
+		arg.MaxDiscountPercentage,
 	)
 	return err
+}
+
+const getNodesale = `-- name: GetNodesale :many
+SELECT block_height, tx_index, name, starts_at, ends_at, tiers, seller_public_key, max_per_address, deploy_tx_hash, max_discount_percentage
+FROM node_sales
+WHERE block_height = $1 AND
+    tx_index = $2
+`
+
+type GetNodesaleParams struct {
+	BlockHeight int32
+	TxIndex     int32
+}
+
+func (q *Queries) GetNodesale(ctx context.Context, arg GetNodesaleParams) ([]NodeSale, error) {
+	rows, err := q.db.Query(ctx, getNodesale, arg.BlockHeight, arg.TxIndex)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []NodeSale
+	for rows.Next() {
+		var i NodeSale
+		if err := rows.Scan(
+			&i.BlockHeight,
+			&i.TxIndex,
+			&i.Name,
+			&i.StartsAt,
+			&i.EndsAt,
+			&i.Tiers,
+			&i.SellerPublicKey,
+			&i.MaxPerAddress,
+			&i.DeployTxHash,
+			&i.MaxDiscountPercentage,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
