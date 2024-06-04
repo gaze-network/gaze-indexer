@@ -259,4 +259,8 @@ func (p *Processor) VerifyStates(ctx context.Context) error {
 	panic("unimplemented")
 }
 
+func (p *Processor) Shutdown(ctx context.Context) error {
+	panic("unimplemented")
+}
+
 var _ indexer.Processor[*types.Block] = (*Processor)(nil)
