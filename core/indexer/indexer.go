@@ -91,6 +91,10 @@ func (i *Indexer[T]) Run(ctx context.Context) (err error) {
 		select {
 		case <-i.quit:
 			logger.InfoContext(ctx, "Got quit signal, stopping indexer")
+			if err := i.Processor.Shutdown(ctx); err != nil {
+				logger.ErrorContext(ctx, "Failed to shutdown processor", slogx.Error(err))
+				return errors.Wrap(err, "processor shutdown failed")
+			}
 			return nil
 		case <-ctx.Done():
 			return nil
