@@ -436,16 +436,37 @@ func (p *Processor) getOutPointValues(ctx context.Context, outPoints []wire.OutP
 }
 
 func (p *Processor) getInscriptionTransfersInOutPoints(ctx context.Context, outPoints []wire.OutPoint) (map[wire.OutPoint]map[ordinals.SatPoint][]*entity.InscriptionTransfer, error) {
-	transfers, err := p.brc20Dg.GetInscriptionTransfersInOutPoints(ctx, outPoints)
+	// try to get from flush buffer if exists
+	result := make(map[wire.OutPoint]map[ordinals.SatPoint][]*entity.InscriptionTransfer)
+
+	outPointsToFetch := make([]wire.OutPoint, 0)
+	for _, outPoint := range outPoints {
+		var found bool
+		for _, transfer := range p.newInscriptionTransfers {
+			if transfer.NewSatPoint.OutPoint == outPoint {
+				found = true
+				if _, ok := result[outPoint]; !ok {
+					result[outPoint] = make(map[ordinals.SatPoint][]*entity.InscriptionTransfer)
+				}
+				result[outPoint][transfer.NewSatPoint] = append(result[outPoint][transfer.NewSatPoint], transfer)
+				break
+			}
+		}
+		if !found {
+			outPointsToFetch = append(outPointsToFetch, outPoint)
+		}
+	}
+
+	transfers, err := p.brc20Dg.GetInscriptionTransfersInOutPoints(ctx, outPointsToFetch)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get inscriptions by outpoint")
 	}
-	result := make(map[wire.OutPoint]map[ordinals.SatPoint][]*entity.InscriptionTransfer)
-	for satPoint, transfer := range transfers {
+
+	for satPoint, transferList := range transfers {
 		if _, ok := result[satPoint.OutPoint]; !ok {
 			result[satPoint.OutPoint] = make(map[ordinals.SatPoint][]*entity.InscriptionTransfer)
 		}
-		result[satPoint.OutPoint][satPoint] = append(result[satPoint.OutPoint][satPoint], transfer...)
+		result[satPoint.OutPoint][satPoint] = append(result[satPoint.OutPoint][satPoint], transferList...)
 	}
 	return result, nil
 }
