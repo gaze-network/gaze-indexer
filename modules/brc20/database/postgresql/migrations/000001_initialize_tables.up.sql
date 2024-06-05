@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS "brc20_processor_stats" (
 	"lost_sats" BIGINT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS "brc20_ticks" (
+CREATE TABLE IF NOT EXISTS "brc20_tick_entries" (
 	"tick" TEXT NOT NULL PRIMARY KEY, -- lowercase of original_tick
 	"original_tick" TEXT NOT NULL,
 	"total_supply" DECIMAL NOT NULL,
@@ -40,7 +40,7 @@ CREATE TABLE IF NOT EXISTS "brc20_ticks" (
 	"created_at_height" INT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS "brc20_tick_states" (
+CREATE TABLE IF NOT EXISTS "brc20_tick_entry_states" (
 	"tick" TEXT NOT NULL,
 	"block_height" INT NOT NULL,
 	"minted_amount" DECIMAL NOT NULL,
