@@ -5,12 +5,12 @@ import (
 	"slices"
 
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
+	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/core/types"
 	"github.com/gaze-network/indexer-network/modules/brc20/internal/entity"
 	"github.com/gaze-network/indexer-network/modules/brc20/internal/ordinals"
 	"github.com/gaze-network/indexer-network/pkg/logger"
 	"github.com/gaze-network/indexer-network/pkg/logger/slogx"
-	"github.com/pkg/errors"
 	"github.com/samber/lo"
 )
 

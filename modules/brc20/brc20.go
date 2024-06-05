@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/btcsuite/btcd/rpcclient"
+	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/common/errs"
 	"github.com/gaze-network/indexer-network/core/datasources"
 	"github.com/gaze-network/indexer-network/core/indexer"
@@ -14,7 +15,6 @@ import (
 	"github.com/gaze-network/indexer-network/modules/brc20/internal/datagateway"
 	brc20postgres "github.com/gaze-network/indexer-network/modules/brc20/internal/repository/postgres"
 	"github.com/gaze-network/indexer-network/pkg/btcclient"
-	"github.com/pkg/errors"
 	"github.com/samber/do/v2"
 )
 
