@@ -2,14 +2,14 @@ package nodesale
 
 import "github.com/btcsuite/btcd/txscript"
 
-func extractTapScript(witness [][]byte) (txscript.ScriptTokenizer, bool) {
+func extractTapScript(witness [][]byte) (txscript.ScriptTokenizer, []byte, bool) {
 	witness = removeAnnexFromWitness(witness)
 	if len(witness) < 2 {
-		return txscript.ScriptTokenizer{}, false
+		return txscript.ScriptTokenizer{}, nil, false
 	}
 	script := witness[len(witness)-2]
 
-	return txscript.MakeScriptTokenizer(0, script), true
+	return txscript.MakeScriptTokenizer(0, script), script, true
 }
 
 func removeAnnexFromWitness(witness [][]byte) [][]byte {

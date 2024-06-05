@@ -23,9 +23,9 @@ message ActionDeploy {
 	uint32 startsAt = 2;
 	uint32 endsAt = 3;
 	repeated Tier tiers = 4;
-	bytes sellerPublicKey = 5;
+	string sellerPublicKey = 5;
 	uint32 maxPerAddress = 6;
-    uint32 maxDiscountPercentage = 7;
+	uint32 maxDiscountPercentage = 7;
 }
 
 message Tier {
@@ -36,14 +36,15 @@ message Tier {
 
 message ActionPurchase {
 	PurchasePayload payload = 1;
-	bytes sellerSignature = 2;
+	string sellerSignature = 2;
 }
 
 message PurchasePayload {
 	ActionID deployID = 1;
-	bytes buyerPublicKey = 2;
+	string buyerPublicKey = 2;
 	repeated uint32 nodeIDs = 3;
 	int64 totalAmountSat = 4;
+	uint64 timeOutBlock = 5;
 }
 
 message ActionID {
@@ -52,7 +53,7 @@ message ActionID {
 }
 
 message ActionDelegate {
-	bytes delegateePublicKey = 1;
+	string delegateePublicKey = 1;
 	repeated uint32 nodeIDs = 2;
-    ActionID deployID = 3;
+	ActionID deployID = 3;
 }

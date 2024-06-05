@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"slices"
 
@@ -19,13 +20,19 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+type metaData struct {
+	ExpectedTotalAmountDiscounted int64
+	ReportedTotalAmount           int64
+	PaidTotalAmount               int64
+}
+
 func (p *Processor) processPurchase(ctx context.Context, qtx gen.Querier, block *types.Block, event nodesaleEvent) error {
 	valid := true
 	purchase := event.eventMessage.Purchase
 	payload := purchase.Payload
 
-	buyerAddr := p.pubkeyToAddress(string(payload.BuyerPublicKey))
-	if !bytes.Equal(
+	buyerAddr, err := p.pubkeyToTaprootAddress(payload.BuyerPublicKey, event.rawScript)
+	if err != nil || !bytes.Equal(
 		[]byte(buyerAddr.EncodeAddress()),
 		[]byte(event.txAddress.EncodeAddress()),
 	) {
@@ -58,17 +65,27 @@ func (p *Processor) processPurchase(ctx context.Context, qtx gen.Querier, block 
 	}
 
 	if valid {
+		if payload.TimeOutBlock < uint64(event.transaction.BlockHeight) {
+			valid = false
+		}
+	}
+
+	if valid {
 		// verified signature
 		payloadBytes, _ := proto.Marshal(payload)
-		signatureBytes, _ := hex.DecodeString(string(purchase.SellerSignature))
-
-		signature, _ := ecdsa.ParseSignature(signatureBytes)
-		hash := sha256.Sum256(payloadBytes)
-		pubkeyBytes, _ := hex.DecodeString(deploy.SellerPublicKey)
-		pubKey, _ := btcec.ParsePubKey(pubkeyBytes)
-		verified := signature.Verify(hash[:], pubKey)
-		if !verified {
+		signatureBytes, _ := hex.DecodeString(purchase.SellerSignature)
+		signature, err := ecdsa.ParseSignature(signatureBytes)
+		if err != nil {
 			valid = false
+		}
+		if valid {
+			hash := sha256.Sum256(payloadBytes)
+			pubkeyBytes, _ := hex.DecodeString(deploy.SellerPublicKey)
+			pubKey, _ := btcec.ParsePubKey(pubkeyBytes)
+			verified := signature.Verify(hash[:], pubKey)
+			if !verified {
+				valid = false
+			}
 		}
 	}
 
@@ -123,12 +140,12 @@ func (p *Processor) processPurchase(ctx context.Context, qtx gen.Querier, block 
 	}
 
 	var txPaid int64 = 0
+	meta := metaData{}
 	if valid {
 		// get total amount paid to seller
-		sellerAddr := p.pubkeyToAddress(deploy.SellerPublicKey)
+		sellerAddr := p.pubkeyToPkHashAddress(deploy.SellerPublicKey)
 		for _, txOut := range event.transaction.TxOut {
 			_, txOutAddrs, _, _ := txscript.ExtractPkScriptAddrs(txOut.PkScript, p.network.ChainParams())
-
 			if len(txOutAddrs) == 1 && bytes.Equal(
 				[]byte(sellerAddr.EncodeAddress()),
 				[]byte(txOutAddrs[0].EncodeAddress()),
@@ -136,13 +153,12 @@ func (p *Processor) processPurchase(ctx context.Context, qtx gen.Querier, block 
 				txPaid += txOut.Value
 			}
 		}
+		meta.PaidTotalAmount = txPaid
+		meta.ReportedTotalAmount = payload.TotalAmountSat
 		// total amount paid is greater than report paid
 		if txPaid < payload.TotalAmountSat {
 			valid = false
 		}
-	}
-
-	if valid {
 		// calculate total price
 		var totalPrice int64 = 0
 		for i := 0; i < len(tiers); i++ {
@@ -155,6 +171,7 @@ func (p *Processor) processPurchase(ctx context.Context, qtx gen.Querier, block 
 		if decimal%100 >= 50 {
 			maxDiscounted++
 		}
+		meta.ExpectedTotalAmountDiscounted = maxDiscounted
 		if payload.TotalAmountSat < maxDiscounted {
 			valid = false
 		}
@@ -168,12 +185,12 @@ func (p *Processor) processPurchase(ctx context.Context, qtx gen.Querier, block 
 		buyerOwnedNodes, err = qtx.GetNodesByOwner(ctx, gen.GetNodesByOwnerParams{
 			SaleBlock:      deploy.BlockHeight,
 			SaleTxIndex:    deploy.TxIndex,
-			OwnerPublicKey: string(payload.BuyerPublicKey),
+			OwnerPublicKey: payload.BuyerPublicKey,
 		})
 		if err != nil {
 			return fmt.Errorf("Failed to GetNodesByOwner : %w", err)
 		}
-		if len(buyerOwnedNodes) > int(deploy.MaxPerAddress) {
+		if len(buyerOwnedNodes)+len(payload.NodeIDs) > int(deploy.MaxPerAddress) {
 			valid = false
 		}
 	}
@@ -183,40 +200,31 @@ func (p *Processor) processPurchase(ctx context.Context, qtx gen.Querier, block 
 		// count each tiers
 		// check limited for each tier
 		ownedTiersCount := make([]uint32, len(tiers))
-		currentTier := -1
-		var tierSum uint32 = 0
 		for _, node := range buyerOwnedNodes {
-			for uint32(node.TierIndex) >= tierSum && currentTier < len(tiers)-1 {
-				currentTier++
-				tierSum += tiers[currentTier].Limit
-			}
-			if uint32(node.TierIndex) < tierSum {
-				ownedTiersCount[currentTier]++
-			} else {
-				valid = false
-			}
+			ownedTiersCount[node.TierIndex]++
 		}
 		for i := 0; i < len(tiers); i++ {
-			ownedTiersCount[i] += buyingTiersCount[i]
-			if ownedTiersCount[i] > tiers[i].Limit {
+			if ownedTiersCount[i]+buyingTiersCount[i] > tiers[i].MaxPerAddress {
 				valid = false
 				break
 			}
 		}
 	}
 
-	err := qtx.AddEvent(ctx, gen.AddEventParams{
+	metaDataBytes, _ := json.Marshal(meta)
+
+	err = qtx.AddEvent(ctx, gen.AddEventParams{
 		TxHash:         event.transaction.TxHash.String(),
 		TxIndex:        int32(event.transaction.Index),
 		Action:         int32(event.eventMessage.Action),
 		RawMessage:     event.rawData,
 		ParsedMessage:  event.eventJson,
 		BlockTimestamp: pgtype.Timestamp{Time: block.Header.Timestamp, Valid: true},
-		BlockHash:      block.Header.Hash.String(),
-		BlockHeight:    int32(block.Header.Height),
+		BlockHash:      event.transaction.BlockHash.String(),
+		BlockHeight:    int32(event.transaction.BlockHeight),
 		Valid:          valid,
 		WalletAddress:  event.txAddress.EncodeAddress(),
-		Metadata:       []byte{},
+		Metadata:       metaDataBytes,
 	})
 	if err != nil {
 		return fmt.Errorf("Failed to insert event : %w", err)
@@ -226,12 +234,12 @@ func (p *Processor) processPurchase(ctx context.Context, qtx gen.Querier, block 
 		// add to node
 		for _, nodeId := range payload.NodeIDs {
 			err := qtx.AddNode(ctx, gen.AddNodeParams{
-				SaleBlock:      int32(event.transaction.BlockHeight),
-				SaleTxIndex:    int32(event.transaction.Index),
+				SaleBlock:      deploy.BlockHeight,
+				SaleTxIndex:    deploy.TxIndex,
 				NodeID:         int32(nodeId),
 				TierIndex:      nodeIdToTier[nodeId],
 				DelegatedTo:    pgtype.Text{Valid: false},
-				OwnerPublicKey: string(payload.BuyerPublicKey),
+				OwnerPublicKey: payload.BuyerPublicKey,
 				PurchaseTxHash: event.transaction.TxHash.String(),
 				DelegateTxHash: pgtype.Text{Valid: false},
 			})

@@ -2,15 +2,42 @@ package nodesale
 
 import (
 	"encoding/hex"
+	"fmt"
 
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
 	"github.com/btcsuite/btcd/btcutil"
+	"github.com/btcsuite/btcd/txscript"
 )
 
-func (p *Processor) pubkeyToAddress(pubkey string) btcutil.Address {
+func (p *Processor) pubkeyToTaprootAddress(pubkey string, script []byte) (btcutil.Address, error) {
+	pubKeyBytes, err := hex.DecodeString(pubkey)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to decode string : %w", err)
+	}
+	pubKey, err := btcec.ParsePubKey(pubKeyBytes)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to parse pubkey : %w", err)
+	}
+
+	tapleaf := txscript.NewBaseTapLeaf(script)
+
+	scriptTree := txscript.AssembleTaprootScriptTree(tapleaf)
+	rootHash := scriptTree.RootNode.TapHash()
+
+	tapkey := txscript.ComputeTaprootOutputKey(pubKey, rootHash[:])
+
+	sellerAddr, err := btcutil.NewAddressTaproot(schnorr.SerializePubKey(tapkey), p.network.ChainParams())
+	if err != nil {
+		return nil, fmt.Errorf("invalid taproot address: %w", err)
+	}
+	return sellerAddr, nil
+}
+
+func (p *Processor) pubkeyToPkHashAddress(pubkey string) btcutil.Address {
 	pubKeyBytes, _ := hex.DecodeString(pubkey)
 	pubKey, _ := btcec.ParsePubKey(pubKeyBytes)
-	sellerAddr, _ := btcutil.NewAddressTaproot(schnorr.SerializePubKey(pubKey), p.network.ChainParams())
-	return sellerAddr
+	addrPubKey, _ := btcutil.NewAddressPubKey(pubKey.SerializeCompressed(), p.network.ChainParams())
+	addrPubKeyHash := addrPubKey.AddressPubKeyHash()
+	return addrPubKeyHash
 }

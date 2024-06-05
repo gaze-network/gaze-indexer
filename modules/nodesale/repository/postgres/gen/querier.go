@@ -14,6 +14,7 @@ type Querier interface {
 	AddNode(ctx context.Context, arg AddNodeParams) error
 	AddNodesale(ctx context.Context, arg AddNodesaleParams) error
 	ClearDelegate(ctx context.Context) (int64, error)
+	ClearEvents(ctx context.Context) error
 	GetBlock(ctx context.Context, blockHeight int32) (Block, error)
 	GetLastProcessedBlock(ctx context.Context) (Block, error)
 	GetNodes(ctx context.Context, arg GetNodesParams) ([]Node, error)

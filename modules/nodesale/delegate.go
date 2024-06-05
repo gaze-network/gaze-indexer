@@ -32,8 +32,8 @@ func (p *Processor) processDelegate(ctx context.Context, qtx gen.Querier, block 
 
 	if valid {
 		for _, node := range nodes {
-			ownerAddress := p.pubkeyToAddress(node.OwnerPublicKey)
-			if !bytes.Equal(
+			ownerAddress, err := p.pubkeyToTaprootAddress(node.OwnerPublicKey, event.rawScript)
+			if err != nil || !bytes.Equal(
 				[]byte(ownerAddress.EncodeAddress()),
 				[]byte(event.txAddress.EncodeAddress()),
 			) {
@@ -53,7 +53,7 @@ func (p *Processor) processDelegate(ctx context.Context, qtx gen.Querier, block 
 		BlockHeight:    int32(block.Header.Height),
 		Valid:          valid,
 		WalletAddress:  event.txAddress.EncodeAddress(),
-		Metadata:       []byte{},
+		Metadata:       []byte("{}"),
 	})
 	if err != nil {
 		return fmt.Errorf("Failed to insert event : %w", err)
@@ -63,7 +63,7 @@ func (p *Processor) processDelegate(ctx context.Context, qtx gen.Querier, block 
 			SaleBlock:   int32(event.transaction.BlockHeight),
 			SaleTxIndex: int32(event.transaction.Index),
 			Delegatee: pgtype.Text{
-				String: string(delegate.DelegateePublicKey),
+				String: delegate.DelegateePublicKey,
 				Valid:  true,
 			},
 			NodeIds: nodeIds,

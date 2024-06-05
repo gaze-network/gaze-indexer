@@ -15,34 +15,34 @@ import (
 func (p *Processor) processDeploy(ctx context.Context, qtx gen.Querier, block *types.Block, event nodesaleEvent) error {
 	valid := true
 	deploy := event.eventMessage.Deploy
-	sellerAddr := p.pubkeyToAddress(string(deploy.SellerPublicKey))
-	if !bytes.Equal(
+	sellerAddr, err := p.pubkeyToTaprootAddress(deploy.SellerPublicKey, event.rawScript)
+	if err != nil || !bytes.Equal(
 		[]byte(sellerAddr.EncodeAddress()),
 		[]byte(event.txAddress.EncodeAddress()),
 	) {
 		valid = false
 	}
 	tiers := make([][]byte, len(deploy.Tiers))
-	for _, tier := range deploy.Tiers {
+	for i, tier := range deploy.Tiers {
 		tierJson, err := protojson.Marshal(tier)
 		if err != nil {
 			return fmt.Errorf("Failed to parse tiers to json : %w", err)
 		}
-		tiers = append(tiers, tierJson)
+		tiers[i] = tierJson
 	}
 
-	err := qtx.AddEvent(ctx, gen.AddEventParams{
+	err = qtx.AddEvent(ctx, gen.AddEventParams{
 		TxHash:         event.transaction.TxHash.String(),
 		TxIndex:        int32(event.transaction.Index),
 		Action:         int32(event.eventMessage.Action),
 		RawMessage:     event.rawData,
 		ParsedMessage:  event.eventJson,
 		BlockTimestamp: pgtype.Timestamp{Time: block.Header.Timestamp, Valid: true},
-		BlockHash:      block.Header.Hash.String(),
-		BlockHeight:    int32(block.Header.Height),
+		BlockHash:      event.transaction.BlockHash.String(),
+		BlockHeight:    int32(event.transaction.BlockHeight),
 		Valid:          valid,
 		WalletAddress:  event.txAddress.EncodeAddress(),
-		Metadata:       []byte{},
+		Metadata:       []byte("{}"),
 	})
 	if err != nil {
 		return fmt.Errorf("Failed to insert event : %w", err)
@@ -61,7 +61,7 @@ func (p *Processor) processDeploy(ctx context.Context, qtx gen.Querier, block *t
 				Valid: true,
 			},
 			Tiers:                 tiers,
-			SellerPublicKey:       string(deploy.SellerPublicKey),
+			SellerPublicKey:       deploy.SellerPublicKey,
 			MaxPerAddress:         int32(deploy.MaxPerAddress),
 			DeployTxHash:          event.transaction.TxHash.String(),
 			MaxDiscountPercentage: int32(deploy.MaxDiscountPercentage),

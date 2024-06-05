@@ -23,7 +23,7 @@ import (
 )
 
 type Processor struct {
-	repository          repository.Repository
+	repository          *repository.Repository
 	nodesaleGenesis     int32
 	nodesaleGenesisHash chainhash.Hash
 	btcClient           *datasources.BitcoinNodeDatasource
@@ -73,10 +73,10 @@ func (p *Processor) Name() string {
 	return "nodesale"
 }
 
-func extractNodesaleData(witness [][]byte) ([]byte, bool) {
-	tokenizer, isTapScript := extractTapScript(witness)
+func extractNodesaleData(witness [][]byte) ([]byte, []byte, bool) {
+	tokenizer, rawScript, isTapScript := extractTapScript(witness)
 	if !isTapScript {
-		return []byte{}, false
+		return []byte{}, []byte{}, false
 	}
 	state := 0
 	for tokenizer.Next() {
@@ -103,12 +103,12 @@ func extractNodesaleData(witness [][]byte) ([]byte, bool) {
 		case 3:
 			if tokenizer.Opcode() == txscript.OP_PUSHDATA1 {
 				data := tokenizer.Data()
-				return data, true
+				return data, rawScript, true
 			}
 			state = 0
 		}
 	}
-	return []byte{}, false
+	return []byte{}, []byte{}, false
 }
 
 type nodesaleEvent struct {
@@ -117,13 +117,14 @@ type nodesaleEvent struct {
 	eventJson    []byte
 	txAddress    btcutil.Address
 	rawData      []byte
+	rawScript    []byte
 }
 
 func (p *Processor) parseTransactions(ctx context.Context, transactions []*types.Transaction) ([]nodesaleEvent, error) {
 	events := make([]nodesaleEvent, 1)
 	for _, t := range transactions {
 		for _, txIn := range t.TxIn {
-			data, isNodesale := extractNodesaleData(txIn.Witness)
+			data, rawScript, isNodesale := extractNodesaleData(txIn.Witness)
 			if !isNodesale {
 				continue
 			}
@@ -162,6 +163,7 @@ func (p *Processor) parseTransactions(ctx context.Context, transactions []*types
 				eventJson:    eventJson,
 				txAddress:    addresses[0],
 				rawData:      data,
+				rawScript:    rawScript,
 			})
 		}
 	}
