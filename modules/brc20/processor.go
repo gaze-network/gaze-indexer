@@ -22,12 +22,11 @@ import (
 var _ indexer.Processor[*types.Block] = (*Processor)(nil)
 
 type Processor struct {
-	brc20Dg            datagateway.BRC20DataGateway
-	indexerInfoDg      datagateway.IndexerInfoDataGateway
-	btcClient          btcclient.Contract
-	network            common.Network
-	transferCountLimit uint32 // number of transfers to track per inscription
-	cleanupFuncs       []func(context.Context) error
+	brc20Dg       datagateway.BRC20DataGateway
+	indexerInfoDg datagateway.IndexerInfoDataGateway
+	btcClient     btcclient.Contract
+	network       common.Network
+	cleanupFuncs  []func(context.Context) error
 
 	// block states
 	flotsamsSentAsFee []*entity.Flotsam
@@ -50,19 +49,18 @@ type Processor struct {
 // TODO: move this to config
 const outPointValueCacheSize = 100000
 
-func NewProcessor(brc20Dg datagateway.BRC20DataGateway, indexerInfoDg datagateway.IndexerInfoDataGateway, btcClient btcclient.Contract, network common.Network, transferCountLimit uint32, cleanupFuncs []func(context.Context) error) (*Processor, error) {
+func NewProcessor(brc20Dg datagateway.BRC20DataGateway, indexerInfoDg datagateway.IndexerInfoDataGateway, btcClient btcclient.Contract, network common.Network, cleanupFuncs []func(context.Context) error) (*Processor, error) {
 	outPointValueCache, err := lru.New[wire.OutPoint, uint64](outPointValueCacheSize)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create outPointValueCache")
 	}
 
 	return &Processor{
-		brc20Dg:            brc20Dg,
-		indexerInfoDg:      indexerInfoDg,
-		btcClient:          btcClient,
-		network:            network,
-		transferCountLimit: transferCountLimit,
-		cleanupFuncs:       cleanupFuncs,
+		brc20Dg:       brc20Dg,
+		indexerInfoDg: indexerInfoDg,
+		btcClient:     btcClient,
+		network:       network,
+		cleanupFuncs:  cleanupFuncs,
 
 		flotsamsSentAsFee: make([]*entity.Flotsam, 0),
 		blockReward:       0,

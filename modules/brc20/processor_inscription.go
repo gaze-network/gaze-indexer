@@ -310,11 +310,9 @@ func (p *Processor) updateInscriptionLocation(ctx context.Context, newSatPoint o
 		}
 		entry.TransferCount++
 
-		// dont track transfers that exceed limit
-		if entry.TransferCount <= p.transferCountLimit {
-			p.newInscriptionTransfers = append(p.newInscriptionTransfers, transfer)
-			p.newInscriptionEntryStates[entry.Id] = entry
-		}
+		// track transfers even if transfer count exceeds 2 (because we need to check for reinscriptions)
+		p.newInscriptionTransfers = append(p.newInscriptionTransfers, transfer)
+		p.newInscriptionEntryStates[entry.Id] = entry
 		return nil
 	}
 

@@ -58,7 +58,7 @@ func New(injector do.Injector) (indexer.IndexerWorker, error) {
 		return nil, errors.Wrapf(errs.Unsupported, "%q datasource is not supported", conf.Modules.BRC20.Datasource)
 	}
 
-	processor, err := NewProcessor(brc20Dg, indexerInfoDg, bitcoinClient, conf.Network, 2, cleanupFuncs)
+	processor, err := NewProcessor(brc20Dg, indexerInfoDg, bitcoinClient, conf.Network, cleanupFuncs)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
