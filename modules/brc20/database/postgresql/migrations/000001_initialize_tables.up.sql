@@ -149,7 +149,7 @@ CREATE TABLE IF NOT EXISTS "brc20_inscription_transfers" (
 	"sent_as_fee" BOOLEAN NOT NULL,
 	PRIMARY KEY ("inscription_id", "block_height")
 );
-CREATE INDEX IF NOT EXISTS brc20_inscription_transfers_block_height_idx ON "brc20_inscription_transfers" USING BTREE ("block_height");
+CREATE INDEX IF NOT EXISTS brc20_inscription_transfers_block_height_tx_index_idx ON "brc20_inscription_transfers" USING BTREE ("block_height", "tx_index");
 CREATE INDEX IF NOT EXISTS brc20_inscription_transfers_new_satpoint_idx ON "brc20_inscription_transfers" USING BTREE ("new_satpoint_tx_hash", "new_satpoint_out_idx", "new_satpoint_offset");
 
 COMMIT;
