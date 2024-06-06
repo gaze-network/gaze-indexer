@@ -26,11 +26,26 @@ SELECT * FROM "brc20_inscription_entries"
   LEFT JOIN "states" ON "brc20_inscription_entries"."id" = "states"."id"
   WHERE "brc20_inscription_entries"."id" = ANY(@inscription_ids::text[]);
 
+-- name: GetTickEntriesByTicks :many
+WITH "states" AS (
+  -- select latest state
+  SELECT DISTINCT ON ("tick") * FROM "brc20_tick_entry_states" WHERE "tick" = ANY(@ticks::text[]) ORDER BY "tick", "block_height" DESC
+)
+SELECT * FROM "brc20_tick_entries"
+  LEFT JOIN "states" ON "brc20_tick_entries"."tick" = "states"."tick"
+  WHERE "brc20_tick_entries"."tick" = ANY(@ticks::text[]);
+
 -- name: CreateIndexedBlock :exec
 INSERT INTO "brc20_indexed_blocks" ("height", "hash", "event_hash", "cumulative_event_hash") VALUES ($1, $2, $3, $4);
 
 -- name: CreateProcessorStats :exec
 INSERT INTO "brc20_processor_stats" ("block_height", "cursed_inscription_count", "blessed_inscription_count", "lost_sats") VALUES ($1, $2, $3, $4);
+
+-- name: CreateTickEntries :batchexec
+INSERT INTO "brc20_tick_entries" ("tick", "original_tick", "total_supply", "decimals", "limit_per_mint", "is_self_mint", "deploy_inscription_id", "created_at", "created_at_height") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9);
+
+-- name: CreateTickEntryStates :batchexec
+INSERT INTO "brc20_tick_entry_states" ("tick", "block_height", "minted_amount", "burned_amount", "completed_at", "completed_at_height") VALUES ($1, $2, $3, $4, $5, $6);
 
 -- name: CreateInscriptionEntries :batchexec
 INSERT INTO "brc20_inscription_entries" ("id", "number", "sequence_number", "delegate", "metadata", "metaprotocol", "parents", "pointer", "content", "content_encoding", "content_type", "cursed", "cursed_for_brc20", "created_at", "created_at_height") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15);
@@ -47,11 +62,11 @@ DELETE FROM "brc20_indexed_blocks" WHERE "height" >= $1;
 -- name: DeleteProcessorStatsSinceHeight :exec
 DELETE FROM "brc20_processor_stats" WHERE "block_height" >= $1;
 
--- name: DeleteTicksSinceHeight :exec
-DELETE FROM "brc20_ticks" WHERE "created_at_height" >= $1;
+-- name: DeleteTickEntriesSinceHeight :exec
+DELETE FROM "brc20_tick_entries" WHERE "created_at_height" >= $1;
 
--- name: DeleteTickStatesSinceHeight :exec
-DELETE FROM "brc20_tick_states" WHERE "block_height" >= $1;
+-- name: DeleteTickEntryStatesSinceHeight :exec
+DELETE FROM "brc20_tick_entry_states" WHERE "block_height" >= $1;
 
 -- name: DeleteDeployEventsSinceHeight :exec
 DELETE FROM "brc20_deploy_events" WHERE "block_height" >= $1;

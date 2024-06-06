@@ -53,6 +53,7 @@ CREATE TABLE IF NOT EXISTS "brc20_tick_entry_states" (
 CREATE TABLE IF NOT EXISTS "brc20_deploy_events" (
 	"id" BIGSERIAL PRIMARY KEY,
 	"inscription_id" TEXT NOT NULL,
+	"inscription_number" BIGINT NOT NULL,
 	"tick" TEXT NOT NULL, -- lowercase of original_tick
 	"original_tick" TEXT NOT NULL,
 	"tx_hash" TEXT NOT NULL,
@@ -71,6 +72,7 @@ CREATE INDEX IF NOT EXISTS brc20_deploy_events_block_height_idx ON "brc20_deploy
 CREATE TABLE IF NOT EXISTS "brc20_mint_events" (
 	"id" BIGSERIAL PRIMARY KEY,
 	"inscription_id" TEXT NOT NULL,
+	"inscription_number" BIGINT NOT NULL,
 	"tick" TEXT NOT NULL, -- lowercase of original_tick
 	"original_tick" TEXT NOT NULL,
 	"tx_hash" TEXT NOT NULL,
@@ -87,6 +89,7 @@ CREATE INDEX IF NOT EXISTS brc20_mint_events_block_height_idx ON "brc20_mint_eve
 CREATE TABLE IF NOT EXISTS "brc20_transfer_events" (
 	"id" BIGSERIAL PRIMARY KEY,
 	"inscription_id" TEXT NOT NULL,
+	"inscription_number" BIGINT NOT NULL,
 	"tick" TEXT NOT NULL, -- lowercase of original_tick
 	"original_tick" TEXT NOT NULL,
 	"tx_hash" TEXT NOT NULL,
@@ -95,7 +98,9 @@ CREATE TABLE IF NOT EXISTS "brc20_transfer_events" (
 	"timestamp" TIMESTAMP NOT NULL,
 
 	"from_pkscript" TEXT, -- if null, it's inscribe transfer. Otherwise, it's transfer transfer
+	"from_satpoint" TEXT,
 	"to_pkscript" TEXT NOT NULL,
+	"to_satpoint" TEXT NOT NULL,
 	"amount" DECIMAL NOT NULL
 );
 CREATE INDEX IF NOT EXISTS brc20_transfer_events_block_height_idx ON "brc20_transfer_events" USING BTREE ("block_height");
