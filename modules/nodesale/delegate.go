@@ -14,8 +14,8 @@ func (p *Processor) processDelegate(ctx context.Context, qtx gen.Querier, block 
 	valid := true
 	delegate := event.eventMessage.Delegate
 	nodeIds := make([]int32, len(delegate.NodeIDs))
-	for _, id := range delegate.NodeIDs {
-		nodeIds = append(nodeIds, int32(id))
+	for i, id := range delegate.NodeIDs {
+		nodeIds[i] = int32(id)
 	}
 	nodes, err := qtx.GetNodes(ctx, gen.GetNodesParams{
 		SaleBlock:   int32(delegate.DeployID.Block),
@@ -27,6 +27,8 @@ func (p *Processor) processDelegate(ctx context.Context, qtx gen.Querier, block 
 	}
 
 	if len(nodeIds) != len(nodes) {
+		fmt.Println(nodeIds)
+		fmt.Println(nodes)
 		valid = false
 	}
 
@@ -60,8 +62,8 @@ func (p *Processor) processDelegate(ctx context.Context, qtx gen.Querier, block 
 	}
 	if valid {
 		_, err = qtx.SetDelegates(ctx, gen.SetDelegatesParams{
-			SaleBlock:   int32(event.transaction.BlockHeight),
-			SaleTxIndex: int32(event.transaction.Index),
+			SaleBlock:   int32(delegate.DeployID.Block),
+			SaleTxIndex: int32(delegate.DeployID.TxIndex),
 			Delegatee: pgtype.Text{
 				String: delegate.DelegateePublicKey,
 				Valid:  true,
