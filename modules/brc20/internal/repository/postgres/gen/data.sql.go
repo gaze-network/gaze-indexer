@@ -125,21 +125,21 @@ func (q *Queries) DeleteProcessorStatsSinceHeight(ctx context.Context, blockHeig
 	return err
 }
 
-const deleteTickStatesSinceHeight = `-- name: DeleteTickStatesSinceHeight :exec
-DELETE FROM "brc20_tick_states" WHERE "block_height" >= $1
+const deleteTickEntriesSinceHeight = `-- name: DeleteTickEntriesSinceHeight :exec
+DELETE FROM "brc20_tick_entries" WHERE "created_at_height" >= $1
 `
 
-func (q *Queries) DeleteTickStatesSinceHeight(ctx context.Context, blockHeight int32) error {
-	_, err := q.db.Exec(ctx, deleteTickStatesSinceHeight, blockHeight)
+func (q *Queries) DeleteTickEntriesSinceHeight(ctx context.Context, createdAtHeight int32) error {
+	_, err := q.db.Exec(ctx, deleteTickEntriesSinceHeight, createdAtHeight)
 	return err
 }
 
-const deleteTicksSinceHeight = `-- name: DeleteTicksSinceHeight :exec
-DELETE FROM "brc20_ticks" WHERE "created_at_height" >= $1
+const deleteTickEntryStatesSinceHeight = `-- name: DeleteTickEntryStatesSinceHeight :exec
+DELETE FROM "brc20_tick_entry_states" WHERE "block_height" >= $1
 `
 
-func (q *Queries) DeleteTicksSinceHeight(ctx context.Context, createdAtHeight int32) error {
-	_, err := q.db.Exec(ctx, deleteTicksSinceHeight, createdAtHeight)
+func (q *Queries) DeleteTickEntryStatesSinceHeight(ctx context.Context, blockHeight int32) error {
+	_, err := q.db.Exec(ctx, deleteTickEntryStatesSinceHeight, blockHeight)
 	return err
 }
 
@@ -333,4 +333,68 @@ func (q *Queries) GetLatestProcessorStats(ctx context.Context) (Brc20ProcessorSt
 		&i.LostSats,
 	)
 	return i, err
+}
+
+const getTickEntriesByTicks = `-- name: GetTickEntriesByTicks :many
+WITH "states" AS (
+  -- select latest state
+  SELECT DISTINCT ON ("tick") tick, block_height, minted_amount, burned_amount, completed_at, completed_at_height FROM "brc20_tick_entry_states" WHERE "tick" = ANY($1::text[]) ORDER BY "tick", "block_height" DESC
+)
+SELECT brc20_tick_entries.tick, original_tick, total_supply, decimals, limit_per_mint, is_self_mint, deploy_inscription_id, created_at, created_at_height, states.tick, block_height, minted_amount, burned_amount, completed_at, completed_at_height FROM "brc20_tick_entries"
+  LEFT JOIN "states" ON "brc20_tick_entries"."tick" = "states"."tick"
+  WHERE "brc20_tick_entries"."tick" = ANY($1::text[])
+`
+
+type GetTickEntriesByTicksRow struct {
+	Tick                string
+	OriginalTick        string
+	TotalSupply         pgtype.Numeric
+	Decimals            int16
+	LimitPerMint        pgtype.Numeric
+	IsSelfMint          bool
+	DeployInscriptionID string
+	CreatedAt           pgtype.Timestamp
+	CreatedAtHeight     int32
+	Tick_2              pgtype.Text
+	BlockHeight         pgtype.Int4
+	MintedAmount        pgtype.Numeric
+	BurnedAmount        pgtype.Numeric
+	CompletedAt         pgtype.Timestamp
+	CompletedAtHeight   pgtype.Int4
+}
+
+func (q *Queries) GetTickEntriesByTicks(ctx context.Context, ticks []string) ([]GetTickEntriesByTicksRow, error) {
+	rows, err := q.db.Query(ctx, getTickEntriesByTicks, ticks)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetTickEntriesByTicksRow
+	for rows.Next() {
+		var i GetTickEntriesByTicksRow
+		if err := rows.Scan(
+			&i.Tick,
+			&i.OriginalTick,
+			&i.TotalSupply,
+			&i.Decimals,
+			&i.LimitPerMint,
+			&i.IsSelfMint,
+			&i.DeployInscriptionID,
+			&i.CreatedAt,
+			&i.CreatedAtHeight,
+			&i.Tick_2,
+			&i.BlockHeight,
+			&i.MintedAmount,
+			&i.BurnedAmount,
+			&i.CompletedAt,
+			&i.CompletedAtHeight,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }

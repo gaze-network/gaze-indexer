@@ -56,6 +56,15 @@ INSERT INTO "brc20_inscription_entry_states" ("id", "block_height", "transfer_co
 -- name: CreateInscriptionTransfers :batchexec
 INSERT INTO "brc20_inscription_transfers" ("inscription_id", "block_height", "tx_index", "old_satpoint_tx_hash", "old_satpoint_out_idx", "old_satpoint_offset", "new_satpoint_tx_hash", "new_satpoint_out_idx", "new_satpoint_offset", "new_pkscript", "new_output_value", "sent_as_fee") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12);
 
+-- name: CreateDeployEvents :batchexec
+INSERT INTO "brc20_deploy_events" ("inscription_id", "inscription_number", "tick", "original_tick", "tx_hash", "block_height", "tx_index", "timestamp", "pkscript", "total_supply", "decimals", "limit_per_mint", "is_self_mint") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13);
+
+-- name: CreateMintEvents :batchexec
+INSERT INTO "brc20_mint_events" ("inscription_id", "inscription_number", "tick", "original_tick", "tx_hash", "block_height", "tx_index", "timestamp", "pkscript", "amount", "parent_id") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11);
+
+-- name: CreateTransferEvents :batchexec
+INSERT INTO "brc20_transfer_events" ("inscription_id", "inscription_number", "tick", "original_tick", "tx_hash", "block_height", "tx_index", "timestamp", "from_pkscript", "from_satpoint", "to_pkscript", "to_satpoint", "amount") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13);
+
 -- name: DeleteIndexedBlocksSinceHeight :exec
 DELETE FROM "brc20_indexed_blocks" WHERE "height" >= $1;
 

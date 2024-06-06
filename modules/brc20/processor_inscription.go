@@ -369,6 +369,10 @@ type brc20Inscription struct {
 }
 
 func isBRC20Inscription(inscription ordinals.Inscription) bool {
+	if inscription.ContentType != "application/json" && inscription.ContentType != "text/plain" {
+		return false
+	}
+
 	// attempt to parse content as json
 	if inscription.Content == nil {
 		return false
@@ -469,16 +473,41 @@ func (p *Processor) getInscriptionTransfersInOutPoints(ctx context.Context, outP
 	return result, nil
 }
 
-func (p *Processor) getInscriptionEntryById(ctx context.Context, inscriptionId ordinals.InscriptionId) (*ordinals.InscriptionEntry, error) {
-	if inscriptionEntry, ok := p.newInscriptionEntryStates[inscriptionId]; ok {
-		return inscriptionEntry, nil
-	}
-
-	inscription, err := p.brc20Dg.GetInscriptionEntryById(ctx, inscriptionId)
+func (p *Processor) getInscriptionEntryById(ctx context.Context, id ordinals.InscriptionId) (*ordinals.InscriptionEntry, error) {
+	inscriptions, err := p.brc20Dg.GetInscriptionEntriesByIds(ctx, []ordinals.InscriptionId{id})
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get inscriptions by outpoint")
 	}
+	inscription, ok := inscriptions[id]
+	if !ok {
+		return nil, errors.Wrap(errs.NotFound, "inscription not found")
+	}
 	return inscription, nil
+}
+
+func (p *Processor) getInscriptionEntriesByIds(ctx context.Context, ids []ordinals.InscriptionId) (map[ordinals.InscriptionId]*ordinals.InscriptionEntry, error) {
+	// try to get from cache if exists
+	result := make(map[ordinals.InscriptionId]*ordinals.InscriptionEntry)
+
+	idsToFetch := make([]ordinals.InscriptionId, 0)
+	for _, id := range ids {
+		if inscriptionEntry, ok := p.newInscriptionEntryStates[id]; ok {
+			result[id] = inscriptionEntry
+		} else {
+			idsToFetch = append(idsToFetch, id)
+		}
+	}
+
+	if len(idsToFetch) == 0 {
+		inscriptions, err := p.brc20Dg.GetInscriptionEntriesByIds(ctx, idsToFetch)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to get inscriptions by outpoint")
+		}
+		for id, inscription := range inscriptions {
+			result[id] = inscription
+		}
+	}
+	return result, nil
 }
 
 func (p *Processor) getBlockSubsidy(blockHeight uint64) uint64 {

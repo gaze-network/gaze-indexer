@@ -17,19 +17,20 @@ type Brc20Balance struct {
 }
 
 type Brc20DeployEvent struct {
-	Id            int64
-	InscriptionID string
-	Tick          string
-	OriginalTick  string
-	TxHash        string
-	BlockHeight   int32
-	TxIndex       int32
-	Timestamp     pgtype.Timestamp
-	Pkscript      string
-	TotalSupply   pgtype.Numeric
-	Decimals      int16
-	LimitPerMint  pgtype.Numeric
-	IsSelfMint    bool
+	Id                int64
+	InscriptionID     string
+	InscriptionNumber int64
+	Tick              string
+	OriginalTick      string
+	TxHash            string
+	BlockHeight       int32
+	TxIndex           int32
+	Timestamp         pgtype.Timestamp
+	Pkscript          string
+	TotalSupply       pgtype.Numeric
+	Decimals          int16
+	LimitPerMint      pgtype.Numeric
+	IsSelfMint        bool
 }
 
 type Brc20IndexedBlock struct {
@@ -88,17 +89,18 @@ type Brc20InscriptionTransfer struct {
 }
 
 type Brc20MintEvent struct {
-	Id            int64
-	InscriptionID string
-	Tick          string
-	OriginalTick  string
-	TxHash        string
-	BlockHeight   int32
-	TxIndex       int32
-	Timestamp     pgtype.Timestamp
-	Pkscript      string
-	Amount        pgtype.Numeric
-	ParentID      pgtype.Text
+	Id                int64
+	InscriptionID     string
+	InscriptionNumber int64
+	Tick              string
+	OriginalTick      string
+	TxHash            string
+	BlockHeight       int32
+	TxIndex           int32
+	Timestamp         pgtype.Timestamp
+	Pkscript          string
+	Amount            pgtype.Numeric
+	ParentID          pgtype.Text
 }
 
 type Brc20ProcessorStat struct {
@@ -108,7 +110,7 @@ type Brc20ProcessorStat struct {
 	LostSats                int64
 }
 
-type Brc20Tick struct {
+type Brc20TickEntry struct {
 	Tick                string
 	OriginalTick        string
 	TotalSupply         pgtype.Numeric
@@ -120,7 +122,7 @@ type Brc20Tick struct {
 	CreatedAtHeight     int32
 }
 
-type Brc20TickState struct {
+type Brc20TickEntryState struct {
 	Tick              string
 	BlockHeight       int32
 	MintedAmount      pgtype.Numeric
@@ -130,15 +132,18 @@ type Brc20TickState struct {
 }
 
 type Brc20TransferEvent struct {
-	Id            int64
-	InscriptionID string
-	Tick          string
-	OriginalTick  string
-	TxHash        string
-	BlockHeight   int32
-	TxIndex       int32
-	Timestamp     pgtype.Timestamp
-	FromPkscript  pgtype.Text
-	ToPkscript    string
-	Amount        pgtype.Numeric
+	Id                int64
+	InscriptionID     string
+	InscriptionNumber int64
+	Tick              string
+	OriginalTick      string
+	TxHash            string
+	BlockHeight       int32
+	TxIndex           int32
+	Timestamp         pgtype.Timestamp
+	FromPkscript      pgtype.Text
+	FromSatpoint      pgtype.Text
+	ToPkscript        string
+	ToSatpoint        string
+	Amount            pgtype.Numeric
 }

@@ -27,21 +27,27 @@ type BRC20ReaderDataGateway interface {
 	GetIndexedBlockByHeight(ctx context.Context, height int64) (*entity.IndexedBlock, error)
 	GetProcessorStats(ctx context.Context) (*entity.ProcessorStats, error)
 	GetInscriptionTransfersInOutPoints(ctx context.Context, outPoints []wire.OutPoint) (map[ordinals.SatPoint][]*entity.InscriptionTransfer, error)
-	GetInscriptionEntryById(ctx context.Context, id ordinals.InscriptionId) (*ordinals.InscriptionEntry, error)
+	GetInscriptionEntriesByIds(ctx context.Context, ids []ordinals.InscriptionId) (map[ordinals.InscriptionId]*ordinals.InscriptionEntry, error)
+	GetTickEntriesByTicks(ctx context.Context, ticks []string) (map[string]*entity.TickEntry, error)
 }
 
 type BRC20WriterDataGateway interface {
 	CreateIndexedBlock(ctx context.Context, block *entity.IndexedBlock) error
 	CreateProcessorStats(ctx context.Context, stats *entity.ProcessorStats) error
+	CreateTickEntries(ctx context.Context, blockHeight uint64, entries []*entity.TickEntry) error
+	CreateTickEntryStates(ctx context.Context, blockHeight uint64, entryStates []*entity.TickEntry) error
 	CreateInscriptionEntries(ctx context.Context, blockHeight uint64, entries []*ordinals.InscriptionEntry) error
 	CreateInscriptionEntryStates(ctx context.Context, blockHeight uint64, entryStates []*ordinals.InscriptionEntry) error
 	CreateInscriptionTransfers(ctx context.Context, transfers []*entity.InscriptionTransfer) error
+	CreateEventDeploys(ctx context.Context, events []*entity.EventDeploy) error
+	CreateEventMints(ctx context.Context, events []*entity.EventMint) error
+	CreateEventTransfers(ctx context.Context, events []*entity.EventTransfer) error
 
 	// used for revert data
 	DeleteIndexedBlocksSinceHeight(ctx context.Context, height uint64) error
 	DeleteProcessorStatsSinceHeight(ctx context.Context, height uint64) error
-	DeleteTicksSinceHeight(ctx context.Context, height uint64) error
-	DeleteTickStatesSinceHeight(ctx context.Context, height uint64) error
+	DeleteTickEntriesSinceHeight(ctx context.Context, height uint64) error
+	DeleteTickEntryStatesSinceHeight(ctx context.Context, height uint64) error
 	DeleteDeployEventsSinceHeight(ctx context.Context, height uint64) error
 	DeleteMintEventsSinceHeight(ctx context.Context, height uint64) error
 	DeleteTransferEventsSinceHeight(ctx context.Context, height uint64) error
