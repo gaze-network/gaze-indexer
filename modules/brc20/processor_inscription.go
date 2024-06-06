@@ -120,7 +120,7 @@ func (p *Processor) processInscriptionTx(ctx context.Context, tx *types.Transact
 					cursed = true // reinscription
 					cursedForBRC20 = true
 				} else {
-					initialInscriptionEntry, err := p.brc20Dg.GetInscriptionEntryById(ctx, initial.inscriptionId)
+					initialInscriptionEntry, err := p.getInscriptionEntryById(ctx, initial.inscriptionId)
 					if err != nil {
 						return errors.Wrap(err, "failed to get inscription entry")
 					}
