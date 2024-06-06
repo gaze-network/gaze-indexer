@@ -172,10 +172,10 @@ func (p *Processor) RevertData(ctx context.Context, from int64) error {
 	if err := brc20DgTx.DeleteProcessorStatsSinceHeight(ctx, uint64(from)); err != nil {
 		return errors.Wrap(err, "failed to delete processor stats")
 	}
-	if err := brc20DgTx.DeleteTicksSinceHeight(ctx, uint64(from)); err != nil {
+	if err := brc20DgTx.DeleteTickEntriesSinceHeight(ctx, uint64(from)); err != nil {
 		return errors.Wrap(err, "failed to delete ticks")
 	}
-	if err := brc20DgTx.DeleteTickStatesSinceHeight(ctx, uint64(from)); err != nil {
+	if err := brc20DgTx.DeleteTickEntryStatesSinceHeight(ctx, uint64(from)); err != nil {
 		return errors.Wrap(err, "failed to delete tick states")
 	}
 	if err := brc20DgTx.DeleteDeployEventsSinceHeight(ctx, uint64(from)); err != nil {

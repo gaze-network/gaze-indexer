@@ -13,6 +13,7 @@ type Inscription struct {
 	Pointer         *uint64
 }
 
+// TODO: refactor ordinals.InscriptionEntry to entity.InscriptionEntry
 type InscriptionEntry struct {
 	Id              InscriptionId
 	Number          int64

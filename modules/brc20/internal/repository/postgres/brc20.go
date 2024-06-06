@@ -92,23 +92,39 @@ func (r *Repository) GetInscriptionTransfersInOutPoints(ctx context.Context, out
 	return results, nil
 }
 
-func (r *Repository) GetInscriptionEntryById(ctx context.Context, id ordinals.InscriptionId) (*ordinals.InscriptionEntry, error) {
-	models, err := r.queries.GetInscriptionEntriesByIds(ctx, []string{id.String()})
+func (r *Repository) GetInscriptionEntriesByIds(ctx context.Context, ids []ordinals.InscriptionId) (map[ordinals.InscriptionId]*ordinals.InscriptionEntry, error) {
+	idStrs := lo.Map(ids, func(id ordinals.InscriptionId, _ int) string { return id.String() })
+	models, err := r.queries.GetInscriptionEntriesByIds(ctx, idStrs)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
-	if len(models) == 0 {
-		return nil, errors.WithStack(errs.NotFound)
+
+	result := make(map[ordinals.InscriptionId]*ordinals.InscriptionEntry)
+	for _, model := range models {
+		inscriptionEntry, err := mapInscriptionEntryModelToType(model)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to parse inscription entry model")
+		}
+		result[inscriptionEntry.Id] = &inscriptionEntry
 	}
-	if len(models) > 1 {
-		// sanity check
-		panic("multiple inscription entries found for the same id")
-	}
-	inscriptionEntry, err := mapInscriptionEntryModelToType(models[0])
+	return result, nil
+}
+
+func (r *Repository) GetTickEntriesByTicks(ctx context.Context, ticks []string) (map[string]*entity.TickEntry, error) {
+	models, err := r.queries.GetTickEntriesByTicks(ctx, ticks)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
-	return &inscriptionEntry, nil
+
+	result := make(map[string]*entity.TickEntry)
+	for _, model := range models {
+		tickEntry, err := mapTickEntryModelToType(model)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to parse tick entry model")
+		}
+		result[tickEntry.Tick] = &tickEntry
+	}
+	return result, nil
 }
 
 func (r *Repository) CreateIndexedBlock(ctx context.Context, block *entity.IndexedBlock) error {
@@ -123,6 +139,50 @@ func (r *Repository) CreateProcessorStats(ctx context.Context, stats *entity.Pro
 	params := mapProcessorStatsTypeToParams(*stats)
 	if err := r.queries.CreateProcessorStats(ctx, params); err != nil {
 		return errors.WithStack(err)
+	}
+	return nil
+}
+
+func (r *Repository) CreateTickEntries(ctx context.Context, blockHeight uint64, entries []*entity.TickEntry) error {
+	entryParams := make([]gen.CreateTickEntriesParams, 0)
+	for _, entry := range entries {
+		params, _, err := mapTickEntryTypeToParams(*entry, blockHeight)
+		if err != nil {
+			return errors.Wrap(err, "cannot map tick entry to create params")
+		}
+		entryParams = append(entryParams, params)
+	}
+	results := r.queries.CreateTickEntries(ctx, entryParams)
+	var execErrors []error
+	results.Exec(func(i int, err error) {
+		if err != nil {
+			execErrors = append(execErrors, err)
+		}
+	})
+	if len(execErrors) > 0 {
+		return errors.Wrap(errors.Join(execErrors...), "error during exec")
+	}
+	return nil
+}
+
+func (r *Repository) CreateTickEntryStates(ctx context.Context, blockHeight uint64, entryStates []*entity.TickEntry) error {
+	entryParams := make([]gen.CreateTickEntryStatesParams, 0)
+	for _, entry := range entryStates {
+		_, params, err := mapTickEntryTypeToParams(*entry, blockHeight)
+		if err != nil {
+			return errors.Wrap(err, "cannot map tick entry to create params")
+		}
+		entryParams = append(entryParams, params)
+	}
+	results := r.queries.CreateTickEntryStates(ctx, entryParams)
+	var execErrors []error
+	results.Exec(func(i int, err error) {
+		if err != nil {
+			execErrors = append(execErrors, err)
+		}
+	})
+	if len(execErrors) > 0 {
+		return errors.Wrap(errors.Join(execErrors...), "error during exec")
 	}
 	return nil
 }
@@ -188,6 +248,72 @@ func (r *Repository) CreateInscriptionTransfers(ctx context.Context, transfers [
 	return nil
 }
 
+func (r *Repository) CreateEventDeploys(ctx context.Context, events []*entity.EventDeploy) error {
+	params := make([]gen.CreateDeployEventsParams, 0)
+	for _, event := range events {
+		param, err := mapEventDeployTypeToParams(*event)
+		if err != nil {
+			return errors.Wrap(err, "cannot map event deploy to create params")
+		}
+		params = append(params, param)
+	}
+	results := r.queries.CreateDeployEvents(ctx, params)
+	var execErrors []error
+	results.Exec(func(i int, err error) {
+		if err != nil {
+			execErrors = append(execErrors, err)
+		}
+	})
+	if len(execErrors) > 0 {
+		return errors.Wrap(errors.Join(execErrors...), "error during exec")
+	}
+	return nil
+}
+
+func (r *Repository) CreateEventMints(ctx context.Context, events []*entity.EventMint) error {
+	params := make([]gen.CreateMintEventsParams, 0)
+	for _, event := range events {
+		param, err := mapEventMintTypeToParams(*event)
+		if err != nil {
+			return errors.Wrap(err, "cannot map event mint to create params")
+		}
+		params = append(params, param)
+	}
+	results := r.queries.CreateMintEvents(ctx, params)
+	var execErrors []error
+	results.Exec(func(i int, err error) {
+		if err != nil {
+			execErrors = append(execErrors, err)
+		}
+	})
+	if len(execErrors) > 0 {
+		return errors.Wrap(errors.Join(execErrors...), "error during exec")
+	}
+	return nil
+}
+
+func (r *Repository) CreateEventTransfers(ctx context.Context, events []*entity.EventTransfer) error {
+	params := make([]gen.CreateTransferEventsParams, 0)
+	for _, event := range events {
+		param, err := mapEventTransferTypeToParams(*event)
+		if err != nil {
+			return errors.Wrap(err, "cannot map event transfer to create params")
+		}
+		params = append(params, param)
+	}
+	results := r.queries.CreateTransferEvents(ctx, params)
+	var execErrors []error
+	results.Exec(func(i int, err error) {
+		if err != nil {
+			execErrors = append(execErrors, err)
+		}
+	})
+	if len(execErrors) > 0 {
+		return errors.Wrap(errors.Join(execErrors...), "error during exec")
+	}
+	return nil
+}
+
 func (r *Repository) DeleteIndexedBlocksSinceHeight(ctx context.Context, height uint64) error {
 	if err := r.queries.DeleteIndexedBlocksSinceHeight(ctx, int32(height)); err != nil {
 		return errors.Wrap(err, "error during exec")
@@ -202,15 +328,15 @@ func (r *Repository) DeleteProcessorStatsSinceHeight(ctx context.Context, height
 	return nil
 }
 
-func (r *Repository) DeleteTicksSinceHeight(ctx context.Context, height uint64) error {
-	if err := r.queries.DeleteTicksSinceHeight(ctx, int32(height)); err != nil {
+func (r *Repository) DeleteTickEntriesSinceHeight(ctx context.Context, height uint64) error {
+	if err := r.queries.DeleteTickEntriesSinceHeight(ctx, int32(height)); err != nil {
 		return errors.Wrap(err, "error during exec")
 	}
 	return nil
 }
 
-func (r *Repository) DeleteTickStatesSinceHeight(ctx context.Context, height uint64) error {
-	if err := r.queries.DeleteTickStatesSinceHeight(ctx, int32(height)); err != nil {
+func (r *Repository) DeleteTickEntryStatesSinceHeight(ctx context.Context, height uint64) error {
+	if err := r.queries.DeleteTickEntryStatesSinceHeight(ctx, int32(height)); err != nil {
 		return errors.Wrap(err, "error during exec")
 	}
 	return nil

@@ -17,6 +17,77 @@ var (
 	ErrBatchAlreadyClosed = errors.New("batch already closed")
 )
 
+const createDeployEvents = `-- name: CreateDeployEvents :batchexec
+INSERT INTO "brc20_deploy_events" ("inscription_id", "inscription_number", "tick", "original_tick", "tx_hash", "block_height", "tx_index", "timestamp", "pkscript", "total_supply", "decimals", "limit_per_mint", "is_self_mint") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+`
+
+type CreateDeployEventsBatchResults struct {
+	br     pgx.BatchResults
+	tot    int
+	closed bool
+}
+
+type CreateDeployEventsParams struct {
+	InscriptionID     string
+	InscriptionNumber int64
+	Tick              string
+	OriginalTick      string
+	TxHash            string
+	BlockHeight       int32
+	TxIndex           int32
+	Timestamp         pgtype.Timestamp
+	Pkscript          string
+	TotalSupply       pgtype.Numeric
+	Decimals          int16
+	LimitPerMint      pgtype.Numeric
+	IsSelfMint        bool
+}
+
+func (q *Queries) CreateDeployEvents(ctx context.Context, arg []CreateDeployEventsParams) *CreateDeployEventsBatchResults {
+	batch := &pgx.Batch{}
+	for _, a := range arg {
+		vals := []interface{}{
+			a.InscriptionID,
+			a.InscriptionNumber,
+			a.Tick,
+			a.OriginalTick,
+			a.TxHash,
+			a.BlockHeight,
+			a.TxIndex,
+			a.Timestamp,
+			a.Pkscript,
+			a.TotalSupply,
+			a.Decimals,
+			a.LimitPerMint,
+			a.IsSelfMint,
+		}
+		batch.Queue(createDeployEvents, vals...)
+	}
+	br := q.db.SendBatch(ctx, batch)
+	return &CreateDeployEventsBatchResults{br, len(arg), false}
+}
+
+func (b *CreateDeployEventsBatchResults) Exec(f func(int, error)) {
+	defer b.br.Close()
+	for t := 0; t < b.tot; t++ {
+		if b.closed {
+			if f != nil {
+				f(t, ErrBatchAlreadyClosed)
+			}
+			continue
+		}
+		_, err := b.br.Exec()
+		if f != nil {
+			f(t, err)
+		}
+	}
+}
+
+func (b *CreateDeployEventsBatchResults) Close() error {
+	b.closed = true
+	return b.br.Close()
+}
+
 const createInscriptionEntries = `-- name: CreateInscriptionEntries :batchexec
 INSERT INTO "brc20_inscription_entries" ("id", "number", "sequence_number", "delegate", "metadata", "metaprotocol", "parents", "pointer", "content", "content_encoding", "content_type", "cursed", "cursed_for_brc20", "created_at", "created_at_height") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
 `
@@ -208,6 +279,264 @@ func (b *CreateInscriptionTransfersBatchResults) Exec(f func(int, error)) {
 }
 
 func (b *CreateInscriptionTransfersBatchResults) Close() error {
+	b.closed = true
+	return b.br.Close()
+}
+
+const createMintEvents = `-- name: CreateMintEvents :batchexec
+INSERT INTO "brc20_mint_events" ("inscription_id", "inscription_number", "tick", "original_tick", "tx_hash", "block_height", "tx_index", "timestamp", "pkscript", "amount", "parent_id") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+`
+
+type CreateMintEventsBatchResults struct {
+	br     pgx.BatchResults
+	tot    int
+	closed bool
+}
+
+type CreateMintEventsParams struct {
+	InscriptionID     string
+	InscriptionNumber int64
+	Tick              string
+	OriginalTick      string
+	TxHash            string
+	BlockHeight       int32
+	TxIndex           int32
+	Timestamp         pgtype.Timestamp
+	Pkscript          string
+	Amount            pgtype.Numeric
+	ParentID          pgtype.Text
+}
+
+func (q *Queries) CreateMintEvents(ctx context.Context, arg []CreateMintEventsParams) *CreateMintEventsBatchResults {
+	batch := &pgx.Batch{}
+	for _, a := range arg {
+		vals := []interface{}{
+			a.InscriptionID,
+			a.InscriptionNumber,
+			a.Tick,
+			a.OriginalTick,
+			a.TxHash,
+			a.BlockHeight,
+			a.TxIndex,
+			a.Timestamp,
+			a.Pkscript,
+			a.Amount,
+			a.ParentID,
+		}
+		batch.Queue(createMintEvents, vals...)
+	}
+	br := q.db.SendBatch(ctx, batch)
+	return &CreateMintEventsBatchResults{br, len(arg), false}
+}
+
+func (b *CreateMintEventsBatchResults) Exec(f func(int, error)) {
+	defer b.br.Close()
+	for t := 0; t < b.tot; t++ {
+		if b.closed {
+			if f != nil {
+				f(t, ErrBatchAlreadyClosed)
+			}
+			continue
+		}
+		_, err := b.br.Exec()
+		if f != nil {
+			f(t, err)
+		}
+	}
+}
+
+func (b *CreateMintEventsBatchResults) Close() error {
+	b.closed = true
+	return b.br.Close()
+}
+
+const createTickEntries = `-- name: CreateTickEntries :batchexec
+INSERT INTO "brc20_tick_entries" ("tick", "original_tick", "total_supply", "decimals", "limit_per_mint", "is_self_mint", "deploy_inscription_id", "created_at", "created_at_height") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+`
+
+type CreateTickEntriesBatchResults struct {
+	br     pgx.BatchResults
+	tot    int
+	closed bool
+}
+
+type CreateTickEntriesParams struct {
+	Tick                string
+	OriginalTick        string
+	TotalSupply         pgtype.Numeric
+	Decimals            int16
+	LimitPerMint        pgtype.Numeric
+	IsSelfMint          bool
+	DeployInscriptionID string
+	CreatedAt           pgtype.Timestamp
+	CreatedAtHeight     int32
+}
+
+func (q *Queries) CreateTickEntries(ctx context.Context, arg []CreateTickEntriesParams) *CreateTickEntriesBatchResults {
+	batch := &pgx.Batch{}
+	for _, a := range arg {
+		vals := []interface{}{
+			a.Tick,
+			a.OriginalTick,
+			a.TotalSupply,
+			a.Decimals,
+			a.LimitPerMint,
+			a.IsSelfMint,
+			a.DeployInscriptionID,
+			a.CreatedAt,
+			a.CreatedAtHeight,
+		}
+		batch.Queue(createTickEntries, vals...)
+	}
+	br := q.db.SendBatch(ctx, batch)
+	return &CreateTickEntriesBatchResults{br, len(arg), false}
+}
+
+func (b *CreateTickEntriesBatchResults) Exec(f func(int, error)) {
+	defer b.br.Close()
+	for t := 0; t < b.tot; t++ {
+		if b.closed {
+			if f != nil {
+				f(t, ErrBatchAlreadyClosed)
+			}
+			continue
+		}
+		_, err := b.br.Exec()
+		if f != nil {
+			f(t, err)
+		}
+	}
+}
+
+func (b *CreateTickEntriesBatchResults) Close() error {
+	b.closed = true
+	return b.br.Close()
+}
+
+const createTickEntryStates = `-- name: CreateTickEntryStates :batchexec
+INSERT INTO "brc20_tick_entry_states" ("tick", "block_height", "minted_amount", "burned_amount", "completed_at", "completed_at_height") VALUES ($1, $2, $3, $4, $5, $6)
+`
+
+type CreateTickEntryStatesBatchResults struct {
+	br     pgx.BatchResults
+	tot    int
+	closed bool
+}
+
+type CreateTickEntryStatesParams struct {
+	Tick              string
+	BlockHeight       int32
+	MintedAmount      pgtype.Numeric
+	BurnedAmount      pgtype.Numeric
+	CompletedAt       pgtype.Timestamp
+	CompletedAtHeight pgtype.Int4
+}
+
+func (q *Queries) CreateTickEntryStates(ctx context.Context, arg []CreateTickEntryStatesParams) *CreateTickEntryStatesBatchResults {
+	batch := &pgx.Batch{}
+	for _, a := range arg {
+		vals := []interface{}{
+			a.Tick,
+			a.BlockHeight,
+			a.MintedAmount,
+			a.BurnedAmount,
+			a.CompletedAt,
+			a.CompletedAtHeight,
+		}
+		batch.Queue(createTickEntryStates, vals...)
+	}
+	br := q.db.SendBatch(ctx, batch)
+	return &CreateTickEntryStatesBatchResults{br, len(arg), false}
+}
+
+func (b *CreateTickEntryStatesBatchResults) Exec(f func(int, error)) {
+	defer b.br.Close()
+	for t := 0; t < b.tot; t++ {
+		if b.closed {
+			if f != nil {
+				f(t, ErrBatchAlreadyClosed)
+			}
+			continue
+		}
+		_, err := b.br.Exec()
+		if f != nil {
+			f(t, err)
+		}
+	}
+}
+
+func (b *CreateTickEntryStatesBatchResults) Close() error {
+	b.closed = true
+	return b.br.Close()
+}
+
+const createTransferEvents = `-- name: CreateTransferEvents :batchexec
+INSERT INTO "brc20_transfer_events" ("inscription_id", "inscription_number", "tick", "original_tick", "tx_hash", "block_height", "tx_index", "timestamp", "from_pkscript", "from_satpoint", "to_pkscript", "to_satpoint", "amount") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+`
+
+type CreateTransferEventsBatchResults struct {
+	br     pgx.BatchResults
+	tot    int
+	closed bool
+}
+
+type CreateTransferEventsParams struct {
+	InscriptionID     string
+	InscriptionNumber int64
+	Tick              string
+	OriginalTick      string
+	TxHash            string
+	BlockHeight       int32
+	TxIndex           int32
+	Timestamp         pgtype.Timestamp
+	FromPkscript      pgtype.Text
+	FromSatpoint      pgtype.Text
+	ToPkscript        string
+	ToSatpoint        string
+	Amount            pgtype.Numeric
+}
+
+func (q *Queries) CreateTransferEvents(ctx context.Context, arg []CreateTransferEventsParams) *CreateTransferEventsBatchResults {
+	batch := &pgx.Batch{}
+	for _, a := range arg {
+		vals := []interface{}{
+			a.InscriptionID,
+			a.InscriptionNumber,
+			a.Tick,
+			a.OriginalTick,
+			a.TxHash,
+			a.BlockHeight,
+			a.TxIndex,
+			a.Timestamp,
+			a.FromPkscript,
+			a.FromSatpoint,
+			a.ToPkscript,
+			a.ToSatpoint,
+			a.Amount,
+		}
+		batch.Queue(createTransferEvents, vals...)
+	}
+	br := q.db.SendBatch(ctx, batch)
+	return &CreateTransferEventsBatchResults{br, len(arg), false}
+}
+
+func (b *CreateTransferEventsBatchResults) Exec(f func(int, error)) {
+	defer b.br.Close()
+	for t := 0; t < b.tot; t++ {
+		if b.closed {
+			if f != nil {
+				f(t, ErrBatchAlreadyClosed)
+			}
+			continue
+		}
+		_, err := b.br.Exec()
+		if f != nil {
+			f(t, err)
+		}
+	}
+}
+
+func (b *CreateTransferEventsBatchResults) Close() error {
 	b.closed = true
 	return b.br.Close()
 }
