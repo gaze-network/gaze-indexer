@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/btcsuite/btcd/btcutil"
+	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/gaze-network/indexer-network/common"
@@ -76,10 +76,10 @@ func (p *Processor) Name() string {
 	return "nodesale"
 }
 
-func extractNodesaleData(witness [][]byte) ([]byte, []byte, bool) {
-	tokenizer, rawScript, isTapScript := extractTapScript(witness)
+func extractNodesaleData(witness [][]byte) (data []byte, internalPubkey *btcec.PublicKey, isNodesale bool) {
+	tokenizer, controlBlock, isTapScript := extractTapScript(witness)
 	if !isTapScript {
-		return []byte{}, []byte{}, false
+		return []byte{}, nil, false
 	}
 	state := 0
 	for tokenizer.Next() {
@@ -106,28 +106,29 @@ func extractNodesaleData(witness [][]byte) ([]byte, []byte, bool) {
 		case 3:
 			if tokenizer.Opcode() == txscript.OP_PUSHDATA1 {
 				data := tokenizer.Data()
-				return data, rawScript, true
+				return data, controlBlock.InternalKey, true
 			}
 			state = 0
 		}
 	}
-	return []byte{}, []byte{}, false
+	return []byte{}, nil, false
 }
 
 type nodesaleEvent struct {
 	transaction  *types.Transaction
 	eventMessage *protobuf.NodeSaleEvent
 	eventJson    []byte
-	txAddress    btcutil.Address
-	rawData      []byte
-	rawScript    []byte
+	// txAddress    btcutil.Address
+	txPubkey *btcec.PublicKey
+	rawData  []byte
+	// rawScript    []byte
 }
 
 func (p *Processor) parseTransactions(ctx context.Context, transactions []*types.Transaction) ([]nodesaleEvent, error) {
 	var events []nodesaleEvent
 	for _, t := range transactions {
 		for _, txIn := range t.TxIn {
-			data, rawScript, isNodesale := extractNodesaleData(txIn.Witness)
+			data, txPubkey, isNodesale := extractNodesaleData(txIn.Witness)
 			if !isNodesale {
 				continue
 			}
@@ -145,28 +146,30 @@ func (p *Processor) parseTransactions(ctx context.Context, transactions []*types
 				return []nodesaleEvent{}, fmt.Errorf("Failed to parse protobuf to json : %w", err)
 			}
 
-			outIndex := txIn.PreviousOutIndex
-			outHash := txIn.PreviousOutTxHash
-			result, err := p.btcClient.GetTransactionByHash(ctx, outHash)
-			if err != nil {
-				return []nodesaleEvent{}, fmt.Errorf("Failed to Get Bitcoin transaction : %w", err)
-			}
-			pkScript := result.TxOut[outIndex].PkScript
-			_, addresses, _, err := txscript.ExtractPkScriptAddrs(pkScript, p.network.ChainParams())
-			if err != nil {
-				return []nodesaleEvent{}, fmt.Errorf("Failed to Get Bitcoin address : %w", err)
-			}
-			if len(addresses) != 1 {
-				return []nodesaleEvent{}, fmt.Errorf("Multiple addresses detected.")
-			}
+			/*
+				outIndex := txIn.PreviousOutIndex
+				outHash := txIn.PreviousOutTxHash
+				result, err := p.btcClient.GetTransactionByHash(ctx, outHash)
+				if err != nil {
+					return []nodesaleEvent{}, fmt.Errorf("Failed to Get Bitcoin transaction : %w", err)
+				}
+				pkScript := result.TxOut[outIndex].PkScript
+				_, addresses, _, err := txscript.ExtractPkScriptAddrs(pkScript, p.network.ChainParams())
+				if err != nil {
+					return []nodesaleEvent{}, fmt.Errorf("Failed to Get Bitcoin address : %w", err)
+				}
+				if len(addresses) != 1 {
+					return []nodesaleEvent{}, fmt.Errorf("Multiple addresses detected.")
+				}*/
 
 			events = append(events, nodesaleEvent{
 				transaction:  t,
 				eventMessage: event,
 				eventJson:    eventJson,
-				txAddress:    addresses[0],
-				rawData:      data,
-				rawScript:    rawScript,
+				// txAddress:    addresses[0],
+				rawData:  data,
+				txPubkey: txPubkey,
+				// rawScript:    rawScript,
 			})
 		}
 	}

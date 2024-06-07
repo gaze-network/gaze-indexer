@@ -1,15 +1,11 @@
 package nodesale
 
 import (
-	"encoding/hex"
-	"fmt"
-
 	"github.com/btcsuite/btcd/btcec/v2"
-	"github.com/btcsuite/btcd/btcec/v2/schnorr"
 	"github.com/btcsuite/btcd/btcutil"
-	"github.com/btcsuite/btcd/txscript"
 )
 
+/*
 func (p *Processor) pubkeyToTaprootAddress(pubkey string, script []byte) (btcutil.Address, error) {
 	pubKeyBytes, err := hex.DecodeString(pubkey)
 	if err != nil {
@@ -32,11 +28,11 @@ func (p *Processor) pubkeyToTaprootAddress(pubkey string, script []byte) (btcuti
 		return nil, fmt.Errorf("invalid taproot address: %w", err)
 	}
 	return sellerAddr, nil
-}
+}*/
 
-func (p *Processor) pubkeyToPkHashAddress(pubkey string) btcutil.Address {
-	pubKeyBytes, _ := hex.DecodeString(pubkey)
-	pubKey, _ := btcec.ParsePubKey(pubKeyBytes)
+func (p *Processor) pubkeyToPkHashAddress(pubKey *btcec.PublicKey) btcutil.Address {
+	// pubKeyBytes, _ := hex.DecodeString(pubkey)
+	// pubKey, _ := btcec.ParsePubKey(pubKeyBytes)
 	addrPubKey, _ := btcutil.NewAddressPubKey(pubKey.SerializeCompressed(), p.network.ChainParams())
 	addrPubKeyHash := addrPubKey.AddressPubKeyHash()
 	return addrPubKeyHash

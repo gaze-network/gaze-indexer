@@ -1,11 +1,12 @@
 package nodesale
 
 import (
-	"bytes"
 	"context"
+	"encoding/hex"
 	"fmt"
 	"time"
 
+	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/gaze-network/indexer-network/core/types"
 	"github.com/gaze-network/indexer-network/modules/nodesale/repository/postgres/gen"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -15,13 +16,30 @@ import (
 func (p *Processor) processDeploy(ctx context.Context, qtx gen.Querier, block *types.Block, event nodesaleEvent) error {
 	valid := true
 	deploy := event.eventMessage.Deploy
-	sellerAddr, err := p.pubkeyToTaprootAddress(deploy.SellerPublicKey, event.rawScript)
-	if err != nil || !bytes.Equal(
-		[]byte(sellerAddr.EncodeAddress()),
-		[]byte(event.txAddress.EncodeAddress()),
-	) {
+
+	/*
+		sellerAddr, err := p.pubkeyToTaprootAddress(deploy.SellerPublicKey, event.rawScript)
+		if err != nil || !bytes.Equal(
+			[]byte(sellerAddr.EncodeAddress()),
+			[]byte(event.txAddress.EncodeAddress()),
+		) {
+			valid = false
+		}*/
+	decoded, err := hex.DecodeString(deploy.SellerPublicKey)
+	if err != nil {
 		valid = false
 	}
+
+	if valid {
+		pubkey, err := btcec.ParsePubKey(decoded)
+		if err != nil {
+			valid = false
+		}
+		if valid && !event.txPubkey.IsEqual(pubkey) {
+			valid = false
+		}
+	}
+
 	tiers := make([][]byte, len(deploy.Tiers))
 	for i, tier := range deploy.Tiers {
 		tierJson, err := protojson.Marshal(tier)
@@ -41,7 +59,7 @@ func (p *Processor) processDeploy(ctx context.Context, qtx gen.Querier, block *t
 		BlockHash:      event.transaction.BlockHash.String(),
 		BlockHeight:    int32(event.transaction.BlockHeight),
 		Valid:          valid,
-		WalletAddress:  event.txAddress.EncodeAddress(),
+		WalletAddress:  p.pubkeyToPkHashAddress(event.txPubkey).EncodeAddress(),
 		Metadata:       []byte("{}"),
 	})
 	if err != nil {

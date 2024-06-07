@@ -1,10 +1,11 @@
 package nodesale
 
 import (
-	"bytes"
 	"context"
+	"encoding/hex"
 	"fmt"
 
+	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/gaze-network/indexer-network/core/types"
 	"github.com/gaze-network/indexer-network/modules/nodesale/repository/postgres/gen"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -32,12 +33,19 @@ func (p *Processor) processDelegate(ctx context.Context, qtx gen.Querier, block 
 
 	if valid {
 		for _, node := range nodes {
-			ownerAddress, err := p.pubkeyToTaprootAddress(node.OwnerPublicKey, event.rawScript)
-			if err != nil || !bytes.Equal(
-				[]byte(ownerAddress.EncodeAddress()),
-				[]byte(event.txAddress.EncodeAddress()),
-			) {
+			decoded, err := hex.DecodeString(node.OwnerPublicKey)
+			if err != nil {
 				valid = false
+				break
+			}
+			pubkey, err := btcec.ParsePubKey(decoded)
+			if err != nil {
+				valid = false
+				break
+			}
+			if !event.txPubkey.IsEqual(pubkey) {
+				valid = false
+				break
 			}
 		}
 	}
@@ -52,8 +60,9 @@ func (p *Processor) processDelegate(ctx context.Context, qtx gen.Querier, block 
 		BlockHash:      event.transaction.BlockHash.String(),
 		BlockHeight:    int32(event.transaction.BlockHeight),
 		Valid:          valid,
-		WalletAddress:  event.txAddress.EncodeAddress(),
-		Metadata:       []byte("{}"),
+		// WalletAddress:  event.txAddress.EncodeAddress(),
+		WalletAddress: p.pubkeyToPkHashAddress(event.txPubkey).EncodeAddress(),
+		Metadata:      []byte("{}"),
 	})
 	if err != nil {
 		return fmt.Errorf("Failed to insert event : %w", err)

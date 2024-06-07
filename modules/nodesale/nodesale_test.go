@@ -6,8 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/btcsuite/btcd/btcec/v2/schnorr"
-	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
@@ -75,13 +73,13 @@ func assembleTestEvent(privateKey *secp256k1.PrivateKey, blockHashHex, txHashHex
 	builder.AddOp(txscript.OP_IF)
 	builder.AddData(rawData)
 	builder.AddOp(txscript.OP_ENDIF)
-	script, _ := builder.Script()
-	tapleaf := txscript.NewBaseTapLeaf(script)
-	scriptTree := txscript.AssembleTaprootScriptTree(tapleaf)
-	rootHash := scriptTree.RootNode.TapHash()
-	tapkey := txscript.ComputeTaprootOutputKey(privateKey.PubKey(), rootHash[:])
+	// script, _ := builder.Script()
+	// tapleaf := txscript.NewBaseTapLeaf(script)
+	// scriptTree := txscript.AssembleTaprootScriptTree(tapleaf)
+	// rootHash := scriptTree.RootNode.TapHash()
+	// tapkey := txscript.ComputeTaprootOutputKey(privateKey.PubKey(), rootHash[:])
 
-	addressTaproot, _ := btcutil.NewAddressTaproot(schnorr.SerializePubKey(tapkey), p.network.ChainParams())
+	// addressTaproot, _ := btcutil.NewAddressTaproot(schnorr.SerializePubKey(tapkey), p.network.ChainParams())
 
 	messageJson, _ := protojson.Marshal(message)
 
@@ -104,8 +102,9 @@ func assembleTestEvent(privateKey *secp256k1.PrivateKey, blockHashHex, txHashHex
 		rawData:      rawData,
 		eventMessage: message,
 		eventJson:    messageJson,
-		txAddress:    addressTaproot,
-		rawScript:    script,
+		// txAddress:    addressTaproot,
+		txPubkey: privateKey.PubKey(),
+		// rawScript:    script,
 	}
 	block := &types.Block{
 		Header: types.BlockHeader{

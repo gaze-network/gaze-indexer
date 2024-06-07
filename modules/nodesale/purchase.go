@@ -31,13 +31,28 @@ func (p *Processor) processPurchase(ctx context.Context, qtx gen.Querier, block 
 	purchase := event.eventMessage.Purchase
 	payload := purchase.Payload
 
-	buyerAddr, err := p.pubkeyToTaprootAddress(payload.BuyerPublicKey, event.rawScript)
-	if err != nil || !bytes.Equal(
-		[]byte(buyerAddr.EncodeAddress()),
-		[]byte(event.txAddress.EncodeAddress()),
-	) {
+	decoded, err := hex.DecodeString(payload.BuyerPublicKey)
+	if err != nil {
 		valid = false
 	}
+
+	if valid {
+		pubkey, err := btcec.ParsePubKey(decoded)
+		if err != nil {
+			valid = false
+		}
+		if valid && !event.txPubkey.IsEqual(pubkey) {
+			valid = false
+		}
+	}
+	/*
+		buyerAddr, err := p.pubkeyToTaprootAddress(payload.BuyerPublicKey, event.rawScript)
+		if err != nil || !bytes.Equal(
+			[]byte(buyerAddr.EncodeAddress()),
+			[]byte(event.txAddress.EncodeAddress()),
+		) {
+			valid = false
+		}*/
 	var deploy *gen.NodeSale
 	if valid {
 		// check node existed
@@ -143,7 +158,9 @@ func (p *Processor) processPurchase(ctx context.Context, qtx gen.Querier, block 
 	meta := metaData{}
 	if valid {
 		// get total amount paid to seller
-		sellerAddr := p.pubkeyToPkHashAddress(deploy.SellerPublicKey)
+		sellerPubKeyBytes, _ := hex.DecodeString(deploy.SellerPublicKey)
+		sellerPubKey, _ := btcec.ParsePubKey(sellerPubKeyBytes)
+		sellerAddr := p.pubkeyToPkHashAddress(sellerPubKey)
 		for _, txOut := range event.transaction.TxOut {
 			_, txOutAddrs, _, _ := txscript.ExtractPkScriptAddrs(txOut.PkScript, p.network.ChainParams())
 			if len(txOutAddrs) == 1 && bytes.Equal(
@@ -223,8 +240,9 @@ func (p *Processor) processPurchase(ctx context.Context, qtx gen.Querier, block 
 		BlockHash:      event.transaction.BlockHash.String(),
 		BlockHeight:    int32(event.transaction.BlockHeight),
 		Valid:          valid,
-		WalletAddress:  event.txAddress.EncodeAddress(),
-		Metadata:       metaDataBytes,
+		// WalletAddress:  event.txAddress.EncodeAddress(),
+		WalletAddress: p.pubkeyToPkHashAddress(event.txPubkey).EncodeAddress(),
+		Metadata:      metaDataBytes,
 	})
 	if err != nil {
 		return fmt.Errorf("Failed to insert event : %w", err)
