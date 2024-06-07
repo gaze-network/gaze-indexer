@@ -60,6 +60,7 @@ func TestMain(m *testing.M) {
 
 	res := m.Run()
 	tx.Commit(ctx)
+	db.Close()
 	os.Exit(res)
 }
 

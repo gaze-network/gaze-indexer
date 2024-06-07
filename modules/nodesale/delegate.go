@@ -27,8 +27,6 @@ func (p *Processor) processDelegate(ctx context.Context, qtx gen.Querier, block 
 	}
 
 	if len(nodeIds) != len(nodes) {
-		fmt.Println(nodeIds)
-		fmt.Println(nodes)
 		valid = false
 	}
 
@@ -51,8 +49,8 @@ func (p *Processor) processDelegate(ctx context.Context, qtx gen.Querier, block 
 		RawMessage:     event.rawData,
 		ParsedMessage:  event.eventJson,
 		BlockTimestamp: pgtype.Timestamp{Time: block.Header.Timestamp, Valid: true},
-		BlockHash:      block.Header.Hash.String(),
-		BlockHeight:    int32(block.Header.Height),
+		BlockHash:      event.transaction.BlockHash.String(),
+		BlockHeight:    int32(event.transaction.BlockHeight),
 		Valid:          valid,
 		WalletAddress:  event.txAddress.EncodeAddress(),
 		Metadata:       []byte("{}"),

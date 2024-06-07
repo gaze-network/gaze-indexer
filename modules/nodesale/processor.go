@@ -23,22 +23,25 @@ import (
 )
 
 type Processor struct {
-	repository          *repository.Repository
-	nodesaleGenesis     int32
-	nodesaleGenesisHash chainhash.Hash
-	btcClient           *datasources.BitcoinNodeDatasource
-	network             common.Network
+	repository   *repository.Repository
+	btcClient    *datasources.BitcoinNodeDatasource
+	network      common.Network
+	cleanupFuncs []func(context.Context) error
 }
 
 // CurrentBlock implements indexer.Processor.
 func (p *Processor) CurrentBlock(ctx context.Context) (types.BlockHeader, error) {
 	block, err := p.repository.Queries.GetLastProcessedBlock(ctx)
 	if err != nil {
-		logger.InfoContext(ctx, "Couldn't get last processed block. Start from Nodesale genesis.",
-			slog.Int("currentBlock", int(p.nodesaleGenesis)))
+		logger.InfoContext(ctx, "Couldn't get last processed block. Start from NODESALE_LAST_BLOCK_DEFAULT.",
+			slog.Int("currentBlock", NODESALE_LASTBLOCK_DEFAULT))
+		header, err := p.btcClient.GetBlockHeader(ctx, NODESALE_LASTBLOCK_DEFAULT)
+		if err != nil {
+			return types.BlockHeader{}, fmt.Errorf("Cannot get default block from bitcoin node : %w", err)
+		}
 		return types.BlockHeader{
-			Hash:   p.nodesaleGenesisHash,
-			Height: int64(p.nodesaleGenesis),
+			Hash:   header.Hash,
+			Height: NODESALE_LASTBLOCK_DEFAULT,
 		}, nil
 	}
 
@@ -121,7 +124,7 @@ type nodesaleEvent struct {
 }
 
 func (p *Processor) parseTransactions(ctx context.Context, transactions []*types.Transaction) ([]nodesaleEvent, error) {
-	events := make([]nodesaleEvent, 1)
+	var events []nodesaleEvent
 	for _, t := range transactions {
 		for _, txIn := range t.TxIn {
 			data, rawScript, isNodesale := extractNodesaleData(txIn.Witness)
@@ -173,12 +176,14 @@ func (p *Processor) parseTransactions(ctx context.Context, transactions []*types
 // Process implements indexer.Processor.
 func (p *Processor) Process(ctx context.Context, inputs []*types.Block) error {
 	for _, block := range inputs {
+		logger.InfoContext(ctx, "Nodesale processing a block",
+			slog.Int64("block", block.Header.Height),
+			slog.String("hash", block.Header.Hash.String()))
 		// parse all event from each transaction including reading tx wallet
 		events, err := p.parseTransactions(ctx, block.Transactions)
 		if err != nil {
 			return fmt.Errorf("Invalid data from bitcoin client : %w", err)
 		}
-
 		// open transaction
 		tx, err := p.repository.Db.Begin(ctx)
 		if err != nil {
@@ -198,6 +203,11 @@ func (p *Processor) Process(ctx context.Context, inputs []*types.Block) error {
 		}
 		// for each events
 		for _, event := range events {
+			logger.InfoContext(ctx, "Nodesale processing event",
+				slog.Int("txIndex", int(event.transaction.Index)),
+				slog.Int("blockHeight", int(block.Header.Height)),
+				slog.String("blockhash", block.Header.Hash.String()),
+			)
 			eventMessage := event.eventMessage
 			switch eventMessage.Action {
 			case protobuf.Action_ACTION_DEPLOY:
@@ -222,6 +232,9 @@ func (p *Processor) Process(ctx context.Context, inputs []*types.Block) error {
 		if err != nil {
 			return fmt.Errorf("Failed to commit transaction : %w", err)
 		}
+		logger.InfoContext(ctx, "Nodesale finished processing block",
+			slog.Int64("block", block.Header.Height),
+			slog.String("hash", block.Header.Hash.String()))
 	}
 	return nil
 }
@@ -262,7 +275,13 @@ func (p *Processor) VerifyStates(ctx context.Context) error {
 }
 
 func (p *Processor) Shutdown(ctx context.Context) error {
-	panic("unimplemented")
+	for _, cleanupFunc := range p.cleanupFuncs {
+		err := cleanupFunc(ctx)
+		if err != nil {
+			return fmt.Errorf("cleanup function error : %w", err)
+		}
+	}
+	return nil
 }
 
 var _ indexer.Processor[*types.Block] = (*Processor)(nil)

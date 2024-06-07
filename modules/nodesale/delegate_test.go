@@ -12,6 +12,8 @@ import (
 	"github.com/decred/dcrd/dcrec/secp256k1/v4/ecdsa"
 	"github.com/gaze-network/indexer-network/core/types"
 	"github.com/gaze-network/indexer-network/modules/nodesale/protobuf"
+	"github.com/gaze-network/indexer-network/modules/nodesale/repository/postgres/gen"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -23,7 +25,7 @@ func TestDelegate(t *testing.T) {
 	deployMessage := &protobuf.NodeSaleEvent{
 		Action: protobuf.Action_ACTION_DEPLOY,
 		Deploy: &protobuf.ActionDeploy{
-			Name:     "deploy_for_puchase",
+			Name:     t.Name(),
 			StartsAt: uint32(startAt.UTC().Unix()),
 			EndsAt:   uint32(endAt.UTC().Unix()),
 			Tiers: []*protobuf.Tier{
@@ -105,4 +107,21 @@ func TestDelegate(t *testing.T) {
 	}
 	event, block = assembleTestEvent(buyerPrivateKey, "131313131313", "131313131313", 0, 0, delegateMessage)
 	p.processDelegate(ctx, qtx, block, event)
+
+	nodes, _ := qtx.GetNodes(ctx, gen.GetNodesParams{
+		SaleBlock:   int32(testBlockHeigh) - 3,
+		SaleTxIndex: int32(testTxIndex) - 3,
+		NodeIds:     []int32{9, 10, 11},
+	})
+	require.Len(t, nodes, 3)
+	for _, node := range nodes {
+		if node.NodeID == 9 || node.NodeID == 10 {
+			require.True(t, node.DelegatedTo.Valid)
+			require.Equal(t, delegateePubkeyHex, node.DelegatedTo.String)
+		} else if node.NodeID == 11 {
+			require.False(t, node.DelegatedTo.Valid)
+		} else {
+			require.Fail(t, "Unhandled")
+		}
+	}
 }
