@@ -5,7 +5,7 @@ import (
 
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/gaze-network/indexer-network/modules/brc20/internal/ordinals"
-	"github.com/gaze-network/uint128"
+	"github.com/shopspring/decimal"
 )
 
 type EventInscribeTransfer struct {
@@ -23,5 +23,5 @@ type EventInscribeTransfer struct {
 	SatPoint    ordinals.SatPoint
 	OutputIndex uint32
 	SatsAmount  uint64
-	Amount      uint128.Uint128
+	Amount      decimal.Decimal
 }

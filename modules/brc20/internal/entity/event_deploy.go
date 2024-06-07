@@ -5,7 +5,7 @@ import (
 
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/gaze-network/indexer-network/modules/brc20/internal/ordinals"
-	"github.com/gaze-network/uint128"
+	"github.com/shopspring/decimal"
 )
 
 type EventDeploy struct {
@@ -21,8 +21,8 @@ type EventDeploy struct {
 
 	PkScript     []byte
 	SatPoint     ordinals.SatPoint
-	TotalSupply  uint128.Uint128
+	TotalSupply  decimal.Decimal
 	Decimals     uint16
-	LimitPerMint uint128.Uint128
+	LimitPerMint decimal.Decimal
 	IsSelfMint   bool
 }

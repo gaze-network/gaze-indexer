@@ -5,7 +5,7 @@ import (
 
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/gaze-network/indexer-network/modules/brc20/internal/ordinals"
-	"github.com/gaze-network/uint128"
+	"github.com/shopspring/decimal"
 )
 
 type EventMint struct {
@@ -21,6 +21,6 @@ type EventMint struct {
 
 	PkScript []byte
 	SatPoint ordinals.SatPoint
-	Amount   uint128.Uint128
+	Amount   decimal.Decimal
 	ParentId *ordinals.InscriptionId
 }

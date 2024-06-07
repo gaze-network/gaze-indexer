@@ -4,22 +4,22 @@ import (
 	"time"
 
 	"github.com/gaze-network/indexer-network/modules/brc20/internal/ordinals"
-	"github.com/gaze-network/uint128"
+	"github.com/shopspring/decimal"
 )
 
 type TickEntry struct {
 	Tick                string
 	OriginalTick        string
-	TotalSupply         uint128.Uint128
+	TotalSupply         decimal.Decimal
 	Decimals            uint16
-	LimitPerMint        uint128.Uint128
+	LimitPerMint        decimal.Decimal
 	IsSelfMint          bool
 	DeployInscriptionId ordinals.InscriptionId
 	DeployedAt          time.Time
 	DeployedAtHeight    uint64
 
-	MintedAmount      uint128.Uint128
-	BurnedAmount      uint128.Uint128
+	MintedAmount      decimal.Decimal
+	BurnedAmount      decimal.Decimal
 	CompletedAt       time.Time
 	CompletedAtHeight uint64
 }

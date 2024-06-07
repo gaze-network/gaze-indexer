@@ -5,7 +5,7 @@ import (
 
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/gaze-network/indexer-network/modules/brc20/internal/ordinals"
-	"github.com/gaze-network/uint128"
+	"github.com/shopspring/decimal"
 )
 
 type EventTransferTransfer struct {
@@ -25,5 +25,5 @@ type EventTransferTransfer struct {
 	ToPkScript     []byte
 	ToSatPoint     ordinals.SatPoint
 	ToOutputIndex  uint32
-	Amount         uint128.Uint128
+	Amount         decimal.Decimal
 }
