@@ -17,9 +17,6 @@ import (
 // Process implements indexer.Processor.
 func (p *Processor) Process(ctx context.Context, blocks []*types.Block) error {
 	for _, block := range blocks {
-		if block.Header.Height == 779832 {
-			panic("stop")
-		}
 		ctx = logger.WithContext(ctx, slogx.Uint64("height", uint64(block.Header.Height)))
 		logger.DebugContext(ctx, "Processing new block")
 		p.blockReward = p.getBlockSubsidy(uint64(block.Header.Height))
