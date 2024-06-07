@@ -107,7 +107,7 @@ CREATE TABLE IF NOT EXISTS "brc20_event_inscribe_transfers" (
 	"sats_amount" BIGINT NOT NULL,
 	"amount" DECIMAL NOT NULL
 );
-CREATE INDEX IF NOT EXISTS brc20_event_transfer_transfers_block_height_idx ON "brc20_event_transfer_transfers" USING BTREE ("block_height");
+CREATE INDEX IF NOT EXISTS brc20_event_inscribe_transfers_block_height_idx ON "brc20_event_inscribe_transfers" USING BTREE ("block_height");
 
 CREATE TABLE IF NOT EXISTS "brc20_event_transfer_transfers" (
 	"id" BIGINT PRIMARY KEY DEFAULT nextval('brc20_event_id_seq'),
