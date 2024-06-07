@@ -36,8 +36,8 @@ CREATE TABLE IF NOT EXISTS "brc20_tick_entries" (
 	"limit_per_mint" DECIMAL NOT NULL,
 	"is_self_mint" BOOLEAN NOT NULL,
 	"deploy_inscription_id" TEXT NOT NULL,
-	"created_at" TIMESTAMP NOT NULL,
-	"created_at_height" INT NOT NULL
+	"deployed_at" TIMESTAMP NOT NULL,
+	"deployed_at_height" INT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS "brc20_tick_entry_states" (
@@ -50,8 +50,10 @@ CREATE TABLE IF NOT EXISTS "brc20_tick_entry_states" (
 	PRIMARY KEY ("tick", "block_height")
 );
 
-CREATE TABLE IF NOT EXISTS "brc20_deploy_events" (
-	"id" BIGSERIAL PRIMARY KEY,
+CREATE SEQUENCE IF NOT EXISTS brc20_event_id_seq;
+
+CREATE TABLE IF NOT EXISTS "brc20_event_deploys" (
+	"id" BIGINT PRIMARY KEY DEFAULT nextval('brc20_event_id_seq'),
 	"inscription_id" TEXT NOT NULL,
 	"inscription_number" BIGINT NOT NULL,
 	"tick" TEXT NOT NULL, -- lowercase of original_tick
@@ -62,15 +64,16 @@ CREATE TABLE IF NOT EXISTS "brc20_deploy_events" (
 	"timestamp" TIMESTAMP NOT NULL,
 	
 	"pkscript" TEXT NOT NULL,
+	"satpoint" TEXT NOT NULL,
 	"total_supply" DECIMAL NOT NULL,
 	"decimals" SMALLINT NOT NULL,
 	"limit_per_mint" DECIMAL NOT NULL,
 	"is_self_mint" BOOLEAN NOT NULL
 );
-CREATE INDEX IF NOT EXISTS brc20_deploy_events_block_height_idx ON "brc20_deploy_events" USING BTREE ("block_height");
+CREATE INDEX IF NOT EXISTS brc20_event_deploys_block_height_idx ON "brc20_event_deploys" USING BTREE ("block_height");
 
-CREATE TABLE IF NOT EXISTS "brc20_mint_events" (
-	"id" BIGSERIAL PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS "brc20_event_mints" (
+	"id" BIGINT PRIMARY KEY DEFAULT nextval('brc20_event_id_seq'),
 	"inscription_id" TEXT NOT NULL,
 	"inscription_number" BIGINT NOT NULL,
 	"tick" TEXT NOT NULL, -- lowercase of original_tick
@@ -81,13 +84,14 @@ CREATE TABLE IF NOT EXISTS "brc20_mint_events" (
 	"timestamp" TIMESTAMP NOT NULL,
 
 	"pkscript" TEXT NOT NULL,
+	"satpoint" TEXT NOT NULL,
 	"amount" DECIMAL NOT NULL,
 	"parent_id" TEXT -- requires parent deploy inscription id if minting a self-mint ticker
 );
-CREATE INDEX IF NOT EXISTS brc20_mint_events_block_height_idx ON "brc20_mint_events" USING BTREE ("block_height");
+CREATE INDEX IF NOT EXISTS brc20_event_mints_block_height_idx ON "brc20_event_mints" USING BTREE ("block_height");
 
-CREATE TABLE IF NOT EXISTS "brc20_transfer_events" (
-	"id" BIGSERIAL PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS "brc20_event_inscribe_transfers" (
+	"id" BIGINT PRIMARY KEY DEFAULT nextval('brc20_event_id_seq'),
 	"inscription_id" TEXT NOT NULL,
 	"inscription_number" BIGINT NOT NULL,
 	"tick" TEXT NOT NULL, -- lowercase of original_tick
@@ -97,13 +101,34 @@ CREATE TABLE IF NOT EXISTS "brc20_transfer_events" (
 	"tx_index" INT NOT NULL,
 	"timestamp" TIMESTAMP NOT NULL,
 
-	"from_pkscript" TEXT, -- if null, it's inscribe transfer. Otherwise, it's transfer transfer
-	"from_satpoint" TEXT,
-	"to_pkscript" TEXT NOT NULL,
-	"to_satpoint" TEXT NOT NULL,
+	"pkscript" TEXT NOT NULL,
+	"satpoint" TEXT NOT NULL,
+	"output_index" INT NOT NULL,
+	"sats_amount" BIGINT NOT NULL,
 	"amount" DECIMAL NOT NULL
 );
-CREATE INDEX IF NOT EXISTS brc20_transfer_events_block_height_idx ON "brc20_transfer_events" USING BTREE ("block_height");
+CREATE INDEX IF NOT EXISTS brc20_event_transfer_transfers_block_height_idx ON "brc20_event_transfer_transfers" USING BTREE ("block_height");
+
+CREATE TABLE IF NOT EXISTS "brc20_event_transfer_transfers" (
+	"id" BIGINT PRIMARY KEY DEFAULT nextval('brc20_event_id_seq'),
+	"inscription_id" TEXT NOT NULL,
+	"inscription_number" BIGINT NOT NULL,
+	"tick" TEXT NOT NULL, -- lowercase of original_tick
+	"original_tick" TEXT NOT NULL,
+	"tx_hash" TEXT NOT NULL,
+	"block_height" INT NOT NULL,
+	"tx_index" INT NOT NULL,
+	"timestamp" TIMESTAMP NOT NULL,
+
+	"from_pkscript" TEXT NOT NULL,
+	"from_satpoint" TEXT NOT NULL,
+	"from_input_index" INT NOT NULL,
+	"to_pkscript" TEXT NOT NULL,
+	"to_satpoint" TEXT NOT NULL,
+	"to_output_index" INT NOT NULL,
+	"amount" DECIMAL NOT NULL
+);
+CREATE INDEX IF NOT EXISTS brc20_event_transfer_transfers_block_height_idx ON "brc20_event_transfer_transfers" USING BTREE ("block_height");
 
 CREATE TABLE IF NOT EXISTS "brc20_balances" (
 	"pkscript" TEXT NOT NULL,

@@ -16,7 +16,7 @@ type Brc20Balance struct {
 	AvailableBalance pgtype.Numeric
 }
 
-type Brc20DeployEvent struct {
+type Brc20EventDeploy struct {
 	Id                int64
 	InscriptionID     string
 	InscriptionNumber int64
@@ -27,10 +27,63 @@ type Brc20DeployEvent struct {
 	TxIndex           int32
 	Timestamp         pgtype.Timestamp
 	Pkscript          string
+	Satpoint          string
 	TotalSupply       pgtype.Numeric
 	Decimals          int16
 	LimitPerMint      pgtype.Numeric
 	IsSelfMint        bool
+}
+
+type Brc20EventInscribeTransfer struct {
+	Id                int64
+	InscriptionID     string
+	InscriptionNumber int64
+	Tick              string
+	OriginalTick      string
+	TxHash            string
+	BlockHeight       int32
+	TxIndex           int32
+	Timestamp         pgtype.Timestamp
+	Pkscript          string
+	Satpoint          string
+	OutputIndex       int32
+	SatsAmount        int64
+	Amount            pgtype.Numeric
+}
+
+type Brc20EventMint struct {
+	Id                int64
+	InscriptionID     string
+	InscriptionNumber int64
+	Tick              string
+	OriginalTick      string
+	TxHash            string
+	BlockHeight       int32
+	TxIndex           int32
+	Timestamp         pgtype.Timestamp
+	Pkscript          string
+	Satpoint          string
+	Amount            pgtype.Numeric
+	ParentID          pgtype.Text
+}
+
+type Brc20EventTransferTransfer struct {
+	Id                int64
+	InscriptionID     string
+	InscriptionNumber int64
+	Tick              string
+	OriginalTick      string
+	TxHash            string
+	BlockHeight       int32
+	TxIndex           int32
+	Timestamp         pgtype.Timestamp
+	FromPkscript      string
+	FromSatpoint      string
+	FromInputIndex    int32
+	ToPkscript        string
+	ToSatpoint        string
+	ToOutputIndex     int32
+	Amount            pgtype.Numeric
 }
 
 type Brc20IndexedBlock struct {
@@ -88,21 +141,6 @@ type Brc20InscriptionTransfer struct {
 	SentAsFee         bool
 }
 
-type Brc20MintEvent struct {
-	Id                int64
-	InscriptionID     string
-	InscriptionNumber int64
-	Tick              string
-	OriginalTick      string
-	TxHash            string
-	BlockHeight       int32
-	TxIndex           int32
-	Timestamp         pgtype.Timestamp
-	Pkscript          string
-	Amount            pgtype.Numeric
-	ParentID          pgtype.Text
-}
-
 type Brc20ProcessorStat struct {
 	BlockHeight             int32
 	CursedInscriptionCount  int32
@@ -118,8 +156,8 @@ type Brc20TickEntry struct {
 	LimitPerMint        pgtype.Numeric
 	IsSelfMint          bool
 	DeployInscriptionID string
-	CreatedAt           pgtype.Timestamp
-	CreatedAtHeight     int32
+	DeployedAt          pgtype.Timestamp
+	DeployedAtHeight    int32
 }
 
 type Brc20TickEntryState struct {
@@ -129,21 +167,4 @@ type Brc20TickEntryState struct {
 	BurnedAmount      pgtype.Numeric
 	CompletedAt       pgtype.Timestamp
 	CompletedAtHeight pgtype.Int4
-}
-
-type Brc20TransferEvent struct {
-	Id                int64
-	InscriptionID     string
-	InscriptionNumber int64
-	Tick              string
-	OriginalTick      string
-	TxHash            string
-	BlockHeight       int32
-	TxIndex           int32
-	Timestamp         pgtype.Timestamp
-	FromPkscript      pgtype.Text
-	FromSatpoint      pgtype.Text
-	ToPkscript        string
-	ToSatpoint        string
-	Amount            pgtype.Numeric
 }
