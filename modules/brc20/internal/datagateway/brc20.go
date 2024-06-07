@@ -41,16 +41,18 @@ type BRC20WriterDataGateway interface {
 	CreateInscriptionTransfers(ctx context.Context, transfers []*entity.InscriptionTransfer) error
 	CreateEventDeploys(ctx context.Context, events []*entity.EventDeploy) error
 	CreateEventMints(ctx context.Context, events []*entity.EventMint) error
-	CreateEventTransfers(ctx context.Context, events []*entity.EventTransfer) error
+	CreateEventInscribeTransfers(ctx context.Context, events []*entity.EventInscribeTransfer) error
+	CreateEventTransferTransfers(ctx context.Context, events []*entity.EventTransferTransfer) error
 
 	// used for revert data
 	DeleteIndexedBlocksSinceHeight(ctx context.Context, height uint64) error
 	DeleteProcessorStatsSinceHeight(ctx context.Context, height uint64) error
 	DeleteTickEntriesSinceHeight(ctx context.Context, height uint64) error
 	DeleteTickEntryStatesSinceHeight(ctx context.Context, height uint64) error
-	DeleteDeployEventsSinceHeight(ctx context.Context, height uint64) error
-	DeleteMintEventsSinceHeight(ctx context.Context, height uint64) error
-	DeleteTransferEventsSinceHeight(ctx context.Context, height uint64) error
+	DeleteEventDeploysSinceHeight(ctx context.Context, height uint64) error
+	DeleteEventMintsSinceHeight(ctx context.Context, height uint64) error
+	DeleteEventInscribeTransfersSinceHeight(ctx context.Context, height uint64) error
+	DeleteEventTransferTransfersSinceHeight(ctx context.Context, height uint64) error
 	DeleteBalancesSinceHeight(ctx context.Context, height uint64) error
 	DeleteInscriptionEntriesSinceHeight(ctx context.Context, height uint64) error
 	DeleteInscriptionEntryStatesSinceHeight(ctx context.Context, height uint64) error

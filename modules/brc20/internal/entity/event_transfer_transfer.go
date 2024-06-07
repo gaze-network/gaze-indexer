@@ -8,7 +8,7 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-type EventDeploy struct {
+type EventTransferTransfer struct {
 	Id                uint64
 	InscriptionId     ordinals.InscriptionId
 	InscriptionNumber uint64
@@ -19,10 +19,11 @@ type EventDeploy struct {
 	TxIndex           uint32
 	Timestamp         time.Time
 
-	PkScript     []byte
-	SatPoint     ordinals.SatPoint
-	TotalSupply  decimal.Decimal
-	Decimals     uint16
-	LimitPerMint decimal.Decimal
-	IsSelfMint   bool
+	FromPkScript   []byte
+	FromSatPoint   ordinals.SatPoint
+	FromInputIndex uint32
+	ToPkScript     []byte
+	ToSatPoint     ordinals.SatPoint
+	ToOutputIndex  uint32
+	Amount         decimal.Decimal
 }

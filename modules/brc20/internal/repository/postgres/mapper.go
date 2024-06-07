@@ -11,37 +11,35 @@ import (
 	"github.com/gaze-network/indexer-network/modules/brc20/internal/entity"
 	"github.com/gaze-network/indexer-network/modules/brc20/internal/ordinals"
 	"github.com/gaze-network/indexer-network/modules/brc20/internal/repository/postgres/gen"
-	"github.com/gaze-network/uint128"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/samber/lo"
+	"github.com/shopspring/decimal"
 )
 
-func uint128FromNumeric(src pgtype.Numeric) (*uint128.Uint128, error) {
-	if !src.Valid {
-		return nil, nil
+func decimalFromNumeric(src pgtype.Numeric) decimal.NullDecimal {
+	if !src.Valid || src.NaN || src.InfinityModifier != pgtype.Finite {
+		return decimal.NullDecimal{}
 	}
-	bytes, err := src.MarshalJSON()
-	if err != nil {
-		return nil, errors.WithStack(err)
-	}
-	result, err := uint128.FromString(string(bytes))
-	if err != nil {
-		return nil, errors.WithStack(err)
-	}
-	return &result, nil
+	result := decimal.NewFromBigInt(src.Int, src.Exp)
+	return decimal.NewNullDecimal(result)
 }
 
-func numericFromUint128(src *uint128.Uint128) (pgtype.Numeric, error) {
-	if src == nil {
-		return pgtype.Numeric{}, nil
+func numericFromDecimal(src decimal.Decimal) pgtype.Numeric {
+	result := pgtype.Numeric{
+		Int:              src.Coefficient(),
+		Exp:              src.Exponent(),
+		NaN:              false,
+		InfinityModifier: pgtype.Finite,
+		Valid:            true,
 	}
-	bytes := []byte(src.String())
-	var result pgtype.Numeric
-	err := result.UnmarshalJSON(bytes)
-	if err != nil {
-		return pgtype.Numeric{}, errors.WithStack(err)
+	return result
+}
+
+func numericFromNullDecimal(src decimal.NullDecimal) pgtype.Numeric {
+	if !src.Valid {
+		return pgtype.Numeric{}
 	}
-	return result, nil
+	return numericFromDecimal(src.Decimal)
 }
 
 func mapIndexerStatesModelToType(src gen.Brc20IndexerState) entity.IndexerState {
@@ -116,25 +114,9 @@ func mapProcessorStatsTypeToParams(src entity.ProcessorStats) gen.CreateProcesso
 }
 
 func mapTickEntryModelToType(src gen.GetTickEntriesByTicksRow) (entity.TickEntry, error) {
-	totalSupply, err := uint128FromNumeric(src.TotalSupply)
-	if err != nil {
-		return entity.TickEntry{}, errors.Wrap(err, "cannot parse totalSupply")
-	}
-	limitPerMint, err := uint128FromNumeric(src.LimitPerMint)
-	if err != nil {
-		return entity.TickEntry{}, errors.Wrap(err, "cannot parse limitPerMint")
-	}
 	deployInscriptionId, err := ordinals.NewInscriptionIdFromString(src.DeployInscriptionID)
 	if err != nil {
 		return entity.TickEntry{}, errors.Wrap(err, "invalid deployInscriptionId")
-	}
-	mintedAmount, err := uint128FromNumeric(src.MintedAmount)
-	if err != nil {
-		return entity.TickEntry{}, errors.Wrap(err, "cannot parse mintedAmount")
-	}
-	burnedAmount, err := uint128FromNumeric(src.BurnedAmount)
-	if err != nil {
-		return entity.TickEntry{}, errors.Wrap(err, "cannot parse burnedAmount")
 	}
 	var completedAt time.Time
 	if src.CompletedAt.Valid {
@@ -143,54 +125,38 @@ func mapTickEntryModelToType(src gen.GetTickEntriesByTicksRow) (entity.TickEntry
 	return entity.TickEntry{
 		Tick:                src.Tick,
 		OriginalTick:        src.OriginalTick,
-		TotalSupply:         lo.FromPtr(totalSupply),
+		TotalSupply:         decimalFromNumeric(src.TotalSupply).Decimal,
 		Decimals:            uint16(src.Decimals),
-		LimitPerMint:        lo.FromPtr(limitPerMint),
+		LimitPerMint:        decimalFromNumeric(src.LimitPerMint).Decimal,
 		IsSelfMint:          src.IsSelfMint,
 		DeployInscriptionId: deployInscriptionId,
-		CreatedAt:           src.CreatedAt.Time,
-		CreatedAtHeight:     uint64(src.CreatedAtHeight),
-		MintedAmount:        lo.FromPtr(mintedAmount),
-		BurnedAmount:        lo.FromPtr(burnedAmount),
+		DeployedAt:          src.DeployedAt.Time,
+		DeployedAtHeight:    uint64(src.DeployedAtHeight),
+		MintedAmount:        decimalFromNumeric(src.MintedAmount).Decimal,
+		BurnedAmount:        decimalFromNumeric(src.BurnedAmount).Decimal,
 		CompletedAt:         completedAt,
 		CompletedAtHeight:   lo.Ternary(src.CompletedAtHeight.Valid, uint64(src.CompletedAtHeight.Int32), 0),
 	}, nil
 }
 
 func mapTickEntryTypeToParams(src entity.TickEntry, blockHeight uint64) (gen.CreateTickEntriesParams, gen.CreateTickEntryStatesParams, error) {
-	totalSupply, err := numericFromUint128(&src.TotalSupply)
-	if err != nil {
-		return gen.CreateTickEntriesParams{}, gen.CreateTickEntryStatesParams{}, errors.Wrap(err, "cannot convert totalSupply")
-	}
-	limitPerMint, err := numericFromUint128(&src.LimitPerMint)
-	if err != nil {
-		return gen.CreateTickEntriesParams{}, gen.CreateTickEntryStatesParams{}, errors.Wrap(err, "cannot convert limitPerMint")
-	}
-	mintedAmount, err := numericFromUint128(&src.MintedAmount)
-	if err != nil {
-		return gen.CreateTickEntriesParams{}, gen.CreateTickEntryStatesParams{}, errors.Wrap(err, "cannot convert mintedAmount")
-	}
-	burnedAmount, err := numericFromUint128(&src.BurnedAmount)
-	if err != nil {
-		return gen.CreateTickEntriesParams{}, gen.CreateTickEntryStatesParams{}, errors.Wrap(err, "cannot convert burnedAmount")
-	}
 	return gen.CreateTickEntriesParams{
 			Tick:                src.Tick,
 			OriginalTick:        src.OriginalTick,
-			TotalSupply:         totalSupply,
+			TotalSupply:         numericFromDecimal(src.TotalSupply),
 			Decimals:            int16(src.Decimals),
-			LimitPerMint:        limitPerMint,
+			LimitPerMint:        numericFromDecimal(src.LimitPerMint),
 			IsSelfMint:          src.IsSelfMint,
 			DeployInscriptionID: src.DeployInscriptionId.String(),
-			CreatedAt:           pgtype.Timestamp{Time: src.CreatedAt, Valid: true},
-			CreatedAtHeight:     int32(src.CreatedAtHeight),
+			DeployedAt:          pgtype.Timestamp{Time: src.DeployedAt, Valid: true},
+			DeployedAtHeight:    int32(src.DeployedAtHeight),
 		}, gen.CreateTickEntryStatesParams{
 			Tick:              src.Tick,
 			BlockHeight:       int32(blockHeight),
 			CompletedAt:       pgtype.Timestamp{Time: src.CompletedAt, Valid: !src.CompletedAt.IsZero()},
 			CompletedAtHeight: pgtype.Int4{Int32: int32(src.CompletedAtHeight), Valid: src.CompletedAtHeight != 0},
-			MintedAmount:      mintedAmount,
-			BurnedAmount:      burnedAmount,
+			MintedAmount:      numericFromDecimal(src.MintedAmount),
+			BurnedAmount:      numericFromDecimal(src.BurnedAmount),
 		}, nil
 }
 
@@ -359,7 +325,7 @@ func mapInscriptionTransferTypeToParams(src entity.InscriptionTransfer) gen.Crea
 	}
 }
 
-func mapEventDeployModelToType(src gen.Brc20DeployEvent) (entity.EventDeploy, error) {
+func mapEventDeployModelToType(src gen.Brc20EventDeploy) (entity.EventDeploy, error) {
 	inscriptionId, err := ordinals.NewInscriptionIdFromString(src.InscriptionID)
 	if err != nil {
 		return entity.EventDeploy{}, errors.Wrap(err, "invalid inscription id")
@@ -372,13 +338,9 @@ func mapEventDeployModelToType(src gen.Brc20DeployEvent) (entity.EventDeploy, er
 	if err != nil {
 		return entity.EventDeploy{}, errors.Wrap(err, "failed to parse pkscript")
 	}
-	totalSupply, err := uint128FromNumeric(src.TotalSupply)
+	satPoint, err := ordinals.NewSatPointFromString(src.Satpoint)
 	if err != nil {
-		return entity.EventDeploy{}, errors.Wrap(err, "cannot parse totalSupply")
-	}
-	limitPerMint, err := uint128FromNumeric(src.LimitPerMint)
-	if err != nil {
-		return entity.EventDeploy{}, errors.Wrap(err, "cannot parse limitPerMint")
+		return entity.EventDeploy{}, errors.Wrap(err, "cannot parse satpoint")
 	}
 	return entity.EventDeploy{
 		Id:                uint64(src.Id),
@@ -391,27 +353,20 @@ func mapEventDeployModelToType(src gen.Brc20DeployEvent) (entity.EventDeploy, er
 		TxIndex:           uint32(src.TxIndex),
 		Timestamp:         src.Timestamp.Time,
 		PkScript:          pkScript,
-		TotalSupply:       lo.FromPtr(totalSupply),
+		SatPoint:          satPoint,
+		TotalSupply:       decimalFromNumeric(src.TotalSupply).Decimal,
 		Decimals:          uint16(src.Decimals),
-		LimitPerMint:      lo.FromPtr(limitPerMint),
+		LimitPerMint:      decimalFromNumeric(src.LimitPerMint).Decimal,
 		IsSelfMint:        src.IsSelfMint,
 	}, nil
 }
 
-func mapEventDeployTypeToParams(src entity.EventDeploy) (gen.CreateDeployEventsParams, error) {
+func mapEventDeployTypeToParams(src entity.EventDeploy) (gen.CreateEventDeploysParams, error) {
 	var timestamp pgtype.Timestamp
 	if !src.Timestamp.IsZero() {
 		timestamp = pgtype.Timestamp{Time: src.Timestamp, Valid: true}
 	}
-	totalSupply, err := numericFromUint128(&src.TotalSupply)
-	if err != nil {
-		return gen.CreateDeployEventsParams{}, errors.Wrap(err, "cannot convert totalSupply")
-	}
-	limitPerMint, err := numericFromUint128(&src.LimitPerMint)
-	if err != nil {
-		return gen.CreateDeployEventsParams{}, errors.Wrap(err, "cannot convert limitPerMint")
-	}
-	return gen.CreateDeployEventsParams{
+	return gen.CreateEventDeploysParams{
 		InscriptionID:     src.InscriptionId.String(),
 		InscriptionNumber: int64(src.InscriptionNumber),
 		Tick:              src.Tick,
@@ -421,14 +376,15 @@ func mapEventDeployTypeToParams(src entity.EventDeploy) (gen.CreateDeployEventsP
 		TxIndex:           int32(src.TxIndex),
 		Timestamp:         timestamp,
 		Pkscript:          hex.EncodeToString(src.PkScript),
-		TotalSupply:       totalSupply,
+		Satpoint:          src.SatPoint.String(),
+		TotalSupply:       numericFromDecimal(src.TotalSupply),
 		Decimals:          int16(src.Decimals),
-		LimitPerMint:      limitPerMint,
+		LimitPerMint:      numericFromDecimal(src.LimitPerMint),
 		IsSelfMint:        src.IsSelfMint,
 	}, nil
 }
 
-func mapEventMintModelToType(src gen.Brc20MintEvent) (entity.EventMint, error) {
+func mapEventMintModelToType(src gen.Brc20EventMint) (entity.EventMint, error) {
 	inscriptionId, err := ordinals.NewInscriptionIdFromString(src.InscriptionID)
 	if err != nil {
 		return entity.EventMint{}, errors.Wrap(err, "invalid inscription id")
@@ -441,9 +397,17 @@ func mapEventMintModelToType(src gen.Brc20MintEvent) (entity.EventMint, error) {
 	if err != nil {
 		return entity.EventMint{}, errors.Wrap(err, "failed to parse pkscript")
 	}
-	amount, err := uint128FromNumeric(src.Amount)
+	satPoint, err := ordinals.NewSatPointFromString(src.Satpoint)
 	if err != nil {
-		return entity.EventMint{}, errors.Wrap(err, "cannot parse amount")
+		return entity.EventMint{}, errors.Wrap(err, "cannot parse satpoint")
+	}
+	var parentId *ordinals.InscriptionId
+	if src.ParentID.Valid {
+		parentIdValue, err := ordinals.NewInscriptionIdFromString(src.ParentID.String)
+		if err != nil {
+			return entity.EventMint{}, errors.Wrap(err, "invalid parent id")
+		}
+		parentId = &parentIdValue
 	}
 	return entity.EventMint{
 		Id:                uint64(src.Id),
@@ -456,20 +420,22 @@ func mapEventMintModelToType(src gen.Brc20MintEvent) (entity.EventMint, error) {
 		TxIndex:           uint32(src.TxIndex),
 		Timestamp:         src.Timestamp.Time,
 		PkScript:          pkScript,
-		Amount:            lo.FromPtr(amount),
+		SatPoint:          satPoint,
+		Amount:            decimalFromNumeric(src.Amount).Decimal,
+		ParentId:          parentId,
 	}, nil
 }
 
-func mapEventMintTypeToParams(src entity.EventMint) (gen.CreateMintEventsParams, error) {
+func mapEventMintTypeToParams(src entity.EventMint) (gen.CreateEventMintsParams, error) {
 	var timestamp pgtype.Timestamp
 	if !src.Timestamp.IsZero() {
 		timestamp = pgtype.Timestamp{Time: src.Timestamp, Valid: true}
 	}
-	amount, err := numericFromUint128(&src.Amount)
-	if err != nil {
-		return gen.CreateMintEventsParams{}, errors.Wrap(err, "cannot convert amount")
+	var parentId pgtype.Text
+	if src.ParentId != nil {
+		parentId = pgtype.Text{String: src.ParentId.String(), Valid: true}
 	}
-	return gen.CreateMintEventsParams{
+	return gen.CreateEventMintsParams{
 		InscriptionID:     src.InscriptionId.String(),
 		InscriptionNumber: int64(src.InscriptionNumber),
 		Tick:              src.Tick,
@@ -479,46 +445,95 @@ func mapEventMintTypeToParams(src entity.EventMint) (gen.CreateMintEventsParams,
 		TxIndex:           int32(src.TxIndex),
 		Timestamp:         timestamp,
 		Pkscript:          hex.EncodeToString(src.PkScript),
-		Amount:            amount,
+		Satpoint:          src.SatPoint.String(),
+		Amount:            numericFromDecimal(src.Amount),
+		ParentID:          parentId,
 	}, nil
 }
 
-func mapEventTransferModelToType(src gen.Brc20TransferEvent) (entity.EventTransfer, error) {
+func mapEventInscribeTransferModelToType(src gen.Brc20EventInscribeTransfer) (entity.EventInscribeTransfer, error) {
 	inscriptionId, err := ordinals.NewInscriptionIdFromString(src.InscriptionID)
 	if err != nil {
-		return entity.EventTransfer{}, errors.Wrap(err, "cannot parse inscription id")
+		return entity.EventInscribeTransfer{}, errors.Wrap(err, "cannot parse inscription id")
 	}
 	txHash, err := chainhash.NewHashFromStr(src.TxHash)
 	if err != nil {
-		return entity.EventTransfer{}, errors.Wrap(err, "cannot parse hash")
+		return entity.EventInscribeTransfer{}, errors.Wrap(err, "cannot parse hash")
 	}
-	var fromPkScript []byte
-	if src.FromPkscript.Valid {
-		fromPkScript, err = hex.DecodeString(src.FromPkscript.String)
-		if err != nil {
-			return entity.EventTransfer{}, errors.Wrap(err, "cannot parse fromPkScript")
-		}
+	pkScript, err := hex.DecodeString(src.Pkscript)
+	if err != nil {
+		return entity.EventInscribeTransfer{}, errors.Wrap(err, "cannot parse pkScript")
 	}
-	var fromSatPoint ordinals.SatPoint
-	if src.FromSatpoint.Valid {
-		fromSatPoint, err = ordinals.NewSatPointFromString(src.FromSatpoint.String)
-		if err != nil {
-			return entity.EventTransfer{}, errors.Wrap(err, "cannot parse fromSatPoint")
-		}
+	satPoint, err := ordinals.NewSatPointFromString(src.Satpoint)
+	if err != nil {
+		return entity.EventInscribeTransfer{}, errors.Wrap(err, "cannot parse satPoint")
+	}
+	return entity.EventInscribeTransfer{
+		Id:                uint64(src.Id),
+		InscriptionId:     inscriptionId,
+		InscriptionNumber: uint64(src.InscriptionNumber),
+		Tick:              src.Tick,
+		OriginalTick:      src.OriginalTick,
+		TxHash:            *txHash,
+		BlockHeight:       uint64(src.BlockHeight),
+		TxIndex:           uint32(src.TxIndex),
+		Timestamp:         src.Timestamp.Time,
+		PkScript:          pkScript,
+		SatPoint:          satPoint,
+		OutputIndex:       uint32(src.OutputIndex),
+		SatsAmount:        uint64(src.SatsAmount),
+		Amount:            decimalFromNumeric(src.Amount).Decimal,
+	}, nil
+}
+
+func mapEventInscribeTransferTypeToParams(src entity.EventInscribeTransfer) (gen.CreateEventInscribeTransfersParams, error) {
+	var timestamp pgtype.Timestamp
+	if !src.Timestamp.IsZero() {
+		timestamp = pgtype.Timestamp{Time: src.Timestamp, Valid: true}
+	}
+	return gen.CreateEventInscribeTransfersParams{
+		InscriptionID:     src.InscriptionId.String(),
+		InscriptionNumber: int64(src.InscriptionNumber),
+		Tick:              src.Tick,
+		OriginalTick:      src.OriginalTick,
+		TxHash:            src.TxHash.String(),
+		BlockHeight:       int32(src.BlockHeight),
+		TxIndex:           int32(src.TxIndex),
+		Timestamp:         timestamp,
+		Pkscript:          hex.EncodeToString(src.PkScript),
+		Satpoint:          src.SatPoint.String(),
+		OutputIndex:       int32(src.OutputIndex),
+		SatsAmount:        int64(src.SatsAmount),
+		Amount:            numericFromDecimal(src.Amount),
+	}, nil
+}
+
+func mapEventTransferTransferModelToType(src gen.Brc20EventTransferTransfer) (entity.EventTransferTransfer, error) {
+	inscriptionId, err := ordinals.NewInscriptionIdFromString(src.InscriptionID)
+	if err != nil {
+		return entity.EventTransferTransfer{}, errors.Wrap(err, "cannot parse inscription id")
+	}
+	txHash, err := chainhash.NewHashFromStr(src.TxHash)
+	if err != nil {
+		return entity.EventTransferTransfer{}, errors.Wrap(err, "cannot parse hash")
+	}
+	fromPkScript, err := hex.DecodeString(src.FromPkscript)
+	if err != nil {
+		return entity.EventTransferTransfer{}, errors.Wrap(err, "cannot parse fromPkScript")
+	}
+	fromSatPoint, err := ordinals.NewSatPointFromString(src.FromSatpoint)
+	if err != nil {
+		return entity.EventTransferTransfer{}, errors.Wrap(err, "cannot parse fromSatPoint")
 	}
 	toPkScript, err := hex.DecodeString(src.ToPkscript)
 	if err != nil {
-		return entity.EventTransfer{}, errors.Wrap(err, "cannot parse toPkScript")
+		return entity.EventTransferTransfer{}, errors.Wrap(err, "cannot parse toPkScript")
 	}
 	toSatPoint, err := ordinals.NewSatPointFromString(src.ToSatpoint)
 	if err != nil {
-		return entity.EventTransfer{}, errors.Wrap(err, "cannot parse toSatPoint")
+		return entity.EventTransferTransfer{}, errors.Wrap(err, "cannot parse toSatPoint")
 	}
-	amount, err := uint128FromNumeric(src.Amount)
-	if err != nil {
-		return entity.EventTransfer{}, errors.Wrap(err, "cannot parse amount")
-	}
-	return entity.EventTransfer{
+	return entity.EventTransferTransfer{
 		Id:                uint64(src.Id),
 		InscriptionId:     inscriptionId,
 		InscriptionNumber: uint64(src.InscriptionNumber),
@@ -530,29 +545,20 @@ func mapEventTransferModelToType(src gen.Brc20TransferEvent) (entity.EventTransf
 		Timestamp:         src.Timestamp.Time,
 		FromPkScript:      fromPkScript,
 		FromSatPoint:      fromSatPoint,
+		FromInputIndex:    uint32(src.FromInputIndex),
 		ToPkScript:        toPkScript,
 		ToSatPoint:        toSatPoint,
-		Amount:            lo.FromPtr(amount),
+		ToOutputIndex:     uint32(src.ToOutputIndex),
+		Amount:            decimalFromNumeric(src.Amount).Decimal,
 	}, nil
 }
 
-func mapEventTransferTypeToParams(src entity.EventTransfer) (gen.CreateTransferEventsParams, error) {
+func mapEventTransferTransferTypeToParams(src entity.EventTransferTransfer) (gen.CreateEventTransferTransfersParams, error) {
 	var timestamp pgtype.Timestamp
 	if !src.Timestamp.IsZero() {
 		timestamp = pgtype.Timestamp{Time: src.Timestamp, Valid: true}
 	}
-	amount, err := numericFromUint128(&src.Amount)
-	if err != nil {
-		return gen.CreateTransferEventsParams{}, errors.Wrap(err, "cannot convert amount")
-	}
-	var fromPkScript, fromSatPoint pgtype.Text
-	if src.FromPkScript != nil {
-		fromPkScript = pgtype.Text{String: hex.EncodeToString(src.FromPkScript), Valid: true}
-	}
-	if src.FromSatPoint != (ordinals.SatPoint{}) {
-		fromSatPoint = pgtype.Text{String: src.FromSatPoint.String(), Valid: true}
-	}
-	return gen.CreateTransferEventsParams{
+	return gen.CreateEventTransferTransfersParams{
 		InscriptionID:     src.InscriptionId.String(),
 		InscriptionNumber: int64(src.InscriptionNumber),
 		Tick:              src.Tick,
@@ -561,10 +567,12 @@ func mapEventTransferTypeToParams(src entity.EventTransfer) (gen.CreateTransferE
 		BlockHeight:       int32(src.BlockHeight),
 		TxIndex:           int32(src.TxIndex),
 		Timestamp:         timestamp,
-		FromPkscript:      fromPkScript,
-		FromSatpoint:      fromSatPoint,
+		FromPkscript:      hex.EncodeToString(src.FromPkScript),
+		FromSatpoint:      src.FromSatPoint.String(),
+		FromInputIndex:    int32(src.FromInputIndex),
 		ToPkscript:        hex.EncodeToString(src.ToPkScript),
 		ToSatpoint:        src.ToSatPoint.String(),
-		Amount:            amount,
+		ToOutputIndex:     int32(src.ToOutputIndex),
+		Amount:            numericFromDecimal(src.Amount),
 	}, nil
 }

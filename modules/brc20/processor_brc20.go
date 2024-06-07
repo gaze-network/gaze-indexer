@@ -10,8 +10,8 @@ import (
 	"github.com/gaze-network/indexer-network/modules/brc20/internal/entity"
 	"github.com/gaze-network/indexer-network/pkg/logger"
 	"github.com/gaze-network/indexer-network/pkg/logger/slogx"
-	"github.com/gaze-network/uint128"
 	"github.com/samber/lo"
+	"github.com/shopspring/decimal"
 )
 
 func (p *Processor) processBRC20States(ctx context.Context, transfers []*entity.InscriptionTransfer, blockHeader types.BlockHeader) error {
@@ -57,10 +57,10 @@ func (p *Processor) processBRC20States(ctx context.Context, transfers []*entity.
 				LimitPerMint:        payload.Lim,
 				IsSelfMint:          payload.SelfMint,
 				DeployInscriptionId: payload.Transfer.InscriptionId,
-				CreatedAt:           blockHeader.Timestamp,
-				CreatedAtHeight:     uint64(blockHeader.Height),
-				MintedAmount:        uint128.Zero,
-				BurnedAmount:        uint128.Zero,
+				DeployedAt:          blockHeader.Timestamp,
+				DeployedAtHeight:    uint64(blockHeader.Height),
+				MintedAmount:        decimal.Zero,
+				BurnedAmount:        decimal.Zero,
 				CompletedAt:         time.Time{},
 				CompletedAtHeight:   0,
 			}
@@ -78,12 +78,13 @@ func (p *Processor) processBRC20States(ctx context.Context, transfers []*entity.
 				)
 				continue
 			}
-			if brc20.IsAmountWithinDecimals(payload.Amt, entry.Decimals) {
+			if -payload.Amt.Exponent() > int32(entry.Decimals) {
 				logger.DebugContext(ctx, "found mint inscription but amount has invalid decimals, skipping...",
 					slogx.String("tick", payload.Tick),
 					slogx.Stringer("inscriptionId", payload.Transfer.InscriptionId),
 					slogx.Stringer("amount", payload.Amt),
-					slogx.Uint16("decimals", entry.Decimals),
+					slogx.Uint16("entryDecimals", entry.Decimals),
+					slogx.Int32("payloadDecimals", -payload.Amt.Exponent()),
 				)
 				continue
 			}
@@ -96,12 +97,13 @@ func (p *Processor) processBRC20States(ctx context.Context, transfers []*entity.
 				)
 				continue
 			}
-			if brc20.IsAmountWithinDecimals(payload.Amt, entry.Decimals) {
+			if -payload.Amt.Exponent() > int32(entry.Decimals) {
 				logger.DebugContext(ctx, "found transfer inscription but amount has invalid decimals, skipping...",
 					slogx.String("tick", payload.Tick),
 					slogx.Stringer("inscriptionId", payload.Transfer.InscriptionId),
 					slogx.Stringer("amount", payload.Amt),
-					slogx.Uint16("decimals", entry.Decimals),
+					slogx.Uint16("entryDecimals", entry.Decimals),
+					slogx.Int32("payloadDecimals", -payload.Amt.Exponent()),
 				)
 				continue
 			}

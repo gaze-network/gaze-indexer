@@ -62,12 +62,39 @@ func (q *Queries) DeleteBalancesSinceHeight(ctx context.Context, blockHeight int
 	return err
 }
 
-const deleteDeployEventsSinceHeight = `-- name: DeleteDeployEventsSinceHeight :exec
-DELETE FROM "brc20_deploy_events" WHERE "block_height" >= $1
+const deleteEventDeploysSinceHeight = `-- name: DeleteEventDeploysSinceHeight :exec
+DELETE FROM "brc20_event_deploys" WHERE "block_height" >= $1
 `
 
-func (q *Queries) DeleteDeployEventsSinceHeight(ctx context.Context, blockHeight int32) error {
-	_, err := q.db.Exec(ctx, deleteDeployEventsSinceHeight, blockHeight)
+func (q *Queries) DeleteEventDeploysSinceHeight(ctx context.Context, blockHeight int32) error {
+	_, err := q.db.Exec(ctx, deleteEventDeploysSinceHeight, blockHeight)
+	return err
+}
+
+const deleteEventInscribeTransfersSinceHeight = `-- name: DeleteEventInscribeTransfersSinceHeight :exec
+DELETE FROM "brc20_event_inscribe_transfers" WHERE "block_height" >= $1
+`
+
+func (q *Queries) DeleteEventInscribeTransfersSinceHeight(ctx context.Context, blockHeight int32) error {
+	_, err := q.db.Exec(ctx, deleteEventInscribeTransfersSinceHeight, blockHeight)
+	return err
+}
+
+const deleteEventMintsSinceHeight = `-- name: DeleteEventMintsSinceHeight :exec
+DELETE FROM "brc20_event_mints" WHERE "block_height" >= $1
+`
+
+func (q *Queries) DeleteEventMintsSinceHeight(ctx context.Context, blockHeight int32) error {
+	_, err := q.db.Exec(ctx, deleteEventMintsSinceHeight, blockHeight)
+	return err
+}
+
+const deleteEventTransferTransfersSinceHeight = `-- name: DeleteEventTransferTransfersSinceHeight :exec
+DELETE FROM "brc20_event_transfer_transfers" WHERE "block_height" >= $1
+`
+
+func (q *Queries) DeleteEventTransferTransfersSinceHeight(ctx context.Context, blockHeight int32) error {
+	_, err := q.db.Exec(ctx, deleteEventTransferTransfersSinceHeight, blockHeight)
 	return err
 }
 
@@ -107,15 +134,6 @@ func (q *Queries) DeleteInscriptionTransfersSinceHeight(ctx context.Context, blo
 	return err
 }
 
-const deleteMintEventsSinceHeight = `-- name: DeleteMintEventsSinceHeight :exec
-DELETE FROM "brc20_mint_events" WHERE "block_height" >= $1
-`
-
-func (q *Queries) DeleteMintEventsSinceHeight(ctx context.Context, blockHeight int32) error {
-	_, err := q.db.Exec(ctx, deleteMintEventsSinceHeight, blockHeight)
-	return err
-}
-
 const deleteProcessorStatsSinceHeight = `-- name: DeleteProcessorStatsSinceHeight :exec
 DELETE FROM "brc20_processor_stats" WHERE "block_height" >= $1
 `
@@ -126,11 +144,11 @@ func (q *Queries) DeleteProcessorStatsSinceHeight(ctx context.Context, blockHeig
 }
 
 const deleteTickEntriesSinceHeight = `-- name: DeleteTickEntriesSinceHeight :exec
-DELETE FROM "brc20_tick_entries" WHERE "created_at_height" >= $1
+DELETE FROM "brc20_tick_entries" WHERE "deployed_at_height" >= $1
 `
 
-func (q *Queries) DeleteTickEntriesSinceHeight(ctx context.Context, createdAtHeight int32) error {
-	_, err := q.db.Exec(ctx, deleteTickEntriesSinceHeight, createdAtHeight)
+func (q *Queries) DeleteTickEntriesSinceHeight(ctx context.Context, deployedAtHeight int32) error {
+	_, err := q.db.Exec(ctx, deleteTickEntriesSinceHeight, deployedAtHeight)
 	return err
 }
 
@@ -140,15 +158,6 @@ DELETE FROM "brc20_tick_entry_states" WHERE "block_height" >= $1
 
 func (q *Queries) DeleteTickEntryStatesSinceHeight(ctx context.Context, blockHeight int32) error {
 	_, err := q.db.Exec(ctx, deleteTickEntryStatesSinceHeight, blockHeight)
-	return err
-}
-
-const deleteTransferEventsSinceHeight = `-- name: DeleteTransferEventsSinceHeight :exec
-DELETE FROM "brc20_transfer_events" WHERE "block_height" >= $1
-`
-
-func (q *Queries) DeleteTransferEventsSinceHeight(ctx context.Context, blockHeight int32) error {
-	_, err := q.db.Exec(ctx, deleteTransferEventsSinceHeight, blockHeight)
 	return err
 }
 
@@ -340,7 +349,7 @@ WITH "states" AS (
   -- select latest state
   SELECT DISTINCT ON ("tick") tick, block_height, minted_amount, burned_amount, completed_at, completed_at_height FROM "brc20_tick_entry_states" WHERE "tick" = ANY($1::text[]) ORDER BY "tick", "block_height" DESC
 )
-SELECT brc20_tick_entries.tick, original_tick, total_supply, decimals, limit_per_mint, is_self_mint, deploy_inscription_id, created_at, created_at_height, states.tick, block_height, minted_amount, burned_amount, completed_at, completed_at_height FROM "brc20_tick_entries"
+SELECT brc20_tick_entries.tick, original_tick, total_supply, decimals, limit_per_mint, is_self_mint, deploy_inscription_id, deployed_at, deployed_at_height, states.tick, block_height, minted_amount, burned_amount, completed_at, completed_at_height FROM "brc20_tick_entries"
   LEFT JOIN "states" ON "brc20_tick_entries"."tick" = "states"."tick"
   WHERE "brc20_tick_entries"."tick" = ANY($1::text[])
 `
@@ -353,8 +362,8 @@ type GetTickEntriesByTicksRow struct {
 	LimitPerMint        pgtype.Numeric
 	IsSelfMint          bool
 	DeployInscriptionID string
-	CreatedAt           pgtype.Timestamp
-	CreatedAtHeight     int32
+	DeployedAt          pgtype.Timestamp
+	DeployedAtHeight    int32
 	Tick_2              pgtype.Text
 	BlockHeight         pgtype.Int4
 	MintedAmount        pgtype.Numeric
@@ -380,8 +389,8 @@ func (q *Queries) GetTickEntriesByTicks(ctx context.Context, ticks []string) ([]
 			&i.LimitPerMint,
 			&i.IsSelfMint,
 			&i.DeployInscriptionID,
-			&i.CreatedAt,
-			&i.CreatedAtHeight,
+			&i.DeployedAt,
+			&i.DeployedAtHeight,
 			&i.Tick_2,
 			&i.BlockHeight,
 			&i.MintedAmount,

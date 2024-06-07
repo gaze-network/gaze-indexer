@@ -5,10 +5,10 @@ import (
 
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/gaze-network/indexer-network/modules/brc20/internal/ordinals"
-	"github.com/gaze-network/uint128"
+	"github.com/shopspring/decimal"
 )
 
-type EventTransfer struct {
+type EventInscribeTransfer struct {
 	Id                uint64
 	InscriptionId     ordinals.InscriptionId
 	InscriptionNumber uint64
@@ -19,9 +19,9 @@ type EventTransfer struct {
 	TxIndex           uint32
 	Timestamp         time.Time
 
-	FromPkScript []byte
-	FromSatPoint ordinals.SatPoint
-	ToPkScript   []byte
-	ToSatPoint   ordinals.SatPoint
-	Amount       uint128.Uint128
+	PkScript    []byte
+	SatPoint    ordinals.SatPoint
+	OutputIndex uint32
+	SatsAmount  uint64
+	Amount      decimal.Decimal
 }

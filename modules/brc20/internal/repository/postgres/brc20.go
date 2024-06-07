@@ -249,7 +249,7 @@ func (r *Repository) CreateInscriptionTransfers(ctx context.Context, transfers [
 }
 
 func (r *Repository) CreateEventDeploys(ctx context.Context, events []*entity.EventDeploy) error {
-	params := make([]gen.CreateDeployEventsParams, 0)
+	params := make([]gen.CreateEventDeploysParams, 0)
 	for _, event := range events {
 		param, err := mapEventDeployTypeToParams(*event)
 		if err != nil {
@@ -257,7 +257,7 @@ func (r *Repository) CreateEventDeploys(ctx context.Context, events []*entity.Ev
 		}
 		params = append(params, param)
 	}
-	results := r.queries.CreateDeployEvents(ctx, params)
+	results := r.queries.CreateEventDeploys(ctx, params)
 	var execErrors []error
 	results.Exec(func(i int, err error) {
 		if err != nil {
@@ -271,7 +271,7 @@ func (r *Repository) CreateEventDeploys(ctx context.Context, events []*entity.Ev
 }
 
 func (r *Repository) CreateEventMints(ctx context.Context, events []*entity.EventMint) error {
-	params := make([]gen.CreateMintEventsParams, 0)
+	params := make([]gen.CreateEventMintsParams, 0)
 	for _, event := range events {
 		param, err := mapEventMintTypeToParams(*event)
 		if err != nil {
@@ -279,7 +279,7 @@ func (r *Repository) CreateEventMints(ctx context.Context, events []*entity.Even
 		}
 		params = append(params, param)
 	}
-	results := r.queries.CreateMintEvents(ctx, params)
+	results := r.queries.CreateEventMints(ctx, params)
 	var execErrors []error
 	results.Exec(func(i int, err error) {
 		if err != nil {
@@ -292,16 +292,38 @@ func (r *Repository) CreateEventMints(ctx context.Context, events []*entity.Even
 	return nil
 }
 
-func (r *Repository) CreateEventTransfers(ctx context.Context, events []*entity.EventTransfer) error {
-	params := make([]gen.CreateTransferEventsParams, 0)
+func (r *Repository) CreateEventInscribeTransfers(ctx context.Context, events []*entity.EventInscribeTransfer) error {
+	params := make([]gen.CreateEventInscribeTransfersParams, 0)
 	for _, event := range events {
-		param, err := mapEventTransferTypeToParams(*event)
+		param, err := mapEventInscribeTransferTypeToParams(*event)
 		if err != nil {
 			return errors.Wrap(err, "cannot map event transfer to create params")
 		}
 		params = append(params, param)
 	}
-	results := r.queries.CreateTransferEvents(ctx, params)
+	results := r.queries.CreateEventInscribeTransfers(ctx, params)
+	var execErrors []error
+	results.Exec(func(i int, err error) {
+		if err != nil {
+			execErrors = append(execErrors, err)
+		}
+	})
+	if len(execErrors) > 0 {
+		return errors.Wrap(errors.Join(execErrors...), "error during exec")
+	}
+	return nil
+}
+
+func (r *Repository) CreateEventTransferTransfers(ctx context.Context, events []*entity.EventTransferTransfer) error {
+	params := make([]gen.CreateEventTransferTransfersParams, 0)
+	for _, event := range events {
+		param, err := mapEventTransferTransferTypeToParams(*event)
+		if err != nil {
+			return errors.Wrap(err, "cannot map event transfer to create params")
+		}
+		params = append(params, param)
+	}
+	results := r.queries.CreateEventTransferTransfers(ctx, params)
 	var execErrors []error
 	results.Exec(func(i int, err error) {
 		if err != nil {
@@ -342,22 +364,29 @@ func (r *Repository) DeleteTickEntryStatesSinceHeight(ctx context.Context, heigh
 	return nil
 }
 
-func (r *Repository) DeleteDeployEventsSinceHeight(ctx context.Context, height uint64) error {
-	if err := r.queries.DeleteDeployEventsSinceHeight(ctx, int32(height)); err != nil {
+func (r *Repository) DeleteEventDeploysSinceHeight(ctx context.Context, height uint64) error {
+	if err := r.queries.DeleteEventDeploysSinceHeight(ctx, int32(height)); err != nil {
 		return errors.Wrap(err, "error during exec")
 	}
 	return nil
 }
 
-func (r *Repository) DeleteMintEventsSinceHeight(ctx context.Context, height uint64) error {
-	if err := r.queries.DeleteMintEventsSinceHeight(ctx, int32(height)); err != nil {
+func (r *Repository) DeleteEventMintsSinceHeight(ctx context.Context, height uint64) error {
+	if err := r.queries.DeleteEventMintsSinceHeight(ctx, int32(height)); err != nil {
 		return errors.Wrap(err, "error during exec")
 	}
 	return nil
 }
 
-func (r *Repository) DeleteTransferEventsSinceHeight(ctx context.Context, height uint64) error {
-	if err := r.queries.DeleteTransferEventsSinceHeight(ctx, int32(height)); err != nil {
+func (r *Repository) DeleteEventInscribeTransfersSinceHeight(ctx context.Context, height uint64) error {
+	if err := r.queries.DeleteEventInscribeTransfersSinceHeight(ctx, int32(height)); err != nil {
+		return errors.Wrap(err, "error during exec")
+	}
+	return nil
+}
+
+func (r *Repository) DeleteEventTransferTransfersSinceHeight(ctx context.Context, height uint64) error {
+	if err := r.queries.DeleteEventTransferTransfersSinceHeight(ctx, int32(height)); err != nil {
 		return errors.Wrap(err, "error during exec")
 	}
 	return nil
