@@ -168,11 +168,3 @@ func parseNumericString(s string, maxDec uint64) (decimal.Decimal, error) {
 	}
 	return d, nil
 }
-
-func IsAmountWithinDecimals(amt decimal.Decimal, dec uint16) bool {
-	if dec > 18 {
-		return false
-	}
-	_, rem := amt.QuoRem64(powerOfTens[18-int(dec)])
-	return rem != 0
-}
