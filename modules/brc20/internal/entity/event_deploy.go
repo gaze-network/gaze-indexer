@@ -20,6 +20,7 @@ type EventDeploy struct {
 	Timestamp         time.Time
 
 	PkScript     []byte
+	SatPoint     ordinals.SatPoint
 	TotalSupply  uint128.Uint128
 	Decimals     uint16
 	LimitPerMint uint128.Uint128

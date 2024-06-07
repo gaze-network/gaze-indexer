@@ -91,7 +91,7 @@ func (b *CreateEventDeploysBatchResults) Close() error {
 }
 
 const createEventInscribeTransfers = `-- name: CreateEventInscribeTransfers :batchexec
-INSERT INTO "brc20_event_inscribe_transfers" ("inscription_id", "inscription_number", "tick", "original_tick", "tx_hash", "block_height", "tx_index", "timestamp", "pkscript", "satpoint". "output_index", "sats_amount", "amount") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+INSERT INTO "brc20_event_inscribe_transfers" ("inscription_id", "inscription_number", "tick", "original_tick", "tx_hash", "block_height", "tx_index", "timestamp", "pkscript", "satpoint", "output_index", "sats_amount", "amount") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
 `
 
 type CreateEventInscribeTransfersBatchResults struct {
@@ -111,6 +111,7 @@ type CreateEventInscribeTransfersParams struct {
 	Timestamp         pgtype.Timestamp
 	Pkscript          string
 	Satpoint          string
+	OutputIndex       int32
 	SatsAmount        int64
 	Amount            pgtype.Numeric
 }
@@ -129,6 +130,7 @@ func (q *Queries) CreateEventInscribeTransfers(ctx context.Context, arg []Create
 			a.Timestamp,
 			a.Pkscript,
 			a.Satpoint,
+			a.OutputIndex,
 			a.SatsAmount,
 			a.Amount,
 		}

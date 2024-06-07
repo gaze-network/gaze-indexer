@@ -8,7 +8,7 @@ import (
 	"github.com/gaze-network/uint128"
 )
 
-type EventMint struct {
+type EventTransferTransfer struct {
 	Id                uint64
 	InscriptionId     ordinals.InscriptionId
 	InscriptionNumber uint64
@@ -19,8 +19,11 @@ type EventMint struct {
 	TxIndex           uint32
 	Timestamp         time.Time
 
-	PkScript []byte
-	SatPoint ordinals.SatPoint
-	Amount   uint128.Uint128
-	ParentId *ordinals.InscriptionId
+	FromPkScript   []byte
+	FromSatPoint   ordinals.SatPoint
+	FromInputIndex uint32
+	ToPkScript     []byte
+	ToSatPoint     ordinals.SatPoint
+	ToOutputIndex  uint32
+	Amount         uint128.Uint128
 }

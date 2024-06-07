@@ -178,14 +178,17 @@ func (p *Processor) RevertData(ctx context.Context, from int64) error {
 	if err := brc20DgTx.DeleteTickEntryStatesSinceHeight(ctx, uint64(from)); err != nil {
 		return errors.Wrap(err, "failed to delete tick states")
 	}
-	if err := brc20DgTx.DeleteDeployEventsSinceHeight(ctx, uint64(from)); err != nil {
+	if err := brc20DgTx.DeleteEventDeploysSinceHeight(ctx, uint64(from)); err != nil {
 		return errors.Wrap(err, "failed to delete deploy events")
 	}
-	if err := brc20DgTx.DeleteMintEventsSinceHeight(ctx, uint64(from)); err != nil {
+	if err := brc20DgTx.DeleteEventMintsSinceHeight(ctx, uint64(from)); err != nil {
 		return errors.Wrap(err, "failed to delete mint events")
 	}
-	if err := brc20DgTx.DeleteTransferEventsSinceHeight(ctx, uint64(from)); err != nil {
-		return errors.Wrap(err, "failed to delete transfer events")
+	if err := brc20DgTx.DeleteEventInscribeTransfersSinceHeight(ctx, uint64(from)); err != nil {
+		return errors.Wrap(err, "failed to delete inscribe transfer events")
+	}
+	if err := brc20DgTx.DeleteEventTransferTransfersSinceHeight(ctx, uint64(from)); err != nil {
+		return errors.Wrap(err, "failed to delete transfer transfer events")
 	}
 	if err := brc20DgTx.DeleteBalancesSinceHeight(ctx, uint64(from)); err != nil {
 		return errors.Wrap(err, "failed to delete balances")

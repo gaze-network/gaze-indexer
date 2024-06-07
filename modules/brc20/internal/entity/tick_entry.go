@@ -15,8 +15,8 @@ type TickEntry struct {
 	LimitPerMint        uint128.Uint128
 	IsSelfMint          bool
 	DeployInscriptionId ordinals.InscriptionId
-	CreatedAt           time.Time
-	CreatedAtHeight     uint64
+	DeployedAt          time.Time
+	DeployedAtHeight    uint64
 
 	MintedAmount      uint128.Uint128
 	BurnedAmount      uint128.Uint128
