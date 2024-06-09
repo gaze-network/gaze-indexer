@@ -99,7 +99,12 @@ func (p *Processor) flushBlock(ctx context.Context, blockHeader types.BlockHeade
 		if err != nil {
 			return errors.Wrap(err, "failed to get previous indexed block")
 		}
-		cumulativeEventHash := sha256.Sum256(append(prevIndexedBlock.CumulativeEventHash[:], eventHash[:]...))
+		var cumulativeEventHash [32]byte
+		if len(prevIndexedBlock.CumulativeEventHash) == 0 {
+			cumulativeEventHash = eventHash
+		} else {
+			cumulativeEventHash = sha256.Sum256(append(prevIndexedBlock.CumulativeEventHash[:], eventHash[:]...))
+		}
 		if err := brc20DgTx.CreateIndexedBlock(ctx, &entity.IndexedBlock{
 			Height:              blockHeight,
 			Hash:                blockHeader.Hash,
