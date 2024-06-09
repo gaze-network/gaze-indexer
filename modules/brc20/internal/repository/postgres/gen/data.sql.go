@@ -161,6 +161,87 @@ func (q *Queries) DeleteTickEntryStatesSinceHeight(ctx context.Context, blockHei
 	return err
 }
 
+const getBalancesBatchAtHeight = `-- name: GetBalancesBatchAtHeight :many
+SELECT DISTINCT ON ("brc20_balances"."pkscript", "brc20_balances"."tick") brc20_balances.pkscript, brc20_balances.block_height, brc20_balances.tick, brc20_balances.overall_balance, brc20_balances.available_balance FROM "brc20_balances" 
+  INNER JOIN (
+    SELECT
+      unnest($1::text[]) AS "pkscript",
+      unnest($2::text[]) AS "tick"
+  ) "queries" ON "brc20_balances"."pkscript" = "queries"."pkscript" AND "brc20_balances"."tick" = "queries"."tick" AND "brc20_balances"."block_height" <= $3
+  ORDER BY "brc20_balances"."pkscript", "brc20_balances"."tick", "block_height" DESC
+`
+
+type GetBalancesBatchAtHeightParams struct {
+	PkscriptArr []string
+	TickArr     []string
+	BlockHeight int32
+}
+
+func (q *Queries) GetBalancesBatchAtHeight(ctx context.Context, arg GetBalancesBatchAtHeightParams) ([]Brc20Balance, error) {
+	rows, err := q.db.Query(ctx, getBalancesBatchAtHeight, arg.PkscriptArr, arg.TickArr, arg.BlockHeight)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Brc20Balance
+	for rows.Next() {
+		var i Brc20Balance
+		if err := rows.Scan(
+			&i.Pkscript,
+			&i.BlockHeight,
+			&i.Tick,
+			&i.OverallBalance,
+			&i.AvailableBalance,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getEventInscribeTransfersByInscriptionIds = `-- name: GetEventInscribeTransfersByInscriptionIds :many
+SELECT id, inscription_id, inscription_number, tick, original_tick, tx_hash, block_height, tx_index, timestamp, pkscript, satpoint, output_index, sats_amount, amount FROM "brc20_event_inscribe_transfers" WHERE "inscription_id" = ANY($1::text[])
+`
+
+func (q *Queries) GetEventInscribeTransfersByInscriptionIds(ctx context.Context, inscriptionIds []string) ([]Brc20EventInscribeTransfer, error) {
+	rows, err := q.db.Query(ctx, getEventInscribeTransfersByInscriptionIds, inscriptionIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Brc20EventInscribeTransfer
+	for rows.Next() {
+		var i Brc20EventInscribeTransfer
+		if err := rows.Scan(
+			&i.Id,
+			&i.InscriptionID,
+			&i.InscriptionNumber,
+			&i.Tick,
+			&i.OriginalTick,
+			&i.TxHash,
+			&i.BlockHeight,
+			&i.TxIndex,
+			&i.Timestamp,
+			&i.Pkscript,
+			&i.Satpoint,
+			&i.OutputIndex,
+			&i.SatsAmount,
+			&i.Amount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getIndexedBlockByHeight = `-- name: GetIndexedBlockByHeight :one
 SELECT height, hash, event_hash, cumulative_event_hash FROM "brc20_indexed_blocks" WHERE "height" = $1
 `
@@ -247,8 +328,66 @@ func (q *Queries) GetInscriptionEntriesByIds(ctx context.Context, inscriptionIds
 	return items, nil
 }
 
+const getInscriptionNumbersByIds = `-- name: GetInscriptionNumbersByIds :many
+SELECT id, number FROM "brc20_inscription_entries" WHERE "id" = ANY($1::text[])
+`
+
+type GetInscriptionNumbersByIdsRow struct {
+	Id     string
+	Number int64
+}
+
+func (q *Queries) GetInscriptionNumbersByIds(ctx context.Context, inscriptionIds []string) ([]GetInscriptionNumbersByIdsRow, error) {
+	rows, err := q.db.Query(ctx, getInscriptionNumbersByIds, inscriptionIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetInscriptionNumbersByIdsRow
+	for rows.Next() {
+		var i GetInscriptionNumbersByIdsRow
+		if err := rows.Scan(&i.Id, &i.Number); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getInscriptionParentsByIds = `-- name: GetInscriptionParentsByIds :many
+SELECT id, parents FROM "brc20_inscription_entries" WHERE "id" = ANY($1::text[])
+`
+
+type GetInscriptionParentsByIdsRow struct {
+	Id      string
+	Parents []string
+}
+
+func (q *Queries) GetInscriptionParentsByIds(ctx context.Context, inscriptionIds []string) ([]GetInscriptionParentsByIdsRow, error) {
+	rows, err := q.db.Query(ctx, getInscriptionParentsByIds, inscriptionIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetInscriptionParentsByIdsRow
+	for rows.Next() {
+		var i GetInscriptionParentsByIdsRow
+		if err := rows.Scan(&i.Id, &i.Parents); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getInscriptionTransfersInOutPoints = `-- name: GetInscriptionTransfersInOutPoints :many
-SELECT it.inscription_id, it.block_height, it.tx_index, it.old_satpoint_tx_hash, it.old_satpoint_out_idx, it.old_satpoint_offset, it.new_satpoint_tx_hash, it.new_satpoint_out_idx, it.new_satpoint_offset, it.new_pkscript, it.new_output_value, it.sent_as_fee, "ie"."content"   FROM (
+SELECT it.inscription_id, it.block_height, it.tx_index, it.tx_hash, it.from_input_index, it.old_satpoint_tx_hash, it.old_satpoint_out_idx, it.old_satpoint_offset, it.new_satpoint_tx_hash, it.new_satpoint_out_idx, it.new_satpoint_offset, it.new_pkscript, it.new_output_value, it.sent_as_fee, it.transfer_count, "ie"."content"   FROM (
     SELECT
       unnest($1::text[]) AS "tx_hash",
       unnest($2::int[]) AS "tx_out_idx"
@@ -266,6 +405,8 @@ type GetInscriptionTransfersInOutPointsRow struct {
 	InscriptionID     string
 	BlockHeight       int32
 	TxIndex           int32
+	TxHash            string
+	FromInputIndex    int32
 	OldSatpointTxHash pgtype.Text
 	OldSatpointOutIdx pgtype.Int4
 	OldSatpointOffset pgtype.Int8
@@ -275,6 +416,7 @@ type GetInscriptionTransfersInOutPointsRow struct {
 	NewPkscript       string
 	NewOutputValue    int64
 	SentAsFee         bool
+	TransferCount     int32
 	Content           []byte
 }
 
@@ -291,6 +433,8 @@ func (q *Queries) GetInscriptionTransfersInOutPoints(ctx context.Context, arg Ge
 			&i.InscriptionID,
 			&i.BlockHeight,
 			&i.TxIndex,
+			&i.TxHash,
+			&i.FromInputIndex,
 			&i.OldSatpointTxHash,
 			&i.OldSatpointOutIdx,
 			&i.OldSatpointOffset,
@@ -300,6 +444,7 @@ func (q *Queries) GetInscriptionTransfersInOutPoints(ctx context.Context, arg Ge
 			&i.NewPkscript,
 			&i.NewOutputValue,
 			&i.SentAsFee,
+			&i.TransferCount,
 			&i.Content,
 		); err != nil {
 			return nil, err
@@ -310,6 +455,45 @@ func (q *Queries) GetInscriptionTransfersInOutPoints(ctx context.Context, arg Ge
 		return nil, err
 	}
 	return items, nil
+}
+
+const getLatestEventIds = `-- name: GetLatestEventIds :one
+WITH "latest_deploy_id" AS (
+  SELECT "id" FROM "brc20_event_deploys" ORDER BY "id" DESC LIMIT 1
+),
+"latest_mint_id" AS (
+  SELECT "id" FROM "brc20_event_mints" ORDER BY "id" DESC LIMIT 1
+),
+"latest_inscribe_transfer_id" AS (
+  SELECT "id" FROM "brc20_event_inscribe_transfers" ORDER BY "id" DESC LIMIT 1
+),
+"latest_transfer_transfer_id" AS (
+  SELECT "id" FROM "brc20_event_transfer_transfers" ORDER BY "id" DESC LIMIT 1
+)
+SELECT
+  (SELECT "id" FROM "latest_deploy_id") AS "event_deploy_id",
+  (SELECT "id" FROM "latest_mint_id") AS "event_mint_id",
+  (SELECT "id" FROM "latest_inscribe_transfer_id") AS "event_inscribe_transfer_id",
+  (SELECT "id" FROM "latest_transfer_transfer_id") AS "event_transfer_transfer_id"
+`
+
+type GetLatestEventIdsRow struct {
+	EventDeployID           int64
+	EventMintID             int64
+	EventInscribeTransferID int64
+	EventTransferTransferID int64
+}
+
+func (q *Queries) GetLatestEventIds(ctx context.Context) (GetLatestEventIdsRow, error) {
+	row := q.db.QueryRow(ctx, getLatestEventIds)
+	var i GetLatestEventIdsRow
+	err := row.Scan(
+		&i.EventDeployID,
+		&i.EventMintID,
+		&i.EventInscribeTransferID,
+		&i.EventTransferTransferID,
+	)
+	return i, err
 }
 
 const getLatestIndexedBlock = `-- name: GetLatestIndexedBlock :one

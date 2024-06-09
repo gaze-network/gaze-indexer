@@ -8,6 +8,7 @@ import (
 type OriginOld struct {
 	Content     []byte
 	OldSatPoint ordinals.SatPoint
+	InputIndex  uint32
 }
 type OriginNew struct {
 	Inscription    ordinals.Inscription

@@ -28,7 +28,12 @@ type BRC20ReaderDataGateway interface {
 	GetProcessorStats(ctx context.Context) (*entity.ProcessorStats, error)
 	GetInscriptionTransfersInOutPoints(ctx context.Context, outPoints []wire.OutPoint) (map[ordinals.SatPoint][]*entity.InscriptionTransfer, error)
 	GetInscriptionEntriesByIds(ctx context.Context, ids []ordinals.InscriptionId) (map[ordinals.InscriptionId]*ordinals.InscriptionEntry, error)
+	GetInscriptionNumbersByIds(ctx context.Context, ids []ordinals.InscriptionId) (map[ordinals.InscriptionId]int64, error)
+	GetInscriptionParentsByIds(ctx context.Context, ids []ordinals.InscriptionId) (map[ordinals.InscriptionId]ordinals.InscriptionId, error)
+	GetBalancesBatchAtHeight(ctx context.Context, blockHeight uint64, queries []GetBalancesBatchAtHeightQuery) (map[string]map[string]*entity.Balance, error)
 	GetTickEntriesByTicks(ctx context.Context, ticks []string) (map[string]*entity.TickEntry, error)
+	GetEventInscribeTransfersByInscriptionIds(ctx context.Context, ids []ordinals.InscriptionId) (map[ordinals.InscriptionId]*entity.EventInscribeTransfer, error)
+	GetLatestEventId(ctx context.Context) (uint64, error)
 }
 
 type BRC20WriterDataGateway interface {
@@ -57,4 +62,10 @@ type BRC20WriterDataGateway interface {
 	DeleteInscriptionEntriesSinceHeight(ctx context.Context, height uint64) error
 	DeleteInscriptionEntryStatesSinceHeight(ctx context.Context, height uint64) error
 	DeleteInscriptionTransfersSinceHeight(ctx context.Context, height uint64) error
+}
+
+type GetBalancesBatchAtHeightQuery struct {
+	PkScriptHex string
+	Tick        string
+	BlockHeight uint64
 }

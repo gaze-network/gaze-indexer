@@ -40,10 +40,18 @@ type Processor struct {
 	// cache
 	outPointValueCache *lru.Cache[wire.OutPoint, uint64]
 
-	// flush buffers
+	// flush buffers - inscription states
 	newInscriptionTransfers   []*entity.InscriptionTransfer
 	newInscriptionEntries     map[ordinals.InscriptionId]*ordinals.InscriptionEntry
 	newInscriptionEntryStates map[ordinals.InscriptionId]*ordinals.InscriptionEntry
+	// flush buffers - brc20 states
+	newTickEntries            map[string]*entity.TickEntry
+	newTickEntryStates        map[string]*entity.TickEntry
+	newEventDeploys           []*entity.EventDeploy
+	newEventMints             []*entity.EventMint
+	newEventInscribeTransfers []*entity.EventInscribeTransfer
+	newEventTransferTransfers []*entity.EventTransferTransfer
+	newBalances               map[string]map[string]*entity.Balance
 }
 
 // TODO: move this to config
@@ -73,6 +81,14 @@ func NewProcessor(brc20Dg datagateway.BRC20DataGateway, indexerInfoDg datagatewa
 		newInscriptionTransfers:   make([]*entity.InscriptionTransfer, 0),
 		newInscriptionEntries:     make(map[ordinals.InscriptionId]*ordinals.InscriptionEntry),
 		newInscriptionEntryStates: make(map[ordinals.InscriptionId]*ordinals.InscriptionEntry),
+
+		newTickEntries:            make(map[string]*entity.TickEntry),
+		newTickEntryStates:        make(map[string]*entity.TickEntry),
+		newEventDeploys:           make([]*entity.EventDeploy, 0),
+		newEventMints:             make([]*entity.EventMint, 0),
+		newEventInscribeTransfers: make([]*entity.EventInscribeTransfer, 0),
+		newEventTransferTransfers: make([]*entity.EventTransferTransfer, 0),
+		newBalances:               make(map[string]map[string]*entity.Balance),
 	}, nil
 }
 

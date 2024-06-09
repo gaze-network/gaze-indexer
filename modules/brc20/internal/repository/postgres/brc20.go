@@ -110,6 +110,110 @@ func (r *Repository) GetInscriptionEntriesByIds(ctx context.Context, ids []ordin
 	return result, nil
 }
 
+func (r *Repository) GetInscriptionNumbersByIds(ctx context.Context, ids []ordinals.InscriptionId) (map[ordinals.InscriptionId]int64, error) {
+	idStrs := lo.Map(ids, func(id ordinals.InscriptionId, _ int) string { return id.String() })
+	models, err := r.queries.GetInscriptionNumbersByIds(ctx, idStrs)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	result := make(map[ordinals.InscriptionId]int64)
+	for _, model := range models {
+		inscriptionId, err := ordinals.NewInscriptionIdFromString(model.Id)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to parse inscription id")
+		}
+		result[inscriptionId] = model.Number
+	}
+	return result, nil
+}
+
+func (r *Repository) GetInscriptionParentsByIds(ctx context.Context, ids []ordinals.InscriptionId) (map[ordinals.InscriptionId]ordinals.InscriptionId, error) {
+	idStrs := lo.Map(ids, func(id ordinals.InscriptionId, _ int) string { return id.String() })
+	models, err := r.queries.GetInscriptionParentsByIds(ctx, idStrs)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	result := make(map[ordinals.InscriptionId]ordinals.InscriptionId)
+	for _, model := range models {
+		if len(model.Parents) == 0 {
+			// no parent
+			continue
+		}
+		if len(model.Parents) > 1 {
+			// sanity check, should not happen since 0.14 ord supports only 1 parent
+			continue
+		}
+		inscriptionId, err := ordinals.NewInscriptionIdFromString(model.Id)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to parse inscription id")
+		}
+		parentId, err := ordinals.NewInscriptionIdFromString(model.Parents[0])
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to parse parent id")
+		}
+		result[inscriptionId] = parentId
+	}
+	return result, nil
+}
+
+func (r *Repository) GetLatestEventId(ctx context.Context) (uint64, error) {
+	row, err := r.queries.GetLatestEventIds(ctx)
+	if err != nil {
+		return 0, errors.WithStack(err)
+	}
+	return uint64(max(row.EventDeployID, row.EventMintID, row.EventInscribeTransferID, row.EventTransferTransferID)), nil
+}
+
+func (r *Repository) GetBalancesBatchAtHeight(ctx context.Context, blockHeight uint64, queries []datagateway.GetBalancesBatchAtHeightQuery) (map[string]map[string]*entity.Balance, error) {
+	pkScripts := make([]string, 0)
+	ticks := make([]string, 0)
+	for _, query := range queries {
+		pkScripts = append(pkScripts, query.PkScriptHex)
+		ticks = append(ticks, query.Tick)
+	}
+	models, err := r.queries.GetBalancesBatchAtHeight(ctx, gen.GetBalancesBatchAtHeightParams{
+		PkscriptArr: pkScripts,
+		TickArr:     ticks,
+		BlockHeight: int32(blockHeight),
+	})
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	result := make(map[string]map[string]*entity.Balance)
+	for _, model := range models {
+		balance, err := mapBalanceModelToType(model)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to parse balance model")
+		}
+		if _, ok := result[model.Pkscript]; !ok {
+			result[model.Pkscript] = make(map[string]*entity.Balance)
+		}
+		result[model.Pkscript][model.Tick] = &balance
+	}
+	return result, nil
+}
+
+func (r *Repository) GetEventInscribeTransfersByInscriptionIds(ctx context.Context, ids []ordinals.InscriptionId) (map[ordinals.InscriptionId]*entity.EventInscribeTransfer, error) {
+	idStrs := lo.Map(ids, func(id ordinals.InscriptionId, _ int) string { return id.String() })
+	models, err := r.queries.GetEventInscribeTransfersByInscriptionIds(ctx, idStrs)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	result := make(map[ordinals.InscriptionId]*entity.EventInscribeTransfer)
+	for _, model := range models {
+		event, err := mapEventInscribeTransferModelToType(model)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to parse event inscribe transfer model")
+		}
+		result[event.InscriptionId] = &event
+	}
+	return result, nil
+}
+
 func (r *Repository) GetTickEntriesByTicks(ctx context.Context, ticks []string) (map[string]*entity.TickEntry, error) {
 	models, err := r.queries.GetTickEntriesByTicks(ctx, ticks)
 	if err != nil {

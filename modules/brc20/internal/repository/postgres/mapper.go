@@ -257,6 +257,10 @@ func mapInscriptionTransferModelToType(src gen.GetInscriptionTransfersInOutPoint
 	if err != nil {
 		return entity.InscriptionTransfer{}, errors.Wrap(err, "invalid inscription id")
 	}
+	txHash, err := chainhash.NewHashFromStr(src.TxHash)
+	if err != nil {
+		return entity.InscriptionTransfer{}, errors.Wrap(err, "invalid tx hash")
+	}
 	var oldSatPoint, newSatPoint ordinals.SatPoint
 	if src.OldSatpointTxHash.Valid {
 		if !src.OldSatpointOutIdx.Valid || !src.OldSatpointOffset.Valid {
@@ -299,12 +303,15 @@ func mapInscriptionTransferModelToType(src gen.GetInscriptionTransfersInOutPoint
 		InscriptionId:  inscriptionId,
 		BlockHeight:    uint64(src.BlockHeight),
 		TxIndex:        uint32(src.TxIndex),
+		TxHash:         *txHash,
+		FromInputIndex: uint32(src.FromInputIndex),
 		Content:        src.Content,
 		OldSatPoint:    oldSatPoint,
 		NewSatPoint:    newSatPoint,
 		NewPkScript:    newPkScript,
 		NewOutputValue: uint64(src.NewOutputValue),
 		SentAsFee:      src.SentAsFee,
+		TransferCount:  uint32(src.TransferCount),
 	}, nil
 }
 
@@ -313,6 +320,8 @@ func mapInscriptionTransferTypeToParams(src entity.InscriptionTransfer) gen.Crea
 		InscriptionID:     src.InscriptionId.String(),
 		BlockHeight:       int32(src.BlockHeight),
 		TxIndex:           int32(src.TxIndex),
+		TxHash:            src.TxHash.String(),
+		FromInputIndex:    int32(src.FromInputIndex),
 		OldSatpointTxHash: lo.Ternary(src.OldSatPoint != ordinals.SatPoint{}, pgtype.Text{String: src.OldSatPoint.OutPoint.Hash.String(), Valid: true}, pgtype.Text{}),
 		OldSatpointOutIdx: lo.Ternary(src.OldSatPoint != ordinals.SatPoint{}, pgtype.Int4{Int32: int32(src.OldSatPoint.OutPoint.Index), Valid: true}, pgtype.Int4{}),
 		OldSatpointOffset: lo.Ternary(src.OldSatPoint != ordinals.SatPoint{}, pgtype.Int8{Int64: int64(src.OldSatPoint.Offset), Valid: true}, pgtype.Int8{}),
@@ -322,6 +331,7 @@ func mapInscriptionTransferTypeToParams(src entity.InscriptionTransfer) gen.Crea
 		NewPkscript:       hex.EncodeToString(src.NewPkScript),
 		NewOutputValue:    int64(src.NewOutputValue),
 		SentAsFee:         src.SentAsFee,
+		TransferCount:     int32(src.TransferCount),
 	}
 }
 
@@ -345,7 +355,7 @@ func mapEventDeployModelToType(src gen.Brc20EventDeploy) (entity.EventDeploy, er
 	return entity.EventDeploy{
 		Id:                uint64(src.Id),
 		InscriptionId:     inscriptionId,
-		InscriptionNumber: uint64(src.InscriptionNumber),
+		InscriptionNumber: src.InscriptionNumber,
 		Tick:              src.Tick,
 		OriginalTick:      src.OriginalTick,
 		TxHash:            *txHash,
@@ -368,7 +378,7 @@ func mapEventDeployTypeToParams(src entity.EventDeploy) (gen.CreateEventDeploysP
 	}
 	return gen.CreateEventDeploysParams{
 		InscriptionID:     src.InscriptionId.String(),
-		InscriptionNumber: int64(src.InscriptionNumber),
+		InscriptionNumber: src.InscriptionNumber,
 		Tick:              src.Tick,
 		OriginalTick:      src.OriginalTick,
 		TxHash:            src.TxHash.String(),
@@ -412,7 +422,7 @@ func mapEventMintModelToType(src gen.Brc20EventMint) (entity.EventMint, error) {
 	return entity.EventMint{
 		Id:                uint64(src.Id),
 		InscriptionId:     inscriptionId,
-		InscriptionNumber: uint64(src.InscriptionNumber),
+		InscriptionNumber: src.InscriptionNumber,
 		Tick:              src.Tick,
 		OriginalTick:      src.OriginalTick,
 		TxHash:            *txHash,
@@ -437,7 +447,7 @@ func mapEventMintTypeToParams(src entity.EventMint) (gen.CreateEventMintsParams,
 	}
 	return gen.CreateEventMintsParams{
 		InscriptionID:     src.InscriptionId.String(),
-		InscriptionNumber: int64(src.InscriptionNumber),
+		InscriptionNumber: src.InscriptionNumber,
 		Tick:              src.Tick,
 		OriginalTick:      src.OriginalTick,
 		TxHash:            src.TxHash.String(),
@@ -471,7 +481,7 @@ func mapEventInscribeTransferModelToType(src gen.Brc20EventInscribeTransfer) (en
 	return entity.EventInscribeTransfer{
 		Id:                uint64(src.Id),
 		InscriptionId:     inscriptionId,
-		InscriptionNumber: uint64(src.InscriptionNumber),
+		InscriptionNumber: src.InscriptionNumber,
 		Tick:              src.Tick,
 		OriginalTick:      src.OriginalTick,
 		TxHash:            *txHash,
@@ -493,7 +503,7 @@ func mapEventInscribeTransferTypeToParams(src entity.EventInscribeTransfer) (gen
 	}
 	return gen.CreateEventInscribeTransfersParams{
 		InscriptionID:     src.InscriptionId.String(),
-		InscriptionNumber: int64(src.InscriptionNumber),
+		InscriptionNumber: src.InscriptionNumber,
 		Tick:              src.Tick,
 		OriginalTick:      src.OriginalTick,
 		TxHash:            src.TxHash.String(),
@@ -536,7 +546,7 @@ func mapEventTransferTransferModelToType(src gen.Brc20EventTransferTransfer) (en
 	return entity.EventTransferTransfer{
 		Id:                uint64(src.Id),
 		InscriptionId:     inscriptionId,
-		InscriptionNumber: uint64(src.InscriptionNumber),
+		InscriptionNumber: src.InscriptionNumber,
 		Tick:              src.Tick,
 		OriginalTick:      src.OriginalTick,
 		TxHash:            *txHash,
@@ -549,6 +559,7 @@ func mapEventTransferTransferModelToType(src gen.Brc20EventTransferTransfer) (en
 		ToPkScript:        toPkScript,
 		ToSatPoint:        toSatPoint,
 		ToOutputIndex:     uint32(src.ToOutputIndex),
+		SpentAsFee:        src.SpentAsFee,
 		Amount:            decimalFromNumeric(src.Amount).Decimal,
 	}, nil
 }
@@ -560,7 +571,7 @@ func mapEventTransferTransferTypeToParams(src entity.EventTransferTransfer) (gen
 	}
 	return gen.CreateEventTransferTransfersParams{
 		InscriptionID:     src.InscriptionId.String(),
-		InscriptionNumber: int64(src.InscriptionNumber),
+		InscriptionNumber: src.InscriptionNumber,
 		Tick:              src.Tick,
 		OriginalTick:      src.OriginalTick,
 		TxHash:            src.TxHash.String(),
@@ -573,6 +584,21 @@ func mapEventTransferTransferTypeToParams(src entity.EventTransferTransfer) (gen
 		ToPkscript:        hex.EncodeToString(src.ToPkScript),
 		ToSatpoint:        src.ToSatPoint.String(),
 		ToOutputIndex:     int32(src.ToOutputIndex),
+		SpentAsFee:        src.SpentAsFee,
 		Amount:            numericFromDecimal(src.Amount),
+	}, nil
+}
+
+func mapBalanceModelToType(src gen.Brc20Balance) (entity.Balance, error) {
+	pkScript, err := hex.DecodeString(src.Pkscript)
+	if err != nil {
+		return entity.Balance{}, errors.Wrap(err, "failed to parse pkscript")
+	}
+	return entity.Balance{
+		PkScript:         pkScript,
+		Tick:             src.Tick,
+		BlockHeight:      uint64(src.BlockHeight),
+		OverallBalance:   decimalFromNumeric(src.OverallBalance).Decimal,
+		AvailableBalance: decimalFromNumeric(src.AvailableBalance).Decimal,
 	}, nil
 }

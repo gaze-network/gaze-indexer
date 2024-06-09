@@ -80,6 +80,7 @@ func (p *Processor) processInscriptionTx(ctx context.Context, tx *types.Transact
 					OriginOld: &entity.OriginOld{
 						OldSatPoint: satPoint,
 						Content:     transfer.Content,
+						InputIndex:  uint32(i),
 					},
 				})
 				if _, ok := inscribeOffsets[offset]; !ok {
@@ -289,17 +290,6 @@ func (p *Processor) processInscriptionTx(ctx context.Context, tx *types.Transact
 func (p *Processor) updateInscriptionLocation(ctx context.Context, newSatPoint ordinals.SatPoint, flotsam *entity.Flotsam, sentAsFee bool, tx *types.Transaction, blockHeader types.BlockHeader) error {
 	txOut := tx.TxOut[newSatPoint.OutPoint.Index]
 	if flotsam.OriginOld != nil {
-		transfer := &entity.InscriptionTransfer{
-			InscriptionId:  flotsam.InscriptionId,
-			BlockHeight:    uint64(flotsam.Tx.BlockHeight), // use flotsam's tx to track tx that initiated the transfer
-			TxIndex:        flotsam.Tx.Index,               // use flotsam's tx to track tx that initiated the transfer
-			Content:        flotsam.OriginOld.Content,
-			OldSatPoint:    flotsam.OriginOld.OldSatPoint,
-			NewSatPoint:    newSatPoint,
-			NewPkScript:    txOut.PkScript,
-			NewOutputValue: uint64(txOut.Value),
-			SentAsFee:      sentAsFee,
-		}
 		entry, err := p.getInscriptionEntryById(ctx, flotsam.InscriptionId)
 		if err != nil {
 			// skip inscriptions without entry (likely non-brc20 inscriptions)
@@ -309,6 +299,20 @@ func (p *Processor) updateInscriptionLocation(ctx context.Context, newSatPoint o
 			return errors.Wrap(err, "failed to get inscription entry")
 		}
 		entry.TransferCount++
+		transfer := &entity.InscriptionTransfer{
+			InscriptionId:  flotsam.InscriptionId,
+			BlockHeight:    uint64(flotsam.Tx.BlockHeight), // use flotsam's tx to track tx that initiated the transfer
+			TxIndex:        flotsam.Tx.Index,               // use flotsam's tx to track tx that initiated the transfer
+			TxHash:         flotsam.Tx.TxHash,
+			Content:        flotsam.OriginOld.Content,
+			FromInputIndex: flotsam.OriginOld.InputIndex,
+			OldSatPoint:    flotsam.OriginOld.OldSatPoint,
+			NewSatPoint:    newSatPoint,
+			NewPkScript:    txOut.PkScript,
+			NewOutputValue: uint64(txOut.Value),
+			SentAsFee:      sentAsFee,
+			TransferCount:  entry.TransferCount,
+		}
 
 		// track transfers even if transfer count exceeds 2 (because we need to check for reinscriptions)
 		p.newInscriptionTransfers = append(p.newInscriptionTransfers, transfer)
@@ -337,12 +341,15 @@ func (p *Processor) updateInscriptionLocation(ctx context.Context, newSatPoint o
 			InscriptionId:  flotsam.InscriptionId,
 			BlockHeight:    uint64(flotsam.Tx.BlockHeight), // use flotsam's tx to track tx that initiated the transfer
 			TxIndex:        flotsam.Tx.Index,               // use flotsam's tx to track tx that initiated the transfer
+			TxHash:         flotsam.Tx.TxHash,
 			Content:        origin.Inscription.Content,
+			FromInputIndex: 0, // unused
 			OldSatPoint:    ordinals.SatPoint{},
 			NewSatPoint:    newSatPoint,
 			NewPkScript:    txOut.PkScript,
 			NewOutputValue: uint64(txOut.Value),
 			SentAsFee:      sentAsFee,
+			TransferCount:  1, // count inscription as first transfer
 		}
 		entry := &ordinals.InscriptionEntry{
 			Id:              flotsam.InscriptionId,
@@ -505,6 +512,58 @@ func (p *Processor) getInscriptionEntriesByIds(ctx context.Context, ids []ordina
 		}
 		for id, inscription := range inscriptions {
 			result[id] = inscription
+		}
+	}
+	return result, nil
+}
+
+func (p *Processor) getInscriptionNumbersByIds(ctx context.Context, ids []ordinals.InscriptionId) (map[ordinals.InscriptionId]int64, error) {
+	// try to get from cache if exists
+	result := make(map[ordinals.InscriptionId]int64)
+
+	idsToFetch := make([]ordinals.InscriptionId, 0)
+	for _, id := range ids {
+		if entry, ok := p.newInscriptionEntryStates[id]; ok {
+			result[id] = int64(entry.Number)
+		} else {
+			idsToFetch = append(idsToFetch, id)
+		}
+	}
+
+	if len(idsToFetch) == 0 {
+		inscriptions, err := p.brc20Dg.GetInscriptionNumbersByIds(ctx, idsToFetch)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to get inscriptions by outpoint")
+		}
+		for id, number := range inscriptions {
+			result[id] = number
+		}
+	}
+	return result, nil
+}
+
+func (p *Processor) getInscriptionParentsByIds(ctx context.Context, ids []ordinals.InscriptionId) (map[ordinals.InscriptionId]ordinals.InscriptionId, error) {
+	// try to get from cache if exists
+	result := make(map[ordinals.InscriptionId]ordinals.InscriptionId)
+
+	idsToFetch := make([]ordinals.InscriptionId, 0)
+	for _, id := range ids {
+		if entry, ok := p.newInscriptionEntryStates[id]; ok {
+			if entry.Inscription.Parent != nil {
+				result[id] = *entry.Inscription.Parent
+			}
+		} else {
+			idsToFetch = append(idsToFetch, id)
+		}
+	}
+
+	if len(idsToFetch) == 0 {
+		inscriptions, err := p.brc20Dg.GetInscriptionParentsByIds(ctx, idsToFetch)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to get inscriptions by outpoint")
+		}
+		for id, parent := range inscriptions {
+			result[id] = parent
 		}
 	}
 	return result, nil
