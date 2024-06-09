@@ -440,6 +440,23 @@ func (r *Repository) CreateEventTransferTransfers(ctx context.Context, events []
 	return nil
 }
 
+func (r *Repository) CreateBalances(ctx context.Context, balances []*entity.Balance) error {
+	params := lo.Map(balances, func(balance *entity.Balance, _ int) gen.CreateBalancesParams {
+		return mapBalanceTypeToParams(*balance)
+	})
+	results := r.queries.CreateBalances(ctx, params)
+	var execErrors []error
+	results.Exec(func(i int, err error) {
+		if err != nil {
+			execErrors = append(execErrors, err)
+		}
+	})
+	if len(execErrors) > 0 {
+		return errors.Wrap(errors.Join(execErrors...), "error during exec")
+	}
+	return nil
+}
+
 func (r *Repository) DeleteIndexedBlocksSinceHeight(ctx context.Context, height uint64) error {
 	if err := r.queries.DeleteIndexedBlocksSinceHeight(ctx, int32(height)); err != nil {
 		return errors.Wrap(err, "error during exec")

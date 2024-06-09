@@ -17,6 +17,61 @@ var (
 	ErrBatchAlreadyClosed = errors.New("batch already closed")
 )
 
+const createBalances = `-- name: CreateBalances :batchexec
+INSERT INTO "brc20_balances" ("pkscript", "block_height", "tick", "overall_balance", "available_balance") VALUES ($1, $2, $3, $4, $5)
+`
+
+type CreateBalancesBatchResults struct {
+	br     pgx.BatchResults
+	tot    int
+	closed bool
+}
+
+type CreateBalancesParams struct {
+	Pkscript         string
+	BlockHeight      int32
+	Tick             string
+	OverallBalance   pgtype.Numeric
+	AvailableBalance pgtype.Numeric
+}
+
+func (q *Queries) CreateBalances(ctx context.Context, arg []CreateBalancesParams) *CreateBalancesBatchResults {
+	batch := &pgx.Batch{}
+	for _, a := range arg {
+		vals := []interface{}{
+			a.Pkscript,
+			a.BlockHeight,
+			a.Tick,
+			a.OverallBalance,
+			a.AvailableBalance,
+		}
+		batch.Queue(createBalances, vals...)
+	}
+	br := q.db.SendBatch(ctx, batch)
+	return &CreateBalancesBatchResults{br, len(arg), false}
+}
+
+func (b *CreateBalancesBatchResults) Exec(f func(int, error)) {
+	defer b.br.Close()
+	for t := 0; t < b.tot; t++ {
+		if b.closed {
+			if f != nil {
+				f(t, ErrBatchAlreadyClosed)
+			}
+			continue
+		}
+		_, err := b.br.Exec()
+		if f != nil {
+			f(t, err)
+		}
+	}
+}
+
+func (b *CreateBalancesBatchResults) Close() error {
+	b.closed = true
+	return b.br.Close()
+}
+
 const createEventDeploys = `-- name: CreateEventDeploys :batchexec
 INSERT INTO "brc20_event_deploys" ("inscription_id", "inscription_number", "tick", "original_tick", "tx_hash", "block_height", "tx_index", "timestamp", "pkscript", "satpoint", "total_supply", "decimals", "limit_per_mint", "is_self_mint") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
 `

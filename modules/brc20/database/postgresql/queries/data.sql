@@ -105,6 +105,9 @@ INSERT INTO "brc20_event_inscribe_transfers" ("inscription_id", "inscription_num
 -- name: CreateEventTransferTransfers :batchexec
 INSERT INTO "brc20_event_transfer_transfers" ("inscription_id", "inscription_number", "tick", "original_tick", "tx_hash", "block_height", "tx_index", "timestamp", "from_pkscript", "from_satpoint", "from_input_index", "to_pkscript", "to_satpoint", "to_output_index", "spent_as_fee", "amount") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16);
 
+-- name: CreateBalances :batchexec
+INSERT INTO "brc20_balances" ("pkscript", "block_height", "tick", "overall_balance", "available_balance") VALUES ($1, $2, $3, $4, $5);
+
 -- name: DeleteIndexedBlocksSinceHeight :exec
 DELETE FROM "brc20_indexed_blocks" WHERE "height" >= $1;
 

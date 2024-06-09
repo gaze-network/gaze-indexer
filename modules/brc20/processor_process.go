@@ -108,6 +108,7 @@ func (p *Processor) flushBlock(ctx context.Context, blockHeader types.BlockHeade
 		}); err != nil {
 			return errors.Wrap(err, "failed to create indexed block")
 		}
+		p.eventHashString = ""
 	}
 
 	// flush new inscription entries
@@ -147,6 +148,65 @@ func (p *Processor) flushBlock(ctx context.Context, blockHeader types.BlockHeade
 		if err := brc20DgTx.CreateProcessorStats(ctx, stats); err != nil {
 			return errors.Wrap(err, "failed to create processor stats")
 		}
+	}
+	// newTickEntries            map[string]*entity.TickEntry
+	// newTickEntryStates        map[string]*entity.TickEntry
+	// newEventDeploys           []*entity.EventDeploy
+	// newEventMints             []*entity.EventMint
+	// newEventInscribeTransfers []*entity.EventInscribeTransfer
+	// newEventTransferTransfers []*entity.EventTransferTransfer
+	// newBalances               map[string]map[string]*entity.Balance
+
+	// flush new tick entries
+	{
+		newTickEntries := lo.Values(p.newTickEntries)
+		if err := brc20DgTx.CreateTickEntries(ctx, blockHeight, newTickEntries); err != nil {
+			return errors.Wrap(err, "failed to create tick entries")
+		}
+		p.newTickEntries = make(map[string]*entity.TickEntry)
+	}
+
+	// flush new tick entry states
+	{
+		newTickEntryStates := lo.Values(p.newTickEntryStates)
+		if err := brc20DgTx.CreateTickEntryStates(ctx, blockHeight, newTickEntryStates); err != nil {
+			return errors.Wrap(err, "failed to create tick entry states")
+		}
+		p.newTickEntryStates = make(map[string]*entity.TickEntry)
+	}
+
+	// flush new events
+	{
+		if err := brc20DgTx.CreateEventDeploys(ctx, p.newEventDeploys); err != nil {
+			return errors.Wrap(err, "failed to create event deploys")
+		}
+		if err := brc20DgTx.CreateEventMints(ctx, p.newEventMints); err != nil {
+			return errors.Wrap(err, "failed to create event mints")
+		}
+		if err := brc20DgTx.CreateEventInscribeTransfers(ctx, p.newEventInscribeTransfers); err != nil {
+			return errors.Wrap(err, "failed to create event inscribe transfers")
+		}
+		if err := brc20DgTx.CreateEventTransferTransfers(ctx, p.newEventTransferTransfers); err != nil {
+			return errors.Wrap(err, "failed to create event transfer transfers")
+		}
+		p.newEventDeploys = make([]*entity.EventDeploy, 0)
+		p.newEventMints = make([]*entity.EventMint, 0)
+		p.newEventInscribeTransfers = make([]*entity.EventInscribeTransfer, 0)
+		p.newEventTransferTransfers = make([]*entity.EventTransferTransfer, 0)
+	}
+
+	// flush new balances
+	{
+		newBalances := make([]*entity.Balance, 0)
+		for _, tickBalances := range p.newBalances {
+			for _, balance := range tickBalances {
+				newBalances = append(newBalances, balance)
+			}
+		}
+		if err := brc20DgTx.CreateBalances(ctx, newBalances); err != nil {
+			return errors.Wrap(err, "failed to create balances")
+		}
+		p.newBalances = make(map[string]map[string]*entity.Balance)
 	}
 
 	if err := brc20DgTx.Commit(ctx); err != nil {

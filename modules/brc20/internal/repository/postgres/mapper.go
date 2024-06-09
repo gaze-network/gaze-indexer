@@ -602,3 +602,13 @@ func mapBalanceModelToType(src gen.Brc20Balance) (entity.Balance, error) {
 		AvailableBalance: decimalFromNumeric(src.AvailableBalance).Decimal,
 	}, nil
 }
+
+func mapBalanceTypeToParams(src entity.Balance) gen.CreateBalancesParams {
+	return gen.CreateBalancesParams{
+		Pkscript:         hex.EncodeToString(src.PkScript),
+		Tick:             src.Tick,
+		BlockHeight:      int32(src.BlockHeight),
+		OverallBalance:   numericFromDecimal(src.OverallBalance),
+		AvailableBalance: numericFromDecimal(src.AvailableBalance),
+	}
+}

@@ -51,7 +51,7 @@ type Processor struct {
 	newEventMints             []*entity.EventMint
 	newEventInscribeTransfers []*entity.EventInscribeTransfer
 	newEventTransferTransfers []*entity.EventTransferTransfer
-	newBalances               map[string]map[string]*entity.Balance
+	newBalances               map[string]map[string]*entity.Balance // pkscript -> tick -> balance
 
 	eventHashString string
 }

@@ -48,6 +48,7 @@ type BRC20WriterDataGateway interface {
 	CreateEventMints(ctx context.Context, events []*entity.EventMint) error
 	CreateEventInscribeTransfers(ctx context.Context, events []*entity.EventInscribeTransfer) error
 	CreateEventTransferTransfers(ctx context.Context, events []*entity.EventTransferTransfer) error
+	CreateBalances(ctx context.Context, balances []*entity.Balance) error
 
 	// used for revert data
 	DeleteIndexedBlocksSinceHeight(ctx context.Context, height uint64) error
