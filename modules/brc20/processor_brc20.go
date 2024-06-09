@@ -12,8 +12,6 @@ import (
 	"github.com/gaze-network/indexer-network/modules/brc20/internal/datagateway"
 	"github.com/gaze-network/indexer-network/modules/brc20/internal/entity"
 	"github.com/gaze-network/indexer-network/modules/brc20/internal/ordinals"
-	"github.com/gaze-network/indexer-network/pkg/logger"
-	"github.com/gaze-network/indexer-network/pkg/logger/slogx"
 	"github.com/samber/lo"
 	"github.com/shopspring/decimal"
 )
@@ -95,29 +93,18 @@ func (p *Processor) processBRC20States(ctx context.Context, transfers []*entity.
 		tickEntry := tickEntries[payload.Tick]
 
 		if payload.Transfer.SentAsFee && payload.Transfer.OldSatPoint == (ordinals.SatPoint{}) {
-			logger.DebugContext(ctx, "found inscription inscribed as fee, skipping...",
-				slogx.String("tick", payload.Tick),
-				slogx.Stringer("inscriptionId", payload.Transfer.InscriptionId),
-			)
+			// skip inscriptions inscribed as fee
 			continue
 		}
 
 		switch payload.Op {
 		case brc20.OperationDeploy:
 			if payload.Transfer.TransferCount > 1 {
-				logger.DebugContext(ctx, "found deploy inscription but it is already used, skipping...",
-					slogx.String("tick", payload.Tick),
-					slogx.Stringer("inscriptionId", payload.Transfer.InscriptionId),
-					slogx.Uint32("transferCount", payload.Transfer.TransferCount),
-				)
+				// skip used deploy inscriptions
 				continue
 			}
 			if tickEntry != nil {
-				logger.DebugContext(ctx, "found deploy inscription but tick already exists, skipping...",
-					slogx.String("tick", payload.Tick),
-					slogx.Stringer("entryInscriptionId", tickEntry.DeployInscriptionId),
-					slogx.Stringer("currentInscriptionId", payload.Transfer.InscriptionId),
-				)
+				// skip deploy inscriptions for duplicate ticks
 				continue
 			}
 			tickEntry := &entity.TickEntry{
@@ -160,46 +147,23 @@ func (p *Processor) processBRC20States(ctx context.Context, transfers []*entity.
 			latestEventId++
 		case brc20.OperationMint:
 			if payload.Transfer.TransferCount > 1 {
-				logger.DebugContext(ctx, "found mint inscription but it is already used, skipping...",
-					slogx.String("tick", payload.Tick),
-					slogx.Stringer("inscriptionId", payload.Transfer.InscriptionId),
-					slogx.Uint32("transferCount", payload.Transfer.TransferCount),
-				)
+				// skip used mint inscriptions that are already used
 				continue
 			}
 			if tickEntry == nil {
-				logger.DebugContext(ctx, "found mint inscription but tick does not exist, skipping...",
-					slogx.String("tick", payload.Tick),
-					slogx.Stringer("inscriptionId", payload.Transfer.InscriptionId),
-				)
+				// skip mint inscriptions for non-existent ticks
 				continue
 			}
 			if -payload.Amt.Exponent() > int32(tickEntry.Decimals) {
-				logger.DebugContext(ctx, "found mint inscription but amount has invalid decimals, skipping...",
-					slogx.String("tick", payload.Tick),
-					slogx.Stringer("inscriptionId", payload.Transfer.InscriptionId),
-					slogx.Stringer("amount", payload.Amt),
-					slogx.Uint16("entryDecimals", tickEntry.Decimals),
-					slogx.Int32("payloadDecimals", -payload.Amt.Exponent()),
-				)
+				// skip mint inscriptions with decimals greater than allowed
 				continue
 			}
 			if tickEntry.MintedAmount.GreaterThanOrEqual(tickEntry.TotalSupply) {
-				logger.DebugContext(ctx, "found mint inscription but total supply is reached, skipping...",
-					slogx.String("tick", payload.Tick),
-					slogx.Stringer("inscriptionId", payload.Transfer.InscriptionId),
-					slogx.Stringer("mintedAmount", tickEntry.MintedAmount),
-					slogx.Stringer("totalSupply", tickEntry.TotalSupply),
-				)
+				// skip mint inscriptions for ticks with completed mints
 				continue
 			}
 			if payload.Amt.GreaterThan(tickEntry.LimitPerMint) {
-				logger.DebugContext(ctx, "found mint inscription but amount exceeds limit per mint, skipping...",
-					slogx.String("tick", payload.Tick),
-					slogx.Stringer("inscriptionId", payload.Transfer.InscriptionId),
-					slogx.Stringer("amount", payload.Amt),
-					slogx.Stringer("limitPerMint", tickEntry.LimitPerMint),
-				)
+				// skip mint inscriptions with amount greater than limit per mint
 				continue
 			}
 			mintableAmount := tickEntry.TotalSupply.Sub(tickEntry.MintedAmount)
@@ -210,19 +174,12 @@ func (p *Processor) processBRC20States(ctx context.Context, transfers []*entity.
 			if tickEntry.IsSelfMint {
 				parentIdValue, ok := inscriptionIdsToParent[payload.Transfer.InscriptionId]
 				if !ok {
-					logger.DebugContext(ctx, "found mint inscription for self mint tick, but it does not have a parent, skipping...",
-						slogx.String("tick", payload.Tick),
-						slogx.Stringer("inscriptionId", payload.Transfer.InscriptionId),
-					)
+					// skip mint inscriptions for self mint ticks without parent inscription
 					continue
 				}
 				if parentIdValue != tickEntry.DeployInscriptionId {
-					logger.DebugContext(ctx, "found mint inscription for self mint tick, but parent id does not match deploy inscription id, skipping...",
-						slogx.String("tick", payload.Tick),
-						slogx.Stringer("inscriptionId", payload.Transfer.InscriptionId),
-						slogx.Stringer("parentId", parentId),
-						slogx.Stringer("deployInscriptionId", tickEntry.DeployInscriptionId),
-					)
+					// skip mint inscriptions for self mint ticks with invalid parent inscription
+					continue
 				}
 				parentId = &parentIdValue
 			}
@@ -252,28 +209,15 @@ func (p *Processor) processBRC20States(ctx context.Context, transfers []*entity.
 			latestEventId++
 		case brc20.OperationTransfer:
 			if payload.Transfer.TransferCount > 2 {
-				logger.DebugContext(ctx, "found mint inscription but it is already used, skipping...",
-					slogx.String("tick", payload.Tick),
-					slogx.Stringer("inscriptionId", payload.Transfer.InscriptionId),
-					slogx.Uint32("transferCount", payload.Transfer.TransferCount),
-				)
+				// skip used transfer inscriptions
 				continue
 			}
 			if tickEntry == nil {
-				logger.DebugContext(ctx, "found transfer inscription but tick does not exist, skipping...",
-					slogx.String("tick", payload.Tick),
-					slogx.Stringer("inscriptionId", payload.Transfer.InscriptionId),
-				)
+				// skip transfer inscriptions for non-existent ticks
 				continue
 			}
 			if -payload.Amt.Exponent() > int32(tickEntry.Decimals) {
-				logger.DebugContext(ctx, "found transfer inscription but amount has invalid decimals, skipping...",
-					slogx.String("tick", payload.Tick),
-					slogx.Stringer("inscriptionId", payload.Transfer.InscriptionId),
-					slogx.Stringer("amount", payload.Amt),
-					slogx.Uint16("entryDecimals", tickEntry.Decimals),
-					slogx.Int32("payloadDecimals", -payload.Amt.Exponent()),
-				)
+				// skip transfer inscriptions with decimals greater than allowed
 				continue
 			}
 
@@ -291,12 +235,7 @@ func (p *Processor) processBRC20States(ctx context.Context, transfers []*entity.
 					}
 				}
 				if payload.Amt.GreaterThan(balance.AvailableBalance) {
-					logger.DebugContext(ctx, "found transfer inscription but amount exceeds available balance, skipping...",
-						slogx.String("tick", payload.Tick),
-						slogx.Stringer("inscriptionId", payload.Transfer.InscriptionId),
-						slogx.Stringer("amount", payload.Amt),
-						slogx.Stringer("availableBalance", balance.AvailableBalance),
-					)
+					// skip inscribe transfer event if amount exceeds available balance
 					continue
 				}
 				// update balance state
@@ -334,10 +273,7 @@ func (p *Processor) processBRC20States(ctx context.Context, transfers []*entity.
 				// transfer transfer event
 				inscribeTransfer, ok := eventInscribeTransfers[payload.Transfer.InscriptionId]
 				if !ok {
-					logger.DebugContext(ctx, "found transfer transfer event but inscribe transfer does not exist, skipping...",
-						slogx.String("tick", payload.Tick),
-						slogx.Stringer("inscriptionId", payload.Transfer.InscriptionId),
-					)
+					// skip transfer transfer event if prior inscribe transfer event does not exist
 					continue
 				}
 
@@ -346,15 +282,16 @@ func (p *Processor) processBRC20States(ctx context.Context, transfers []*entity.
 					fromPkScriptHex := hex.EncodeToString(inscribeTransfer.PkScript)
 					fromBalance, ok := balances[fromPkScriptHex][payload.Tick]
 					if !ok {
-						logger.DebugContext(ctx, "found transfer transfer event but from balance does not exist, skipping...",
-							slogx.String("tick", payload.Tick),
-							slogx.Stringer("inscriptionId", payload.Transfer.InscriptionId),
-							slogx.String("pkScript", fromPkScriptHex),
-						)
-						continue
+						fromBalance = &entity.Balance{
+							PkScript:         inscribeTransfer.PkScript,
+							Tick:             payload.Tick,
+							BlockHeight:      uint64(blockHeader.Height),
+							OverallBalance:   decimal.Zero, // defaults balance to zero if not found
+							AvailableBalance: decimal.Zero,
+						}
 					}
 					fromBalance.BlockHeight = uint64(blockHeader.Height)
-					fromBalance.AvailableBalance = fromBalance.AvailableBalance.Sub(payload.Amt)
+					fromBalance.AvailableBalance = fromBalance.AvailableBalance.Add(payload.Amt)
 					if _, ok := balances[fromPkScriptHex]; !ok {
 						balances[fromPkScriptHex] = make(map[string]*entity.Balance)
 					}
@@ -388,11 +325,7 @@ func (p *Processor) processBRC20States(ctx context.Context, transfers []*entity.
 					fromPkScriptHex := hex.EncodeToString(inscribeTransfer.PkScript)
 					fromBalance, ok := balances[fromPkScriptHex][payload.Tick]
 					if !ok {
-						logger.DebugContext(ctx, "found transfer transfer event but from balance does not exist, skipping...",
-							slogx.String("tick", payload.Tick),
-							slogx.Stringer("inscriptionId", payload.Transfer.InscriptionId),
-							slogx.String("pkScript", fromPkScriptHex),
-						)
+						// skip transfer transfer event if from balance does not exist
 						continue
 					}
 					fromBalance.BlockHeight = uint64(blockHeader.Height)
