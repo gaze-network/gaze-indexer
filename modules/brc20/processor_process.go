@@ -103,7 +103,7 @@ func (p *Processor) flushBlock(ctx context.Context, blockHeader types.BlockHeade
 		if len(prevIndexedBlock.CumulativeEventHash) == 0 {
 			cumulativeEventHash = eventHash
 		} else {
-			cumulativeEventHash = sha256.Sum256(append(prevIndexedBlock.CumulativeEventHash[:], eventHash[:]...))
+			cumulativeEventHash = sha256.Sum256([]byte(hex.EncodeToString(prevIndexedBlock.CumulativeEventHash[:]) + hex.EncodeToString(eventHash[:])))
 		}
 		if err := brc20DgTx.CreateIndexedBlock(ctx, &entity.IndexedBlock{
 			Height:              blockHeight,
