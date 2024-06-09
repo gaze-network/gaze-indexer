@@ -123,7 +123,7 @@ func (p *Processor) processInscriptionTx(ctx context.Context, tx *types.Transact
 				} else {
 					initialInscriptionEntry, err := p.getInscriptionEntryById(ctx, initial.inscriptionId)
 					if err != nil {
-						return errors.Wrap(err, "failed to get inscription entry")
+						return errors.Wrapf(err, "failed to get inscription entry id %s", initial.inscriptionId)
 					}
 					if !initialInscriptionEntry.Cursed {
 						cursed = true // reinscription curse if initial inscription is not cursed
@@ -292,11 +292,7 @@ func (p *Processor) updateInscriptionLocation(ctx context.Context, newSatPoint o
 	if flotsam.OriginOld != nil {
 		entry, err := p.getInscriptionEntryById(ctx, flotsam.InscriptionId)
 		if err != nil {
-			// skip inscriptions without entry (likely non-brc20 inscriptions)
-			if errors.Is(err, errs.NotFound) {
-				return nil
-			}
-			return errors.Wrap(err, "failed to get inscription entry")
+			return errors.Wrapf(err, "failed to get inscription entry id %s", flotsam.InscriptionId)
 		}
 		entry.TransferCount++
 		transfer := &entity.InscriptionTransfer{
@@ -505,7 +501,7 @@ func (p *Processor) getInscriptionEntriesByIds(ctx context.Context, ids []ordina
 		}
 	}
 
-	if len(idsToFetch) == 0 {
+	if len(idsToFetch) > 0 {
 		inscriptions, err := p.brc20Dg.GetInscriptionEntriesByIds(ctx, idsToFetch)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to get inscriptions by outpoint")
@@ -530,7 +526,7 @@ func (p *Processor) getInscriptionNumbersByIds(ctx context.Context, ids []ordina
 		}
 	}
 
-	if len(idsToFetch) == 0 {
+	if len(idsToFetch) > 0 {
 		inscriptions, err := p.brc20Dg.GetInscriptionNumbersByIds(ctx, idsToFetch)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to get inscriptions by outpoint")
@@ -557,7 +553,7 @@ func (p *Processor) getInscriptionParentsByIds(ctx context.Context, ids []ordina
 		}
 	}
 
-	if len(idsToFetch) == 0 {
+	if len(idsToFetch) > 0 {
 		inscriptions, err := p.brc20Dg.GetInscriptionParentsByIds(ctx, idsToFetch)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to get inscriptions by outpoint")
