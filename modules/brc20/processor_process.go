@@ -3,6 +3,7 @@ package brc20
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/hex"
 	"slices"
 
 	"github.com/cockroachdb/errors"
