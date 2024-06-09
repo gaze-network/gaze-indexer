@@ -20,12 +20,20 @@ func (p *Processor) processBRC20States(ctx context.Context, transfers []*entity.
 	payloads := make([]*brc20.Payload, 0)
 	ticks := make(map[string]struct{})
 	for _, transfer := range transfers {
+		if transfer.Content == nil {
+			// skip empty content
+			continue
+		}
 		payload, err := brc20.ParsePayload(transfer)
 		if err != nil {
 			return errors.Wrap(err, "failed to parse payload")
 		}
 		payloads = append(payloads, payload)
 		ticks[payload.Tick] = struct{}{}
+	}
+	if len(payloads) == 0 {
+		// skip if no valid payloads
+		return nil
 	}
 	// TODO: concurrently fetch from db to optimize speed
 	tickEntries, err := p.brc20Dg.GetTickEntriesByTicks(ctx, lo.Keys(ticks))

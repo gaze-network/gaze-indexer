@@ -353,7 +353,7 @@ func mapEventDeployModelToType(src gen.Brc20EventDeploy) (entity.EventDeploy, er
 		return entity.EventDeploy{}, errors.Wrap(err, "cannot parse satpoint")
 	}
 	return entity.EventDeploy{
-		Id:                uint64(src.Id),
+		Id:                src.Id,
 		InscriptionId:     inscriptionId,
 		InscriptionNumber: src.InscriptionNumber,
 		Tick:              src.Tick,
@@ -420,7 +420,7 @@ func mapEventMintModelToType(src gen.Brc20EventMint) (entity.EventMint, error) {
 		parentId = &parentIdValue
 	}
 	return entity.EventMint{
-		Id:                uint64(src.Id),
+		Id:                src.Id,
 		InscriptionId:     inscriptionId,
 		InscriptionNumber: src.InscriptionNumber,
 		Tick:              src.Tick,
@@ -479,7 +479,7 @@ func mapEventInscribeTransferModelToType(src gen.Brc20EventInscribeTransfer) (en
 		return entity.EventInscribeTransfer{}, errors.Wrap(err, "cannot parse satPoint")
 	}
 	return entity.EventInscribeTransfer{
-		Id:                uint64(src.Id),
+		Id:                src.Id,
 		InscriptionId:     inscriptionId,
 		InscriptionNumber: src.InscriptionNumber,
 		Tick:              src.Tick,
@@ -544,7 +544,7 @@ func mapEventTransferTransferModelToType(src gen.Brc20EventTransferTransfer) (en
 		return entity.EventTransferTransfer{}, errors.Wrap(err, "cannot parse toSatPoint")
 	}
 	return entity.EventTransferTransfer{
-		Id:                uint64(src.Id),
+		Id:                src.Id,
 		InscriptionId:     inscriptionId,
 		InscriptionNumber: src.InscriptionNumber,
 		Tick:              src.Tick,

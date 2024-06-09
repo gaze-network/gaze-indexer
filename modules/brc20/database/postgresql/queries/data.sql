@@ -55,10 +55,10 @@ WITH "latest_deploy_id" AS (
   SELECT "id" FROM "brc20_event_transfer_transfers" ORDER BY "id" DESC LIMIT 1
 )
 SELECT
-  (SELECT "id" FROM "latest_deploy_id") AS "event_deploy_id",
-  (SELECT "id" FROM "latest_mint_id") AS "event_mint_id",
-  (SELECT "id" FROM "latest_inscribe_transfer_id") AS "event_inscribe_transfer_id",
-  (SELECT "id" FROM "latest_transfer_transfer_id") AS "event_transfer_transfer_id";
+  COALESCE((SELECT "id" FROM "latest_deploy_id"), -1) AS "event_deploy_id",
+  COALESCE((SELECT "id" FROM "latest_mint_id"), -1) AS "event_mint_id",
+  COALESCE((SELECT "id" FROM "latest_inscribe_transfer_id"), -1) AS "event_inscribe_transfer_id",
+  COALESCE((SELECT "id" FROM "latest_transfer_transfer_id"), -1) AS "event_transfer_transfer_id";
 
 -- name: GetBalancesBatchAtHeight :many
 SELECT DISTINCT ON ("brc20_balances"."pkscript", "brc20_balances"."tick") "brc20_balances".* FROM "brc20_balances" 

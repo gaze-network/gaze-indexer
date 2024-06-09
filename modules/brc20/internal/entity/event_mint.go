@@ -9,7 +9,7 @@ import (
 )
 
 type EventMint struct {
-	Id                uint64
+	Id                int64
 	InscriptionId     ordinals.InscriptionId
 	InscriptionNumber int64
 	Tick              string

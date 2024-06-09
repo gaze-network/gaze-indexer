@@ -158,12 +158,12 @@ func (r *Repository) GetInscriptionParentsByIds(ctx context.Context, ids []ordin
 	return result, nil
 }
 
-func (r *Repository) GetLatestEventId(ctx context.Context) (uint64, error) {
+func (r *Repository) GetLatestEventId(ctx context.Context) (int64, error) {
 	row, err := r.queries.GetLatestEventIds(ctx)
 	if err != nil {
 		return 0, errors.WithStack(err)
 	}
-	return uint64(max(row.EventDeployID, row.EventMintID, row.EventInscribeTransferID, row.EventTransferTransferID)), nil
+	return max(row.EventDeployID.(int64), row.EventMintID.(int64), row.EventInscribeTransferID.(int64), row.EventTransferTransferID.(int64)), nil
 }
 
 func (r *Repository) GetBalancesBatchAtHeight(ctx context.Context, blockHeight uint64, queries []datagateway.GetBalancesBatchAtHeightQuery) (map[string]map[string]*entity.Balance, error) {

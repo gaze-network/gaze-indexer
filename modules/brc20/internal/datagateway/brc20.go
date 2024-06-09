@@ -33,7 +33,7 @@ type BRC20ReaderDataGateway interface {
 	GetBalancesBatchAtHeight(ctx context.Context, blockHeight uint64, queries []GetBalancesBatchAtHeightQuery) (map[string]map[string]*entity.Balance, error)
 	GetTickEntriesByTicks(ctx context.Context, ticks []string) (map[string]*entity.TickEntry, error)
 	GetEventInscribeTransfersByInscriptionIds(ctx context.Context, ids []ordinals.InscriptionId) (map[ordinals.InscriptionId]*entity.EventInscribeTransfer, error)
-	GetLatestEventId(ctx context.Context) (uint64, error)
+	GetLatestEventId(ctx context.Context) (int64, error)
 }
 
 type BRC20WriterDataGateway interface {
