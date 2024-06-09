@@ -97,6 +97,282 @@ func (p *Processor) processBRC20States(ctx context.Context, transfers []*entity.
 	newEventTransferTransfers := make([]*entity.EventTransferTransfer, 0)
 	newBalances := make(map[string]map[string]*entity.Balance)
 
+	handleEventDeploy := func(payload *brc20.Payload, tickEntry *entity.TickEntry) {
+		if payload.Transfer.TransferCount > 1 {
+			// skip used deploy inscriptions
+			return
+		}
+		if tickEntry != nil {
+			// skip deploy inscriptions for duplicate ticks
+			return
+		}
+		newEntry := &entity.TickEntry{
+			Tick:                payload.Tick,
+			OriginalTick:        payload.OriginalTick,
+			TotalSupply:         payload.Max,
+			Decimals:            payload.Dec,
+			LimitPerMint:        payload.Lim,
+			IsSelfMint:          payload.SelfMint,
+			DeployInscriptionId: payload.Transfer.InscriptionId,
+			DeployedAt:          blockHeader.Timestamp,
+			DeployedAtHeight:    payload.Transfer.BlockHeight,
+			MintedAmount:        decimal.Zero,
+			BurnedAmount:        decimal.Zero,
+			CompletedAt:         time.Time{},
+			CompletedAtHeight:   0,
+		}
+		newTickEntries[payload.Tick] = newEntry
+		newTickEntryStates[payload.Tick] = newEntry
+		// update entries for other operations in same block
+		tickEntries[payload.Tick] = newEntry
+
+		newEventDeploys = append(newEventDeploys, &entity.EventDeploy{
+			Id:                latestEventId + 1,
+			InscriptionId:     payload.Transfer.InscriptionId,
+			InscriptionNumber: inscriptionIdsToNumber[payload.Transfer.InscriptionId],
+			Tick:              payload.Tick,
+			OriginalTick:      payload.OriginalTick,
+			TxHash:            payload.Transfer.TxHash,
+			BlockHeight:       payload.Transfer.BlockHeight,
+			TxIndex:           payload.Transfer.TxIndex,
+			Timestamp:         blockHeader.Timestamp,
+			PkScript:          payload.Transfer.NewPkScript,
+			SatPoint:          payload.Transfer.NewSatPoint,
+			TotalSupply:       payload.Max,
+			Decimals:          payload.Dec,
+			LimitPerMint:      payload.Lim,
+			IsSelfMint:        payload.SelfMint,
+		})
+		latestEventId++
+	}
+	handleEventMint := func(payload *brc20.Payload, tickEntry *entity.TickEntry) {
+		if payload.Transfer.TransferCount > 1 {
+			// skip used mint inscriptions that are already used
+			return
+		}
+		if tickEntry == nil {
+			// skip mint inscriptions for non-existent ticks
+			return
+		}
+		if -payload.Amt.Exponent() > int32(tickEntry.Decimals) {
+			// skip mint inscriptions with decimals greater than allowed
+			return
+		}
+		if tickEntry.MintedAmount.GreaterThanOrEqual(tickEntry.TotalSupply) {
+			// skip mint inscriptions for ticks with completed mints
+			return
+		}
+		if payload.Amt.GreaterThan(tickEntry.LimitPerMint) {
+			// skip mint inscriptions with amount greater than limit per mint
+			return
+		}
+		mintableAmount := tickEntry.TotalSupply.Sub(tickEntry.MintedAmount)
+		if payload.Amt.GreaterThan(mintableAmount) {
+			payload.Amt = mintableAmount
+		}
+		var parentId *ordinals.InscriptionId
+		if tickEntry.IsSelfMint {
+			parentIdValue, ok := inscriptionIdsToParent[payload.Transfer.InscriptionId]
+			if !ok {
+				// skip mint inscriptions for self mint ticks without parent inscription
+				return
+			}
+			if parentIdValue != tickEntry.DeployInscriptionId {
+				// skip mint inscriptions for self mint ticks with invalid parent inscription
+				return
+			}
+			parentId = &parentIdValue
+		}
+
+		tickEntry.MintedAmount = tickEntry.MintedAmount.Add(payload.Amt)
+		// mark as completed if this mint completes the total supply
+		if tickEntry.MintedAmount.GreaterThanOrEqual(tickEntry.TotalSupply) {
+			tickEntry.CompletedAt = blockHeader.Timestamp
+			tickEntry.CompletedAtHeight = payload.Transfer.BlockHeight
+		}
+
+		newTickEntryStates[payload.Tick] = tickEntry
+		newEventMints = append(newEventMints, &entity.EventMint{
+			Id:                latestEventId + 1,
+			InscriptionId:     payload.Transfer.InscriptionId,
+			InscriptionNumber: inscriptionIdsToNumber[payload.Transfer.InscriptionId],
+			Tick:              payload.Tick,
+			OriginalTick:      payload.OriginalTick,
+			TxHash:            payload.Transfer.TxHash,
+			BlockHeight:       payload.Transfer.BlockHeight,
+			TxIndex:           payload.Transfer.TxIndex,
+			Timestamp:         blockHeader.Timestamp,
+			PkScript:          payload.Transfer.NewPkScript,
+			SatPoint:          payload.Transfer.NewSatPoint,
+			Amount:            payload.Amt,
+			ParentId:          parentId,
+		})
+		latestEventId++
+	}
+	handleEventInscribeTransfer := func(payload *brc20.Payload) {
+		// inscribe transfer event
+		pkScriptHex := hex.EncodeToString(payload.Transfer.NewPkScript)
+		balance, ok := balances[pkScriptHex][payload.Tick]
+		if !ok {
+			balance = &entity.Balance{
+				PkScript:         payload.Transfer.NewPkScript,
+				Tick:             payload.Tick,
+				BlockHeight:      uint64(blockHeader.Height - 1),
+				OverallBalance:   decimal.Zero, // defaults balance to zero if not found
+				AvailableBalance: decimal.Zero,
+			}
+		}
+		if payload.Amt.GreaterThan(balance.AvailableBalance) {
+			// skip inscribe transfer event if amount exceeds available balance
+			return
+		}
+		// update balance state
+		balance.BlockHeight = uint64(blockHeader.Height)
+		balance.AvailableBalance = balance.AvailableBalance.Sub(payload.Amt)
+		if _, ok := balances[pkScriptHex]; !ok {
+			balances[pkScriptHex] = make(map[string]*entity.Balance)
+		}
+		balances[pkScriptHex][payload.Tick] = balance
+		if _, ok := newBalances[pkScriptHex]; !ok {
+			newBalances[pkScriptHex] = make(map[string]*entity.Balance)
+		}
+		newBalances[pkScriptHex][payload.Tick] = &entity.Balance{}
+
+		event := &entity.EventInscribeTransfer{
+			Id:                latestEventId + 1,
+			InscriptionId:     payload.Transfer.InscriptionId,
+			InscriptionNumber: inscriptionIdsToNumber[payload.Transfer.InscriptionId],
+			Tick:              payload.Tick,
+			OriginalTick:      payload.OriginalTick,
+			TxHash:            payload.Transfer.TxHash,
+			BlockHeight:       payload.Transfer.BlockHeight,
+			TxIndex:           payload.Transfer.TxIndex,
+			Timestamp:         blockHeader.Timestamp,
+			PkScript:          payload.Transfer.NewPkScript,
+			SatPoint:          payload.Transfer.NewSatPoint,
+			OutputIndex:       payload.Transfer.NewSatPoint.OutPoint.Index,
+			SatsAmount:        payload.Transfer.NewOutputValue,
+			Amount:            payload.Amt,
+		}
+		latestEventId++
+		eventInscribeTransfers[payload.Transfer.InscriptionId] = event
+		newEventInscribeTransfers = append(newEventInscribeTransfers, event)
+	}
+	handleEventTransferTransferAsFee := func(payload *brc20.Payload, inscribeTransfer *entity.EventInscribeTransfer) {
+		// return balance to sender
+		fromPkScriptHex := hex.EncodeToString(inscribeTransfer.PkScript)
+		fromBalance, ok := balances[fromPkScriptHex][payload.Tick]
+		if !ok {
+			fromBalance = &entity.Balance{
+				PkScript:         inscribeTransfer.PkScript,
+				Tick:             payload.Tick,
+				BlockHeight:      uint64(blockHeader.Height),
+				OverallBalance:   decimal.Zero, // defaults balance to zero if not found
+				AvailableBalance: decimal.Zero,
+			}
+		}
+		fromBalance.BlockHeight = uint64(blockHeader.Height)
+		fromBalance.AvailableBalance = fromBalance.AvailableBalance.Add(payload.Amt)
+		if _, ok := balances[fromPkScriptHex]; !ok {
+			balances[fromPkScriptHex] = make(map[string]*entity.Balance)
+		}
+		balances[fromPkScriptHex][payload.Tick] = fromBalance
+		if _, ok := newBalances[fromPkScriptHex]; !ok {
+			newBalances[fromPkScriptHex] = make(map[string]*entity.Balance)
+		}
+		newBalances[fromPkScriptHex][payload.Tick] = fromBalance
+
+		newEventTransferTransfers = append(newEventTransferTransfers, &entity.EventTransferTransfer{
+			Id:                latestEventId + 1,
+			InscriptionId:     payload.Transfer.InscriptionId,
+			InscriptionNumber: inscriptionIdsToNumber[payload.Transfer.InscriptionId],
+			Tick:              payload.Tick,
+			OriginalTick:      payload.OriginalTick,
+			TxHash:            payload.Transfer.TxHash,
+			BlockHeight:       payload.Transfer.BlockHeight,
+			TxIndex:           payload.Transfer.TxIndex,
+			Timestamp:         blockHeader.Timestamp,
+			FromPkScript:      inscribeTransfer.PkScript,
+			FromSatPoint:      inscribeTransfer.SatPoint,
+			FromInputIndex:    payload.Transfer.FromInputIndex,
+			ToPkScript:        payload.Transfer.NewPkScript,
+			ToSatPoint:        payload.Transfer.NewSatPoint,
+			ToOutputIndex:     payload.Transfer.NewSatPoint.OutPoint.Index,
+			SpentAsFee:        true,
+			Amount:            payload.Amt,
+		})
+	}
+	handleEventTransferTransferNormal := func(payload *brc20.Payload, tickEntry *entity.TickEntry, inscribeTransfer *entity.EventInscribeTransfer) {
+		// subtract balance from sender
+		fromPkScriptHex := hex.EncodeToString(inscribeTransfer.PkScript)
+		fromBalance, ok := balances[fromPkScriptHex][payload.Tick]
+		if !ok {
+			// skip transfer transfer event if from balance does not exist
+			return
+		}
+		fromBalance.BlockHeight = uint64(blockHeader.Height)
+		fromBalance.OverallBalance = fromBalance.OverallBalance.Sub(payload.Amt)
+		if _, ok := balances[fromPkScriptHex]; !ok {
+			balances[fromPkScriptHex] = make(map[string]*entity.Balance)
+		}
+		balances[fromPkScriptHex][payload.Tick] = fromBalance
+		if _, ok := newBalances[fromPkScriptHex]; !ok {
+			newBalances[fromPkScriptHex] = make(map[string]*entity.Balance)
+		}
+		newBalances[fromPkScriptHex][payload.Tick] = fromBalance
+
+		// add balance to receiver
+		if bytes.Equal(payload.Transfer.NewPkScript, []byte{0x6a}) {
+			// burn if sent to OP_RETURN
+			tickEntry.BurnedAmount = tickEntry.BurnedAmount.Add(payload.Amt)
+			tickEntries[payload.Tick] = tickEntry
+			newTickEntryStates[payload.Tick] = tickEntry
+		} else {
+			toPkScriptHex := hex.EncodeToString(payload.Transfer.NewPkScript)
+			toBalance, ok := balances[toPkScriptHex][payload.Tick]
+			if !ok {
+				toBalance = &entity.Balance{
+					PkScript:         payload.Transfer.NewPkScript,
+					Tick:             payload.Tick,
+					BlockHeight:      uint64(blockHeader.Height),
+					OverallBalance:   decimal.Zero, // defaults balance to zero if not found
+					AvailableBalance: decimal.Zero,
+				}
+			}
+			toBalance.BlockHeight = uint64(blockHeader.Height)
+			toBalance.OverallBalance = toBalance.OverallBalance.Add(payload.Amt)
+			toBalance.AvailableBalance = toBalance.AvailableBalance.Add(payload.Amt)
+			if _, ok := balances[toPkScriptHex]; !ok {
+				balances[toPkScriptHex] = make(map[string]*entity.Balance)
+			}
+			balances[toPkScriptHex][payload.Tick] = toBalance
+			if _, ok := newBalances[toPkScriptHex]; !ok {
+				newBalances[toPkScriptHex] = make(map[string]*entity.Balance)
+			}
+			newBalances[toPkScriptHex][payload.Tick] = toBalance
+		}
+
+		newEventTransferTransfers = append(newEventTransferTransfers, &entity.EventTransferTransfer{
+			Id:                latestEventId + 1,
+			InscriptionId:     payload.Transfer.InscriptionId,
+			InscriptionNumber: inscriptionIdsToNumber[payload.Transfer.InscriptionId],
+			Tick:              payload.Tick,
+			OriginalTick:      payload.OriginalTick,
+			TxHash:            payload.Transfer.TxHash,
+			BlockHeight:       payload.Transfer.BlockHeight,
+			TxIndex:           payload.Transfer.TxIndex,
+			Timestamp:         blockHeader.Timestamp,
+			FromPkScript:      inscribeTransfer.PkScript,
+			FromSatPoint:      inscribeTransfer.SatPoint,
+			FromInputIndex:    payload.Transfer.FromInputIndex,
+			ToPkScript:        payload.Transfer.NewPkScript,
+			ToSatPoint:        payload.Transfer.NewSatPoint,
+			ToOutputIndex:     payload.Transfer.NewSatPoint.OutPoint.Index,
+			SpentAsFee:        false,
+			Amount:            payload.Amt,
+		})
+	}
+
 	for _, payload := range payloads {
 		tickEntry := tickEntries[payload.Tick]
 
@@ -107,114 +383,9 @@ func (p *Processor) processBRC20States(ctx context.Context, transfers []*entity.
 
 		switch payload.Op {
 		case brc20.OperationDeploy:
-			if payload.Transfer.TransferCount > 1 {
-				// skip used deploy inscriptions
-				continue
-			}
-			if tickEntry != nil {
-				// skip deploy inscriptions for duplicate ticks
-				continue
-			}
-			tickEntry := &entity.TickEntry{
-				Tick:                payload.Tick,
-				OriginalTick:        payload.OriginalTick,
-				TotalSupply:         payload.Max,
-				Decimals:            payload.Dec,
-				LimitPerMint:        payload.Lim,
-				IsSelfMint:          payload.SelfMint,
-				DeployInscriptionId: payload.Transfer.InscriptionId,
-				DeployedAt:          blockHeader.Timestamp,
-				DeployedAtHeight:    payload.Transfer.BlockHeight,
-				MintedAmount:        decimal.Zero,
-				BurnedAmount:        decimal.Zero,
-				CompletedAt:         time.Time{},
-				CompletedAtHeight:   0,
-			}
-			newTickEntries[payload.Tick] = tickEntry
-			newTickEntryStates[payload.Tick] = tickEntry
-			// update entries for other operations in same block
-			tickEntries[payload.Tick] = tickEntry
-
-			newEventDeploys = append(newEventDeploys, &entity.EventDeploy{
-				Id:                latestEventId + 1,
-				InscriptionId:     payload.Transfer.InscriptionId,
-				InscriptionNumber: inscriptionIdsToNumber[payload.Transfer.InscriptionId],
-				Tick:              payload.Tick,
-				OriginalTick:      payload.OriginalTick,
-				TxHash:            payload.Transfer.TxHash,
-				BlockHeight:       payload.Transfer.BlockHeight,
-				TxIndex:           payload.Transfer.TxIndex,
-				Timestamp:         blockHeader.Timestamp,
-				PkScript:          payload.Transfer.NewPkScript,
-				SatPoint:          payload.Transfer.NewSatPoint,
-				TotalSupply:       payload.Max,
-				Decimals:          payload.Dec,
-				LimitPerMint:      payload.Lim,
-				IsSelfMint:        payload.SelfMint,
-			})
-			latestEventId++
+			handleEventDeploy(payload, tickEntry)
 		case brc20.OperationMint:
-			if payload.Transfer.TransferCount > 1 {
-				// skip used mint inscriptions that are already used
-				continue
-			}
-			if tickEntry == nil {
-				// skip mint inscriptions for non-existent ticks
-				continue
-			}
-			if -payload.Amt.Exponent() > int32(tickEntry.Decimals) {
-				// skip mint inscriptions with decimals greater than allowed
-				continue
-			}
-			if tickEntry.MintedAmount.GreaterThanOrEqual(tickEntry.TotalSupply) {
-				// skip mint inscriptions for ticks with completed mints
-				continue
-			}
-			if payload.Amt.GreaterThan(tickEntry.LimitPerMint) {
-				// skip mint inscriptions with amount greater than limit per mint
-				continue
-			}
-			mintableAmount := tickEntry.TotalSupply.Sub(tickEntry.MintedAmount)
-			if payload.Amt.GreaterThan(mintableAmount) {
-				payload.Amt = mintableAmount
-			}
-			var parentId *ordinals.InscriptionId
-			if tickEntry.IsSelfMint {
-				parentIdValue, ok := inscriptionIdsToParent[payload.Transfer.InscriptionId]
-				if !ok {
-					// skip mint inscriptions for self mint ticks without parent inscription
-					continue
-				}
-				if parentIdValue != tickEntry.DeployInscriptionId {
-					// skip mint inscriptions for self mint ticks with invalid parent inscription
-					continue
-				}
-				parentId = &parentIdValue
-			}
-
-			tickEntry.MintedAmount = tickEntry.MintedAmount.Add(payload.Amt)
-			if tickEntry.MintedAmount.GreaterThanOrEqual(tickEntry.TotalSupply) {
-				tickEntry.CompletedAt = blockHeader.Timestamp
-				tickEntry.CompletedAtHeight = payload.Transfer.BlockHeight
-			}
-
-			newTickEntryStates[payload.Tick] = tickEntry
-			newEventMints = append(newEventMints, &entity.EventMint{
-				Id:                latestEventId + 1,
-				InscriptionId:     payload.Transfer.InscriptionId,
-				InscriptionNumber: inscriptionIdsToNumber[payload.Transfer.InscriptionId],
-				Tick:              payload.Tick,
-				OriginalTick:      payload.OriginalTick,
-				TxHash:            payload.Transfer.TxHash,
-				BlockHeight:       payload.Transfer.BlockHeight,
-				TxIndex:           payload.Transfer.TxIndex,
-				Timestamp:         blockHeader.Timestamp,
-				PkScript:          payload.Transfer.NewPkScript,
-				SatPoint:          payload.Transfer.NewSatPoint,
-				Amount:            payload.Amt,
-				ParentId:          parentId,
-			})
-			latestEventId++
+			handleEventMint(payload, tickEntry)
 		case brc20.OperationTransfer:
 			if payload.Transfer.TransferCount > 2 {
 				// skip used transfer inscriptions
@@ -230,53 +401,7 @@ func (p *Processor) processBRC20States(ctx context.Context, transfers []*entity.
 			}
 
 			if payload.Transfer.OldSatPoint == (ordinals.SatPoint{}) {
-				// inscribe transfer event
-				pkScriptHex := hex.EncodeToString(payload.Transfer.NewPkScript)
-				balance, ok := balances[pkScriptHex][payload.Tick]
-				if !ok {
-					balance = &entity.Balance{
-						PkScript:         payload.Transfer.NewPkScript,
-						Tick:             payload.Tick,
-						BlockHeight:      uint64(blockHeader.Height - 1),
-						OverallBalance:   decimal.Zero, // defaults balance to zero if not found
-						AvailableBalance: decimal.Zero,
-					}
-				}
-				if payload.Amt.GreaterThan(balance.AvailableBalance) {
-					// skip inscribe transfer event if amount exceeds available balance
-					continue
-				}
-				// update balance state
-				balance.BlockHeight = uint64(blockHeader.Height)
-				balance.AvailableBalance = balance.AvailableBalance.Sub(payload.Amt)
-				if _, ok := balances[pkScriptHex]; !ok {
-					balances[pkScriptHex] = make(map[string]*entity.Balance)
-				}
-				balances[pkScriptHex][payload.Tick] = balance
-				if _, ok := newBalances[pkScriptHex]; !ok {
-					newBalances[pkScriptHex] = make(map[string]*entity.Balance)
-				}
-				newBalances[pkScriptHex][payload.Tick] = &entity.Balance{}
-
-				event := &entity.EventInscribeTransfer{
-					Id:                latestEventId + 1,
-					InscriptionId:     payload.Transfer.InscriptionId,
-					InscriptionNumber: inscriptionIdsToNumber[payload.Transfer.InscriptionId],
-					Tick:              payload.Tick,
-					OriginalTick:      payload.OriginalTick,
-					TxHash:            payload.Transfer.TxHash,
-					BlockHeight:       payload.Transfer.BlockHeight,
-					TxIndex:           payload.Transfer.TxIndex,
-					Timestamp:         blockHeader.Timestamp,
-					PkScript:          payload.Transfer.NewPkScript,
-					SatPoint:          payload.Transfer.NewSatPoint,
-					OutputIndex:       payload.Transfer.NewSatPoint.OutPoint.Index,
-					SatsAmount:        payload.Transfer.NewOutputValue,
-					Amount:            payload.Amt,
-				}
-				latestEventId++
-				eventInscribeTransfers[payload.Transfer.InscriptionId] = event
-				newEventInscribeTransfers = append(newEventInscribeTransfers, event)
+				handleEventInscribeTransfer(payload)
 			} else {
 				// transfer transfer event
 				inscribeTransfer, ok := eventInscribeTransfers[payload.Transfer.InscriptionId]
@@ -286,117 +411,9 @@ func (p *Processor) processBRC20States(ctx context.Context, transfers []*entity.
 				}
 
 				if payload.Transfer.SentAsFee {
-					// return balance to sender
-					fromPkScriptHex := hex.EncodeToString(inscribeTransfer.PkScript)
-					fromBalance, ok := balances[fromPkScriptHex][payload.Tick]
-					if !ok {
-						fromBalance = &entity.Balance{
-							PkScript:         inscribeTransfer.PkScript,
-							Tick:             payload.Tick,
-							BlockHeight:      uint64(blockHeader.Height),
-							OverallBalance:   decimal.Zero, // defaults balance to zero if not found
-							AvailableBalance: decimal.Zero,
-						}
-					}
-					fromBalance.BlockHeight = uint64(blockHeader.Height)
-					fromBalance.AvailableBalance = fromBalance.AvailableBalance.Add(payload.Amt)
-					if _, ok := balances[fromPkScriptHex]; !ok {
-						balances[fromPkScriptHex] = make(map[string]*entity.Balance)
-					}
-					balances[fromPkScriptHex][payload.Tick] = fromBalance
-					if _, ok := newBalances[fromPkScriptHex]; !ok {
-						newBalances[fromPkScriptHex] = make(map[string]*entity.Balance)
-					}
-					newBalances[fromPkScriptHex][payload.Tick] = fromBalance
-
-					newEventTransferTransfers = append(newEventTransferTransfers, &entity.EventTransferTransfer{
-						Id:                latestEventId + 1,
-						InscriptionId:     payload.Transfer.InscriptionId,
-						InscriptionNumber: inscriptionIdsToNumber[payload.Transfer.InscriptionId],
-						Tick:              payload.Tick,
-						OriginalTick:      payload.OriginalTick,
-						TxHash:            payload.Transfer.TxHash,
-						BlockHeight:       payload.Transfer.BlockHeight,
-						TxIndex:           payload.Transfer.TxIndex,
-						Timestamp:         blockHeader.Timestamp,
-						FromPkScript:      inscribeTransfer.PkScript,
-						FromSatPoint:      inscribeTransfer.SatPoint,
-						FromInputIndex:    payload.Transfer.FromInputIndex,
-						ToPkScript:        payload.Transfer.NewPkScript,
-						ToSatPoint:        payload.Transfer.NewSatPoint,
-						ToOutputIndex:     payload.Transfer.NewSatPoint.OutPoint.Index,
-						SpentAsFee:        true,
-						Amount:            payload.Amt,
-					})
+					handleEventTransferTransferAsFee(payload, inscribeTransfer)
 				} else {
-					// subtract balance from sender
-					fromPkScriptHex := hex.EncodeToString(inscribeTransfer.PkScript)
-					fromBalance, ok := balances[fromPkScriptHex][payload.Tick]
-					if !ok {
-						// skip transfer transfer event if from balance does not exist
-						continue
-					}
-					fromBalance.BlockHeight = uint64(blockHeader.Height)
-					fromBalance.OverallBalance = fromBalance.OverallBalance.Sub(payload.Amt)
-					if _, ok := balances[fromPkScriptHex]; !ok {
-						balances[fromPkScriptHex] = make(map[string]*entity.Balance)
-					}
-					balances[fromPkScriptHex][payload.Tick] = fromBalance
-					if _, ok := newBalances[fromPkScriptHex]; !ok {
-						newBalances[fromPkScriptHex] = make(map[string]*entity.Balance)
-					}
-					newBalances[fromPkScriptHex][payload.Tick] = fromBalance
-
-					// add balance to receiver
-					if bytes.Equal(payload.Transfer.NewPkScript, []byte{0x6a}) {
-						// burn if sent to OP_RETURN
-						tickEntry.BurnedAmount = tickEntry.BurnedAmount.Add(payload.Amt)
-						tickEntries[payload.Tick] = tickEntry
-						newTickEntryStates[payload.Tick] = tickEntry
-					} else {
-						toPkScriptHex := hex.EncodeToString(payload.Transfer.NewPkScript)
-						toBalance, ok := balances[toPkScriptHex][payload.Tick]
-						if !ok {
-							toBalance = &entity.Balance{
-								PkScript:         payload.Transfer.NewPkScript,
-								Tick:             payload.Tick,
-								BlockHeight:      uint64(blockHeader.Height),
-								OverallBalance:   decimal.Zero, // defaults balance to zero if not found
-								AvailableBalance: decimal.Zero,
-							}
-						}
-						toBalance.BlockHeight = uint64(blockHeader.Height)
-						toBalance.OverallBalance = toBalance.OverallBalance.Add(payload.Amt)
-						toBalance.AvailableBalance = toBalance.AvailableBalance.Add(payload.Amt)
-						if _, ok := balances[toPkScriptHex]; !ok {
-							balances[toPkScriptHex] = make(map[string]*entity.Balance)
-						}
-						balances[toPkScriptHex][payload.Tick] = toBalance
-						if _, ok := newBalances[toPkScriptHex]; !ok {
-							newBalances[toPkScriptHex] = make(map[string]*entity.Balance)
-						}
-						newBalances[toPkScriptHex][payload.Tick] = toBalance
-					}
-
-					newEventTransferTransfers = append(newEventTransferTransfers, &entity.EventTransferTransfer{
-						Id:                latestEventId + 1,
-						InscriptionId:     payload.Transfer.InscriptionId,
-						InscriptionNumber: inscriptionIdsToNumber[payload.Transfer.InscriptionId],
-						Tick:              payload.Tick,
-						OriginalTick:      payload.OriginalTick,
-						TxHash:            payload.Transfer.TxHash,
-						BlockHeight:       payload.Transfer.BlockHeight,
-						TxIndex:           payload.Transfer.TxIndex,
-						Timestamp:         blockHeader.Timestamp,
-						FromPkScript:      inscribeTransfer.PkScript,
-						FromSatPoint:      inscribeTransfer.SatPoint,
-						FromInputIndex:    payload.Transfer.FromInputIndex,
-						ToPkScript:        payload.Transfer.NewPkScript,
-						ToSatPoint:        payload.Transfer.NewSatPoint,
-						ToOutputIndex:     payload.Transfer.NewSatPoint.OutPoint.Index,
-						SpentAsFee:        false,
-						Amount:            payload.Amt,
-					})
+					handleEventTransferTransferNormal(payload, tickEntry, inscribeTransfer)
 				}
 			}
 		}
