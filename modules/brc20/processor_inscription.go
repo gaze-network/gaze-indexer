@@ -481,7 +481,7 @@ func (p *Processor) getInscriptionTransfersInOutPoints(ctx context.Context, outP
 }
 
 func (p *Processor) getInscriptionEntryById(ctx context.Context, id ordinals.InscriptionId) (*ordinals.InscriptionEntry, error) {
-	inscriptions, err := p.brc20Dg.GetInscriptionEntriesByIds(ctx, []ordinals.InscriptionId{id})
+	inscriptions, err := p.getInscriptionEntriesByIds(ctx, []ordinals.InscriptionId{id})
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get inscriptions by outpoint")
 	}
