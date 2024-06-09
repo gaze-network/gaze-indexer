@@ -9,9 +9,9 @@ import (
 )
 
 type EventMint struct {
-	Id                uint64
+	Id                int64
 	InscriptionId     ordinals.InscriptionId
-	InscriptionNumber uint64
+	InscriptionNumber int64
 	Tick              string
 	OriginalTick      string
 	TxHash            chainhash.Hash

@@ -17,6 +17,61 @@ var (
 	ErrBatchAlreadyClosed = errors.New("batch already closed")
 )
 
+const createBalances = `-- name: CreateBalances :batchexec
+INSERT INTO "brc20_balances" ("pkscript", "block_height", "tick", "overall_balance", "available_balance") VALUES ($1, $2, $3, $4, $5)
+`
+
+type CreateBalancesBatchResults struct {
+	br     pgx.BatchResults
+	tot    int
+	closed bool
+}
+
+type CreateBalancesParams struct {
+	Pkscript         string
+	BlockHeight      int32
+	Tick             string
+	OverallBalance   pgtype.Numeric
+	AvailableBalance pgtype.Numeric
+}
+
+func (q *Queries) CreateBalances(ctx context.Context, arg []CreateBalancesParams) *CreateBalancesBatchResults {
+	batch := &pgx.Batch{}
+	for _, a := range arg {
+		vals := []interface{}{
+			a.Pkscript,
+			a.BlockHeight,
+			a.Tick,
+			a.OverallBalance,
+			a.AvailableBalance,
+		}
+		batch.Queue(createBalances, vals...)
+	}
+	br := q.db.SendBatch(ctx, batch)
+	return &CreateBalancesBatchResults{br, len(arg), false}
+}
+
+func (b *CreateBalancesBatchResults) Exec(f func(int, error)) {
+	defer b.br.Close()
+	for t := 0; t < b.tot; t++ {
+		if b.closed {
+			if f != nil {
+				f(t, ErrBatchAlreadyClosed)
+			}
+			continue
+		}
+		_, err := b.br.Exec()
+		if f != nil {
+			f(t, err)
+		}
+	}
+}
+
+func (b *CreateBalancesBatchResults) Close() error {
+	b.closed = true
+	return b.br.Close()
+}
+
 const createEventDeploys = `-- name: CreateEventDeploys :batchexec
 INSERT INTO "brc20_event_deploys" ("inscription_id", "inscription_number", "tick", "original_tick", "tx_hash", "block_height", "tx_index", "timestamp", "pkscript", "satpoint", "total_supply", "decimals", "limit_per_mint", "is_self_mint") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
 `
@@ -231,7 +286,7 @@ func (b *CreateEventMintsBatchResults) Close() error {
 }
 
 const createEventTransferTransfers = `-- name: CreateEventTransferTransfers :batchexec
-INSERT INTO "brc20_event_transfer_transfers" ("inscription_id", "inscription_number", "tick", "original_tick", "tx_hash", "block_height", "tx_index", "timestamp", "from_pkscript", "from_satpoint", "from_input_index", "to_pkscript", "to_satpoint", "to_output_index", "amount") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+INSERT INTO "brc20_event_transfer_transfers" ("inscription_id", "inscription_number", "tick", "original_tick", "tx_hash", "block_height", "tx_index", "timestamp", "from_pkscript", "from_satpoint", "from_input_index", "to_pkscript", "to_satpoint", "to_output_index", "spent_as_fee", "amount") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
 `
 
 type CreateEventTransferTransfersBatchResults struct {
@@ -255,6 +310,7 @@ type CreateEventTransferTransfersParams struct {
 	ToPkscript        string
 	ToSatpoint        string
 	ToOutputIndex     int32
+	SpentAsFee        bool
 	Amount            pgtype.Numeric
 }
 
@@ -276,6 +332,7 @@ func (q *Queries) CreateEventTransferTransfers(ctx context.Context, arg []Create
 			a.ToPkscript,
 			a.ToSatpoint,
 			a.ToOutputIndex,
+			a.SpentAsFee,
 			a.Amount,
 		}
 		batch.Queue(createEventTransferTransfers, vals...)
@@ -432,7 +489,7 @@ func (b *CreateInscriptionEntryStatesBatchResults) Close() error {
 }
 
 const createInscriptionTransfers = `-- name: CreateInscriptionTransfers :batchexec
-INSERT INTO "brc20_inscription_transfers" ("inscription_id", "block_height", "tx_index", "old_satpoint_tx_hash", "old_satpoint_out_idx", "old_satpoint_offset", "new_satpoint_tx_hash", "new_satpoint_out_idx", "new_satpoint_offset", "new_pkscript", "new_output_value", "sent_as_fee") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+INSERT INTO "brc20_inscription_transfers" ("inscription_id", "block_height", "tx_index", "tx_hash", "from_input_index", "old_satpoint_tx_hash", "old_satpoint_out_idx", "old_satpoint_offset", "new_satpoint_tx_hash", "new_satpoint_out_idx", "new_satpoint_offset", "new_pkscript", "new_output_value", "sent_as_fee", "transfer_count") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
 `
 
 type CreateInscriptionTransfersBatchResults struct {
@@ -445,6 +502,8 @@ type CreateInscriptionTransfersParams struct {
 	InscriptionID     string
 	BlockHeight       int32
 	TxIndex           int32
+	TxHash            string
+	FromInputIndex    int32
 	OldSatpointTxHash pgtype.Text
 	OldSatpointOutIdx pgtype.Int4
 	OldSatpointOffset pgtype.Int8
@@ -454,6 +513,7 @@ type CreateInscriptionTransfersParams struct {
 	NewPkscript       string
 	NewOutputValue    int64
 	SentAsFee         bool
+	TransferCount     int32
 }
 
 func (q *Queries) CreateInscriptionTransfers(ctx context.Context, arg []CreateInscriptionTransfersParams) *CreateInscriptionTransfersBatchResults {
@@ -463,6 +523,8 @@ func (q *Queries) CreateInscriptionTransfers(ctx context.Context, arg []CreateIn
 			a.InscriptionID,
 			a.BlockHeight,
 			a.TxIndex,
+			a.TxHash,
+			a.FromInputIndex,
 			a.OldSatpointTxHash,
 			a.OldSatpointOutIdx,
 			a.OldSatpointOffset,
@@ -472,6 +534,7 @@ func (q *Queries) CreateInscriptionTransfers(ctx context.Context, arg []CreateIn
 			a.NewPkscript,
 			a.NewOutputValue,
 			a.SentAsFee,
+			a.TransferCount,
 		}
 		batch.Queue(createInscriptionTransfers, vals...)
 	}

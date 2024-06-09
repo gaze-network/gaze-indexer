@@ -177,11 +177,6 @@ func envelopeFromTokenizer(tokenizer txscript.ScriptTokenizer, inputIndex int, o
 		key := chunk[0]
 		value := chunk[1]
 		// key cannot be empty, as checked by bodyIndex above
-		// if key exceeds 1 byte, it would not match any tags
-		if len(key) > 1 {
-			incompleteField = true
-			continue
-		}
 		tag := Tag(key[0])
 		fields[tag] = append(fields[tag], value)
 	}
