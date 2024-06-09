@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
+	"strings"
 	"time"
 
 	"github.com/cockroachdb/errors"
@@ -96,6 +97,7 @@ func (p *Processor) processBRC20States(ctx context.Context, transfers []*entity.
 	newEventInscribeTransfers := make([]*entity.EventInscribeTransfer, 0)
 	newEventTransferTransfers := make([]*entity.EventTransferTransfer, 0)
 	newBalances := make(map[string]map[string]*entity.Balance)
+	var eventHashBuilder strings.Builder
 
 	handleEventDeploy := func(payload *brc20.Payload, tickEntry *entity.TickEntry) {
 		if payload.Transfer.TransferCount > 1 {
@@ -126,7 +128,7 @@ func (p *Processor) processBRC20States(ctx context.Context, transfers []*entity.
 		// update entries for other operations in same block
 		tickEntries[payload.Tick] = newEntry
 
-		newEventDeploys = append(newEventDeploys, &entity.EventDeploy{
+		event := &entity.EventDeploy{
 			Id:                latestEventId + 1,
 			InscriptionId:     payload.Transfer.InscriptionId,
 			InscriptionNumber: inscriptionIdsToNumber[payload.Transfer.InscriptionId],
@@ -142,8 +144,11 @@ func (p *Processor) processBRC20States(ctx context.Context, transfers []*entity.
 			Decimals:          payload.Dec,
 			LimitPerMint:      payload.Lim,
 			IsSelfMint:        payload.SelfMint,
-		})
+		}
+		newEventDeploys = append(newEventDeploys, event)
 		latestEventId++
+
+		eventHashBuilder.WriteString(getEventDeployString(event) + eventHashSeparator)
 	}
 	handleEventMint := func(payload *brc20.Payload, tickEntry *entity.TickEntry) {
 		if payload.Transfer.TransferCount > 1 {
@@ -192,7 +197,7 @@ func (p *Processor) processBRC20States(ctx context.Context, transfers []*entity.
 		}
 
 		newTickEntryStates[payload.Tick] = tickEntry
-		newEventMints = append(newEventMints, &entity.EventMint{
+		event := &entity.EventMint{
 			Id:                latestEventId + 1,
 			InscriptionId:     payload.Transfer.InscriptionId,
 			InscriptionNumber: inscriptionIdsToNumber[payload.Transfer.InscriptionId],
@@ -206,10 +211,13 @@ func (p *Processor) processBRC20States(ctx context.Context, transfers []*entity.
 			SatPoint:          payload.Transfer.NewSatPoint,
 			Amount:            payload.Amt,
 			ParentId:          parentId,
-		})
+		}
+		newEventMints = append(newEventMints, event)
 		latestEventId++
+
+		eventHashBuilder.WriteString(getEventMintString(event, tickEntry.Decimals) + eventHashSeparator)
 	}
-	handleEventInscribeTransfer := func(payload *brc20.Payload) {
+	handleEventInscribeTransfer := func(payload *brc20.Payload, tickEntry *entity.TickEntry) {
 		// inscribe transfer event
 		pkScriptHex := hex.EncodeToString(payload.Transfer.NewPkScript)
 		balance, ok := balances[pkScriptHex][payload.Tick]
@@ -257,8 +265,10 @@ func (p *Processor) processBRC20States(ctx context.Context, transfers []*entity.
 		latestEventId++
 		eventInscribeTransfers[payload.Transfer.InscriptionId] = event
 		newEventInscribeTransfers = append(newEventInscribeTransfers, event)
+
+		eventHashBuilder.WriteString(getEventInscribeTransferString(event, tickEntry.Decimals) + eventHashSeparator)
 	}
-	handleEventTransferTransferAsFee := func(payload *brc20.Payload, inscribeTransfer *entity.EventInscribeTransfer) {
+	handleEventTransferTransferAsFee := func(payload *brc20.Payload, tickEntry *entity.TickEntry, inscribeTransfer *entity.EventInscribeTransfer) {
 		// return balance to sender
 		fromPkScriptHex := hex.EncodeToString(inscribeTransfer.PkScript)
 		fromBalance, ok := balances[fromPkScriptHex][payload.Tick]
@@ -282,7 +292,7 @@ func (p *Processor) processBRC20States(ctx context.Context, transfers []*entity.
 		}
 		newBalances[fromPkScriptHex][payload.Tick] = fromBalance
 
-		newEventTransferTransfers = append(newEventTransferTransfers, &entity.EventTransferTransfer{
+		event := &entity.EventTransferTransfer{
 			Id:                latestEventId + 1,
 			InscriptionId:     payload.Transfer.InscriptionId,
 			InscriptionNumber: inscriptionIdsToNumber[payload.Transfer.InscriptionId],
@@ -300,7 +310,10 @@ func (p *Processor) processBRC20States(ctx context.Context, transfers []*entity.
 			ToOutputIndex:     payload.Transfer.NewSatPoint.OutPoint.Index,
 			SpentAsFee:        true,
 			Amount:            payload.Amt,
-		})
+		}
+		newEventTransferTransfers = append(newEventTransferTransfers, event)
+
+		eventHashBuilder.WriteString(getEventTransferTransferString(event, tickEntry.Decimals) + eventHashSeparator)
 	}
 	handleEventTransferTransferNormal := func(payload *brc20.Payload, tickEntry *entity.TickEntry, inscribeTransfer *entity.EventInscribeTransfer) {
 		// subtract balance from sender
@@ -352,7 +365,7 @@ func (p *Processor) processBRC20States(ctx context.Context, transfers []*entity.
 			newBalances[toPkScriptHex][payload.Tick] = toBalance
 		}
 
-		newEventTransferTransfers = append(newEventTransferTransfers, &entity.EventTransferTransfer{
+		event := &entity.EventTransferTransfer{
 			Id:                latestEventId + 1,
 			InscriptionId:     payload.Transfer.InscriptionId,
 			InscriptionNumber: inscriptionIdsToNumber[payload.Transfer.InscriptionId],
@@ -370,7 +383,10 @@ func (p *Processor) processBRC20States(ctx context.Context, transfers []*entity.
 			ToOutputIndex:     payload.Transfer.NewSatPoint.OutPoint.Index,
 			SpentAsFee:        false,
 			Amount:            payload.Amt,
-		})
+		}
+		newEventTransferTransfers = append(newEventTransferTransfers, event)
+
+		eventHashBuilder.WriteString(getEventTransferTransferString(event, tickEntry.Decimals) + eventHashSeparator)
 	}
 
 	for _, payload := range payloads {
@@ -401,7 +417,7 @@ func (p *Processor) processBRC20States(ctx context.Context, transfers []*entity.
 			}
 
 			if payload.Transfer.OldSatPoint == (ordinals.SatPoint{}) {
-				handleEventInscribeTransfer(payload)
+				handleEventInscribeTransfer(payload, tickEntry)
 			} else {
 				// transfer transfer event
 				inscribeTransfer, ok := eventInscribeTransfers[payload.Transfer.InscriptionId]
@@ -411,7 +427,7 @@ func (p *Processor) processBRC20States(ctx context.Context, transfers []*entity.
 				}
 
 				if payload.Transfer.SentAsFee {
-					handleEventTransferTransferAsFee(payload, inscribeTransfer)
+					handleEventTransferTransferAsFee(payload, tickEntry, inscribeTransfer)
 				} else {
 					handleEventTransferTransferNormal(payload, tickEntry, inscribeTransfer)
 				}
@@ -426,5 +442,6 @@ func (p *Processor) processBRC20States(ctx context.Context, transfers []*entity.
 	p.newEventInscribeTransfers = newEventInscribeTransfers
 	p.newEventTransferTransfers = newEventTransferTransfers
 	p.newBalances = newBalances
+	p.eventHashString = eventHashBuilder.String()
 	return nil
 }

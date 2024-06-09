@@ -52,6 +52,8 @@ type Processor struct {
 	newEventInscribeTransfers []*entity.EventInscribeTransfer
 	newEventTransferTransfers []*entity.EventTransferTransfer
 	newBalances               map[string]map[string]*entity.Balance
+
+	eventHashString string
 }
 
 // TODO: move this to config

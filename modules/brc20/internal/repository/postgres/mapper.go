@@ -70,19 +70,19 @@ func mapIndexedBlockModelToType(src gen.Brc20IndexedBlock) (entity.IndexedBlock,
 	if err != nil {
 		return entity.IndexedBlock{}, errors.Wrap(err, "invalid block hash")
 	}
-	eventHash, err := chainhash.NewHashFromStr(src.EventHash)
+	eventHash, err := hex.DecodeString(src.EventHash)
 	if err != nil {
 		return entity.IndexedBlock{}, errors.Wrap(err, "invalid event hash")
 	}
-	cumulativeEventHash, err := chainhash.NewHashFromStr(src.CumulativeEventHash)
+	cumulativeEventHash, err := hex.DecodeString(src.CumulativeEventHash)
 	if err != nil {
 		return entity.IndexedBlock{}, errors.Wrap(err, "invalid cumulative event hash")
 	}
 	return entity.IndexedBlock{
 		Height:              uint64(src.Height),
 		Hash:                *hash,
-		EventHash:           *eventHash,
-		CumulativeEventHash: *cumulativeEventHash,
+		EventHash:           eventHash,
+		CumulativeEventHash: cumulativeEventHash,
 	}, nil
 }
 
@@ -90,8 +90,8 @@ func mapIndexedBlockTypeToParams(src entity.IndexedBlock) gen.CreateIndexedBlock
 	return gen.CreateIndexedBlockParams{
 		Height:              int32(src.Height),
 		Hash:                src.Hash.String(),
-		EventHash:           src.EventHash.String(),
-		CumulativeEventHash: src.CumulativeEventHash.String(),
+		EventHash:           hex.EncodeToString(src.EventHash),
+		CumulativeEventHash: hex.EncodeToString(src.CumulativeEventHash),
 	}
 }
 
