@@ -354,7 +354,7 @@ func (p *Processor) updateInscriptionLocation(ctx context.Context, newSatPoint o
 			Cursed:          origin.Cursed,
 			CursedForBRC20:  origin.CursedForBRC20,
 			CreatedAt:       blockHeader.Timestamp,
-			CreatedAtHeight: uint64(tx.BlockHeight),
+			CreatedAtHeight: uint64(blockHeader.Height),
 			Inscription:     origin.Inscription,
 			TransferCount:   1, // count inscription as first transfer
 		}

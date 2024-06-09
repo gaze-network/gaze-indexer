@@ -49,7 +49,9 @@ func (p *Processor) Process(ctx context.Context, blocks []*types.Block) error {
 			return int(t1.NewSatPoint.Offset) - int(t2.NewSatPoint.Offset)
 		})
 
-		// TODO: process brc20 states
+		if err := p.processBRC20States(ctx, p.newInscriptionTransfers, block.Header); err != nil {
+			return errors.Wrap(err, "failed to process brc20 states")
+		}
 
 		if err := p.flushBlock(ctx, block.Header); err != nil {
 			return errors.Wrap(err, "failed to flush block")
