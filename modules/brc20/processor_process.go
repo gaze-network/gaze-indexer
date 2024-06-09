@@ -36,6 +36,13 @@ func (p *Processor) Process(ctx context.Context, blocks []*types.Block) error {
 			if t1.TxIndex != t2.TxIndex {
 				return int(t1.TxIndex) - int(t2.TxIndex)
 			}
+			if t1.SentAsFee != t2.SentAsFee {
+				// transfers sent as fee should be ordered after non-fees
+				if t1.SentAsFee {
+					return 1
+				}
+				return -1
+			}
 			if t1.NewSatPoint.OutPoint.Index != t2.NewSatPoint.OutPoint.Index {
 				return int(t1.NewSatPoint.OutPoint.Index) - int(t2.NewSatPoint.OutPoint.Index)
 			}
