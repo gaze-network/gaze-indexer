@@ -412,21 +412,10 @@ func (h *HttpHandler) GetTransactions(ctx *fiber.Ctx) (err error) {
 		for _, tx2 := range txs[1:] {
 			tx.Inputs = append(tx.Inputs, tx2.Inputs...)
 			tx.Outputs = append(tx.Outputs, tx2.Outputs...)
-			for tick, tx2Ammt := range tx2.Mints {
-				// merge the amount if same tick
-				// TODO: or it shouldn't happen?
-				if txAmmt, ok := tx.Mints[tick]; ok {
-					tx.Mints[tick] = amountWithDecimal{
-						Amount:   new(uint256.Int).Add(txAmmt.Amount, tx2Ammt.Amount),
-						Decimals: txAmmt.Decimals,
-					}
-				} else {
-					tx.Mints[tick] = tx2Ammt
-				}
+			if len(tx2.Mints) > 0 {
+				return errors.Wrap(errs.InvalidState, "transaction can't have multiple mints")
 			}
 			for tick, tx2Ammt := range tx2.Burns {
-				// merge the amount if same tick
-				// TODO: or it shouldn't happen?
 				if txAmmt, ok := tx.Burns[tick]; ok {
 					tx.Burns[tick] = amountWithDecimal{
 						Amount:   new(uint256.Int).Add(txAmmt.Amount, tx2Ammt.Amount),
