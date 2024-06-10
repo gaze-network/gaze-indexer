@@ -20,7 +20,7 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-func (p *Processor) processInscriptionTx(ctx context.Context, tx *types.Transaction, blockHeader types.BlockHeader) error {
+func (p *Processor) processInscriptionTx(ctx context.Context, tx *types.Transaction, blockHeader types.BlockHeader, transfersInOutPoints map[wire.OutPoint]map[ordinals.SatPoint][]*entity.InscriptionTransfer, outpointValues map[wire.OutPoint]uint64) error {
 	ctx = logger.WithContext(ctx, slogx.String("tx_hash", tx.TxHash.String()))
 	envelopes := ordinals.ParseEnvelopesFromTx(tx)
 	inputOutPoints := lo.Map(tx.TxIn, func(txIn *types.TxIn, _ int) wire.OutPoint {
@@ -29,18 +29,19 @@ func (p *Processor) processInscriptionTx(ctx context.Context, tx *types.Transact
 			Index: txIn.PreviousOutIndex,
 		}
 	})
-	transfersInOutPoints, err := p.getInscriptionTransfersInOutPoints(ctx, inputOutPoints)
-	if err != nil {
-		return errors.Wrap(err, "failed to get inscriptions in outpoints")
-	}
 	// cache outpoint values for future blocks
 	for outIndex, txOut := range tx.TxOut {
-		p.outPointValueCache.Add(wire.OutPoint{
+		outPoint := wire.OutPoint{
 			Hash:  tx.TxHash,
 			Index: uint32(outIndex),
-		}, uint64(txOut.Value))
+		}
+		p.outPointValueCache.Add(outPoint, uint64(txOut.Value))
+		outpointValues[outPoint] = uint64(txOut.Value)
 	}
-	if len(envelopes) == 0 && len(transfersInOutPoints) == 0 {
+	outPointsWithTransfers := lo.Keys(transfersInOutPoints)
+	txContainsTransfers := len(lo.Intersect(inputOutPoints, outPointsWithTransfers)) > 0
+	isCoinbase := tx.TxIn[0].PreviousOutTxHash.IsEqual(&chainhash.Hash{})
+	if len(envelopes) == 0 && !txContainsTransfers && !isCoinbase {
 		// no inscription activity, skip
 		return nil
 	}
@@ -53,21 +54,17 @@ func (p *Processor) processInscriptionTx(ctx context.Context, tx *types.Transact
 		count         int
 	})
 	idCounter := uint32(0)
-	inputValues, err := p.getOutPointValues(ctx, inputOutPoints)
-	if err != nil {
-		return errors.Wrap(err, "failed to get outpoint values")
-	}
 	for i, input := range tx.TxIn {
-		inputOutPoint := wire.OutPoint{
-			Hash:  input.PreviousOutTxHash,
-			Index: input.PreviousOutIndex,
-		}
-		inputValue := inputValues[inputOutPoint]
 		// skip coinbase inputs since there can't be an inscription in coinbase
 		if input.PreviousOutTxHash.IsEqual(&chainhash.Hash{}) {
 			totalInputValue += p.getBlockSubsidy(uint64(tx.BlockHeight))
 			continue
 		}
+		inputOutPoint := wire.OutPoint{
+			Hash:  input.PreviousOutTxHash,
+			Index: input.PreviousOutIndex,
+		}
+		inputValue := outpointValues[inputOutPoint]
 
 		transfersInOutPoint := transfersInOutPoints[inputOutPoint]
 		for satPoint, transfers := range transfersInOutPoint {
@@ -134,7 +131,7 @@ func (p *Processor) processInscriptionTx(ctx context.Context, tx *types.Transact
 				}
 			}
 			// inscriptions are no longer cursed after jubilee, but BRC20 still considers them as cursed
-			if cursed && uint64(tx.BlockHeight) > ordinals.GetJubileeHeight(p.network) {
+			if cursed && uint64(tx.BlockHeight) >= ordinals.GetJubileeHeight(p.network) {
 				cursed = false
 			}
 
@@ -194,7 +191,6 @@ func (p *Processor) processInscriptionTx(ctx context.Context, tx *types.Transact
 
 	// if tx is coinbase, add inscriptions sent as fee to outputs of this tx
 	ownInscriptionCount := len(floatingInscriptions)
-	isCoinbase := tx.TxIn[0].PreviousOutTxHash.IsEqual(&chainhash.Hash{})
 	if isCoinbase {
 		floatingInscriptions = append(floatingInscriptions, p.flotsamsSentAsFee...)
 	}
@@ -257,7 +253,7 @@ func (p *Processor) processInscriptionTx(ctx context.Context, tx *types.Transact
 				}
 			}
 		}
-		if err := p.updateInscriptionLocation(ctx, satPoint, flotsam, sentAsFee, tx, blockHeader); err != nil {
+		if err := p.updateInscriptionLocation(ctx, satPoint, flotsam, sentAsFee, tx, blockHeader, transfersInOutPoints); err != nil {
 			return errors.Wrap(err, "failed to update inscription location")
 		}
 	}
@@ -270,7 +266,7 @@ func (p *Processor) processInscriptionTx(ctx context.Context, tx *types.Transact
 				OutPoint: wire.OutPoint{},
 				Offset:   p.lostSats + flotsam.Offset - totalOutputValue,
 			}
-			if err := p.updateInscriptionLocation(ctx, newSatPoint, flotsam, false, tx, blockHeader); err != nil {
+			if err := p.updateInscriptionLocation(ctx, newSatPoint, flotsam, false, tx, blockHeader, transfersInOutPoints); err != nil {
 				return errors.Wrap(err, "failed to update inscription location")
 			}
 		}
@@ -287,7 +283,7 @@ func (p *Processor) processInscriptionTx(ctx context.Context, tx *types.Transact
 	return nil
 }
 
-func (p *Processor) updateInscriptionLocation(ctx context.Context, newSatPoint ordinals.SatPoint, flotsam *entity.Flotsam, sentAsFee bool, tx *types.Transaction, blockHeader types.BlockHeader) error {
+func (p *Processor) updateInscriptionLocation(ctx context.Context, newSatPoint ordinals.SatPoint, flotsam *entity.Flotsam, sentAsFee bool, tx *types.Transaction, blockHeader types.BlockHeader, transfersInOutPoints map[wire.OutPoint]map[ordinals.SatPoint][]*entity.InscriptionTransfer) error {
 	txOut := tx.TxOut[newSatPoint.OutPoint.Index]
 	if flotsam.OriginOld != nil {
 		entry, err := p.getInscriptionEntryById(ctx, flotsam.InscriptionId)
@@ -313,6 +309,12 @@ func (p *Processor) updateInscriptionLocation(ctx context.Context, newSatPoint o
 		// track transfers even if transfer count exceeds 2 (because we need to check for reinscriptions)
 		p.newInscriptionTransfers = append(p.newInscriptionTransfers, transfer)
 		p.newInscriptionEntryStates[entry.Id] = entry
+
+		// add new transfer to transfersInOutPoints cache
+		if _, ok := transfersInOutPoints[newSatPoint.OutPoint]; !ok {
+			transfersInOutPoints[newSatPoint.OutPoint] = make(map[ordinals.SatPoint][]*entity.InscriptionTransfer)
+		}
+		transfersInOutPoints[newSatPoint.OutPoint][newSatPoint] = append(transfersInOutPoints[newSatPoint.OutPoint][newSatPoint], transfer)
 		return nil
 	}
 
@@ -362,6 +364,11 @@ func (p *Processor) updateInscriptionLocation(ctx context.Context, newSatPoint o
 		p.newInscriptionEntries[entry.Id] = entry
 		p.newInscriptionEntryStates[entry.Id] = entry
 
+		// add new transfer to transfersInOutPoints cache
+		if _, ok := transfersInOutPoints[newSatPoint.OutPoint]; !ok {
+			transfersInOutPoints[newSatPoint.OutPoint] = make(map[ordinals.SatPoint][]*entity.InscriptionTransfer)
+		}
+		transfersInOutPoints[newSatPoint.OutPoint][newSatPoint] = append(transfersInOutPoints[newSatPoint.OutPoint][newSatPoint], transfer)
 		return nil
 	}
 	panic("unreachable")
@@ -397,6 +404,10 @@ func (p *Processor) getOutPointValues(ctx context.Context, outPoints []wire.OutP
 
 	outPointsToFetch := make([]wire.OutPoint, 0)
 	for i, outPoint := range outPoints {
+		if outPoint.Hash == (chainhash.Hash{}) {
+			// skip coinbase input
+			continue
+		}
 		if cacheValues[i] != 0 {
 			result[outPoint] = cacheValues[i]
 		} else {
@@ -415,7 +426,7 @@ func (p *Processor) getOutPointValues(ctx context.Context, outPoints []wire.OutP
 		eg.Go(func() error {
 			txOuts, err := p.btcClient.GetTransactionOutputs(ectx, txHash)
 			if err != nil {
-				return errors.Wrap(err, "failed to get transaction outputs")
+				return errors.Wrapf(err, "failed to get transaction outputs for hash %s", txHash)
 			}
 
 			// update cache
@@ -433,6 +444,10 @@ func (p *Processor) getOutPointValues(ctx context.Context, outPoints []wire.OutP
 		return nil, errors.WithStack(err)
 	}
 	for i := range outPoints {
+		if outPoints[i].Hash == (chainhash.Hash{}) {
+			// skip coinbase input
+			continue
+		}
 		if result[outPoints[i]] == 0 {
 			result[outPoints[i]] = uint64(txOutsByHash[outPoints[i].Hash][outPoints[i].Index].Value)
 		}
@@ -454,7 +469,6 @@ func (p *Processor) getInscriptionTransfersInOutPoints(ctx context.Context, outP
 					result[outPoint] = make(map[ordinals.SatPoint][]*entity.InscriptionTransfer)
 				}
 				result[outPoint][transfer.NewSatPoint] = append(result[outPoint][transfer.NewSatPoint], transfer)
-				break
 			}
 		}
 		if !found {

@@ -27,7 +27,8 @@ func (p *Processor) processBRC20States(ctx context.Context, transfers []*entity.
 		}
 		payload, err := brc20.ParsePayload(transfer)
 		if err != nil {
-			return errors.Wrap(err, "failed to parse payload")
+			// skip invalid payloads
+			continue
 		}
 		payloads = append(payloads, payload)
 		ticks[payload.Tick] = struct{}{}
