@@ -20,7 +20,7 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-func (p *Processor) processInscriptionTx(ctx context.Context, tx *types.Transaction, blockHeader types.BlockHeader, transfersInOutPoints map[wire.OutPoint]map[ordinals.SatPoint][]*entity.InscriptionTransfer) error {
+func (p *Processor) processInscriptionTx(ctx context.Context, tx *types.Transaction, blockHeader types.BlockHeader, transfersInOutPoints map[wire.OutPoint]map[ordinals.SatPoint][]*entity.InscriptionTransfer, outpointValues map[wire.OutPoint]uint64) error {
 	ctx = logger.WithContext(ctx, slogx.String("tx_hash", tx.TxHash.String()))
 	envelopes := ordinals.ParseEnvelopesFromTx(tx)
 	inputOutPoints := lo.Map(tx.TxIn, func(txIn *types.TxIn, _ int) wire.OutPoint {
@@ -31,13 +31,17 @@ func (p *Processor) processInscriptionTx(ctx context.Context, tx *types.Transact
 	})
 	// cache outpoint values for future blocks
 	for outIndex, txOut := range tx.TxOut {
-		p.outPointValueCache.Add(wire.OutPoint{
+		outPoint := wire.OutPoint{
 			Hash:  tx.TxHash,
 			Index: uint32(outIndex),
-		}, uint64(txOut.Value))
+		}
+		p.outPointValueCache.Add(outPoint, uint64(txOut.Value))
+		outpointValues[outPoint] = uint64(txOut.Value)
 	}
+	outPointsWithTransfers := lo.Keys(transfersInOutPoints)
+	txContainsTransfers := len(lo.Intersect(inputOutPoints, outPointsWithTransfers)) > 0
 	isCoinbase := tx.TxIn[0].PreviousOutTxHash.IsEqual(&chainhash.Hash{})
-	if len(envelopes) == 0 && len(transfersInOutPoints) == 0 && !isCoinbase {
+	if len(envelopes) == 0 && !txContainsTransfers && !isCoinbase {
 		// no inscription activity, skip
 		return nil
 	}
@@ -50,10 +54,6 @@ func (p *Processor) processInscriptionTx(ctx context.Context, tx *types.Transact
 		count         int
 	})
 	idCounter := uint32(0)
-	inputValues, err := p.getOutPointValues(ctx, inputOutPoints)
-	if err != nil {
-		return errors.Wrap(err, "failed to get outpoint values")
-	}
 	for i, input := range tx.TxIn {
 		// skip coinbase inputs since there can't be an inscription in coinbase
 		if input.PreviousOutTxHash.IsEqual(&chainhash.Hash{}) {
@@ -64,7 +64,7 @@ func (p *Processor) processInscriptionTx(ctx context.Context, tx *types.Transact
 			Hash:  input.PreviousOutTxHash,
 			Index: input.PreviousOutIndex,
 		}
-		inputValue := inputValues[inputOutPoint]
+		inputValue := outpointValues[inputOutPoint]
 
 		transfersInOutPoint := transfersInOutPoints[inputOutPoint]
 		for satPoint, transfers := range transfersInOutPoint {

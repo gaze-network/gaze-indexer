@@ -22,12 +22,14 @@ import (
 func (p *Processor) Process(ctx context.Context, blocks []*types.Block) error {
 	for _, block := range blocks {
 		ctx = logger.WithContext(ctx, slogx.Uint64("height", uint64(block.Header.Height)))
-		logger.DebugContext(ctx, "Processing new block")
 		p.blockReward = p.getBlockSubsidy(uint64(block.Header.Height))
 		p.flotsamsSentAsFee = make([]*entity.Flotsam, 0)
 
+		// put coinbase tx (first tx) at the end of block
+		transactions := append(block.Transactions[1:], block.Transactions[0])
+
 		var inputOutPoints []wire.OutPoint
-		for _, tx := range block.Transactions {
+		for _, tx := range transactions {
 			for _, txIn := range tx.TxIn {
 				if txIn.PreviousOutTxHash == (chainhash.Hash{}) {
 					// skip coinbase input
@@ -39,16 +41,42 @@ func (p *Processor) Process(ctx context.Context, blocks []*types.Block) error {
 				})
 			}
 		}
+		// pre-fetch inscriptions in outpoints
 		transfersInOutPoints, err := p.getInscriptionTransfersInOutPoints(ctx, inputOutPoints)
 		if err != nil {
 			return errors.Wrap(err, "failed to get inscriptions in outpoints")
 		}
-		logger.DebugContext(ctx, "Got inscriptions in outpoints", slogx.Int("countOutPoints", len(transfersInOutPoints)))
-
-		// put coinbase tx (first tx) at the end of block
-		transactions := append(block.Transactions[1:], block.Transactions[0])
+		// pre-fetch outpoint values for transactions with inscriptions/envelopes
+		outPointsToFetchValues := make([]wire.OutPoint, 0)
 		for _, tx := range transactions {
-			if err := p.processInscriptionTx(ctx, tx, block.Header, transfersInOutPoints); err != nil {
+			txInputOutPoints := lo.Map(tx.TxIn, func(txIn *types.TxIn, _ int) wire.OutPoint {
+				return wire.OutPoint{
+					Hash:  txIn.PreviousOutTxHash,
+					Index: txIn.PreviousOutIndex,
+				}
+			})
+			envelopes := ordinals.ParseEnvelopesFromTx(tx)
+			outPointsWithTransfers := lo.Keys(transfersInOutPoints)
+			txContainsTransfers := len(lo.Intersect(txInputOutPoints, outPointsWithTransfers)) > 0
+			isCoinbase := tx.TxIn[0].PreviousOutTxHash.IsEqual(&chainhash.Hash{})
+			if len(envelopes) == 0 && !txContainsTransfers && !isCoinbase {
+				// no inscription activity, skip tx
+				continue
+			}
+			outPointsToFetchValues = append(outPointsToFetchValues, lo.Map(tx.TxIn, func(txIn *types.TxIn, _ int) wire.OutPoint {
+				return wire.OutPoint{
+					Hash:  txIn.PreviousOutTxHash,
+					Index: txIn.PreviousOutIndex,
+				}
+			})...)
+		}
+		outPointValues, err := p.getOutPointValues(ctx, outPointsToFetchValues)
+		if err != nil {
+			return errors.Wrap(err, "failed to get input values")
+		}
+
+		for _, tx := range transactions {
+			if err := p.processInscriptionTx(ctx, tx, block.Header, transfersInOutPoints, outPointValues); err != nil {
 				return errors.Wrap(err, "failed to process tx")
 			}
 		}
