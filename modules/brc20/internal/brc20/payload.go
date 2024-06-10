@@ -54,7 +54,7 @@ var (
 	ErrInvalidDec        = errors.New("invalid dec")
 	ErrInvalidSelfMint   = errors.New("invalid self_mint")
 	ErrInvalidAmt        = errors.New("invalid amt")
-	ErrNumberOverflow    = errors.New("number overflow: max value is (2^64-1) * 10^18")
+	ErrNumberOverflow    = errors.New("number overflow: max value is (2^64-1)")
 )
 
 func ParsePayload(transfer *entity.InscriptionTransfer) (*Payload, error) {
@@ -93,6 +93,9 @@ func ParsePayload(transfer *entity.InscriptionTransfer) (*Payload, error) {
 		var rawDec string
 		if p.Dec != nil {
 			rawDec = *p.Dec
+		}
+		if rawDec == "" {
+			rawDec = "18"
 		}
 		dec, ok := strconv.ParseUint(rawDec, 10, 16)
 		if ok != nil {
