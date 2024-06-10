@@ -1,6 +1,7 @@
 package decimals
 
 import (
+	"math"
 	"math/big"
 	"reflect"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/gaze-network/uint128"
 	"github.com/holiman/uint256"
 	"github.com/shopspring/decimal"
+	"golang.org/x/exp/constraints"
 )
 
 const (
@@ -27,7 +29,7 @@ func MustFromString(s string) decimal.Decimal {
 }
 
 // ToDecimal convert any type to decimal.Decimal (safety floating point)
-func ToDecimal(ivalue any, decimals uint16) decimal.Decimal {
+func ToDecimal[T constraints.Integer](ivalue any, decimals T) decimal.Decimal {
 	value := new(big.Int)
 	switch v := ivalue.(type) {
 	case string:
@@ -53,6 +55,14 @@ func ToDecimal(ivalue any, decimals uint16) decimal.Decimal {
 	case *uint256.Int:
 		value = v.ToBig()
 	}
+
+	switch {
+	case int64(decimals) > math.MaxInt32:
+		logger.Panic("ToDecimal: decimals is too big, should be equal less than 2^31-1", slogx.Any("decimals", decimals))
+	case int64(decimals) < math.MinInt32+1:
+		logger.Panic("ToDecimal: decimals is too small, should be greater than -2^31", slogx.Any("decimals", decimals))
+	}
+
 	return decimal.NewFromBigInt(value, -int32(decimals))
 }
 
@@ -87,7 +97,7 @@ func ToBigInt(iamount any, decimals uint16) *big.Int {
 func ToUint256(iamount any, decimals uint16) *uint256.Int {
 	result := new(uint256.Int)
 	if overflow := result.SetFromBig(ToBigInt(iamount, decimals)); overflow {
-		logger.Panic("ToUint256 overflow", slogx.Any("amount", iamount), slogx.Uint16("decimals", decimals))
+		logger.Panic("ToUint256: overflow", slogx.Any("amount", iamount), slogx.Uint16("decimals", decimals))
 	}
 	return result
 }

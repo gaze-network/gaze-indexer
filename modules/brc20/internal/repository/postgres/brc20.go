@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"encoding/hex"
 
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/wire"
@@ -227,6 +228,179 @@ func (r *Repository) GetTickEntriesByTicks(ctx context.Context, ticks []string) 
 			return nil, errors.Wrap(err, "failed to parse tick entry model")
 		}
 		result[tickEntry.Tick] = &tickEntry
+	}
+	return result, nil
+}
+
+func (r *Repository) GetBalancesByTick(ctx context.Context, tick string, blockHeight uint64) ([]*entity.Balance, error) {
+	models, err := r.queries.GetBalancesByTick(ctx, gen.GetBalancesByTickParams{
+		Tick:        tick,
+		BlockHeight: int32(blockHeight),
+	})
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	result := make([]*entity.Balance, 0, len(models))
+	for _, model := range models {
+		balance, err := mapBalanceModelToType(gen.Brc20Balance(model))
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to parse balance model")
+		}
+		result = append(result, &balance)
+	}
+	return result, nil
+}
+
+func (r *Repository) GetBalancesByPkScript(ctx context.Context, pkScript []byte, blockHeight uint64) (map[string]*entity.Balance, error) {
+	models, err := r.queries.GetBalancesByPkScript(ctx, gen.GetBalancesByPkScriptParams{
+		Pkscript:    hex.EncodeToString(pkScript),
+		BlockHeight: int32(blockHeight),
+	})
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	result := make(map[string]*entity.Balance)
+	for _, model := range models {
+		balance, err := mapBalanceModelToType(gen.Brc20Balance(model))
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to parse balance model")
+		}
+		result[balance.Tick] = &balance
+	}
+	return result, nil
+}
+
+func (r *Repository) GetTransferableTransfersByPkScript(ctx context.Context, pkScript []byte, blockHeight uint64) ([]*entity.EventInscribeTransfer, error) {
+	models, err := r.queries.GetTransferableTransfersByPkScript(ctx, gen.GetTransferableTransfersByPkScriptParams{
+		Pkscript:    hex.EncodeToString(pkScript),
+		BlockHeight: int32(blockHeight),
+	})
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	result := make([]*entity.EventInscribeTransfer, 0, len(models))
+	for _, model := range models {
+		ent, err := mapEventInscribeTransferModelToType(model)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to parse event model")
+		}
+		result = append(result, &ent)
+	}
+	return result, nil
+}
+
+func (r *Repository) GetDeployEventByTick(ctx context.Context, tick string) (*entity.EventDeploy, error) {
+	model, err := r.queries.GetDeployEventByTick(ctx, tick)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	ent, err := mapEventDeployModelToType(model)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse event model")
+	}
+	return &ent, nil
+}
+
+func (r *Repository) GetFirstLastInscriptionNumberByTick(ctx context.Context, tick string) (first, last int64, err error) {
+	model, err := r.queries.GetFirstLastInscriptionNumberByTick(ctx, tick)
+	if err != nil {
+		return -1, -1, errors.WithStack(err)
+	}
+	return model.FirstInscriptionNumber, model.LastInscriptionNumber, nil
+}
+
+func (r *Repository) GetDeployEvents(ctx context.Context, pkScript []byte, tick string, height uint64) ([]*entity.EventDeploy, error) {
+	models, err := r.queries.GetDeployEvents(ctx, gen.GetDeployEventsParams{
+		FilterPkScript: pkScript != nil,
+		PkScript:       hex.EncodeToString(pkScript),
+		FilterTicker:   tick != "",
+		Ticker:         tick,
+		BlockHeight:    int32(height),
+	})
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	result := make([]*entity.EventDeploy, 0, len(models))
+	for _, model := range models {
+		ent, err := mapEventDeployModelToType(model)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to parse event model")
+		}
+		result = append(result, &ent)
+	}
+	return result, nil
+}
+
+func (r *Repository) GetMintEvents(ctx context.Context, pkScript []byte, tick string, height uint64) ([]*entity.EventMint, error) {
+	models, err := r.queries.GetMintEvents(ctx, gen.GetMintEventsParams{
+		FilterPkScript: pkScript != nil,
+		PkScript:       hex.EncodeToString(pkScript),
+		FilterTicker:   tick != "",
+		Ticker:         tick,
+		BlockHeight:    int32(height),
+	})
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	result := make([]*entity.EventMint, 0, len(models))
+	for _, model := range models {
+		ent, err := mapEventMintModelToType(model)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to parse event model")
+		}
+		result = append(result, &ent)
+	}
+	return result, nil
+}
+
+func (r *Repository) GetInscribeTransferEvents(ctx context.Context, pkScript []byte, tick string, height uint64) ([]*entity.EventInscribeTransfer, error) {
+	models, err := r.queries.GetInscribeTransferEvents(ctx, gen.GetInscribeTransferEventsParams{
+		FilterPkScript: pkScript != nil,
+		PkScript:       hex.EncodeToString(pkScript),
+		FilterTicker:   tick != "",
+		Ticker:         tick,
+		BlockHeight:    int32(height),
+	})
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	result := make([]*entity.EventInscribeTransfer, 0, len(models))
+	for _, model := range models {
+		ent, err := mapEventInscribeTransferModelToType(model)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to parse event model")
+		}
+		result = append(result, &ent)
+	}
+	return result, nil
+}
+
+func (r *Repository) GetTransferTransferEvents(ctx context.Context, pkScript []byte, tick string, height uint64) ([]*entity.EventTransferTransfer, error) {
+	models, err := r.queries.GetTransferTransferEvents(ctx, gen.GetTransferTransferEventsParams{
+		FilterPkScript: pkScript != nil,
+		PkScript:       hex.EncodeToString(pkScript),
+		FilterTicker:   tick != "",
+		Ticker:         tick,
+		BlockHeight:    int32(height),
+	})
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	result := make([]*entity.EventTransferTransfer, 0, len(models))
+	for _, model := range models {
+		ent, err := mapEventTransferTransferModelToType(model)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to parse event model")
+		}
+		result = append(result, &ent)
 	}
 	return result, nil
 }

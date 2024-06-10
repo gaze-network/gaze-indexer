@@ -34,6 +34,15 @@ type BRC20ReaderDataGateway interface {
 	GetTickEntriesByTicks(ctx context.Context, ticks []string) (map[string]*entity.TickEntry, error)
 	GetEventInscribeTransfersByInscriptionIds(ctx context.Context, ids []ordinals.InscriptionId) (map[ordinals.InscriptionId]*entity.EventInscribeTransfer, error)
 	GetLatestEventId(ctx context.Context) (int64, error)
+	GetBalancesByTick(ctx context.Context, tick string, blockHeight uint64) ([]*entity.Balance, error)
+	GetBalancesByPkScript(ctx context.Context, pkScript []byte, blockHeight uint64) (map[string]*entity.Balance, error)
+	GetTransferableTransfersByPkScript(ctx context.Context, pkScript []byte, blockHeight uint64) ([]*entity.EventInscribeTransfer, error)
+	GetDeployEventByTick(ctx context.Context, tick string) (*entity.EventDeploy, error)
+	GetFirstLastInscriptionNumberByTick(ctx context.Context, tick string) (first, last int64, err error)
+	GetDeployEvents(ctx context.Context, pkScript []byte, tick string, height uint64) ([]*entity.EventDeploy, error)
+	GetMintEvents(ctx context.Context, pkScript []byte, tick string, height uint64) ([]*entity.EventMint, error)
+	GetInscribeTransferEvents(ctx context.Context, pkScript []byte, tick string, height uint64) ([]*entity.EventInscribeTransfer, error)
+	GetTransferTransferEvents(ctx context.Context, pkScript []byte, tick string, height uint64) ([]*entity.EventTransferTransfer, error)
 }
 
 type BRC20WriterDataGateway interface {

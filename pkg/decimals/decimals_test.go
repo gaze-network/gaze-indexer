@@ -12,6 +12,12 @@ import (
 )
 
 func TestToDecimal(t *testing.T) {
+	t.Run("overflow_decimals", func(t *testing.T) {
+		assert.NotPanics(t, func() { ToDecimal(1, math.MaxInt32-1) }, "in-range decimals shouldn't panic")
+		assert.NotPanics(t, func() { ToDecimal(1, math.MinInt32+1) }, "in-range decimals shouldn't panic")
+		assert.Panics(t, func() { ToDecimal(1, math.MaxInt32+1) }, "out of range decimals should panic")
+		assert.Panics(t, func() { ToDecimal(1, math.MinInt32) }, "out of range decimals should panic")
+	})
 	t.Run("check_supported_types", func(t *testing.T) {
 		testcases := []struct {
 			decimals uint16

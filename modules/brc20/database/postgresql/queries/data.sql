@@ -28,8 +28,8 @@ SELECT * FROM brc20_event_deploys WHERE tick = $1;
 
 -- name: GetFirstLastInscriptionNumberByTick :one
 SELECT 
-  COALESCE(MIN("inscription_number"), -1) AS "first_inscription_number", 
-  COALESCE(MAX("inscription_number"), -1) AS "last_inscription_number"
+  COALESCE(MIN("inscription_number"), -1)::BIGINT AS "first_inscription_number", 
+  COALESCE(MAX("inscription_number"), -1)::BIGINT AS "last_inscription_number"
 FROM (
   SELECT inscription_number FROM "brc20_event_mints" WHERE "brc20_event_mints"."tick" = $1
 	UNION ALL
