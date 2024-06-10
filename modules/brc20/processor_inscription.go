@@ -134,7 +134,7 @@ func (p *Processor) processInscriptionTx(ctx context.Context, tx *types.Transact
 				}
 			}
 			// inscriptions are no longer cursed after jubilee, but BRC20 still considers them as cursed
-			if cursed && uint64(tx.BlockHeight) > ordinals.GetJubileeHeight(p.network) {
+			if cursed && uint64(tx.BlockHeight) >= ordinals.GetJubileeHeight(p.network) {
 				cursed = false
 			}
 
