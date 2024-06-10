@@ -64,7 +64,7 @@ func ParsePayload(transfer *entity.InscriptionTransfer) (*Payload, error) {
 		return nil, errors.Wrap(err, "failed to unmarshal payload as json")
 	}
 
-	if p.P != "brc20" {
+	if p.P != "brc-20" {
 		return nil, errors.WithStack(ErrInvalidProtocol)
 	}
 	if !Operation(p.Op).IsValid() {
