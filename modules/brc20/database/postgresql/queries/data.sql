@@ -1,3 +1,121 @@
+-- name: GetTransferableTransfersByPkScript :many
+SELECT * 
+FROM "brc20_event_inscribe_transfers"
+WHERE 
+  pkscript = $1 
+  AND "brc20_event_inscribe_transfers"."block_height" <= $2
+  AND NOT EXISTS (
+    SELECT NULL
+    FROM "brc20_event_transfer_transfers" 
+    WHERE "brc20_event_transfer_transfers"."inscription_id" = "brc20_event_inscribe_transfers"."inscription_id"
+  )
+ORDER BY "brc20_event_inscribe_transfers"."block_height" DESC;
+
+-- name: GetBalancesByPkScript :many
+WITH balances AS (
+  SELECT DISTINCT ON (tick) * FROM brc20_balances WHERE pkscript = $1 AND block_height <= $2 ORDER BY tick, overall_balance DESC
+)
+SELECT * FROM balances WHERE overall_balance > 0;
+
+-- name: GetBalancesByTick :many
+WITH balances AS (
+  SELECT DISTINCT ON (pkscript) * FROM brc20_balances WHERE tick = $1 AND block_height <= $2 ORDER BY pkscript, block_height DESC
+)
+SELECT * FROM balances WHERE overall_balance > 0;
+
+-- name: GetDeployEventByTick :one
+SELECT * FROM brc20_event_deploys WHERE tick = $1;
+
+-- name: GetFirstLastInscriptionNumberByTick :one
+SELECT 
+  COALESCE(MIN("inscription_number"), -1) AS "first_inscription_number", 
+  COALESCE(MAX("inscription_number"), -1) AS "last_inscription_number"
+FROM (
+  SELECT inscription_number FROM "brc20_event_mints" WHERE "brc20_event_mints"."tick" = $1
+	UNION ALL
+	SELECT inscription_number FROM "brc20_event_inscribe_transfers" WHERE "brc20_event_inscribe_transfers"."tick" = $1
+	UNION ALL
+	SELECT inscription_number FROM "brc20_event_transfer_transfers" WHERE "brc20_event_transfer_transfers"."tick" = $1
+) as events;
+-- WITH 
+-- "first_mint" AS (SELECT "inscription_number" FROM "brc20_event_mints" WHERE "brc20_event_mints".tick = $1 ORDER BY "id" ASC LIMIT 1),
+-- "latest_mint" AS (SELECT "inscription_number" FROM "brc20_event_mints" WHERE "brc20_event_mints".tick = $1 ORDER BY "id" DESC LIMIT 1),
+-- "first_inscribe_transfer" AS (SELECT "inscription_number" FROM "brc20_event_inscribe_transfers" WHERE "brc20_event_inscribe_transfers".tick = $1 ORDER BY "id" ASC LIMIT 1),
+-- "latest_inscribe_transfer" AS (SELECT "inscription_number" FROM "brc20_event_inscribe_transfers" WHERE "brc20_event_inscribe_transfers".tick = $1 ORDER BY "id" DESC LIMIT 1)
+-- SELECT
+--  COALESCE(
+--     LEAST(
+--       (SELECT "inscription_number" FROM "first_mint"),
+--       (SELECT "inscription_number" FROM "first_inscribe_transfer")
+--     ),
+--     -1
+--   ) AS "first_inscription_number",
+--   COALESCE(
+--     GREATEST(
+--       (SELECT "inscription_number" FROM "latest_mint"),
+--       (SELECT "inscription_number" FROM "latest_inscribe_transfer")
+--     ),
+--     -1
+--   ) AS "last_inscription_number";
+
+-- name: GetTickEntriesByTicksAndHeight :many
+WITH "states" AS (
+  -- select latest state
+  SELECT DISTINCT ON ("tick") * FROM "brc20_tick_entry_states" WHERE "tick" = ANY(@ticks::text[]) AND block_height <= @height ORDER BY "tick", "block_height" DESC
+)
+SELECT * FROM "brc20_tick_entries"
+  LEFT JOIN "states" ON "brc20_tick_entries"."tick" = "states"."tick"
+  WHERE "brc20_tick_entries"."tick" = ANY(@ticks::text[]) AND deployed_at_height <= @height;;
+
+-- name: GetDeployEvents :many
+SELECT * FROM "brc20_event_deploys"
+WHERE (
+    @filter_pk_script::BOOLEAN = FALSE -- if @filter_pk_script is TRUE, apply pk_script filter
+    OR pkscript = @pk_script
+  ) AND (
+    @filter_ticker::BOOLEAN = FALSE -- if @filter_ticker is TRUE, apply ticker filter
+    OR tick = @ticker 
+  ) AND (
+    @block_height::INT = 0 OR block_height = @block_height::INT -- if @block_height > 0, apply block_height filter
+  );
+
+-- name: GetMintEvents :many
+SELECT * FROM "brc20_event_mints"
+WHERE (
+    @filter_pk_script::BOOLEAN = FALSE -- if @filter_pk_script is TRUE, apply pk_script filter
+    OR pkscript = @pk_script
+  ) AND (
+    @filter_ticker::BOOLEAN = FALSE -- if @filter_ticker is TRUE, apply ticker filter
+    OR tick = @ticker 
+  ) AND (
+    @block_height::INT = 0 OR block_height = @block_height::INT -- if @block_height > 0, apply block_height filter
+  );
+
+-- name: GetInscribeTransferEvents :many
+SELECT * FROM "brc20_event_inscribe_transfers"
+WHERE (
+    @filter_pk_script::BOOLEAN = FALSE -- if @filter_pk_script is TRUE, apply pk_script filter
+    OR pkscript = @pk_script
+  ) AND (
+    @filter_ticker::BOOLEAN = FALSE -- if @filter_ticker is TRUE, apply ticker filter
+    OR tick = @ticker 
+  ) AND (
+    @block_height::INT = 0 OR block_height = @block_height::INT -- if @block_height > 0, apply block_height filter
+  );
+
+-- name: GetTransferTransferEvents :many
+SELECT * FROM "brc20_event_transfer_transfers"
+WHERE (
+    @filter_pk_script::BOOLEAN = FALSE -- if @filter_pk_script is TRUE, apply pk_script filter
+    OR from_pkscript = @pk_script
+    OR to_pkscript = @pk_script
+  ) AND (
+    @filter_ticker::BOOLEAN = FALSE -- if @filter_ticker is TRUE, apply ticker filter
+    OR tick = @ticker 
+  ) AND (
+    @block_height::INT = 0 OR block_height = @block_height::INT -- if @block_height > 0, apply block_height filter
+  );
+
 -- name: GetLatestIndexedBlock :one
 SELECT * FROM "brc20_indexed_blocks" ORDER BY "height" DESC LIMIT 1;
 
