@@ -40,7 +40,8 @@ func (p *Processor) processInscriptionTx(ctx context.Context, tx *types.Transact
 			Index: uint32(outIndex),
 		}, uint64(txOut.Value))
 	}
-	if len(envelopes) == 0 && len(transfersInOutPoints) == 0 {
+	isCoinbase := tx.TxIn[0].PreviousOutTxHash.IsEqual(&chainhash.Hash{})
+	if len(envelopes) == 0 && len(transfersInOutPoints) == 0 && !isCoinbase {
 		// no inscription activity, skip
 		return nil
 	}
@@ -58,16 +59,16 @@ func (p *Processor) processInscriptionTx(ctx context.Context, tx *types.Transact
 		return errors.Wrap(err, "failed to get outpoint values")
 	}
 	for i, input := range tx.TxIn {
-		inputOutPoint := wire.OutPoint{
-			Hash:  input.PreviousOutTxHash,
-			Index: input.PreviousOutIndex,
-		}
-		inputValue := inputValues[inputOutPoint]
 		// skip coinbase inputs since there can't be an inscription in coinbase
 		if input.PreviousOutTxHash.IsEqual(&chainhash.Hash{}) {
 			totalInputValue += p.getBlockSubsidy(uint64(tx.BlockHeight))
 			continue
 		}
+		inputOutPoint := wire.OutPoint{
+			Hash:  input.PreviousOutTxHash,
+			Index: input.PreviousOutIndex,
+		}
+		inputValue := inputValues[inputOutPoint]
 
 		transfersInOutPoint := transfersInOutPoints[inputOutPoint]
 		for satPoint, transfers := range transfersInOutPoint {
@@ -194,7 +195,6 @@ func (p *Processor) processInscriptionTx(ctx context.Context, tx *types.Transact
 
 	// if tx is coinbase, add inscriptions sent as fee to outputs of this tx
 	ownInscriptionCount := len(floatingInscriptions)
-	isCoinbase := tx.TxIn[0].PreviousOutTxHash.IsEqual(&chainhash.Hash{})
 	if isCoinbase {
 		floatingInscriptions = append(floatingInscriptions, p.flotsamsSentAsFee...)
 	}
@@ -397,6 +397,10 @@ func (p *Processor) getOutPointValues(ctx context.Context, outPoints []wire.OutP
 
 	outPointsToFetch := make([]wire.OutPoint, 0)
 	for i, outPoint := range outPoints {
+		if outPoint.Hash == (chainhash.Hash{}) {
+			// skip coinbase input
+			continue
+		}
 		if cacheValues[i] != 0 {
 			result[outPoint] = cacheValues[i]
 		} else {
@@ -415,7 +419,7 @@ func (p *Processor) getOutPointValues(ctx context.Context, outPoints []wire.OutP
 		eg.Go(func() error {
 			txOuts, err := p.btcClient.GetTransactionOutputs(ectx, txHash)
 			if err != nil {
-				return errors.Wrap(err, "failed to get transaction outputs")
+				return errors.Wrapf(err, "failed to get transaction outputs for hash %s", txHash)
 			}
 
 			// update cache
@@ -433,6 +437,10 @@ func (p *Processor) getOutPointValues(ctx context.Context, outPoints []wire.OutP
 		return nil, errors.WithStack(err)
 	}
 	for i := range outPoints {
+		if outPoints[i].Hash == (chainhash.Hash{}) {
+			// skip coinbase input
+			continue
+		}
 		if result[outPoints[i]] == 0 {
 			result[outPoints[i]] = uint64(txOutsByHash[outPoints[i].Hash][outPoints[i].Index].Value)
 		}
@@ -454,7 +462,6 @@ func (p *Processor) getInscriptionTransfersInOutPoints(ctx context.Context, outP
 					result[outPoint] = make(map[ordinals.SatPoint][]*entity.InscriptionTransfer)
 				}
 				result[outPoint][transfer.NewSatPoint] = append(result[outPoint][transfer.NewSatPoint], transfer)
-				break
 			}
 		}
 		if !found {
