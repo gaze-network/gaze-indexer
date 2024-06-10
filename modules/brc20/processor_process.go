@@ -6,6 +6,8 @@ import (
 	"encoding/hex"
 	"slices"
 
+	"github.com/btcsuite/btcd/chaincfg/chainhash"
+	"github.com/btcsuite/btcd/wire"
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/common/errs"
 	"github.com/gaze-network/indexer-network/core/types"
@@ -24,10 +26,29 @@ func (p *Processor) Process(ctx context.Context, blocks []*types.Block) error {
 		p.blockReward = p.getBlockSubsidy(uint64(block.Header.Height))
 		p.flotsamsSentAsFee = make([]*entity.Flotsam, 0)
 
+		var inputOutPoints []wire.OutPoint
+		for _, tx := range block.Transactions {
+			for _, txIn := range tx.TxIn {
+				if txIn.PreviousOutTxHash == (chainhash.Hash{}) {
+					// skip coinbase input
+					continue
+				}
+				inputOutPoints = append(inputOutPoints, wire.OutPoint{
+					Hash:  txIn.PreviousOutTxHash,
+					Index: txIn.PreviousOutIndex,
+				})
+			}
+		}
+		transfersInOutPoints, err := p.getInscriptionTransfersInOutPoints(ctx, inputOutPoints)
+		if err != nil {
+			return errors.Wrap(err, "failed to get inscriptions in outpoints")
+		}
+		logger.DebugContext(ctx, "Got inscriptions in outpoints", slogx.Int("countOutPoints", len(transfersInOutPoints)))
+
 		// put coinbase tx (first tx) at the end of block
 		transactions := append(block.Transactions[1:], block.Transactions[0])
 		for _, tx := range transactions {
-			if err := p.processInscriptionTx(ctx, tx, block.Header); err != nil {
+			if err := p.processInscriptionTx(ctx, tx, block.Header, transfersInOutPoints); err != nil {
 				return errors.Wrap(err, "failed to process tx")
 			}
 		}

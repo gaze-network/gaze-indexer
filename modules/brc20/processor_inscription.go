@@ -20,7 +20,7 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-func (p *Processor) processInscriptionTx(ctx context.Context, tx *types.Transaction, blockHeader types.BlockHeader) error {
+func (p *Processor) processInscriptionTx(ctx context.Context, tx *types.Transaction, blockHeader types.BlockHeader, transfersInOutPoints map[wire.OutPoint]map[ordinals.SatPoint][]*entity.InscriptionTransfer) error {
 	ctx = logger.WithContext(ctx, slogx.String("tx_hash", tx.TxHash.String()))
 	envelopes := ordinals.ParseEnvelopesFromTx(tx)
 	inputOutPoints := lo.Map(tx.TxIn, func(txIn *types.TxIn, _ int) wire.OutPoint {
@@ -29,10 +29,6 @@ func (p *Processor) processInscriptionTx(ctx context.Context, tx *types.Transact
 			Index: txIn.PreviousOutIndex,
 		}
 	})
-	transfersInOutPoints, err := p.getInscriptionTransfersInOutPoints(ctx, inputOutPoints)
-	if err != nil {
-		return errors.Wrap(err, "failed to get inscriptions in outpoints")
-	}
 	// cache outpoint values for future blocks
 	for outIndex, txOut := range tx.TxOut {
 		p.outPointValueCache.Add(wire.OutPoint{
@@ -257,7 +253,7 @@ func (p *Processor) processInscriptionTx(ctx context.Context, tx *types.Transact
 				}
 			}
 		}
-		if err := p.updateInscriptionLocation(ctx, satPoint, flotsam, sentAsFee, tx, blockHeader); err != nil {
+		if err := p.updateInscriptionLocation(ctx, satPoint, flotsam, sentAsFee, tx, blockHeader, transfersInOutPoints); err != nil {
 			return errors.Wrap(err, "failed to update inscription location")
 		}
 	}
@@ -270,7 +266,7 @@ func (p *Processor) processInscriptionTx(ctx context.Context, tx *types.Transact
 				OutPoint: wire.OutPoint{},
 				Offset:   p.lostSats + flotsam.Offset - totalOutputValue,
 			}
-			if err := p.updateInscriptionLocation(ctx, newSatPoint, flotsam, false, tx, blockHeader); err != nil {
+			if err := p.updateInscriptionLocation(ctx, newSatPoint, flotsam, false, tx, blockHeader, transfersInOutPoints); err != nil {
 				return errors.Wrap(err, "failed to update inscription location")
 			}
 		}
@@ -287,7 +283,7 @@ func (p *Processor) processInscriptionTx(ctx context.Context, tx *types.Transact
 	return nil
 }
 
-func (p *Processor) updateInscriptionLocation(ctx context.Context, newSatPoint ordinals.SatPoint, flotsam *entity.Flotsam, sentAsFee bool, tx *types.Transaction, blockHeader types.BlockHeader) error {
+func (p *Processor) updateInscriptionLocation(ctx context.Context, newSatPoint ordinals.SatPoint, flotsam *entity.Flotsam, sentAsFee bool, tx *types.Transaction, blockHeader types.BlockHeader, transfersInOutPoints map[wire.OutPoint]map[ordinals.SatPoint][]*entity.InscriptionTransfer) error {
 	txOut := tx.TxOut[newSatPoint.OutPoint.Index]
 	if flotsam.OriginOld != nil {
 		entry, err := p.getInscriptionEntryById(ctx, flotsam.InscriptionId)
@@ -313,6 +309,9 @@ func (p *Processor) updateInscriptionLocation(ctx context.Context, newSatPoint o
 		// track transfers even if transfer count exceeds 2 (because we need to check for reinscriptions)
 		p.newInscriptionTransfers = append(p.newInscriptionTransfers, transfer)
 		p.newInscriptionEntryStates[entry.Id] = entry
+
+		// add new transfer to transfersInOutPoints cache
+		transfersInOutPoints[newSatPoint.OutPoint][newSatPoint] = append(transfersInOutPoints[newSatPoint.OutPoint][newSatPoint], transfer)
 		return nil
 	}
 
@@ -362,6 +361,8 @@ func (p *Processor) updateInscriptionLocation(ctx context.Context, newSatPoint o
 		p.newInscriptionEntries[entry.Id] = entry
 		p.newInscriptionEntryStates[entry.Id] = entry
 
+		// add new transfer to transfersInOutPoints cache
+		transfersInOutPoints[newSatPoint.OutPoint][newSatPoint] = append(transfersInOutPoints[newSatPoint.OutPoint][newSatPoint], transfer)
 		return nil
 	}
 	panic("unreachable")
