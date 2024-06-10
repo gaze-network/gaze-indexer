@@ -311,6 +311,9 @@ func (p *Processor) updateInscriptionLocation(ctx context.Context, newSatPoint o
 		p.newInscriptionEntryStates[entry.Id] = entry
 
 		// add new transfer to transfersInOutPoints cache
+		if _, ok := transfersInOutPoints[newSatPoint.OutPoint]; !ok {
+			transfersInOutPoints[newSatPoint.OutPoint] = make(map[ordinals.SatPoint][]*entity.InscriptionTransfer)
+		}
 		transfersInOutPoints[newSatPoint.OutPoint][newSatPoint] = append(transfersInOutPoints[newSatPoint.OutPoint][newSatPoint], transfer)
 		return nil
 	}
@@ -362,6 +365,9 @@ func (p *Processor) updateInscriptionLocation(ctx context.Context, newSatPoint o
 		p.newInscriptionEntryStates[entry.Id] = entry
 
 		// add new transfer to transfersInOutPoints cache
+		if _, ok := transfersInOutPoints[newSatPoint.OutPoint]; !ok {
+			transfersInOutPoints[newSatPoint.OutPoint] = make(map[ordinals.SatPoint][]*entity.InscriptionTransfer)
+		}
 		transfersInOutPoints[newSatPoint.OutPoint][newSatPoint] = append(transfersInOutPoints[newSatPoint.OutPoint][newSatPoint], transfer)
 		return nil
 	}
