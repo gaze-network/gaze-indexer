@@ -300,38 +300,42 @@ func mapInscriptionTransferModelToType(src gen.GetInscriptionTransfersInOutPoint
 	}
 
 	return entity.InscriptionTransfer{
-		InscriptionId:  inscriptionId,
-		BlockHeight:    uint64(src.BlockHeight),
-		TxIndex:        uint32(src.TxIndex),
-		TxHash:         *txHash,
-		FromInputIndex: uint32(src.FromInputIndex),
-		Content:        src.Content,
-		OldSatPoint:    oldSatPoint,
-		NewSatPoint:    newSatPoint,
-		NewPkScript:    newPkScript,
-		NewOutputValue: uint64(src.NewOutputValue),
-		SentAsFee:      src.SentAsFee,
-		TransferCount:  uint32(src.TransferCount),
+		InscriptionId:             inscriptionId,
+		InscriptionNumber:         src.InscriptionNumber,
+		InscriptionSequenceNumber: uint64(src.InscriptionSequenceNumber),
+		BlockHeight:               uint64(src.BlockHeight),
+		TxIndex:                   uint32(src.TxIndex),
+		TxHash:                    *txHash,
+		FromInputIndex:            uint32(src.FromInputIndex),
+		Content:                   src.Content,
+		OldSatPoint:               oldSatPoint,
+		NewSatPoint:               newSatPoint,
+		NewPkScript:               newPkScript,
+		NewOutputValue:            uint64(src.NewOutputValue),
+		SentAsFee:                 src.SentAsFee,
+		TransferCount:             uint32(src.TransferCount),
 	}, nil
 }
 
 func mapInscriptionTransferTypeToParams(src entity.InscriptionTransfer) gen.CreateInscriptionTransfersParams {
 	return gen.CreateInscriptionTransfersParams{
-		InscriptionID:     src.InscriptionId.String(),
-		BlockHeight:       int32(src.BlockHeight),
-		TxIndex:           int32(src.TxIndex),
-		TxHash:            src.TxHash.String(),
-		FromInputIndex:    int32(src.FromInputIndex),
-		OldSatpointTxHash: lo.Ternary(src.OldSatPoint != ordinals.SatPoint{}, pgtype.Text{String: src.OldSatPoint.OutPoint.Hash.String(), Valid: true}, pgtype.Text{}),
-		OldSatpointOutIdx: lo.Ternary(src.OldSatPoint != ordinals.SatPoint{}, pgtype.Int4{Int32: int32(src.OldSatPoint.OutPoint.Index), Valid: true}, pgtype.Int4{}),
-		OldSatpointOffset: lo.Ternary(src.OldSatPoint != ordinals.SatPoint{}, pgtype.Int8{Int64: int64(src.OldSatPoint.Offset), Valid: true}, pgtype.Int8{}),
-		NewSatpointTxHash: lo.Ternary(src.NewSatPoint != ordinals.SatPoint{}, pgtype.Text{String: src.NewSatPoint.OutPoint.Hash.String(), Valid: true}, pgtype.Text{}),
-		NewSatpointOutIdx: lo.Ternary(src.NewSatPoint != ordinals.SatPoint{}, pgtype.Int4{Int32: int32(src.NewSatPoint.OutPoint.Index), Valid: true}, pgtype.Int4{}),
-		NewSatpointOffset: lo.Ternary(src.NewSatPoint != ordinals.SatPoint{}, pgtype.Int8{Int64: int64(src.NewSatPoint.Offset), Valid: true}, pgtype.Int8{}),
-		NewPkscript:       hex.EncodeToString(src.NewPkScript),
-		NewOutputValue:    int64(src.NewOutputValue),
-		SentAsFee:         src.SentAsFee,
-		TransferCount:     int32(src.TransferCount),
+		InscriptionID:             src.InscriptionId.String(),
+		InscriptionNumber:         src.InscriptionNumber,
+		InscriptionSequenceNumber: int64(src.InscriptionSequenceNumber),
+		BlockHeight:               int32(src.BlockHeight),
+		TxIndex:                   int32(src.TxIndex),
+		TxHash:                    src.TxHash.String(),
+		FromInputIndex:            int32(src.FromInputIndex),
+		OldSatpointTxHash:         lo.Ternary(src.OldSatPoint != ordinals.SatPoint{}, pgtype.Text{String: src.OldSatPoint.OutPoint.Hash.String(), Valid: true}, pgtype.Text{}),
+		OldSatpointOutIdx:         lo.Ternary(src.OldSatPoint != ordinals.SatPoint{}, pgtype.Int4{Int32: int32(src.OldSatPoint.OutPoint.Index), Valid: true}, pgtype.Int4{}),
+		OldSatpointOffset:         lo.Ternary(src.OldSatPoint != ordinals.SatPoint{}, pgtype.Int8{Int64: int64(src.OldSatPoint.Offset), Valid: true}, pgtype.Int8{}),
+		NewSatpointTxHash:         lo.Ternary(src.NewSatPoint != ordinals.SatPoint{}, pgtype.Text{String: src.NewSatPoint.OutPoint.Hash.String(), Valid: true}, pgtype.Text{}),
+		NewSatpointOutIdx:         lo.Ternary(src.NewSatPoint != ordinals.SatPoint{}, pgtype.Int4{Int32: int32(src.NewSatPoint.OutPoint.Index), Valid: true}, pgtype.Int4{}),
+		NewSatpointOffset:         lo.Ternary(src.NewSatPoint != ordinals.SatPoint{}, pgtype.Int8{Int64: int64(src.NewSatPoint.Offset), Valid: true}, pgtype.Int8{}),
+		NewPkscript:               hex.EncodeToString(src.NewPkScript),
+		NewOutputValue:            int64(src.NewOutputValue),
+		SentAsFee:                 src.SentAsFee,
+		TransferCount:             int32(src.TransferCount),
 	}
 }
 
@@ -377,6 +381,7 @@ func mapEventDeployTypeToParams(src entity.EventDeploy) (gen.CreateEventDeploysP
 		timestamp = pgtype.Timestamp{Time: src.Timestamp, Valid: true}
 	}
 	return gen.CreateEventDeploysParams{
+		Id:                src.Id,
 		InscriptionID:     src.InscriptionId.String(),
 		InscriptionNumber: src.InscriptionNumber,
 		Tick:              src.Tick,
@@ -446,6 +451,7 @@ func mapEventMintTypeToParams(src entity.EventMint) (gen.CreateEventMintsParams,
 		parentId = pgtype.Text{String: src.ParentId.String(), Valid: true}
 	}
 	return gen.CreateEventMintsParams{
+		Id:                src.Id,
 		InscriptionID:     src.InscriptionId.String(),
 		InscriptionNumber: src.InscriptionNumber,
 		Tick:              src.Tick,
@@ -502,6 +508,7 @@ func mapEventInscribeTransferTypeToParams(src entity.EventInscribeTransfer) (gen
 		timestamp = pgtype.Timestamp{Time: src.Timestamp, Valid: true}
 	}
 	return gen.CreateEventInscribeTransfersParams{
+		Id:                src.Id,
 		InscriptionID:     src.InscriptionId.String(),
 		InscriptionNumber: src.InscriptionNumber,
 		Tick:              src.Tick,
@@ -570,6 +577,7 @@ func mapEventTransferTransferTypeToParams(src entity.EventTransferTransfer) (gen
 		timestamp = pgtype.Timestamp{Time: src.Timestamp, Valid: true}
 	}
 	return gen.CreateEventTransferTransfersParams{
+		Id:                src.Id,
 		InscriptionID:     src.InscriptionId.String(),
 		InscriptionNumber: src.InscriptionNumber,
 		Tick:              src.Tick,

@@ -128,21 +128,23 @@ type Brc20InscriptionEntryState struct {
 }
 
 type Brc20InscriptionTransfer struct {
-	InscriptionID     string
-	BlockHeight       int32
-	TxIndex           int32
-	TxHash            string
-	FromInputIndex    int32
-	OldSatpointTxHash pgtype.Text
-	OldSatpointOutIdx pgtype.Int4
-	OldSatpointOffset pgtype.Int8
-	NewSatpointTxHash pgtype.Text
-	NewSatpointOutIdx pgtype.Int4
-	NewSatpointOffset pgtype.Int8
-	NewPkscript       string
-	NewOutputValue    int64
-	SentAsFee         bool
-	TransferCount     int32
+	InscriptionID             string
+	InscriptionNumber         int64
+	InscriptionSequenceNumber int64
+	BlockHeight               int32
+	TxIndex                   int32
+	TxHash                    string
+	FromInputIndex            int32
+	OldSatpointTxHash         pgtype.Text
+	OldSatpointOutIdx         pgtype.Int4
+	OldSatpointOffset         pgtype.Int8
+	NewSatpointTxHash         pgtype.Text
+	NewSatpointOutIdx         pgtype.Int4
+	NewSatpointOffset         pgtype.Int8
+	NewPkscript               string
+	NewOutputValue            int64
+	SentAsFee                 bool
+	TransferCount             int32
 }
 
 type Brc20ProcessorStat struct {

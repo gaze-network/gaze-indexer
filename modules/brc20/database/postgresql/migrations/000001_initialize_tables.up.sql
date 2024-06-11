@@ -167,6 +167,8 @@ CREATE TABLE IF NOT EXISTS "brc20_inscription_entry_states" (
 
 CREATE TABLE IF NOT EXISTS "brc20_inscription_transfers" (
 	"inscription_id" TEXT NOT NULL,
+	"inscription_number" BIGINT NOT NULL,
+	"inscription_sequence_number" BIGINT NOT NULL,
 	"block_height" INT NOT NULL,
 	"tx_index" INT NOT NULL,
 	"tx_hash" TEXT NOT NULL,

@@ -6,16 +6,18 @@ import (
 )
 
 type InscriptionTransfer struct {
-	InscriptionId  ordinals.InscriptionId
-	BlockHeight    uint64
-	TxIndex        uint32
-	TxHash         chainhash.Hash
-	Content        []byte
-	FromInputIndex uint32
-	OldSatPoint    ordinals.SatPoint
-	NewSatPoint    ordinals.SatPoint
-	NewPkScript    []byte
-	NewOutputValue uint64
-	SentAsFee      bool
-	TransferCount  uint32
+	InscriptionId             ordinals.InscriptionId
+	InscriptionNumber         int64
+	InscriptionSequenceNumber uint64
+	BlockHeight               uint64
+	TxIndex                   uint32
+	TxHash                    chainhash.Hash
+	Content                   []byte
+	FromInputIndex            uint32
+	OldSatPoint               ordinals.SatPoint
+	NewSatPoint               ordinals.SatPoint
+	NewPkScript               []byte
+	NewOutputValue            uint64
+	SentAsFee                 bool
+	TransferCount             uint32
 }

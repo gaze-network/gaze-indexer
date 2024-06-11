@@ -209,19 +209,19 @@ INSERT INTO "brc20_inscription_entries" ("id", "number", "sequence_number", "del
 INSERT INTO "brc20_inscription_entry_states" ("id", "block_height", "transfer_count") VALUES ($1, $2, $3);
 
 -- name: CreateInscriptionTransfers :batchexec
-INSERT INTO "brc20_inscription_transfers" ("inscription_id", "block_height", "tx_index", "tx_hash", "from_input_index", "old_satpoint_tx_hash", "old_satpoint_out_idx", "old_satpoint_offset", "new_satpoint_tx_hash", "new_satpoint_out_idx", "new_satpoint_offset", "new_pkscript", "new_output_value", "sent_as_fee", "transfer_count") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15);
+INSERT INTO "brc20_inscription_transfers" ("inscription_id", "inscription_number", "inscription_sequence_number", "block_height", "tx_index", "tx_hash", "from_input_index", "old_satpoint_tx_hash", "old_satpoint_out_idx", "old_satpoint_offset", "new_satpoint_tx_hash", "new_satpoint_out_idx", "new_satpoint_offset", "new_pkscript", "new_output_value", "sent_as_fee", "transfer_count") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17);
 
 -- name: CreateEventDeploys :batchexec
-INSERT INTO "brc20_event_deploys" ("inscription_id", "inscription_number", "tick", "original_tick", "tx_hash", "block_height", "tx_index", "timestamp", "pkscript", "satpoint", "total_supply", "decimals", "limit_per_mint", "is_self_mint") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14);
+INSERT INTO "brc20_event_deploys" ("id", "inscription_id", "inscription_number", "tick", "original_tick", "tx_hash", "block_height", "tx_index", "timestamp", "pkscript", "satpoint", "total_supply", "decimals", "limit_per_mint", "is_self_mint") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15);
 
 -- name: CreateEventMints :batchexec
-INSERT INTO "brc20_event_mints" ("inscription_id", "inscription_number", "tick", "original_tick", "tx_hash", "block_height", "tx_index", "timestamp", "pkscript", "satpoint", "amount", "parent_id") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12);
+INSERT INTO "brc20_event_mints" ("id", "inscription_id", "inscription_number", "tick", "original_tick", "tx_hash", "block_height", "tx_index", "timestamp", "pkscript", "satpoint", "amount", "parent_id") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13);
 
 -- name: CreateEventInscribeTransfers :batchexec
-INSERT INTO "brc20_event_inscribe_transfers" ("inscription_id", "inscription_number", "tick", "original_tick", "tx_hash", "block_height", "tx_index", "timestamp", "pkscript", "satpoint", "output_index", "sats_amount", "amount") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13);
+INSERT INTO "brc20_event_inscribe_transfers" ("id", "inscription_id", "inscription_number", "tick", "original_tick", "tx_hash", "block_height", "tx_index", "timestamp", "pkscript", "satpoint", "output_index", "sats_amount", "amount") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14);
 
 -- name: CreateEventTransferTransfers :batchexec
-INSERT INTO "brc20_event_transfer_transfers" ("inscription_id", "inscription_number", "tick", "original_tick", "tx_hash", "block_height", "tx_index", "timestamp", "from_pkscript", "from_satpoint", "from_input_index", "to_pkscript", "to_satpoint", "to_output_index", "spent_as_fee", "amount") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16);
+INSERT INTO "brc20_event_transfer_transfers" ("id", "inscription_id", "inscription_number", "tick", "original_tick", "tx_hash", "block_height", "tx_index", "timestamp", "from_pkscript", "from_satpoint", "from_input_index", "to_pkscript", "to_satpoint", "to_output_index", "spent_as_fee", "amount") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17);
 
 -- name: CreateBalances :batchexec
 INSERT INTO "brc20_balances" ("pkscript", "block_height", "tick", "overall_balance", "available_balance") VALUES ($1, $2, $3, $4, $5);

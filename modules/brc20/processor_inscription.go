@@ -46,6 +46,11 @@ func (p *Processor) processInscriptionTx(ctx context.Context, tx *types.Transact
 		return nil
 	}
 
+	// Ensure outpoint values exists for all inputs. Some tx inputs may not be prefetched if it contains inscriptions transfers from other txs in the same block.
+	if err := p.ensureOutPointValues(ctx, outpointValues, inputOutPoints); err != nil {
+		return errors.Wrap(err, "failed to ensure outpoint values")
+	}
+
 	floatingInscriptions := make([]*entity.Flotsam, 0)
 	totalInputValue := uint64(0)
 	totalOutputValue := lo.SumBy(tx.TxOut, func(txOut *types.TxOut) uint64 { return uint64(txOut.Value) })
@@ -64,7 +69,10 @@ func (p *Processor) processInscriptionTx(ctx context.Context, tx *types.Transact
 			Hash:  input.PreviousOutTxHash,
 			Index: input.PreviousOutIndex,
 		}
-		inputValue := outpointValues[inputOutPoint]
+		inputValue, ok := outpointValues[inputOutPoint]
+		if !ok {
+			return errors.Wrapf(errs.NotFound, "outpoint value not found for %s", inputOutPoint.String())
+		}
 
 		transfersInOutPoint := transfersInOutPoints[inputOutPoint]
 		for satPoint, transfers := range transfersInOutPoint {
@@ -292,18 +300,20 @@ func (p *Processor) updateInscriptionLocation(ctx context.Context, newSatPoint o
 		}
 		entry.TransferCount++
 		transfer := &entity.InscriptionTransfer{
-			InscriptionId:  flotsam.InscriptionId,
-			BlockHeight:    uint64(flotsam.Tx.BlockHeight), // use flotsam's tx to track tx that initiated the transfer
-			TxIndex:        flotsam.Tx.Index,               // use flotsam's tx to track tx that initiated the transfer
-			TxHash:         flotsam.Tx.TxHash,
-			Content:        flotsam.OriginOld.Content,
-			FromInputIndex: flotsam.OriginOld.InputIndex,
-			OldSatPoint:    flotsam.OriginOld.OldSatPoint,
-			NewSatPoint:    newSatPoint,
-			NewPkScript:    txOut.PkScript,
-			NewOutputValue: uint64(txOut.Value),
-			SentAsFee:      sentAsFee,
-			TransferCount:  entry.TransferCount,
+			InscriptionId:             flotsam.InscriptionId,
+			InscriptionNumber:         entry.Number,
+			InscriptionSequenceNumber: entry.SequenceNumber,
+			BlockHeight:               uint64(flotsam.Tx.BlockHeight), // use flotsam's tx to track tx that initiated the transfer
+			TxIndex:                   flotsam.Tx.Index,               // use flotsam's tx to track tx that initiated the transfer
+			TxHash:                    flotsam.Tx.TxHash,
+			Content:                   flotsam.OriginOld.Content,
+			FromInputIndex:            flotsam.OriginOld.InputIndex,
+			OldSatPoint:               flotsam.OriginOld.OldSatPoint,
+			NewSatPoint:               newSatPoint,
+			NewPkScript:               txOut.PkScript,
+			NewOutputValue:            uint64(txOut.Value),
+			SentAsFee:                 sentAsFee,
+			TransferCount:             entry.TransferCount,
 		}
 
 		// track transfers even if transfer count exceeds 2 (because we need to check for reinscriptions)
@@ -336,18 +346,20 @@ func (p *Processor) updateInscriptionLocation(ctx context.Context, newSatPoint o
 			origin.Inscription.ContentEncoding = ""
 		}
 		transfer := &entity.InscriptionTransfer{
-			InscriptionId:  flotsam.InscriptionId,
-			BlockHeight:    uint64(flotsam.Tx.BlockHeight), // use flotsam's tx to track tx that initiated the transfer
-			TxIndex:        flotsam.Tx.Index,               // use flotsam's tx to track tx that initiated the transfer
-			TxHash:         flotsam.Tx.TxHash,
-			Content:        origin.Inscription.Content,
-			FromInputIndex: 0, // unused
-			OldSatPoint:    ordinals.SatPoint{},
-			NewSatPoint:    newSatPoint,
-			NewPkScript:    txOut.PkScript,
-			NewOutputValue: uint64(txOut.Value),
-			SentAsFee:      sentAsFee,
-			TransferCount:  1, // count inscription as first transfer
+			InscriptionId:             flotsam.InscriptionId,
+			InscriptionNumber:         inscriptionNumber,
+			InscriptionSequenceNumber: sequenceNumber,
+			BlockHeight:               uint64(flotsam.Tx.BlockHeight), // use flotsam's tx to track tx that initiated the transfer
+			TxIndex:                   flotsam.Tx.Index,               // use flotsam's tx to track tx that initiated the transfer
+			TxHash:                    flotsam.Tx.TxHash,
+			Content:                   origin.Inscription.Content,
+			FromInputIndex:            0, // unused
+			OldSatPoint:               ordinals.SatPoint{},
+			NewSatPoint:               newSatPoint,
+			NewPkScript:               txOut.PkScript,
+			NewOutputValue:            uint64(txOut.Value),
+			SentAsFee:                 sentAsFee,
+			TransferCount:             1, // count inscription as first transfer
 		}
 		entry := &ordinals.InscriptionEntry{
 			Id:              flotsam.InscriptionId,
@@ -372,6 +384,26 @@ func (p *Processor) updateInscriptionLocation(ctx context.Context, newSatPoint o
 		return nil
 	}
 	panic("unreachable")
+}
+
+func (p *Processor) ensureOutPointValues(ctx context.Context, outPointValues map[wire.OutPoint]uint64, outPoints []wire.OutPoint) error {
+	missingOutPoints := make([]wire.OutPoint, 0)
+	for _, outPoint := range outPoints {
+		if _, ok := outPointValues[outPoint]; !ok {
+			missingOutPoints = append(missingOutPoints, outPoint)
+		}
+	}
+	if len(missingOutPoints) == 0 {
+		return nil
+	}
+	missingOutPointValues, err := p.getOutPointValues(ctx, missingOutPoints)
+	if err != nil {
+		return errors.Wrap(err, "failed to get outpoint values")
+	}
+	for outPoint, value := range missingOutPointValues {
+		outPointValues[outPoint] = value
+	}
+	return nil
 }
 
 type brc20Inscription struct {
@@ -456,6 +488,7 @@ func (p *Processor) getOutPointValues(ctx context.Context, outPoints []wire.OutP
 }
 
 func (p *Processor) getInscriptionTransfersInOutPoints(ctx context.Context, outPoints []wire.OutPoint) (map[wire.OutPoint]map[ordinals.SatPoint][]*entity.InscriptionTransfer, error) {
+	outPoints = lo.Uniq(outPoints)
 	// try to get from flush buffer if exists
 	result := make(map[wire.OutPoint]map[ordinals.SatPoint][]*entity.InscriptionTransfer)
 
@@ -486,6 +519,14 @@ func (p *Processor) getInscriptionTransfersInOutPoints(ctx context.Context, outP
 			result[satPoint.OutPoint] = make(map[ordinals.SatPoint][]*entity.InscriptionTransfer)
 		}
 		result[satPoint.OutPoint][satPoint] = append(result[satPoint.OutPoint][satPoint], transferList...)
+	}
+	for _, transfersBySatPoint := range result {
+		for satPoint := range transfersBySatPoint {
+			// sort all transfers by sequence number
+			slices.SortFunc(transfersBySatPoint[satPoint], func(i, j *entity.InscriptionTransfer) int {
+				return int(i.InscriptionSequenceNumber) - int(j.InscriptionSequenceNumber)
+			})
+		}
 	}
 	return result, nil
 }
