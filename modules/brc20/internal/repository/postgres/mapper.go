@@ -381,6 +381,7 @@ func mapEventDeployTypeToParams(src entity.EventDeploy) (gen.CreateEventDeploysP
 		timestamp = pgtype.Timestamp{Time: src.Timestamp, Valid: true}
 	}
 	return gen.CreateEventDeploysParams{
+		Id:                src.Id,
 		InscriptionID:     src.InscriptionId.String(),
 		InscriptionNumber: src.InscriptionNumber,
 		Tick:              src.Tick,
@@ -450,6 +451,7 @@ func mapEventMintTypeToParams(src entity.EventMint) (gen.CreateEventMintsParams,
 		parentId = pgtype.Text{String: src.ParentId.String(), Valid: true}
 	}
 	return gen.CreateEventMintsParams{
+		Id:                src.Id,
 		InscriptionID:     src.InscriptionId.String(),
 		InscriptionNumber: src.InscriptionNumber,
 		Tick:              src.Tick,
@@ -506,6 +508,7 @@ func mapEventInscribeTransferTypeToParams(src entity.EventInscribeTransfer) (gen
 		timestamp = pgtype.Timestamp{Time: src.Timestamp, Valid: true}
 	}
 	return gen.CreateEventInscribeTransfersParams{
+		Id:                src.Id,
 		InscriptionID:     src.InscriptionId.String(),
 		InscriptionNumber: src.InscriptionNumber,
 		Tick:              src.Tick,
@@ -574,6 +577,7 @@ func mapEventTransferTransferTypeToParams(src entity.EventTransferTransfer) (gen
 		timestamp = pgtype.Timestamp{Time: src.Timestamp, Valid: true}
 	}
 	return gen.CreateEventTransferTransfersParams{
+		Id:                src.Id,
 		InscriptionID:     src.InscriptionId.String(),
 		InscriptionNumber: src.InscriptionNumber,
 		Tick:              src.Tick,

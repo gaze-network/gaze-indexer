@@ -73,7 +73,7 @@ func (b *CreateBalancesBatchResults) Close() error {
 }
 
 const createEventDeploys = `-- name: CreateEventDeploys :batchexec
-INSERT INTO "brc20_event_deploys" ("inscription_id", "inscription_number", "tick", "original_tick", "tx_hash", "block_height", "tx_index", "timestamp", "pkscript", "satpoint", "total_supply", "decimals", "limit_per_mint", "is_self_mint") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+INSERT INTO "brc20_event_deploys" ("id", "inscription_id", "inscription_number", "tick", "original_tick", "tx_hash", "block_height", "tx_index", "timestamp", "pkscript", "satpoint", "total_supply", "decimals", "limit_per_mint", "is_self_mint") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
 `
 
 type CreateEventDeploysBatchResults struct {
@@ -83,6 +83,7 @@ type CreateEventDeploysBatchResults struct {
 }
 
 type CreateEventDeploysParams struct {
+	Id                int64
 	InscriptionID     string
 	InscriptionNumber int64
 	Tick              string
@@ -103,6 +104,7 @@ func (q *Queries) CreateEventDeploys(ctx context.Context, arg []CreateEventDeplo
 	batch := &pgx.Batch{}
 	for _, a := range arg {
 		vals := []interface{}{
+			a.Id,
 			a.InscriptionID,
 			a.InscriptionNumber,
 			a.Tick,
@@ -146,7 +148,7 @@ func (b *CreateEventDeploysBatchResults) Close() error {
 }
 
 const createEventInscribeTransfers = `-- name: CreateEventInscribeTransfers :batchexec
-INSERT INTO "brc20_event_inscribe_transfers" ("inscription_id", "inscription_number", "tick", "original_tick", "tx_hash", "block_height", "tx_index", "timestamp", "pkscript", "satpoint", "output_index", "sats_amount", "amount") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+INSERT INTO "brc20_event_inscribe_transfers" ("id", "inscription_id", "inscription_number", "tick", "original_tick", "tx_hash", "block_height", "tx_index", "timestamp", "pkscript", "satpoint", "output_index", "sats_amount", "amount") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
 `
 
 type CreateEventInscribeTransfersBatchResults struct {
@@ -156,6 +158,7 @@ type CreateEventInscribeTransfersBatchResults struct {
 }
 
 type CreateEventInscribeTransfersParams struct {
+	Id                int64
 	InscriptionID     string
 	InscriptionNumber int64
 	Tick              string
@@ -175,6 +178,7 @@ func (q *Queries) CreateEventInscribeTransfers(ctx context.Context, arg []Create
 	batch := &pgx.Batch{}
 	for _, a := range arg {
 		vals := []interface{}{
+			a.Id,
 			a.InscriptionID,
 			a.InscriptionNumber,
 			a.Tick,
@@ -217,7 +221,7 @@ func (b *CreateEventInscribeTransfersBatchResults) Close() error {
 }
 
 const createEventMints = `-- name: CreateEventMints :batchexec
-INSERT INTO "brc20_event_mints" ("inscription_id", "inscription_number", "tick", "original_tick", "tx_hash", "block_height", "tx_index", "timestamp", "pkscript", "satpoint", "amount", "parent_id") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+INSERT INTO "brc20_event_mints" ("id", "inscription_id", "inscription_number", "tick", "original_tick", "tx_hash", "block_height", "tx_index", "timestamp", "pkscript", "satpoint", "amount", "parent_id") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
 `
 
 type CreateEventMintsBatchResults struct {
@@ -227,6 +231,7 @@ type CreateEventMintsBatchResults struct {
 }
 
 type CreateEventMintsParams struct {
+	Id                int64
 	InscriptionID     string
 	InscriptionNumber int64
 	Tick              string
@@ -245,6 +250,7 @@ func (q *Queries) CreateEventMints(ctx context.Context, arg []CreateEventMintsPa
 	batch := &pgx.Batch{}
 	for _, a := range arg {
 		vals := []interface{}{
+			a.Id,
 			a.InscriptionID,
 			a.InscriptionNumber,
 			a.Tick,
@@ -286,7 +292,7 @@ func (b *CreateEventMintsBatchResults) Close() error {
 }
 
 const createEventTransferTransfers = `-- name: CreateEventTransferTransfers :batchexec
-INSERT INTO "brc20_event_transfer_transfers" ("inscription_id", "inscription_number", "tick", "original_tick", "tx_hash", "block_height", "tx_index", "timestamp", "from_pkscript", "from_satpoint", "from_input_index", "to_pkscript", "to_satpoint", "to_output_index", "spent_as_fee", "amount") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+INSERT INTO "brc20_event_transfer_transfers" ("id", "inscription_id", "inscription_number", "tick", "original_tick", "tx_hash", "block_height", "tx_index", "timestamp", "from_pkscript", "from_satpoint", "from_input_index", "to_pkscript", "to_satpoint", "to_output_index", "spent_as_fee", "amount") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
 `
 
 type CreateEventTransferTransfersBatchResults struct {
@@ -296,6 +302,7 @@ type CreateEventTransferTransfersBatchResults struct {
 }
 
 type CreateEventTransferTransfersParams struct {
+	Id                int64
 	InscriptionID     string
 	InscriptionNumber int64
 	Tick              string
@@ -318,6 +325,7 @@ func (q *Queries) CreateEventTransferTransfers(ctx context.Context, arg []Create
 	batch := &pgx.Batch{}
 	for _, a := range arg {
 		vals := []interface{}{
+			a.Id,
 			a.InscriptionID,
 			a.InscriptionNumber,
 			a.Tick,
