@@ -46,6 +46,7 @@ func (p *Processor) processInscriptionTx(ctx context.Context, tx *types.Transact
 		return nil
 	}
 
+	// Ensure outpoint values exists for all inputs. Some tx inputs may not be prefetched if it contains inscriptions transfers from other txs in the same block.
 	if err := p.ensureOutPointValues(ctx, outpointValues, inputOutPoints); err != nil {
 		return errors.Wrap(err, "failed to ensure outpoint values")
 	}
@@ -518,6 +519,14 @@ func (p *Processor) getInscriptionTransfersInOutPoints(ctx context.Context, outP
 			result[satPoint.OutPoint] = make(map[ordinals.SatPoint][]*entity.InscriptionTransfer)
 		}
 		result[satPoint.OutPoint][satPoint] = append(result[satPoint.OutPoint][satPoint], transferList...)
+	}
+	for _, transfersBySatPoint := range result {
+		for satPoint := range transfersBySatPoint {
+			// sort all transfers by sequence number
+			slices.SortFunc(transfersBySatPoint[satPoint], func(i, j *entity.InscriptionTransfer) int {
+				return int(i.InscriptionSequenceNumber) - int(j.InscriptionSequenceNumber)
+			})
+		}
 	}
 	return result, nil
 }
