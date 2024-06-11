@@ -184,7 +184,7 @@ func (h *handler) eventsHandler(ctx *fiber.Ctx) error {
 		responses[i].WalletAddress = event.WalletAddress
 		responses[i].Action = protobuf.Action_name[event.Action]
 		responses[i].ParsedMessage = event.ParsedMessage
-		responses[i].BlockTimestamp = event.BlockTimestamp.Time
+		responses[i].BlockTimestamp = event.BlockTimestamp.Time.UTC()
 		responses[i].BlockHash = event.BlockHash
 	}
 
