@@ -46,6 +46,10 @@ func (p *Processor) processInscriptionTx(ctx context.Context, tx *types.Transact
 		return nil
 	}
 
+	if err := p.ensureOutPointValues(ctx, outpointValues, inputOutPoints); err != nil {
+		return errors.Wrap(err, "failed to ensure outpoint values")
+	}
+
 	floatingInscriptions := make([]*entity.Flotsam, 0)
 	totalInputValue := uint64(0)
 	totalOutputValue := lo.SumBy(tx.TxOut, func(txOut *types.TxOut) uint64 { return uint64(txOut.Value) })
@@ -64,7 +68,10 @@ func (p *Processor) processInscriptionTx(ctx context.Context, tx *types.Transact
 			Hash:  input.PreviousOutTxHash,
 			Index: input.PreviousOutIndex,
 		}
-		inputValue := outpointValues[inputOutPoint]
+		inputValue, ok := outpointValues[inputOutPoint]
+		if !ok {
+			return errors.Wrapf(errs.NotFound, "outpoint value not found for %s", inputOutPoint.String())
+		}
 
 		transfersInOutPoint := transfersInOutPoints[inputOutPoint]
 		for satPoint, transfers := range transfersInOutPoint {
@@ -374,6 +381,26 @@ func (p *Processor) updateInscriptionLocation(ctx context.Context, newSatPoint o
 	panic("unreachable")
 }
 
+func (p *Processor) ensureOutPointValues(ctx context.Context, outPointValues map[wire.OutPoint]uint64, outPoints []wire.OutPoint) error {
+	missingOutPoints := make([]wire.OutPoint, 0)
+	for _, outPoint := range outPoints {
+		if _, ok := outPointValues[outPoint]; !ok {
+			missingOutPoints = append(missingOutPoints, outPoint)
+		}
+	}
+	if len(missingOutPoints) == 0 {
+		return nil
+	}
+	missingOutPointValues, err := p.getOutPointValues(ctx, missingOutPoints)
+	if err != nil {
+		return errors.Wrap(err, "failed to get outpoint values")
+	}
+	for outPoint, value := range missingOutPointValues {
+		outPointValues[outPoint] = value
+	}
+	return nil
+}
+
 type brc20Inscription struct {
 	P string `json:"p"`
 }
@@ -456,6 +483,7 @@ func (p *Processor) getOutPointValues(ctx context.Context, outPoints []wire.OutP
 }
 
 func (p *Processor) getInscriptionTransfersInOutPoints(ctx context.Context, outPoints []wire.OutPoint) (map[wire.OutPoint]map[ordinals.SatPoint][]*entity.InscriptionTransfer, error) {
+	outPoints = lo.Uniq(outPoints)
 	// try to get from flush buffer if exists
 	result := make(map[wire.OutPoint]map[ordinals.SatPoint][]*entity.InscriptionTransfer)
 
