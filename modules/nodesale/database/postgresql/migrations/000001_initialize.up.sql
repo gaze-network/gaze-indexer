@@ -41,6 +41,7 @@ CREATE TABLE IF NOT EXISTS node_sales (
     "max_per_address" INTEGER NOT NULL,
     "deploy_tx_hash" TEXT NOT NULL REFERENCES events(tx_hash) ON DELETE CASCADE,
     "max_discount_percentage" INTEGER NOT NULL,
+    "seller_wallet" TEXT NOT NULL,
     PRIMARY KEY ("block_height", "tx_index")
 );
 

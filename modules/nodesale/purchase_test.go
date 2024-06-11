@@ -1,13 +1,13 @@
 package nodesale
 
 import (
-	"crypto/sha256"
 	"encoding/hex"
 	"testing"
 	"time"
 
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcutil"
+	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4/ecdsa"
 	"github.com/gaze-network/indexer-network/core/types"
@@ -18,6 +18,9 @@ import (
 )
 
 func TestInvalidPurchase(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode.")
+	}
 	buyerPrivateKey, _ := btcec.NewPrivateKey()
 	buyerPubkeyHex := hex.EncodeToString(buyerPrivateKey.PubKey().SerializeCompressed())
 
@@ -31,6 +34,8 @@ func TestInvalidPurchase(t *testing.T) {
 				},
 				NodeIDs:        []uint32{1, 2},
 				BuyerPublicKey: buyerPubkeyHex,
+				TotalAmountSat: 500,
+				TimeOutBlock:   uint64(testBlockHeigh) + 5,
 			},
 		},
 	}
@@ -48,8 +53,12 @@ func TestInvalidPurchase(t *testing.T) {
 }
 
 func TestInvalidTimestamp(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode.")
+	}
 	sellerPrivateKey, _ := btcec.NewPrivateKey()
 	sellerPubkeyHex := hex.EncodeToString(sellerPrivateKey.PubKey().SerializeCompressed())
+	sellerWallet := p.pubkeyToPkHashAddress(sellerPrivateKey.PubKey())
 	startAt := time.Now().Add(time.Hour * -1)
 	endAt := time.Now().Add(time.Hour * 1)
 	deployMessage := &protobuf.NodeSaleEvent{
@@ -73,6 +82,7 @@ func TestInvalidTimestamp(t *testing.T) {
 			SellerPublicKey:       sellerPubkeyHex,
 			MaxPerAddress:         100,
 			MaxDiscountPercentage: 50,
+			SellerWallet:          sellerWallet.EncodeAddress(),
 		},
 	}
 	event, block := assembleTestEvent(sellerPrivateKey, "040404040404", "040404040404", 0, 0, deployMessage)
@@ -91,6 +101,8 @@ func TestInvalidTimestamp(t *testing.T) {
 				},
 				NodeIDs:        []uint32{1, 2},
 				BuyerPublicKey: buyerPubkeyHex,
+				TotalAmountSat: 200,
+				TimeOutBlock:   uint64(testBlockHeigh) + 5,
 			},
 		},
 	}
@@ -108,8 +120,12 @@ func TestInvalidTimestamp(t *testing.T) {
 }
 
 func TestInvalidBuyerKey(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode.")
+	}
 	sellerPrivateKey, _ := btcec.NewPrivateKey()
 	sellerPubkeyHex := hex.EncodeToString(sellerPrivateKey.PubKey().SerializeCompressed())
+	sellerWallet := p.pubkeyToPkHashAddress(sellerPrivateKey.PubKey())
 	startAt := time.Now().Add(time.Hour * -1)
 	endAt := time.Now().Add(time.Hour * 1)
 	deployMessage := &protobuf.NodeSaleEvent{
@@ -133,6 +149,7 @@ func TestInvalidBuyerKey(t *testing.T) {
 			SellerPublicKey:       sellerPubkeyHex,
 			MaxPerAddress:         100,
 			MaxDiscountPercentage: 50,
+			SellerWallet:          sellerWallet.EncodeAddress(),
 		},
 	}
 	event, block := assembleTestEvent(sellerPrivateKey, "060606060606", "060606060606", 0, 0, deployMessage)
@@ -150,6 +167,8 @@ func TestInvalidBuyerKey(t *testing.T) {
 				},
 				NodeIDs:        []uint32{1, 2},
 				BuyerPublicKey: sellerPubkeyHex,
+				TotalAmountSat: 200,
+				TimeOutBlock:   uint64(testBlockHeigh) + 5,
 			},
 		},
 	}
@@ -166,8 +185,12 @@ func TestInvalidBuyerKey(t *testing.T) {
 }
 
 func TestTimeOut(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode.")
+	}
 	sellerPrivateKey, _ := btcec.NewPrivateKey()
 	sellerPubkeyHex := hex.EncodeToString(sellerPrivateKey.PubKey().SerializeCompressed())
+	sellerWallet := p.pubkeyToPkHashAddress(sellerPrivateKey.PubKey())
 	startAt := time.Now().Add(time.Hour * -1)
 	endAt := time.Now().Add(time.Hour * 1)
 	deployMessage := &protobuf.NodeSaleEvent{
@@ -191,6 +214,7 @@ func TestTimeOut(t *testing.T) {
 			SellerPublicKey:       sellerPubkeyHex,
 			MaxPerAddress:         100,
 			MaxDiscountPercentage: 50,
+			SellerWallet:          sellerWallet.EncodeAddress(),
 		},
 	}
 	event, block := assembleTestEvent(sellerPrivateKey, "0808080808", "0808080808", 0, 0, deployMessage)
@@ -210,6 +234,7 @@ func TestTimeOut(t *testing.T) {
 				NodeIDs:        []uint32{1, 2},
 				BuyerPublicKey: buyerPubkeyHex,
 				TimeOutBlock:   uint64(testBlockHeigh) - 5,
+				TotalAmountSat: 200,
 			},
 		},
 	}
@@ -225,8 +250,12 @@ func TestTimeOut(t *testing.T) {
 }
 
 func TestSignatureInvalid(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode.")
+	}
 	sellerPrivateKey, _ := btcec.NewPrivateKey()
 	sellerPubkeyHex := hex.EncodeToString(sellerPrivateKey.PubKey().SerializeCompressed())
+	sellerWallet := p.pubkeyToPkHashAddress(sellerPrivateKey.PubKey())
 	startAt := time.Now().Add(time.Hour * -1)
 	endAt := time.Now().Add(time.Hour * 1)
 	deployMessage := &protobuf.NodeSaleEvent{
@@ -250,6 +279,7 @@ func TestSignatureInvalid(t *testing.T) {
 			SellerPublicKey:       sellerPubkeyHex,
 			MaxPerAddress:         100,
 			MaxDiscountPercentage: 50,
+			SellerWallet:          sellerWallet.EncodeAddress(),
 		},
 	}
 	event, block := assembleTestEvent(sellerPrivateKey, "0A0A0A0A", "0A0A0A0A", 0, 0, deployMessage)
@@ -269,7 +299,7 @@ func TestSignatureInvalid(t *testing.T) {
 	}
 
 	payloadBytes, _ := proto.Marshal(payload)
-	payloadHash := sha256.Sum256(payloadBytes)
+	payloadHash := chainhash.DoubleHashB(payloadBytes)
 	signature := ecdsa.Sign(buyerPrivateKey, payloadHash[:])
 	signatureHex := hex.EncodeToString(signature.Serialize())
 
@@ -292,8 +322,12 @@ func TestSignatureInvalid(t *testing.T) {
 }
 
 func TestValidPurchase(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode.")
+	}
 	sellerPrivateKey, _ := btcec.NewPrivateKey()
 	sellerPubkeyHex := hex.EncodeToString(sellerPrivateKey.PubKey().SerializeCompressed())
+	sellerWallet := p.pubkeyToPkHashAddress(sellerPrivateKey.PubKey())
 	startAt := time.Now().Add(time.Hour * -1)
 	endAt := time.Now().Add(time.Hour * 1)
 	deployMessage := &protobuf.NodeSaleEvent{
@@ -322,6 +356,7 @@ func TestValidPurchase(t *testing.T) {
 			SellerPublicKey:       sellerPubkeyHex,
 			MaxPerAddress:         100,
 			MaxDiscountPercentage: 50,
+			SellerWallet:          sellerWallet.EncodeAddress(),
 		},
 	}
 	event, block := assembleTestEvent(sellerPrivateKey, "0C0C0C0C0C", "0C0C0C0C0C", 0, 0, deployMessage)
@@ -342,7 +377,7 @@ func TestValidPurchase(t *testing.T) {
 	}
 
 	payloadBytes, _ := proto.Marshal(payload)
-	payloadHash := sha256.Sum256(payloadBytes)
+	payloadHash := chainhash.DoubleHashB(payloadBytes)
 	signature := ecdsa.Sign(sellerPrivateKey, payloadHash[:])
 	signatureHex := hex.EncodeToString(signature.Serialize())
 
@@ -382,8 +417,12 @@ func TestValidPurchase(t *testing.T) {
 }
 
 func TestBuyingLimit(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode.")
+	}
 	sellerPrivateKey, _ := btcec.NewPrivateKey()
 	sellerPubkeyHex := hex.EncodeToString(sellerPrivateKey.PubKey().SerializeCompressed())
+	sellerWallet := p.pubkeyToPkHashAddress(sellerPrivateKey.PubKey())
 	startAt := time.Now().Add(time.Hour * -1)
 	endAt := time.Now().Add(time.Hour * 1)
 	deployMessage := &protobuf.NodeSaleEvent{
@@ -412,6 +451,7 @@ func TestBuyingLimit(t *testing.T) {
 			SellerPublicKey:       sellerPubkeyHex,
 			MaxPerAddress:         2,
 			MaxDiscountPercentage: 50,
+			SellerWallet:          sellerWallet.EncodeAddress(),
 		},
 	}
 	event, block := assembleTestEvent(sellerPrivateKey, "2121212121", "2121212121", 0, 0, deployMessage)
@@ -432,7 +472,7 @@ func TestBuyingLimit(t *testing.T) {
 	}
 
 	payloadBytes, _ := proto.Marshal(payload)
-	payloadHash := sha256.Sum256(payloadBytes)
+	payloadHash := chainhash.DoubleHashB(payloadBytes)
 	signature := ecdsa.Sign(sellerPrivateKey, payloadHash[:])
 	signatureHex := hex.EncodeToString(signature.Serialize())
 
@@ -472,7 +512,7 @@ func TestBuyingLimit(t *testing.T) {
 	}
 
 	payloadBytes, _ = proto.Marshal(payload)
-	payloadHash = sha256.Sum256(payloadBytes)
+	payloadHash = chainhash.DoubleHashB(payloadBytes)
 	signature = ecdsa.Sign(sellerPrivateKey, payloadHash[:])
 	signatureHex = hex.EncodeToString(signature.Serialize())
 
@@ -511,8 +551,12 @@ func TestBuyingLimit(t *testing.T) {
 }
 
 func TestBuyingTierLimit(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode.")
+	}
 	sellerPrivateKey, _ := btcec.NewPrivateKey()
 	sellerPubkeyHex := hex.EncodeToString(sellerPrivateKey.PubKey().SerializeCompressed())
+	sellerWallet := p.pubkeyToPkHashAddress(sellerPrivateKey.PubKey())
 	startAt := time.Now().Add(time.Hour * -1)
 	endAt := time.Now().Add(time.Hour * 1)
 	deployMessage := &protobuf.NodeSaleEvent{
@@ -541,6 +585,7 @@ func TestBuyingTierLimit(t *testing.T) {
 			SellerPublicKey:       sellerPubkeyHex,
 			MaxPerAddress:         100,
 			MaxDiscountPercentage: 50,
+			SellerWallet:          sellerWallet.EncodeAddress(),
 		},
 	}
 	event, block := assembleTestEvent(sellerPrivateKey, "0E0E0E0E", "0E0E0E0E", 0, 0, deployMessage)
@@ -561,7 +606,7 @@ func TestBuyingTierLimit(t *testing.T) {
 	}
 
 	payloadBytes, _ := proto.Marshal(payload)
-	payloadHash := sha256.Sum256(payloadBytes)
+	payloadHash := chainhash.DoubleHashB(payloadBytes)
 	signature := ecdsa.Sign(sellerPrivateKey, payloadHash[:])
 	signatureHex := hex.EncodeToString(signature.Serialize())
 
@@ -601,7 +646,7 @@ func TestBuyingTierLimit(t *testing.T) {
 	}
 
 	payloadBytes, _ = proto.Marshal(payload)
-	payloadHash = sha256.Sum256(payloadBytes)
+	payloadHash = chainhash.DoubleHashB(payloadBytes)
 	signature = ecdsa.Sign(sellerPrivateKey, payloadHash[:])
 	signatureHex = hex.EncodeToString(signature.Serialize())
 

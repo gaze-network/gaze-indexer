@@ -12,8 +12,8 @@ import (
 )
 
 const addNodesale = `-- name: AddNodesale :exec
-INSERT INTO node_sales("block_height", "tx_index", "name", "starts_at", "ends_at", "tiers", "seller_public_key", "max_per_address", "deploy_tx_hash", "max_discount_percentage")
-VALUES ( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+INSERT INTO node_sales("block_height", "tx_index", "name", "starts_at", "ends_at", "tiers", "seller_public_key", "max_per_address", "deploy_tx_hash", "max_discount_percentage", "seller_wallet")
+VALUES ( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 `
 
 type AddNodesaleParams struct {
@@ -27,6 +27,7 @@ type AddNodesaleParams struct {
 	MaxPerAddress         int32
 	DeployTxHash          string
 	MaxDiscountPercentage int32
+	SellerWallet          string
 }
 
 func (q *Queries) AddNodesale(ctx context.Context, arg AddNodesaleParams) error {
@@ -41,12 +42,13 @@ func (q *Queries) AddNodesale(ctx context.Context, arg AddNodesaleParams) error 
 		arg.MaxPerAddress,
 		arg.DeployTxHash,
 		arg.MaxDiscountPercentage,
+		arg.SellerWallet,
 	)
 	return err
 }
 
 const getNodesale = `-- name: GetNodesale :many
-SELECT block_height, tx_index, name, starts_at, ends_at, tiers, seller_public_key, max_per_address, deploy_tx_hash, max_discount_percentage
+SELECT block_height, tx_index, name, starts_at, ends_at, tiers, seller_public_key, max_per_address, deploy_tx_hash, max_discount_percentage, seller_wallet
 FROM node_sales
 WHERE block_height = $1 AND
     tx_index = $2
@@ -77,6 +79,7 @@ func (q *Queries) GetNodesale(ctx context.Context, arg GetNodesaleParams) ([]Nod
 			&i.MaxPerAddress,
 			&i.DeployTxHash,
 			&i.MaxDiscountPercentage,
+			&i.SellerWallet,
 		); err != nil {
 			return nil, err
 		}

@@ -26,6 +26,7 @@ message ActionDeploy {
 	string sellerPublicKey = 5;
 	uint32 maxPerAddress = 6;
 	uint32 maxDiscountPercentage = 7;
+	string sellerWallet = 8;
 }
 
 message Tier {

@@ -3,7 +3,6 @@ package nodesale
 import (
 	"bytes"
 	"context"
-	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -11,6 +10,8 @@ import (
 
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/ecdsa"
+	"github.com/btcsuite/btcd/btcutil"
+	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/gaze-network/indexer-network/core/types"
 	"github.com/gaze-network/indexer-network/modules/nodesale/protobuf"
@@ -45,14 +46,7 @@ func (p *Processor) processPurchase(ctx context.Context, qtx gen.Querier, block 
 			valid = false
 		}
 	}
-	/*
-		buyerAddr, err := p.pubkeyToTaprootAddress(payload.BuyerPublicKey, event.rawScript)
-		if err != nil || !bytes.Equal(
-			[]byte(buyerAddr.EncodeAddress()),
-			[]byte(event.txAddress.EncodeAddress()),
-		) {
-			valid = false
-		}*/
+
 	var deploy *gen.NodeSale
 	if valid {
 		// check node existed
@@ -94,7 +88,7 @@ func (p *Processor) processPurchase(ctx context.Context, qtx gen.Querier, block 
 			valid = false
 		}
 		if valid {
-			hash := sha256.Sum256(payloadBytes)
+			hash := chainhash.DoubleHashB(payloadBytes)
 			pubkeyBytes, _ := hex.DecodeString(deploy.SellerPublicKey)
 			pubKey, _ := btcec.ParsePubKey(pubkeyBytes)
 			verified := signature.Verify(hash[:], pubKey)
@@ -154,13 +148,18 @@ func (p *Processor) processPurchase(ctx context.Context, qtx gen.Querier, block 
 		}
 	}
 
+	var sellerAddr btcutil.Address
+	if valid {
+		sellerAddr, err = btcutil.DecodeAddress(deploy.SellerWallet, p.network.ChainParams())
+		if err != nil {
+			valid = false
+		}
+	}
+
 	var txPaid int64 = 0
 	meta := metaData{}
 	if valid {
 		// get total amount paid to seller
-		sellerPubKeyBytes, _ := hex.DecodeString(deploy.SellerPublicKey)
-		sellerPubKey, _ := btcec.ParsePubKey(sellerPubKeyBytes)
-		sellerAddr := p.pubkeyToPkHashAddress(sellerPubKey)
 		for _, txOut := range event.transaction.TxOut {
 			_, txOutAddrs, _, _ := txscript.ExtractPkScriptAddrs(txOut.PkScript, p.network.ChainParams())
 			if len(txOutAddrs) == 1 && bytes.Equal(

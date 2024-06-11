@@ -1,13 +1,13 @@
 package nodesale
 
 import (
-	"crypto/sha256"
 	"encoding/hex"
 	"testing"
 	"time"
 
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcutil"
+	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4/ecdsa"
 	"github.com/gaze-network/indexer-network/core/types"
@@ -18,8 +18,12 @@ import (
 )
 
 func TestDelegate(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode.")
+	}
 	sellerPrivateKey, _ := btcec.NewPrivateKey()
 	sellerPubkeyHex := hex.EncodeToString(sellerPrivateKey.PubKey().SerializeCompressed())
+	sellerWallet := p.pubkeyToPkHashAddress(sellerPrivateKey.PubKey())
 	startAt := time.Now().Add(time.Hour * -1)
 	endAt := time.Now().Add(time.Hour * 1)
 	deployMessage := &protobuf.NodeSaleEvent{
@@ -48,6 +52,7 @@ func TestDelegate(t *testing.T) {
 			SellerPublicKey:       sellerPubkeyHex,
 			MaxPerAddress:         100,
 			MaxDiscountPercentage: 50,
+			SellerWallet:          sellerWallet.EncodeAddress(),
 		},
 	}
 	event, block := assembleTestEvent(sellerPrivateKey, "111111", "111111", 0, 0, deployMessage)
@@ -68,7 +73,7 @@ func TestDelegate(t *testing.T) {
 	}
 
 	payloadBytes, _ := proto.Marshal(payload)
-	payloadHash := sha256.Sum256(payloadBytes)
+	payloadHash := chainhash.DoubleHashB(payloadBytes)
 	signature := ecdsa.Sign(sellerPrivateKey, payloadHash[:])
 	signatureHex := hex.EncodeToString(signature.Serialize())
 

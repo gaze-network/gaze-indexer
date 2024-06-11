@@ -17,14 +17,6 @@ func (p *Processor) processDeploy(ctx context.Context, qtx gen.Querier, block *t
 	valid := true
 	deploy := event.eventMessage.Deploy
 
-	/*
-		sellerAddr, err := p.pubkeyToTaprootAddress(deploy.SellerPublicKey, event.rawScript)
-		if err != nil || !bytes.Equal(
-			[]byte(sellerAddr.EncodeAddress()),
-			[]byte(event.txAddress.EncodeAddress()),
-		) {
-			valid = false
-		}*/
 	sellerPubKeyBytes, err := hex.DecodeString(deploy.SellerPublicKey)
 	if err != nil {
 		valid = false
@@ -83,6 +75,7 @@ func (p *Processor) processDeploy(ctx context.Context, qtx gen.Querier, block *t
 			MaxPerAddress:         int32(deploy.MaxPerAddress),
 			DeployTxHash:          event.transaction.TxHash.String(),
 			MaxDiscountPercentage: int32(deploy.MaxDiscountPercentage),
+			SellerWallet:          deploy.SellerWallet,
 		})
 		if err != nil {
 			return fmt.Errorf("Failed to insert nodesale : %w", err)

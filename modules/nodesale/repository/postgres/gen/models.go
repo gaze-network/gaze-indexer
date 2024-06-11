@@ -50,4 +50,5 @@ type NodeSale struct {
 	MaxPerAddress         int32
 	DeployTxHash          string
 	MaxDiscountPercentage int32
+	SellerWallet          string
 }

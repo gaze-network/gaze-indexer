@@ -2,6 +2,7 @@ package nodesale
 
 import (
 	"context"
+	"flag"
 	"os"
 	"testing"
 	"time"
@@ -39,7 +40,10 @@ var (
 )
 
 func TestMain(m *testing.M) {
-	// call flag.Parse() here if TestMain uses flags
+	flag.Parse()
+	if testing.Short() {
+		return
+	}
 
 	ctx = context.Background()
 
@@ -73,13 +77,6 @@ func assembleTestEvent(privateKey *secp256k1.PrivateKey, blockHashHex, txHashHex
 	builder.AddOp(txscript.OP_IF)
 	builder.AddData(rawData)
 	builder.AddOp(txscript.OP_ENDIF)
-	// script, _ := builder.Script()
-	// tapleaf := txscript.NewBaseTapLeaf(script)
-	// scriptTree := txscript.AssembleTaprootScriptTree(tapleaf)
-	// rootHash := scriptTree.RootNode.TapHash()
-	// tapkey := txscript.ComputeTaprootOutputKey(privateKey.PubKey(), rootHash[:])
-
-	// addressTaproot, _ := btcutil.NewAddressTaproot(schnorr.SerializePubKey(tapkey), p.network.ChainParams())
 
 	messageJson, _ := protojson.Marshal(message)
 
@@ -102,9 +99,7 @@ func assembleTestEvent(privateKey *secp256k1.PrivateKey, blockHashHex, txHashHex
 		rawData:      rawData,
 		eventMessage: message,
 		eventJson:    messageJson,
-		// txAddress:    addressTaproot,
-		txPubkey: privateKey.PubKey(),
-		// rawScript:    script,
+		txPubkey:     privateKey.PubKey(),
 	}
 	block := &types.Block{
 		Header: types.BlockHeader{

@@ -11,7 +11,11 @@ import (
 )
 
 func TestDeployInvalid(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode.")
+	}
 	prvKey, _ := btcec.NewPrivateKey()
+	sellerWallet := p.pubkeyToPkHashAddress(prvKey.PubKey())
 	message := &protobuf.NodeSaleEvent{
 		Action: protobuf.Action_ACTION_DEPLOY,
 		Deploy: &protobuf.ActionDeploy{
@@ -30,8 +34,10 @@ func TestDeployInvalid(t *testing.T) {
 					MaxPerAddress: 100,
 				},
 			},
-			SellerPublicKey: "0102030405",
-			MaxPerAddress:   100,
+			SellerPublicKey:       "0102030405",
+			MaxPerAddress:         100,
+			MaxDiscountPercentage: 50,
+			SellerWallet:          sellerWallet.EncodeAddress(),
 		},
 	}
 
@@ -46,8 +52,12 @@ func TestDeployInvalid(t *testing.T) {
 }
 
 func TestDeployValid(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode.")
+	}
 	privateKey, _ := btcec.NewPrivateKey()
 	pubkeyHex := hex.EncodeToString(privateKey.PubKey().SerializeCompressed())
+	sellerWallet := p.pubkeyToPkHashAddress(privateKey.PubKey())
 	message := &protobuf.NodeSaleEvent{
 		Action: protobuf.Action_ACTION_DEPLOY,
 		Deploy: &protobuf.ActionDeploy{
@@ -69,6 +79,7 @@ func TestDeployValid(t *testing.T) {
 			SellerPublicKey:       pubkeyHex,
 			MaxPerAddress:         100,
 			MaxDiscountPercentage: 50,
+			SellerWallet:          sellerWallet.EncodeAddress(),
 		},
 	}
 
