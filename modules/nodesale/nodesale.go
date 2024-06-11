@@ -9,8 +9,10 @@ import (
 	"github.com/gaze-network/indexer-network/core/indexer"
 	"github.com/gaze-network/indexer-network/internal/config"
 	"github.com/gaze-network/indexer-network/internal/postgres"
+	"github.com/gaze-network/indexer-network/modules/nodesale/api/httphandler"
 	repository "github.com/gaze-network/indexer-network/modules/nodesale/repository/postgres"
 	"github.com/gaze-network/indexer-network/pkg/logger"
+	"github.com/gofiber/fiber/v2"
 	"github.com/samber/do/v2"
 )
 
@@ -45,6 +47,14 @@ func New(injector do.Injector) (indexer.IndexerWorker, error) {
 		network:      conf.Network,
 		cleanupFuncs: cleanupFuncs,
 	}
+
+	httpServer := do.MustInvoke[*fiber.App](injector)
+	nodesaleHandler := httphandler.New(repository)
+	if err := nodesaleHandler.Mount(httpServer); err != nil {
+		return nil, fmt.Errorf("Can't mount nodesale API : %w", err)
+	}
+	logger.InfoContext(ctx, "Mounted nodesale HTTP handler")
+
 	indexer := indexer.New(processor, datasource)
 	logger.InfoContext(ctx, "Nodesale module started.")
 	return indexer, nil

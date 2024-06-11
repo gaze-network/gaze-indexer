@@ -21,6 +21,15 @@ CREATE TABLE IF NOT EXISTS events (
     "metadata" JSONB NOT NULL
 );
 
+INSERT INTO events("tx_hash", "block_height", "tx_index",
+                 "wallet_address", "valid", "action", 
+                "raw_message", "parsed_message", "block_timestamp",
+                "block_hash", "metadata")
+VALUES ('', -1, -1,
+        '', false, -1,
+        '', '{}', NOW(),
+        '', '{}');
+
 CREATE TABLE IF NOT EXISTS node_sales (
     "block_height" INTEGER NOT NULL,
     "tx_index" INTEGER NOT NULL,
@@ -40,10 +49,10 @@ CREATE TABLE IF NOT EXISTS nodes (
     "sale_tx_index" INTEGER NOT NULL,
     "node_id" INTEGER NOT NULL,
     "tier_index" INTEGER NOT NULL,
-    "delegated_to" TEXT,
+    "delegated_to" TEXT NOT NULL DEFAULT '',
     "owner_public_key" TEXT NOT NULL,
     "purchase_tx_hash" TEXT NOT NULL REFERENCES events(tx_hash) ON DELETE CASCADE,
-    "delegate_tx_hash" TEXT REFERENCES events(tx_hash) ON DELETE SET NULL,
+    "delegate_tx_hash" TEXT NOT NULL DEFAULT '' REFERENCES events(tx_hash) ON DELETE SET DEFAULT,
     PRIMARY KEY("sale_block", "sale_tx_index", "node_id"),
     FOREIGN KEY("sale_block", "sale_tx_index") REFERENCES node_sales("block_height", "tx_index")
 );

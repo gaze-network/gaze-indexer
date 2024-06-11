@@ -25,17 +25,17 @@ func (p *Processor) processDeploy(ctx context.Context, qtx gen.Querier, block *t
 		) {
 			valid = false
 		}*/
-	decoded, err := hex.DecodeString(deploy.SellerPublicKey)
+	sellerPubKeyBytes, err := hex.DecodeString(deploy.SellerPublicKey)
 	if err != nil {
 		valid = false
 	}
 
 	if valid {
-		pubkey, err := btcec.ParsePubKey(decoded)
+		sellerPubKey, err := btcec.ParsePubKey(sellerPubKeyBytes)
 		if err != nil {
 			valid = false
 		}
-		if valid && !event.txPubkey.IsEqual(pubkey) {
+		if valid && !event.txPubkey.IsEqual(sellerPubKey) {
 			valid = false
 		}
 	}

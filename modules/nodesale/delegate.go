@@ -33,17 +33,17 @@ func (p *Processor) processDelegate(ctx context.Context, qtx gen.Querier, block 
 
 	if valid {
 		for _, node := range nodes {
-			decoded, err := hex.DecodeString(node.OwnerPublicKey)
+			OwnerPublicKeyBytes, err := hex.DecodeString(node.OwnerPublicKey)
 			if err != nil {
 				valid = false
 				break
 			}
-			pubkey, err := btcec.ParsePubKey(decoded)
+			OwnerPublicKey, err := btcec.ParsePubKey(OwnerPublicKeyBytes)
 			if err != nil {
 				valid = false
 				break
 			}
-			if !event.txPubkey.IsEqual(pubkey) {
+			if !event.txPubkey.IsEqual(OwnerPublicKey) {
 				valid = false
 				break
 			}
@@ -71,11 +71,8 @@ func (p *Processor) processDelegate(ctx context.Context, qtx gen.Querier, block 
 		_, err = qtx.SetDelegates(ctx, gen.SetDelegatesParams{
 			SaleBlock:   int32(delegate.DeployID.Block),
 			SaleTxIndex: int32(delegate.DeployID.TxIndex),
-			Delegatee: pgtype.Text{
-				String: delegate.DelegateePublicKey,
-				Valid:  true,
-			},
-			NodeIds: nodeIds,
+			Delegatee:   delegate.DelegateePublicKey,
+			NodeIds:     nodeIds,
 		})
 		if err != nil {
 			return fmt.Errorf("Failed to set delegate : %w", err)

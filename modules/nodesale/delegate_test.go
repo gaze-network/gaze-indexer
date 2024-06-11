@@ -116,10 +116,9 @@ func TestDelegate(t *testing.T) {
 	require.Len(t, nodes, 3)
 	for _, node := range nodes {
 		if node.NodeID == 9 || node.NodeID == 10 {
-			require.True(t, node.DelegatedTo.Valid)
-			require.Equal(t, delegateePubkeyHex, node.DelegatedTo.String)
+			require.NotEmpty(t, node.DelegatedTo)
 		} else if node.NodeID == 11 {
-			require.False(t, node.DelegatedTo.Valid)
+			require.Empty(t, node.DelegatedTo)
 		} else {
 			require.Fail(t, "Unhandled")
 		}

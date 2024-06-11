@@ -31,17 +31,17 @@ func (p *Processor) processPurchase(ctx context.Context, qtx gen.Querier, block 
 	purchase := event.eventMessage.Purchase
 	payload := purchase.Payload
 
-	decoded, err := hex.DecodeString(payload.BuyerPublicKey)
+	buyerPubkeyBytes, err := hex.DecodeString(payload.BuyerPublicKey)
 	if err != nil {
 		valid = false
 	}
 
 	if valid {
-		pubkey, err := btcec.ParsePubKey(decoded)
+		buyerPubkey, err := btcec.ParsePubKey(buyerPubkeyBytes)
 		if err != nil {
 			valid = false
 		}
-		if valid && !event.txPubkey.IsEqual(pubkey) {
+		if valid && !event.txPubkey.IsEqual(buyerPubkey) {
 			valid = false
 		}
 	}
@@ -256,10 +256,10 @@ func (p *Processor) processPurchase(ctx context.Context, qtx gen.Querier, block 
 				SaleTxIndex:    deploy.TxIndex,
 				NodeID:         int32(nodeId),
 				TierIndex:      nodeIdToTier[nodeId],
-				DelegatedTo:    pgtype.Text{Valid: false},
+				DelegatedTo:    "",
 				OwnerPublicKey: payload.BuyerPublicKey,
 				PurchaseTxHash: event.transaction.TxHash.String(),
-				DelegateTxHash: pgtype.Text{Valid: false},
+				DelegateTxHash: "",
 			})
 			if err != nil {
 				return fmt.Errorf("Failed to insert node : %w", err)

@@ -11,6 +11,7 @@ import (
 
 const clearEvents = `-- name: ClearEvents :exec
 DELETE FROM events
+WHERE tx_hash <> ''
 `
 
 func (q *Queries) ClearEvents(ctx context.Context) error {

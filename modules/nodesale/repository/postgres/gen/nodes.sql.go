@@ -21,10 +21,10 @@ type AddNodeParams struct {
 	SaleTxIndex    int32
 	NodeID         int32
 	TierIndex      int32
-	DelegatedTo    pgtype.Text
+	DelegatedTo    string
 	OwnerPublicKey string
 	PurchaseTxHash string
-	DelegateTxHash pgtype.Text
+	DelegateTxHash string
 }
 
 func (q *Queries) AddNode(ctx context.Context, arg AddNodeParams) error {
@@ -43,7 +43,7 @@ func (q *Queries) AddNode(ctx context.Context, arg AddNodeParams) error {
 
 const clearDelegate = `-- name: ClearDelegate :execrows
 UPDATE nodes
-SET "delegated_to" = NULL
+SET "delegated_to" = ''
 WHERE "delegate_tx_hash" = NULL
 `
 
@@ -53,6 +53,56 @@ func (q *Queries) ClearDelegate(ctx context.Context) (int64, error) {
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const getNodeCountByTierIndex = `-- name: GetNodeCountByTierIndex :many
+SELECT tiers.tier_index as tier_index, count(nodes.tier_index)
+FROM generate_series($3::int,$4::int) as tiers(tier_index)
+LEFT JOIN 
+	(select sale_block, sale_tx_index, node_id, tier_index, delegated_to, owner_public_key, purchase_tx_hash, delegate_tx_hash 
+	from nodes 
+	where sale_block = $1 and 
+		sale_tx_index= $2) 
+	as nodes on tiers.tier_index = nodes.tier_index 
+group by tiers.tier_index
+ORDER BY tiers.tier_index
+`
+
+type GetNodeCountByTierIndexParams struct {
+	SaleBlock   int32
+	SaleTxIndex int32
+	FromTier    int32
+	ToTier      int32
+}
+
+type GetNodeCountByTierIndexRow struct {
+	TierIndex interface{}
+	Count     int64
+}
+
+func (q *Queries) GetNodeCountByTierIndex(ctx context.Context, arg GetNodeCountByTierIndexParams) ([]GetNodeCountByTierIndexRow, error) {
+	rows, err := q.db.Query(ctx, getNodeCountByTierIndex,
+		arg.SaleBlock,
+		arg.SaleTxIndex,
+		arg.FromTier,
+		arg.ToTier,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetNodeCountByTierIndexRow
+	for rows.Next() {
+		var i GetNodeCountByTierIndexRow
+		if err := rows.Scan(&i.TierIndex, &i.Count); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getNodes = `-- name: GetNodes :many
@@ -142,6 +192,89 @@ func (q *Queries) GetNodesByOwner(ctx context.Context, arg GetNodesByOwnerParams
 	return items, nil
 }
 
+const getNodesByPubkey = `-- name: GetNodesByPubkey :many
+SELECT sale_block, sale_tx_index, node_id, tier_index, delegated_to, owner_public_key, purchase_tx_hash, delegate_tx_hash, tx_hash, block_height, tx_index, wallet_address, valid, action, raw_message, parsed_message, block_timestamp, block_hash, metadata
+FROM nodes JOIN events ON nodes.purchase_tx_hash = events.tx_hash
+WHERE sale_block = $1 AND
+    sale_tx_index = $2 AND
+    owner_public_key = $3 AND
+    delegated_to = $4
+`
+
+type GetNodesByPubkeyParams struct {
+	SaleBlock      int32
+	SaleTxIndex    int32
+	OwnerPublicKey string
+	DelegatedTo    string
+}
+
+type GetNodesByPubkeyRow struct {
+	SaleBlock      int32
+	SaleTxIndex    int32
+	NodeID         int32
+	TierIndex      int32
+	DelegatedTo    string
+	OwnerPublicKey string
+	PurchaseTxHash string
+	DelegateTxHash string
+	TxHash         string
+	BlockHeight    int32
+	TxIndex        int32
+	WalletAddress  string
+	Valid          bool
+	Action         int32
+	RawMessage     []byte
+	ParsedMessage  []byte
+	BlockTimestamp pgtype.Timestamp
+	BlockHash      string
+	Metadata       []byte
+}
+
+func (q *Queries) GetNodesByPubkey(ctx context.Context, arg GetNodesByPubkeyParams) ([]GetNodesByPubkeyRow, error) {
+	rows, err := q.db.Query(ctx, getNodesByPubkey,
+		arg.SaleBlock,
+		arg.SaleTxIndex,
+		arg.OwnerPublicKey,
+		arg.DelegatedTo,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetNodesByPubkeyRow
+	for rows.Next() {
+		var i GetNodesByPubkeyRow
+		if err := rows.Scan(
+			&i.SaleBlock,
+			&i.SaleTxIndex,
+			&i.NodeID,
+			&i.TierIndex,
+			&i.DelegatedTo,
+			&i.OwnerPublicKey,
+			&i.PurchaseTxHash,
+			&i.DelegateTxHash,
+			&i.TxHash,
+			&i.BlockHeight,
+			&i.TxIndex,
+			&i.WalletAddress,
+			&i.Valid,
+			&i.Action,
+			&i.RawMessage,
+			&i.ParsedMessage,
+			&i.BlockTimestamp,
+			&i.BlockHash,
+			&i.Metadata,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const setDelegates = `-- name: SetDelegates :execrows
 UPDATE nodes
 SET delegated_to = $3
@@ -153,7 +286,7 @@ WHERE sale_block = $1 AND
 type SetDelegatesParams struct {
 	SaleBlock   int32
 	SaleTxIndex int32
-	Delegatee   pgtype.Text
+	Delegatee   string
 	NodeIds     []int32
 }
 

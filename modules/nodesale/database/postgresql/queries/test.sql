@@ -1,2 +1,4 @@
 -- name: ClearEvents :exec
-DELETE FROM events;
+DELETE FROM events
+WHERE tx_hash <> '';
+;

@@ -33,10 +33,10 @@ type Node struct {
 	SaleTxIndex    int32
 	NodeID         int32
 	TierIndex      int32
-	DelegatedTo    pgtype.Text
+	DelegatedTo    string
 	OwnerPublicKey string
 	PurchaseTxHash string
-	DelegateTxHash pgtype.Text
+	DelegateTxHash string
 }
 
 type NodeSale struct {
