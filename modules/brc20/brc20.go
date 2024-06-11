@@ -12,10 +12,15 @@ import (
 	"github.com/gaze-network/indexer-network/core/types"
 	"github.com/gaze-network/indexer-network/internal/config"
 	"github.com/gaze-network/indexer-network/internal/postgres"
+	"github.com/gaze-network/indexer-network/modules/brc20/api/httphandler"
 	"github.com/gaze-network/indexer-network/modules/brc20/internal/datagateway"
 	brc20postgres "github.com/gaze-network/indexer-network/modules/brc20/internal/repository/postgres"
+	"github.com/gaze-network/indexer-network/modules/brc20/internal/usecase"
 	"github.com/gaze-network/indexer-network/pkg/btcclient"
+	"github.com/gaze-network/indexer-network/pkg/logger"
+	"github.com/gofiber/fiber/v2"
 	"github.com/samber/do/v2"
+	"github.com/samber/lo"
 )
 
 func New(injector do.Injector) (indexer.IndexerWorker, error) {
@@ -64,6 +69,23 @@ func New(injector do.Injector) (indexer.IndexerWorker, error) {
 	}
 	if err := processor.VerifyStates(ctx); err != nil {
 		return nil, errors.WithStack(err)
+	}
+
+	// Mount API
+	apiHandlers := lo.Uniq(conf.Modules.BRC20.APIHandlers)
+	for _, handler := range apiHandlers {
+		switch handler { // TODO: support more handlers (e.g. gRPC)
+		case "http":
+			httpServer := do.MustInvoke[*fiber.App](injector)
+			uc := usecase.New(brc20Dg, bitcoinClient)
+			httpHandler := httphandler.New(conf.Network, uc)
+			if err := httpHandler.Mount(httpServer); err != nil {
+				return nil, errors.Wrap(err, "can't mount API")
+			}
+			logger.InfoContext(ctx, "Mounted HTTP handler")
+		default:
+			return nil, errors.Wrapf(errs.Unsupported, "%q API handler is not supported", handler)
+		}
 	}
 
 	indexer := indexer.New(processor, bitcoinDatasource)
