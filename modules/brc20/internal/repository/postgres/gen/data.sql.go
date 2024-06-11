@@ -387,7 +387,7 @@ func (q *Queries) GetInscriptionParentsByIds(ctx context.Context, inscriptionIds
 }
 
 const getInscriptionTransfersInOutPoints = `-- name: GetInscriptionTransfersInOutPoints :many
-SELECT it.inscription_id, it.block_height, it.tx_index, it.tx_hash, it.from_input_index, it.old_satpoint_tx_hash, it.old_satpoint_out_idx, it.old_satpoint_offset, it.new_satpoint_tx_hash, it.new_satpoint_out_idx, it.new_satpoint_offset, it.new_pkscript, it.new_output_value, it.sent_as_fee, it.transfer_count, "ie"."content"   FROM (
+SELECT it.inscription_id, it.inscription_number, it.inscription_sequence_number, it.block_height, it.tx_index, it.tx_hash, it.from_input_index, it.old_satpoint_tx_hash, it.old_satpoint_out_idx, it.old_satpoint_offset, it.new_satpoint_tx_hash, it.new_satpoint_out_idx, it.new_satpoint_offset, it.new_pkscript, it.new_output_value, it.sent_as_fee, it.transfer_count, "ie"."content"   FROM (
     SELECT
       unnest($1::text[]) AS "tx_hash",
       unnest($2::int[]) AS "tx_out_idx"
@@ -402,22 +402,24 @@ type GetInscriptionTransfersInOutPointsParams struct {
 }
 
 type GetInscriptionTransfersInOutPointsRow struct {
-	InscriptionID     string
-	BlockHeight       int32
-	TxIndex           int32
-	TxHash            string
-	FromInputIndex    int32
-	OldSatpointTxHash pgtype.Text
-	OldSatpointOutIdx pgtype.Int4
-	OldSatpointOffset pgtype.Int8
-	NewSatpointTxHash pgtype.Text
-	NewSatpointOutIdx pgtype.Int4
-	NewSatpointOffset pgtype.Int8
-	NewPkscript       string
-	NewOutputValue    int64
-	SentAsFee         bool
-	TransferCount     int32
-	Content           []byte
+	InscriptionID             string
+	InscriptionNumber         int64
+	InscriptionSequenceNumber int64
+	BlockHeight               int32
+	TxIndex                   int32
+	TxHash                    string
+	FromInputIndex            int32
+	OldSatpointTxHash         pgtype.Text
+	OldSatpointOutIdx         pgtype.Int4
+	OldSatpointOffset         pgtype.Int8
+	NewSatpointTxHash         pgtype.Text
+	NewSatpointOutIdx         pgtype.Int4
+	NewSatpointOffset         pgtype.Int8
+	NewPkscript               string
+	NewOutputValue            int64
+	SentAsFee                 bool
+	TransferCount             int32
+	Content                   []byte
 }
 
 func (q *Queries) GetInscriptionTransfersInOutPoints(ctx context.Context, arg GetInscriptionTransfersInOutPointsParams) ([]GetInscriptionTransfersInOutPointsRow, error) {
@@ -431,6 +433,8 @@ func (q *Queries) GetInscriptionTransfersInOutPoints(ctx context.Context, arg Ge
 		var i GetInscriptionTransfersInOutPointsRow
 		if err := rows.Scan(
 			&i.InscriptionID,
+			&i.InscriptionNumber,
+			&i.InscriptionSequenceNumber,
 			&i.BlockHeight,
 			&i.TxIndex,
 			&i.TxHash,

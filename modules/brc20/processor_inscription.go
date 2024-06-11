@@ -299,18 +299,20 @@ func (p *Processor) updateInscriptionLocation(ctx context.Context, newSatPoint o
 		}
 		entry.TransferCount++
 		transfer := &entity.InscriptionTransfer{
-			InscriptionId:  flotsam.InscriptionId,
-			BlockHeight:    uint64(flotsam.Tx.BlockHeight), // use flotsam's tx to track tx that initiated the transfer
-			TxIndex:        flotsam.Tx.Index,               // use flotsam's tx to track tx that initiated the transfer
-			TxHash:         flotsam.Tx.TxHash,
-			Content:        flotsam.OriginOld.Content,
-			FromInputIndex: flotsam.OriginOld.InputIndex,
-			OldSatPoint:    flotsam.OriginOld.OldSatPoint,
-			NewSatPoint:    newSatPoint,
-			NewPkScript:    txOut.PkScript,
-			NewOutputValue: uint64(txOut.Value),
-			SentAsFee:      sentAsFee,
-			TransferCount:  entry.TransferCount,
+			InscriptionId:             flotsam.InscriptionId,
+			InscriptionNumber:         entry.Number,
+			InscriptionSequenceNumber: entry.SequenceNumber,
+			BlockHeight:               uint64(flotsam.Tx.BlockHeight), // use flotsam's tx to track tx that initiated the transfer
+			TxIndex:                   flotsam.Tx.Index,               // use flotsam's tx to track tx that initiated the transfer
+			TxHash:                    flotsam.Tx.TxHash,
+			Content:                   flotsam.OriginOld.Content,
+			FromInputIndex:            flotsam.OriginOld.InputIndex,
+			OldSatPoint:               flotsam.OriginOld.OldSatPoint,
+			NewSatPoint:               newSatPoint,
+			NewPkScript:               txOut.PkScript,
+			NewOutputValue:            uint64(txOut.Value),
+			SentAsFee:                 sentAsFee,
+			TransferCount:             entry.TransferCount,
 		}
 
 		// track transfers even if transfer count exceeds 2 (because we need to check for reinscriptions)
@@ -343,18 +345,20 @@ func (p *Processor) updateInscriptionLocation(ctx context.Context, newSatPoint o
 			origin.Inscription.ContentEncoding = ""
 		}
 		transfer := &entity.InscriptionTransfer{
-			InscriptionId:  flotsam.InscriptionId,
-			BlockHeight:    uint64(flotsam.Tx.BlockHeight), // use flotsam's tx to track tx that initiated the transfer
-			TxIndex:        flotsam.Tx.Index,               // use flotsam's tx to track tx that initiated the transfer
-			TxHash:         flotsam.Tx.TxHash,
-			Content:        origin.Inscription.Content,
-			FromInputIndex: 0, // unused
-			OldSatPoint:    ordinals.SatPoint{},
-			NewSatPoint:    newSatPoint,
-			NewPkScript:    txOut.PkScript,
-			NewOutputValue: uint64(txOut.Value),
-			SentAsFee:      sentAsFee,
-			TransferCount:  1, // count inscription as first transfer
+			InscriptionId:             flotsam.InscriptionId,
+			InscriptionNumber:         inscriptionNumber,
+			InscriptionSequenceNumber: sequenceNumber,
+			BlockHeight:               uint64(flotsam.Tx.BlockHeight), // use flotsam's tx to track tx that initiated the transfer
+			TxIndex:                   flotsam.Tx.Index,               // use flotsam's tx to track tx that initiated the transfer
+			TxHash:                    flotsam.Tx.TxHash,
+			Content:                   origin.Inscription.Content,
+			FromInputIndex:            0, // unused
+			OldSatPoint:               ordinals.SatPoint{},
+			NewSatPoint:               newSatPoint,
+			NewPkScript:               txOut.PkScript,
+			NewOutputValue:            uint64(txOut.Value),
+			SentAsFee:                 sentAsFee,
+			TransferCount:             1, // count inscription as first transfer
 		}
 		entry := &ordinals.InscriptionEntry{
 			Id:              flotsam.InscriptionId,
