@@ -22,10 +22,15 @@ import (
 	"github.com/gaze-network/indexer-network/pkg/errorhandler"
 	"github.com/gaze-network/indexer-network/pkg/logger"
 	"github.com/gaze-network/indexer-network/pkg/logger/slogx"
+	"github.com/gaze-network/indexer-network/pkg/middleware/requestcontext"
+	"github.com/gaze-network/indexer-network/pkg/middleware/requestlogger"
 	"github.com/gaze-network/indexer-network/pkg/reportingclient"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/compress"
+	"github.com/gofiber/fiber/v2/middleware/cors"
+	"github.com/gofiber/fiber/v2/middleware/favicon"
 	fiberrecover "github.com/gofiber/fiber/v2/middleware/recover"
+	"github.com/gofiber/fiber/v2/middleware/requestid"
 	"github.com/samber/do/v2"
 	"github.com/samber/lo"
 	"github.com/spf13/cobra"
@@ -135,6 +140,14 @@ func runHandler(cmd *cobra.Command, _ []string) error {
 			ErrorHandler: errorhandler.NewHTTPErrorHandler(),
 		})
 		app.
+			Use(favicon.New()).
+			Use(cors.New()).
+			Use(requestid.New()).
+			Use(requestcontext.New(
+				requestcontext.WithRequestId(),
+				requestcontext.WithClientIP(conf.HTTPServer.RequestIP),
+			)).
+			Use(requestlogger.New(conf.HTTPServer.Logger)).
 			Use(fiberrecover.New(fiberrecover.Config{
 				EnableStackTrace: true,
 				StackTraceHandler: func(c *fiber.Ctx, e interface{}) {

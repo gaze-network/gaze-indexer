@@ -11,6 +11,8 @@ import (
 	runesconfig "github.com/gaze-network/indexer-network/modules/runes/config"
 	"github.com/gaze-network/indexer-network/pkg/logger"
 	"github.com/gaze-network/indexer-network/pkg/logger/slogx"
+	"github.com/gaze-network/indexer-network/pkg/middleware/requestcontext"
+	"github.com/gaze-network/indexer-network/pkg/middleware/requestlogger"
 	"github.com/gaze-network/indexer-network/pkg/reportingclient"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
@@ -63,7 +65,9 @@ type Modules struct {
 }
 
 type HTTPServerConfig struct {
-	Port int `mapstructure:"port"`
+	Port      int                               `mapstructure:"port"`
+	Logger    requestlogger.Config              `mapstructure:"logger"`
+	RequestIP requestcontext.WithClientIPConfig `mapstructure:"requestip"`
 }
 
 // Parse parse the configuration from environment variables
