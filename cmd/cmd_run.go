@@ -145,7 +145,7 @@ func runHandler(cmd *cobra.Command, _ []string) error {
 			Use(requestid.New()).
 			Use(requestcontext.New(
 				requestcontext.WithRequestId(),
-				requestcontext.WithClientIP(conf.RequestIP),
+				requestcontext.WithClientIP(conf.HTTPServer.RequestIP),
 			)).
 			Use(requestlogger.New(conf.HTTPServer.Logger)).
 			Use(fiberrecover.New(fiberrecover.Config{
