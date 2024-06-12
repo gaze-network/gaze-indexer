@@ -43,15 +43,14 @@ var (
 )
 
 type Config struct {
-	EnableModules []string                          `mapstructure:"enable_modules"`
-	APIOnly       bool                              `mapstructure:"api_only"`
-	Logger        logger.Config                     `mapstructure:"logger"`
-	BitcoinNode   BitcoinNodeClient                 `mapstructure:"bitcoin_node"`
-	Network       common.Network                    `mapstructure:"network"`
-	HTTPServer    HTTPServerConfig                  `mapstructure:"http_server"`
-	Modules       Modules                           `mapstructure:"modules"`
-	Reporting     reportingclient.Config            `mapstructure:"reporting"`
-	RequestIP     requestcontext.WithClientIPConfig `mapstructure:"requestip"`
+	EnableModules []string               `mapstructure:"enable_modules"`
+	APIOnly       bool                   `mapstructure:"api_only"`
+	Logger        logger.Config          `mapstructure:"logger"`
+	BitcoinNode   BitcoinNodeClient      `mapstructure:"bitcoin_node"`
+	Network       common.Network         `mapstructure:"network"`
+	HTTPServer    HTTPServerConfig       `mapstructure:"http_server"`
+	Modules       Modules                `mapstructure:"modules"`
+	Reporting     reportingclient.Config `mapstructure:"reporting"`
 }
 
 type BitcoinNodeClient struct {
@@ -66,8 +65,9 @@ type Modules struct {
 }
 
 type HTTPServerConfig struct {
-	Port   int                  `mapstructure:"port"`
-	Logger requestlogger.Config `mapstructure:"logger"`
+	Port      int                               `mapstructure:"port"`
+	Logger    requestlogger.Config              `mapstructure:"logger"`
+	RequestIP requestcontext.WithClientIPConfig `mapstructure:"requestip"`
 }
 
 // Parse parse the configuration from environment variables
