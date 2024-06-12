@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/pkg/logger"
 	"github.com/gaze-network/indexer-network/pkg/middleware/requestcontext"
 	"github.com/gofiber/fiber/v2"
@@ -98,7 +99,7 @@ func New(config Config) fiber.Handler {
 		}
 
 		if config.Disable && level == slog.LevelInfo {
-			return err
+			return errors.WithStack(err)
 		}
 
 		logger.LogAttrs(c.UserContext(), level, "Request Completed", append([]slog.Attr{
@@ -113,6 +114,6 @@ func New(config Config) fiber.Handler {
 		}, baseAttrs...)...,
 		)
 
-		return err
+		return errors.WithStack(err)
 	}
 }
