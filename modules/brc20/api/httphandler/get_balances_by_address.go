@@ -79,8 +79,8 @@ func (h *HttpHandler) GetBalancesByAddress(ctx *fiber.Ctx) (err error) {
 		return errors.Wrap(err, "error during GetBalancesByPkScript")
 	}
 
-	balanceRuneIds := lo.Keys(balances)
-	entries, err := h.usecase.GetTickEntryByTickBatch(ctx.UserContext(), balanceRuneIds)
+	ticks := lo.Keys(balances)
+	entries, err := h.usecase.GetTickEntryByTickBatch(ctx.UserContext(), ticks)
 	if err != nil {
 		return errors.Wrap(err, "error during GetTickEntryByTickBatch")
 	}
