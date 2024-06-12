@@ -23,6 +23,17 @@ reporting:
 # HTTP server configuration options.
 http_server:
   port: 8080 # Port to run the HTTP server on for modules with HTTP API handlers.
+  logger:
+    disable: false # disable logger if logger level is `INFO`
+    request_header: false
+    request_query: false
+
+# Client IP extraction configuration options.
+# This is unnecessary if you don't care about the real client IP or if you're not using a reverse proxy.
+requestip:
+  trusted_proxies_ip: # Cloudflare, GCP Public LB. See: server/internal/middleware/requestcontext/PROXY-IP.md
+  trusted_proxies_header: # X-Real-IP, CF-Connecting-IP
+  enable_reject_malformed_request: false # return 403 if request is malformed (invalid IP)
 
 # Meta-protocol modules configuration options.
 modules:
