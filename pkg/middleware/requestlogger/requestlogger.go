@@ -12,23 +12,19 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-var HiddenRequestHeaders = map[string]struct{}{
-	"authorization": {},
-	"cookie":        {},
-	"set-cookie":    {},
-	"x-auth-token":  {},
-	"x-csrf-token":  {},
-	"x-xsrf-token":  {},
-}
-
 type Config struct {
-	WithRequestHeader bool `env:"REQUEST_HEADER" envDefault:"false" mapstructure:"request_header"`
-	WithRequestQuery  bool `env:"REQUEST_QUERY" envDefault:"false" mapstructure:"request_query"`
-	Disable           bool `env:"DISABLE" envDefault:"false" mapstructure:"disable"` // Disable logger level `INFO`
+	WithRequestHeader    bool     `env:"REQUEST_HEADER" envDefault:"false" mapstructure:"request_header"`
+	WithRequestQuery     bool     `env:"REQUEST_QUERY" envDefault:"false" mapstructure:"request_query"`
+	Disable              bool     `env:"DISABLE" envDefault:"false" mapstructure:"disable"` // Disable logger level `INFO`
+	HiddenRequestHeaders []string `env:"HIDDEN_REQUEST_HEADERS" mapstructure:"hidden_request_headers"`
 }
 
 // New setup request context and information
 func New(config Config) fiber.Handler {
+	hiddenRequestHeaders := make(map[string]struct{}, len(config.HiddenRequestHeaders))
+	for _, header := range config.HiddenRequestHeaders {
+		hiddenRequestHeaders[strings.TrimSpace(strings.ToLower(header))] = struct{}{}
+	}
 	return func(c *fiber.Ctx) error {
 		start := time.Now()
 
@@ -77,7 +73,7 @@ func New(config Config) fiber.Handler {
 			kv := []any{}
 
 			for k, v := range c.GetReqHeaders() {
-				if _, found := HiddenRequestHeaders[strings.ToLower(k)]; found {
+				if _, found := hiddenRequestHeaders[strings.ToLower(k)]; found {
 					continue
 				}
 				kv = append(kv, slog.Any(k, v))
