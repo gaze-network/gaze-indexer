@@ -29,6 +29,9 @@ type Processor[T Input] interface {
 	// VerifyStates verifies the states of the indexed data and the indexer
 	// to ensure the last shutdown was graceful and no missing data.
 	VerifyStates(ctx context.Context) error
+
+	// Shutdown gracefully stops the processor. Database connections, network calls, leftover states, etc. should be closed and cleaned up here.
+	Shutdown(ctx context.Context) error
 }
 
 type IndexerWorker interface {

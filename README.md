@@ -51,8 +51,6 @@ Here is our minimum database disk space requirement for each module.
 | ------ | -------------------------- | ---------------------------- |
 | Runes  | 10 GB                      | 150 GB                       |
 
-Here is our minimum database disk space requirement for each module.
-
 #### 4. Prepare `config.yaml` file.
 
 ```yaml
@@ -108,7 +106,7 @@ We will be using `docker-compose` for our installation guide. Make sure the `doc
 # docker-compose.yaml
 services:
   gaze-indexer:
-    image: ghcr.io/gaze-network/gaze-indexer:v1.0.0
+    image: ghcr.io/gaze-network/gaze-indexer:v0.2.1
     container_name: gaze-indexer
     restart: unless-stopped
     ports:
