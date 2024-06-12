@@ -112,6 +112,7 @@ func (h *HttpHandler) GetUTXOsByAddress(ctx *fiber.Ctx) (err error) {
 		})
 	}
 
+	// TODO: filter tickers in pg query
 	// filter by req.Id if exists
 	{
 		utxoList = lo.Filter(utxoList, func(u utxo, _ int) bool {
