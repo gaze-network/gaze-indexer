@@ -87,6 +87,7 @@ func (h *HttpHandler) GetTokenInfo(ctx *fiber.Ctx) (err error) {
 		return nil
 	})
 	group.Go(func() error {
+		// TODO: at block height to parameter.
 		firstInscriptionNumber, lastInscriptionNumber, err = h.usecase.GetFirstLastInscriptionNumberByTick(groupctx, req.Id)
 		if err != nil {
 			return errors.Wrap(err, "error during GetFirstLastInscriptionNumberByTick")
