@@ -10,6 +10,7 @@ import (
 	"github.com/gaze-network/indexer-network/pkg/logger/slogx"
 	"github.com/gaze-network/uint128"
 	"github.com/holiman/uint256"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/shopspring/decimal"
 	"golang.org/x/exp/constraints"
 )
@@ -89,6 +90,8 @@ func ToBigInt(iamount any, decimals uint16) *big.Int {
 		amount, _ = decimal.NewFromString(v.String())
 	case *big.Float:
 		amount, _ = decimal.NewFromString(v.String())
+	case pgtype.Numeric:
+		amount = decimal.NewFromBigInt(v.Int, v.Exp)
 	}
 	return amount.Mul(PowerOfTen(decimals)).BigInt()
 }
