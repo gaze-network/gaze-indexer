@@ -1,17 +1,19 @@
 package btcutils
 
 import (
+	"github.com/Cleverse/go-utilities/utils"
 	verifier "github.com/bitonicnl/verify-signed-message/pkg"
+	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/cockroachdb/errors"
-	"github.com/gaze-network/indexer-network/common"
 )
 
-func VerifySignature(address string, message string, sigBase64 string, network common.Network) error {
+func VerifySignature(address string, message string, sigBase64 string, defaultNet ...*chaincfg.Params) error {
+	net := utils.DefaultOptional(defaultNet, &chaincfg.MainNetParams)
 	_, err := verifier.VerifyWithChain(verifier.SignedMessage{
 		Address:   address,
 		Message:   message,
 		Signature: sigBase64,
-	}, network.ChainParams())
+	}, net)
 	if err != nil {
 		return errors.WithStack(err)
 	}
