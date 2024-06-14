@@ -186,6 +186,18 @@ func TestGetAddressTypeFromPkScript(t *testing.T) {
 			ExpectedError:       nil,
 			ExpectedAddressType: btcutils.AddressP2WSH,
 		},
+		{
+			PubkeyScript: "0020cdbf909e935c855d3e8d1b61aeb9c5e3c03ae8021b286839b1a72f2e48fdba70",
+
+			ExpectedError:       nil,
+			ExpectedAddressType: btcutils.AddressP2WSH,
+		},
+		{
+			PubkeyScript: "6a5d0614c0a2331441",
+
+			ExpectedError:       nil,
+			ExpectedAddressType: txscript.NonStandardTy,
+		},
 	}
 
 	for _, spec := range specs {

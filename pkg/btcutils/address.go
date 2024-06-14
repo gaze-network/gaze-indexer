@@ -14,6 +14,11 @@ import (
 	"github.com/gaze-network/indexer-network/pkg/logger/slogx"
 )
 
+const (
+	// MaxSupportedPkScriptSize is the maximum supported size of a pkScript.
+	MaxSupportedPkScriptSize = 40
+)
+
 // IsAddress returns whether or not the passed string is a valid bitcoin address and valid supported type.
 //
 // NetParams is optional. If provided, we only check for that network,
@@ -50,11 +55,12 @@ func GetAddressType(address string, net *chaincfg.Params) (AddressType, error) {
 }
 
 type Address struct {
-	decoded      btcutil.Address
-	net          *chaincfg.Params
-	encoded      string
-	encodedType  AddressType
-	scriptPubKey []byte
+	decoded          btcutil.Address
+	net              *chaincfg.Params
+	encoded          string
+	encodedType      AddressType
+	scriptPubKey     [MaxSupportedPkScriptSize]byte
+	scriptPubKeySize int
 }
 
 // NewAddress creates a new address from the given address string.
@@ -87,12 +93,15 @@ func SafeNewAddress(address string, defaultNet ...*chaincfg.Params) (Address, er
 		return Address{}, errors.Wrap(err, "can't get script pubkey")
 	}
 
+	fixedPkScript := [MaxSupportedPkScriptSize]byte{}
+	copy(fixedPkScript[:], scriptPubkey)
 	return Address{
-		decoded:      decoded,
-		net:          net,
-		encoded:      decoded.EncodeAddress(),
-		encodedType:  addrType,
-		scriptPubKey: scriptPubkey,
+		decoded:          decoded,
+		net:              net,
+		encoded:          decoded.EncodeAddress(),
+		encodedType:      addrType,
+		scriptPubKey:     fixedPkScript,
+		scriptPubKeySize: len(scriptPubkey),
 	}, nil
 }
 
@@ -133,7 +142,7 @@ func (a Address) NetworkName() string {
 
 // ScriptPubKey or pubkey script
 func (a Address) ScriptPubKey() []byte {
-	return a.scriptPubKey
+	return a.scriptPubKey[:a.scriptPubKeySize]
 }
 
 // Equal return true if addresses are equal
