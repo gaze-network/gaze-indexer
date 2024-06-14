@@ -6,6 +6,7 @@ require (
 	github.com/Cleverse/go-utilities/utils v0.0.0-20240119201306-d71eb577ef11
 	github.com/btcsuite/btcd v0.24.0
 	github.com/btcsuite/btcd/btcutil v1.1.5
+	github.com/btcsuite/btcd/btcutil/psbt v1.1.9
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.1.0
 	github.com/cockroachdb/errors v1.11.1
 	github.com/gaze-network/uint128 v1.3.0
