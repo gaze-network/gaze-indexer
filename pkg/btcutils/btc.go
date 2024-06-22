@@ -42,3 +42,17 @@ const (
 	AddressP2PKH   = txscript.PubKeyHashTy
 	AddressP2WSH   = txscript.WitnessV0ScriptHashTy
 )
+
+// IsSupportType returns true if the given tx/address type is supported.
+func IsSupportType(t txscript.ScriptClass) bool {
+	_, ok := supportedTypes[t]
+	return ok
+}
+
+var supportedTypes = map[txscript.ScriptClass]struct{}{
+	txscript.WitnessV0PubKeyHashTy: {},
+	txscript.WitnessV1TaprootTy:    {},
+	txscript.ScriptHashTy:          {},
+	txscript.PubKeyHashTy:          {},
+	txscript.WitnessV0ScriptHashTy: {},
+}
