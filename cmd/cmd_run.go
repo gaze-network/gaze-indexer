@@ -19,9 +19,9 @@ import (
 	"github.com/gaze-network/indexer-network/internal/config"
 	"github.com/gaze-network/indexer-network/modules/runes"
 	"github.com/gaze-network/indexer-network/pkg/automaxprocs"
-	"github.com/gaze-network/indexer-network/pkg/errorhandler"
 	"github.com/gaze-network/indexer-network/pkg/logger"
 	"github.com/gaze-network/indexer-network/pkg/logger/slogx"
+	"github.com/gaze-network/indexer-network/pkg/middleware/errorhandler"
 	"github.com/gaze-network/indexer-network/pkg/middleware/requestcontext"
 	"github.com/gaze-network/indexer-network/pkg/middleware/requestlogger"
 	"github.com/gaze-network/indexer-network/pkg/reportingclient"
@@ -136,8 +136,16 @@ func runHandler(cmd *cobra.Command, _ []string) error {
 	// Initialize HTTP server
 	do.Provide(injector, func(i do.Injector) (*fiber.App, error) {
 		app := fiber.New(fiber.Config{
-			AppName:      "Gaze Indexer",
-			ErrorHandler: errorhandler.NewHTTPErrorHandler(),
+			AppName: "Gaze Indexer",
+			ErrorHandler: func(c *fiber.Ctx, err error) error {
+				logger.ErrorContext(c.UserContext(), "Something went wrong, unhandled api error",
+					slogx.String("event", "api_unhandled_error"),
+					slogx.Error(err),
+				)
+				return errors.WithStack(c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+					"error": "Internal Server Error",
+				}))
+			},
 		})
 		app.
 			Use(favicon.New()).
@@ -156,6 +164,7 @@ func runHandler(cmd *cobra.Command, _ []string) error {
 					logger.ErrorContext(c.UserContext(), "Something went wrong, panic in http handler", slogx.Any("panic", e), slog.String("stacktrace", string(buf)))
 				},
 			})).
+			Use(errorhandler.New()).
 			Use(compress.New(compress.Config{
 				Level: compress.LevelDefault,
 			}))
