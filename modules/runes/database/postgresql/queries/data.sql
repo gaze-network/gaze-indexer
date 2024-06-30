@@ -55,7 +55,7 @@ SELECT * FROM runes_transactions
     OR runes_transactions.burns ? @rune_id
     OR (runes_transactions.rune_etched = TRUE AND runes_transactions.block_height = @rune_id_block_height AND runes_transactions.index = @rune_id_tx_index)
   ) AND (
-    @block_height::INT = 0 OR runes_transactions.block_height = @block_height::INT -- if @block_height > 0, apply block_height filter
+    @from_block <= runes_transactions.block_height AND runes_transactions.block_height <= @to_block
   );
 
 -- name: CountRuneEntries :one
