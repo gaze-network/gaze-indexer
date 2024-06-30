@@ -648,6 +648,7 @@ SELECT hash, runes_transactions.block_height, index, timestamp, inputs, outputs,
   ) AND (
     $8 <= runes_transactions.block_height AND runes_transactions.block_height <= $9
   )
+ORDER BY runes_transactions.block_height DESC LIMIT 10000
 `
 
 type GetRuneTransactionsParams struct {
