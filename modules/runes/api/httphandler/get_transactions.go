@@ -2,6 +2,7 @@ package httphandler
 
 import (
 	"encoding/hex"
+	"fmt"
 	"slices"
 
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
@@ -14,15 +15,23 @@ import (
 )
 
 type getTransactionsRequest struct {
-	Wallet      string `query:"wallet"`
-	Id          string `query:"id"`
-	BlockHeight uint64 `query:"blockHeight"`
+	Wallet string `query:"wallet"`
+	Id     string `query:"id"`
+
+	FromBlock int64 `query:"fromBlock"`
+	ToBlock   int64 `query:"toBlock"`
 }
 
 func (r getTransactionsRequest) Validate() error {
 	var errList []error
 	if r.Id != "" && !isRuneIdOrRuneName(r.Id) {
 		errList = append(errList, errors.New("'id' is not valid rune id or rune name"))
+	}
+	if r.FromBlock < -1 {
+		errList = append(errList, errors.Errorf("invalid fromBlock range"))
+	}
+	if r.ToBlock < -1 {
+		errList = append(errList, errors.Errorf("invalid toBlock range"))
 	}
 	return errs.WithPublicMessage(errors.Join(errList...), "validation error")
 }
@@ -125,17 +134,31 @@ func (h *HttpHandler) GetTransactions(ctx *fiber.Ctx) (err error) {
 		}
 	}
 
-	blockHeight := req.BlockHeight
-	// set blockHeight to the latest block height blockHeight, pkScript, and runeId are not provided
-	if blockHeight == 0 && pkScript == nil && runeId == (runes.RuneId{}) {
+	// default to latest block
+	if req.ToBlock == 0 {
+		req.ToBlock = -1
+	}
+
+	// get latest block height if block height is -1
+	if req.FromBlock == -1 || req.ToBlock == -1 {
 		blockHeader, err := h.usecase.GetLatestBlock(ctx.UserContext())
 		if err != nil {
 			return errors.Wrap(err, "error during GetLatestBlock")
 		}
-		blockHeight = uint64(blockHeader.Height)
+		if req.FromBlock == -1 {
+			req.FromBlock = blockHeader.Height
+		}
+		if req.ToBlock == -1 {
+			req.ToBlock = blockHeader.Height
+		}
 	}
 
-	txs, err := h.usecase.GetRuneTransactions(ctx.UserContext(), pkScript, runeId, blockHeight)
+	// validate block height range
+	if req.FromBlock > req.ToBlock {
+		return errs.NewPublicError(fmt.Sprintf("fromBlock must be less than or equal to toBlock, got fromBlock=%d, toBlock=%d", req.FromBlock, req.ToBlock))
+	}
+
+	txs, err := h.usecase.GetRuneTransactions(ctx.UserContext(), pkScript, runeId, uint64(req.FromBlock), uint64(req.ToBlock))
 	if err != nil {
 		return errors.Wrap(err, "error during GetRuneTransactions")
 	}

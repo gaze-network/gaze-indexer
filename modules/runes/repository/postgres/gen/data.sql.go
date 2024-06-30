@@ -646,8 +646,9 @@ SELECT hash, runes_transactions.block_height, index, timestamp, inputs, outputs,
     OR runes_transactions.burns ? $5
     OR (runes_transactions.rune_etched = TRUE AND runes_transactions.block_height = $6 AND runes_transactions.index = $7)
   ) AND (
-    $8::INT = 0 OR runes_transactions.block_height = $8::INT -- if @block_height > 0, apply block_height filter
+    $8 <= runes_transactions.block_height AND runes_transactions.block_height <= $9
   )
+ORDER BY runes_transactions.block_height DESC LIMIT 10000
 `
 
 type GetRuneTransactionsParams struct {
@@ -658,7 +659,8 @@ type GetRuneTransactionsParams struct {
 	RuneID            []byte
 	RuneIDBlockHeight int32
 	RuneIDTxIndex     int32
-	BlockHeight       int32
+	FromBlock         int32
+	ToBlock           int32
 }
 
 type GetRuneTransactionsRow struct {
@@ -703,7 +705,8 @@ func (q *Queries) GetRuneTransactions(ctx context.Context, arg GetRuneTransactio
 		arg.RuneID,
 		arg.RuneIDBlockHeight,
 		arg.RuneIDTxIndex,
-		arg.BlockHeight,
+		arg.FromBlock,
+		arg.ToBlock,
 	)
 	if err != nil {
 		return nil, err

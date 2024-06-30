@@ -62,7 +62,7 @@ func (r *Repository) GetIndexedBlockByHeight(ctx context.Context, height int64) 
 	return indexedBlock, nil
 }
 
-func (r *Repository) GetRuneTransactions(ctx context.Context, pkScript []byte, runeId runes.RuneId, height uint64) ([]*entity.RuneTransaction, error) {
+func (r *Repository) GetRuneTransactions(ctx context.Context, pkScript []byte, runeId runes.RuneId, fromBlock, toBlock uint64) ([]*entity.RuneTransaction, error) {
 	pkScriptParam := []byte(fmt.Sprintf(`[{"pkScript":"%s"}]`, hex.EncodeToString(pkScript)))
 	runeIdParam := []byte(fmt.Sprintf(`[{"runeId":"%s"}]`, runeId.String()))
 	rows, err := r.queries.GetRuneTransactions(ctx, gen.GetRuneTransactionsParams{
@@ -75,7 +75,8 @@ func (r *Repository) GetRuneTransactions(ctx context.Context, pkScript []byte, r
 		RuneIDBlockHeight: int32(runeId.BlockHeight),
 		RuneIDTxIndex:     int32(runeId.TxIndex),
 
-		BlockHeight: int32(height),
+		FromBlock: int32(fromBlock),
+		ToBlock:   int32(toBlock),
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "error during query")
