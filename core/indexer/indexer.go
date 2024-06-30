@@ -91,6 +91,10 @@ func (i *Indexer[T]) Run(ctx context.Context) (err error) {
 		select {
 		case <-i.quit:
 			logger.InfoContext(ctx, "Got quit signal, stopping indexer")
+			if err := i.Processor.Shutdown(ctx); err != nil {
+				logger.ErrorContext(ctx, "Failed to shutdown processor", slogx.Error(err))
+				return errors.Wrap(err, "processor shutdown failed")
+			}
 			return nil
 		case <-ctx.Done():
 			return nil
@@ -204,9 +208,9 @@ func (i *Indexer[T]) process(ctx context.Context) (err error) {
 			}
 
 			// validate is input is continuous and no reorg
-			for i := 1; i < len(inputs); i++ {
-				header := inputs[i].BlockHeader()
-				prevHeader := inputs[i-1].BlockHeader()
+			prevHeader := i.currentBlock
+			for i, input := range inputs {
+				header := input.BlockHeader()
 				if header.Height != prevHeader.Height+1 {
 					return errors.Wrapf(errs.InternalError, "input is not continuous, input[%d] height: %d, input[%d] height: %d", i-1, prevHeader.Height, i, header.Height)
 				}
@@ -217,6 +221,7 @@ func (i *Indexer[T]) process(ctx context.Context) (err error) {
 					// end current round
 					return nil
 				}
+				prevHeader = header
 			}
 
 			ctx = logger.WithContext(ctx, slog.Int("total_inputs", len(inputs)))

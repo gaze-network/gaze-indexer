@@ -134,7 +134,7 @@ CREATE TABLE IF NOT EXISTS "brc20_balances" (
 	"pkscript" TEXT NOT NULL,
 	"block_height" INT NOT NULL,
 	"tick" TEXT NOT NULL,
-	"overall_balance" DECIMAL NOT NULL,
+	"overall_balance" DECIMAL NOT NULL, -- overall balance = available_balance + transferable_balance
 	"available_balance" DECIMAL NOT NULL,
 	PRIMARY KEY ("pkscript", "tick", "block_height")
 );

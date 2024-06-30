@@ -203,6 +203,188 @@ func (q *Queries) GetBalancesBatchAtHeight(ctx context.Context, arg GetBalancesB
 	return items, nil
 }
 
+const getBalancesByPkScript = `-- name: GetBalancesByPkScript :many
+WITH balances AS (
+  SELECT DISTINCT ON (tick) pkscript, block_height, tick, overall_balance, available_balance FROM brc20_balances WHERE pkscript = $1 AND block_height <= $2 ORDER BY tick, overall_balance DESC
+)
+SELECT pkscript, block_height, tick, overall_balance, available_balance FROM balances WHERE overall_balance > 0
+`
+
+type GetBalancesByPkScriptParams struct {
+	Pkscript    string
+	BlockHeight int32
+}
+
+type GetBalancesByPkScriptRow struct {
+	Pkscript         string
+	BlockHeight      int32
+	Tick             string
+	OverallBalance   pgtype.Numeric
+	AvailableBalance pgtype.Numeric
+}
+
+func (q *Queries) GetBalancesByPkScript(ctx context.Context, arg GetBalancesByPkScriptParams) ([]GetBalancesByPkScriptRow, error) {
+	rows, err := q.db.Query(ctx, getBalancesByPkScript, arg.Pkscript, arg.BlockHeight)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetBalancesByPkScriptRow
+	for rows.Next() {
+		var i GetBalancesByPkScriptRow
+		if err := rows.Scan(
+			&i.Pkscript,
+			&i.BlockHeight,
+			&i.Tick,
+			&i.OverallBalance,
+			&i.AvailableBalance,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getBalancesByTick = `-- name: GetBalancesByTick :many
+WITH balances AS (
+  SELECT DISTINCT ON (pkscript) pkscript, block_height, tick, overall_balance, available_balance FROM brc20_balances WHERE tick = $1 AND block_height <= $2 ORDER BY pkscript, block_height DESC
+)
+SELECT pkscript, block_height, tick, overall_balance, available_balance FROM balances WHERE overall_balance > 0
+`
+
+type GetBalancesByTickParams struct {
+	Tick        string
+	BlockHeight int32
+}
+
+type GetBalancesByTickRow struct {
+	Pkscript         string
+	BlockHeight      int32
+	Tick             string
+	OverallBalance   pgtype.Numeric
+	AvailableBalance pgtype.Numeric
+}
+
+func (q *Queries) GetBalancesByTick(ctx context.Context, arg GetBalancesByTickParams) ([]GetBalancesByTickRow, error) {
+	rows, err := q.db.Query(ctx, getBalancesByTick, arg.Tick, arg.BlockHeight)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetBalancesByTickRow
+	for rows.Next() {
+		var i GetBalancesByTickRow
+		if err := rows.Scan(
+			&i.Pkscript,
+			&i.BlockHeight,
+			&i.Tick,
+			&i.OverallBalance,
+			&i.AvailableBalance,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getDeployEventByTick = `-- name: GetDeployEventByTick :one
+SELECT id, inscription_id, inscription_number, tick, original_tick, tx_hash, block_height, tx_index, timestamp, pkscript, satpoint, total_supply, decimals, limit_per_mint, is_self_mint FROM brc20_event_deploys WHERE tick = $1
+`
+
+func (q *Queries) GetDeployEventByTick(ctx context.Context, tick string) (Brc20EventDeploy, error) {
+	row := q.db.QueryRow(ctx, getDeployEventByTick, tick)
+	var i Brc20EventDeploy
+	err := row.Scan(
+		&i.Id,
+		&i.InscriptionID,
+		&i.InscriptionNumber,
+		&i.Tick,
+		&i.OriginalTick,
+		&i.TxHash,
+		&i.BlockHeight,
+		&i.TxIndex,
+		&i.Timestamp,
+		&i.Pkscript,
+		&i.Satpoint,
+		&i.TotalSupply,
+		&i.Decimals,
+		&i.LimitPerMint,
+		&i.IsSelfMint,
+	)
+	return i, err
+}
+
+const getDeployEvents = `-- name: GetDeployEvents :many
+SELECT id, inscription_id, inscription_number, tick, original_tick, tx_hash, block_height, tx_index, timestamp, pkscript, satpoint, total_supply, decimals, limit_per_mint, is_self_mint FROM "brc20_event_deploys"
+WHERE (
+    $1::BOOLEAN = FALSE -- if @filter_pk_script is TRUE, apply pk_script filter
+    OR pkscript = $2
+  ) AND (
+    $3::BOOLEAN = FALSE -- if @filter_ticker is TRUE, apply ticker filter
+    OR tick = $4 
+  ) AND (
+    $5::INT = 0 OR block_height = $5::INT -- if @block_height > 0, apply block_height filter
+  )
+`
+
+type GetDeployEventsParams struct {
+	FilterPkScript bool
+	PkScript       string
+	FilterTicker   bool
+	Ticker         string
+	BlockHeight    int32
+}
+
+func (q *Queries) GetDeployEvents(ctx context.Context, arg GetDeployEventsParams) ([]Brc20EventDeploy, error) {
+	rows, err := q.db.Query(ctx, getDeployEvents,
+		arg.FilterPkScript,
+		arg.PkScript,
+		arg.FilterTicker,
+		arg.Ticker,
+		arg.BlockHeight,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Brc20EventDeploy
+	for rows.Next() {
+		var i Brc20EventDeploy
+		if err := rows.Scan(
+			&i.Id,
+			&i.InscriptionID,
+			&i.InscriptionNumber,
+			&i.Tick,
+			&i.OriginalTick,
+			&i.TxHash,
+			&i.BlockHeight,
+			&i.TxIndex,
+			&i.Timestamp,
+			&i.Pkscript,
+			&i.Satpoint,
+			&i.TotalSupply,
+			&i.Decimals,
+			&i.LimitPerMint,
+			&i.IsSelfMint,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getEventInscribeTransfersByInscriptionIds = `-- name: GetEventInscribeTransfersByInscriptionIds :many
 SELECT id, inscription_id, inscription_number, tick, original_tick, tx_hash, block_height, tx_index, timestamp, pkscript, satpoint, output_index, sats_amount, amount FROM "brc20_event_inscribe_transfers" WHERE "inscription_id" = ANY($1::text[])
 `
@@ -242,6 +424,31 @@ func (q *Queries) GetEventInscribeTransfersByInscriptionIds(ctx context.Context,
 	return items, nil
 }
 
+const getFirstLastInscriptionNumberByTick = `-- name: GetFirstLastInscriptionNumberByTick :one
+SELECT 
+  COALESCE(MIN("inscription_number"), -1)::BIGINT AS "first_inscription_number", 
+  COALESCE(MAX("inscription_number"), -1)::BIGINT AS "last_inscription_number"
+FROM (
+  SELECT inscription_number FROM "brc20_event_mints" WHERE "brc20_event_mints"."tick" = $1
+	UNION ALL
+	SELECT inscription_number FROM "brc20_event_inscribe_transfers" WHERE "brc20_event_inscribe_transfers"."tick" = $1
+	UNION ALL
+	SELECT inscription_number FROM "brc20_event_transfer_transfers" WHERE "brc20_event_transfer_transfers"."tick" = $1
+) as events
+`
+
+type GetFirstLastInscriptionNumberByTickRow struct {
+	FirstInscriptionNumber int64
+	LastInscriptionNumber  int64
+}
+
+func (q *Queries) GetFirstLastInscriptionNumberByTick(ctx context.Context, tick string) (GetFirstLastInscriptionNumberByTickRow, error) {
+	row := q.db.QueryRow(ctx, getFirstLastInscriptionNumberByTick, tick)
+	var i GetFirstLastInscriptionNumberByTickRow
+	err := row.Scan(&i.FirstInscriptionNumber, &i.LastInscriptionNumber)
+	return i, err
+}
+
 const getIndexedBlockByHeight = `-- name: GetIndexedBlockByHeight :one
 SELECT height, hash, event_hash, cumulative_event_hash FROM "brc20_indexed_blocks" WHERE "height" = $1
 `
@@ -256,6 +463,68 @@ func (q *Queries) GetIndexedBlockByHeight(ctx context.Context, height int32) (Br
 		&i.CumulativeEventHash,
 	)
 	return i, err
+}
+
+const getInscribeTransferEvents = `-- name: GetInscribeTransferEvents :many
+SELECT id, inscription_id, inscription_number, tick, original_tick, tx_hash, block_height, tx_index, timestamp, pkscript, satpoint, output_index, sats_amount, amount FROM "brc20_event_inscribe_transfers"
+WHERE (
+    $1::BOOLEAN = FALSE -- if @filter_pk_script is TRUE, apply pk_script filter
+    OR pkscript = $2
+  ) AND (
+    $3::BOOLEAN = FALSE -- if @filter_ticker is TRUE, apply ticker filter
+    OR tick = $4 
+  ) AND (
+    $5::INT = 0 OR block_height = $5::INT -- if @block_height > 0, apply block_height filter
+  )
+`
+
+type GetInscribeTransferEventsParams struct {
+	FilterPkScript bool
+	PkScript       string
+	FilterTicker   bool
+	Ticker         string
+	BlockHeight    int32
+}
+
+func (q *Queries) GetInscribeTransferEvents(ctx context.Context, arg GetInscribeTransferEventsParams) ([]Brc20EventInscribeTransfer, error) {
+	rows, err := q.db.Query(ctx, getInscribeTransferEvents,
+		arg.FilterPkScript,
+		arg.PkScript,
+		arg.FilterTicker,
+		arg.Ticker,
+		arg.BlockHeight,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Brc20EventInscribeTransfer
+	for rows.Next() {
+		var i Brc20EventInscribeTransfer
+		if err := rows.Scan(
+			&i.Id,
+			&i.InscriptionID,
+			&i.InscriptionNumber,
+			&i.Tick,
+			&i.OriginalTick,
+			&i.TxHash,
+			&i.BlockHeight,
+			&i.TxIndex,
+			&i.Timestamp,
+			&i.Pkscript,
+			&i.Satpoint,
+			&i.OutputIndex,
+			&i.SatsAmount,
+			&i.Amount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getInscriptionEntriesByIds = `-- name: GetInscriptionEntriesByIds :many
@@ -532,6 +801,67 @@ func (q *Queries) GetLatestProcessorStats(ctx context.Context) (Brc20ProcessorSt
 	return i, err
 }
 
+const getMintEvents = `-- name: GetMintEvents :many
+SELECT id, inscription_id, inscription_number, tick, original_tick, tx_hash, block_height, tx_index, timestamp, pkscript, satpoint, amount, parent_id FROM "brc20_event_mints"
+WHERE (
+    $1::BOOLEAN = FALSE -- if @filter_pk_script is TRUE, apply pk_script filter
+    OR pkscript = $2
+  ) AND (
+    $3::BOOLEAN = FALSE -- if @filter_ticker is TRUE, apply ticker filter
+    OR tick = $4 
+  ) AND (
+    $5::INT = 0 OR block_height = $5::INT -- if @block_height > 0, apply block_height filter
+  )
+`
+
+type GetMintEventsParams struct {
+	FilterPkScript bool
+	PkScript       string
+	FilterTicker   bool
+	Ticker         string
+	BlockHeight    int32
+}
+
+func (q *Queries) GetMintEvents(ctx context.Context, arg GetMintEventsParams) ([]Brc20EventMint, error) {
+	rows, err := q.db.Query(ctx, getMintEvents,
+		arg.FilterPkScript,
+		arg.PkScript,
+		arg.FilterTicker,
+		arg.Ticker,
+		arg.BlockHeight,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Brc20EventMint
+	for rows.Next() {
+		var i Brc20EventMint
+		if err := rows.Scan(
+			&i.Id,
+			&i.InscriptionID,
+			&i.InscriptionNumber,
+			&i.Tick,
+			&i.OriginalTick,
+			&i.TxHash,
+			&i.BlockHeight,
+			&i.TxIndex,
+			&i.Timestamp,
+			&i.Pkscript,
+			&i.Satpoint,
+			&i.Amount,
+			&i.ParentID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getTickEntriesByTicks = `-- name: GetTickEntriesByTicks :many
 WITH "states" AS (
   -- select latest state
@@ -585,6 +915,217 @@ func (q *Queries) GetTickEntriesByTicks(ctx context.Context, ticks []string) ([]
 			&i.BurnedAmount,
 			&i.CompletedAt,
 			&i.CompletedAtHeight,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getTickEntriesByTicksAndHeight = `-- name: GetTickEntriesByTicksAndHeight :many
+
+WITH "states" AS (
+  -- select latest state
+  SELECT DISTINCT ON ("tick") tick, block_height, minted_amount, burned_amount, completed_at, completed_at_height FROM "brc20_tick_entry_states" WHERE "tick" = ANY($1::text[]) AND block_height <= $2 ORDER BY "tick", "block_height" DESC
+)
+SELECT brc20_tick_entries.tick, original_tick, total_supply, decimals, limit_per_mint, is_self_mint, deploy_inscription_id, deployed_at, deployed_at_height, states.tick, block_height, minted_amount, burned_amount, completed_at, completed_at_height FROM "brc20_tick_entries"
+  LEFT JOIN "states" ON "brc20_tick_entries"."tick" = "states"."tick"
+  WHERE "brc20_tick_entries"."tick" = ANY($1::text[]) AND deployed_at_height <= $2
+`
+
+type GetTickEntriesByTicksAndHeightParams struct {
+	Ticks  []string
+	Height int32
+}
+
+type GetTickEntriesByTicksAndHeightRow struct {
+	Tick                string
+	OriginalTick        string
+	TotalSupply         pgtype.Numeric
+	Decimals            int16
+	LimitPerMint        pgtype.Numeric
+	IsSelfMint          bool
+	DeployInscriptionID string
+	DeployedAt          pgtype.Timestamp
+	DeployedAtHeight    int32
+	Tick_2              pgtype.Text
+	BlockHeight         pgtype.Int4
+	MintedAmount        pgtype.Numeric
+	BurnedAmount        pgtype.Numeric
+	CompletedAt         pgtype.Timestamp
+	CompletedAtHeight   pgtype.Int4
+}
+
+// WITH
+// "first_mint" AS (SELECT "inscription_number" FROM "brc20_event_mints" WHERE "brc20_event_mints".tick = $1 ORDER BY "id" ASC LIMIT 1),
+// "latest_mint" AS (SELECT "inscription_number" FROM "brc20_event_mints" WHERE "brc20_event_mints".tick = $1 ORDER BY "id" DESC LIMIT 1),
+// "first_inscribe_transfer" AS (SELECT "inscription_number" FROM "brc20_event_inscribe_transfers" WHERE "brc20_event_inscribe_transfers".tick = $1 ORDER BY "id" ASC LIMIT 1),
+// "latest_inscribe_transfer" AS (SELECT "inscription_number" FROM "brc20_event_inscribe_transfers" WHERE "brc20_event_inscribe_transfers".tick = $1 ORDER BY "id" DESC LIMIT 1)
+// SELECT
+//
+//	COALESCE(
+//	   LEAST(
+//	     (SELECT "inscription_number" FROM "first_mint"),
+//	     (SELECT "inscription_number" FROM "first_inscribe_transfer")
+//	   ),
+//	   -1
+//	 ) AS "first_inscription_number",
+//	 COALESCE(
+//	   GREATEST(
+//	     (SELECT "inscription_number" FROM "latest_mint"),
+//	     (SELECT "inscription_number" FROM "latest_inscribe_transfer")
+//	   ),
+//	   -1
+//	 ) AS "last_inscription_number";
+func (q *Queries) GetTickEntriesByTicksAndHeight(ctx context.Context, arg GetTickEntriesByTicksAndHeightParams) ([]GetTickEntriesByTicksAndHeightRow, error) {
+	rows, err := q.db.Query(ctx, getTickEntriesByTicksAndHeight, arg.Ticks, arg.Height)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetTickEntriesByTicksAndHeightRow
+	for rows.Next() {
+		var i GetTickEntriesByTicksAndHeightRow
+		if err := rows.Scan(
+			&i.Tick,
+			&i.OriginalTick,
+			&i.TotalSupply,
+			&i.Decimals,
+			&i.LimitPerMint,
+			&i.IsSelfMint,
+			&i.DeployInscriptionID,
+			&i.DeployedAt,
+			&i.DeployedAtHeight,
+			&i.Tick_2,
+			&i.BlockHeight,
+			&i.MintedAmount,
+			&i.BurnedAmount,
+			&i.CompletedAt,
+			&i.CompletedAtHeight,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getTransferTransferEvents = `-- name: GetTransferTransferEvents :many
+SELECT id, inscription_id, inscription_number, tick, original_tick, tx_hash, block_height, tx_index, timestamp, from_pkscript, from_satpoint, from_input_index, to_pkscript, to_satpoint, to_output_index, spent_as_fee, amount FROM "brc20_event_transfer_transfers"
+WHERE (
+    $1::BOOLEAN = FALSE -- if @filter_pk_script is TRUE, apply pk_script filter
+    OR from_pkscript = $2
+    OR to_pkscript = $2
+  ) AND (
+    $3::BOOLEAN = FALSE -- if @filter_ticker is TRUE, apply ticker filter
+    OR tick = $4 
+  ) AND (
+    $5::INT = 0 OR block_height = $5::INT -- if @block_height > 0, apply block_height filter
+  )
+`
+
+type GetTransferTransferEventsParams struct {
+	FilterPkScript bool
+	PkScript       string
+	FilterTicker   bool
+	Ticker         string
+	BlockHeight    int32
+}
+
+func (q *Queries) GetTransferTransferEvents(ctx context.Context, arg GetTransferTransferEventsParams) ([]Brc20EventTransferTransfer, error) {
+	rows, err := q.db.Query(ctx, getTransferTransferEvents,
+		arg.FilterPkScript,
+		arg.PkScript,
+		arg.FilterTicker,
+		arg.Ticker,
+		arg.BlockHeight,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Brc20EventTransferTransfer
+	for rows.Next() {
+		var i Brc20EventTransferTransfer
+		if err := rows.Scan(
+			&i.Id,
+			&i.InscriptionID,
+			&i.InscriptionNumber,
+			&i.Tick,
+			&i.OriginalTick,
+			&i.TxHash,
+			&i.BlockHeight,
+			&i.TxIndex,
+			&i.Timestamp,
+			&i.FromPkscript,
+			&i.FromSatpoint,
+			&i.FromInputIndex,
+			&i.ToPkscript,
+			&i.ToSatpoint,
+			&i.ToOutputIndex,
+			&i.SpentAsFee,
+			&i.Amount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getTransferableTransfersByPkScript = `-- name: GetTransferableTransfersByPkScript :many
+SELECT id, inscription_id, inscription_number, tick, original_tick, tx_hash, block_height, tx_index, timestamp, pkscript, satpoint, output_index, sats_amount, amount 
+FROM "brc20_event_inscribe_transfers"
+WHERE 
+  pkscript = $1 
+  AND "brc20_event_inscribe_transfers"."block_height" <= $2
+  AND NOT EXISTS (
+    SELECT NULL
+    FROM "brc20_event_transfer_transfers" 
+    WHERE "brc20_event_transfer_transfers"."inscription_id" = "brc20_event_inscribe_transfers"."inscription_id"
+  )
+ORDER BY "brc20_event_inscribe_transfers"."block_height" DESC
+`
+
+type GetTransferableTransfersByPkScriptParams struct {
+	Pkscript    string
+	BlockHeight int32
+}
+
+func (q *Queries) GetTransferableTransfersByPkScript(ctx context.Context, arg GetTransferableTransfersByPkScriptParams) ([]Brc20EventInscribeTransfer, error) {
+	rows, err := q.db.Query(ctx, getTransferableTransfersByPkScript, arg.Pkscript, arg.BlockHeight)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Brc20EventInscribeTransfer
+	for rows.Next() {
+		var i Brc20EventInscribeTransfer
+		if err := rows.Scan(
+			&i.Id,
+			&i.InscriptionID,
+			&i.InscriptionNumber,
+			&i.Tick,
+			&i.OriginalTick,
+			&i.TxHash,
+			&i.BlockHeight,
+			&i.TxIndex,
+			&i.Timestamp,
+			&i.Pkscript,
+			&i.Satpoint,
+			&i.OutputIndex,
+			&i.SatsAmount,
+			&i.Amount,
 		); err != nil {
 			return nil, err
 		}
