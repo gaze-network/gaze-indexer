@@ -2,7 +2,7 @@
 
 # Gaze Indexer
 
-Gaze Indexer is an open-source and modular indexing client for Bitcoin meta-protocols. It has support for Runes out of the box, with **Unified Consistent APIs** across fungible token protocols.
+Gaze Indexer is an open-source and modular indexing client for Bitcoin meta-protocols with **Unified Consistent APIs** across fungible token protocols.
 
 Gaze Indexer is built with **modularity** in mind, allowing users to run all modules in one monolithic instance with a single command, or as a distributed cluster of micro-services.
 
