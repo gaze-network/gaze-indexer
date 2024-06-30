@@ -27,6 +27,12 @@ func (r getTransactionsRequest) Validate() error {
 	if r.Id != "" && !isRuneIdOrRuneName(r.Id) {
 		errList = append(errList, errors.New("'id' is not valid rune id or rune name"))
 	}
+	if r.FromBlock < -1 {
+		errList = append(errList, errors.Errorf("invalid fromBlock range"))
+	}
+	if r.ToBlock < -1 {
+		errList = append(errList, errors.Errorf("invalid toBlock range"))
+	}
 	return errs.WithPublicMessage(errors.Join(errList...), "validation error")
 }
 
