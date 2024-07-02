@@ -10,7 +10,6 @@ import (
 
 	"github.com/Cleverse/go-utilities/utils"
 	"github.com/cockroachdb/errors"
-	"github.com/gaze-network/indexer-network/common/errs"
 	"github.com/gaze-network/indexer-network/pkg/logger"
 	"github.com/valyala/fasthttp"
 )
@@ -30,7 +29,7 @@ type Client struct {
 
 func New(baseURL string, config ...Config) (*Client, error) {
 	if _, err := url.Parse(baseURL); err != nil {
-		return nil, errors.Join(errs.InvalidArgument, errors.Wrap(err, "can't parse base url"))
+		return nil, errors.Wrap(err, "can't parse base url")
 	}
 	var cf Config
 	if len(config) > 0 {
@@ -60,11 +59,21 @@ type HttpResponse struct {
 }
 
 func (r *HttpResponse) UnmarshalBody(out any) error {
-	err := json.Unmarshal(r.Body(), out)
+	body, err := r.BodyUncompressed()
 	if err != nil {
-		return errors.Wrapf(err, "can't unmarshal json body from %v, %v", r.URL, string(r.Body()))
+		return errors.Wrapf(err, "can't uncompress body from %v", r.URL)
 	}
-	return nil
+	switch strings.ToLower(string(r.Header.ContentType())) {
+	case "application/json", "application/json; charset=utf-8":
+		if err := json.Unmarshal(body, out); err != nil {
+			return errors.Wrapf(err, "can't unmarshal json body from %s, %q", r.URL, string(body))
+		}
+		return nil
+	case "text/plain", "text/plain; charset=utf-8":
+		return errors.Errorf("can't unmarshal plain text %q", string(body))
+	default:
+		return errors.Errorf("unsupported content type: %s, contents: %v", r.Header.ContentType(), string(r.Body()))
+	}
 }
 
 func (h *Client) request(ctx context.Context, reqOptions RequestOptions) (*HttpResponse, error) {
@@ -77,6 +86,7 @@ func (h *Client) request(ctx context.Context, reqOptions RequestOptions) (*HttpR
 	for k, v := range reqOptions.Header {
 		req.Header.Set(k, v)
 	}
+	// TODO: optimize performance, reduce unnecessary ops
 	parsedUrl := utils.Must(url.Parse(h.baseURL)) // checked in httpclient.New
 	parsedUrl.Path = reqOptions.path
 	parsedUrl.RawQuery = reqOptions.Query.Encode()
@@ -111,6 +121,7 @@ func (h *Client) request(ctx context.Context, reqOptions RequestOptions) (*HttpR
 				logger = logger.With(
 					slog.Int("status_code", resp.StatusCode()),
 					slog.String("resp_content_type", string(resp.Header.ContentType())),
+					slog.String("resp_content_encoding", string(resp.Header.ContentEncoding())),
 					slog.Int("resp_content_length", len(resp.Body())),
 				)
 			}

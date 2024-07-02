@@ -53,6 +53,7 @@ func New(config Config) fiber.Handler {
 			slog.Any("x-forwarded-for", c.IPs()),
 			slog.String("user-agent", string(c.Context().UserAgent())),
 			slog.Any("params", c.AllParams()),
+			slog.Any("query", c.Queries()),
 			slog.Int("length", len((c.Body()))),
 		}
 
