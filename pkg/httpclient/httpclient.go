@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/url"
+	"path"
 	"strings"
 	"time"
 
@@ -88,8 +89,8 @@ func (h *Client) request(ctx context.Context, reqOptions RequestOptions) (*HttpR
 	}
 	// TODO: optimize performance, reduce unnecessary ops
 	parsedUrl := utils.Must(url.Parse(h.baseURL)) // checked in httpclient.New
-	parsedUrl.Path = reqOptions.path
-	parsedUrl.RawQuery = reqOptions.Query.Encode()
+	parsedUrl.Path = path.Join(parsedUrl.Path, reqOptions.path)
+	parsedUrl.RawQuery = reqOptions.Query.Encode() // TODO: merge query params if base url already have query params
 
 	// remove %20 from url (empty space)
 	url := strings.TrimSuffix(parsedUrl.String(), "%20")
