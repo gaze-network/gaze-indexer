@@ -87,7 +87,7 @@ func (h *Client) request(ctx context.Context, reqOptions RequestOptions) (*HttpR
 	for k, v := range reqOptions.Header {
 		req.Header.Set(k, v)
 	}
-	// TODO: optimize performance, reduce unnecessary ops
+
 	parsedUrl := h.BaseURL()
 	parsedUrl.Path = path.Join(parsedUrl.Path, reqOptions.path)
 	parsedUrl.RawQuery = reqOptions.Query.Encode() // TODO: merge query params if base url already have query params
