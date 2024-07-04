@@ -296,12 +296,14 @@ const getBalancesByPkScript = `-- name: GetBalancesByPkScript :many
 WITH balances AS (
   SELECT DISTINCT ON (rune_id) pkscript, block_height, rune_id, amount FROM runes_balances WHERE pkscript = $1 AND block_height <= $2 ORDER BY rune_id, block_height DESC
 )
-SELECT pkscript, block_height, rune_id, amount FROM balances WHERE amount > 0
+SELECT pkscript, block_height, rune_id, amount FROM balances WHERE amount > 0 ORDER BY amount DESC, rune_id LIMIT $3 OFFSET $4
 `
 
 type GetBalancesByPkScriptParams struct {
 	Pkscript    string
 	BlockHeight int32
+	Limit       int32
+	Offset      int32
 }
 
 type GetBalancesByPkScriptRow struct {
@@ -312,7 +314,12 @@ type GetBalancesByPkScriptRow struct {
 }
 
 func (q *Queries) GetBalancesByPkScript(ctx context.Context, arg GetBalancesByPkScriptParams) ([]GetBalancesByPkScriptRow, error) {
-	rows, err := q.db.Query(ctx, getBalancesByPkScript, arg.Pkscript, arg.BlockHeight)
+	rows, err := q.db.Query(ctx, getBalancesByPkScript,
+		arg.Pkscript,
+		arg.BlockHeight,
+		arg.Limit,
+		arg.Offset,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -340,12 +347,14 @@ const getBalancesByRuneId = `-- name: GetBalancesByRuneId :many
 WITH balances AS (
   SELECT DISTINCT ON (pkscript) pkscript, block_height, rune_id, amount FROM runes_balances WHERE rune_id = $1 AND block_height <= $2 ORDER BY pkscript, block_height DESC
 )
-SELECT pkscript, block_height, rune_id, amount FROM balances WHERE amount > 0
+SELECT pkscript, block_height, rune_id, amount FROM balances WHERE amount > 0 ORDER BY amount DESC, pkscript LIMIT $3 OFFSET $4
 `
 
 type GetBalancesByRuneIdParams struct {
 	RuneID      string
 	BlockHeight int32
+	Limit       int32
+	Offset      int32
 }
 
 type GetBalancesByRuneIdRow struct {
@@ -356,7 +365,12 @@ type GetBalancesByRuneIdRow struct {
 }
 
 func (q *Queries) GetBalancesByRuneId(ctx context.Context, arg GetBalancesByRuneIdParams) ([]GetBalancesByRuneIdRow, error) {
-	rows, err := q.db.Query(ctx, getBalancesByRuneId, arg.RuneID, arg.BlockHeight)
+	rows, err := q.db.Query(ctx, getBalancesByRuneId,
+		arg.RuneID,
+		arg.BlockHeight,
+		arg.Limit,
+		arg.Offset,
+	)
 	if err != nil {
 		return nil, err
 	}

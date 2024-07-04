@@ -45,10 +45,12 @@ type RunesReaderDataGateway interface {
 	CountRuneEntries(ctx context.Context) (uint64, error)
 
 	// GetBalancesByPkScript returns the balances for the given pkScript at the given blockHeight.
-	GetBalancesByPkScript(ctx context.Context, pkScript []byte, blockHeight uint64) (map[runes.RuneId]*entity.Balance, error)
+	// Use limit = -1 as no limit.
+	GetBalancesByPkScript(ctx context.Context, pkScript []byte, blockHeight uint64, limit int32, offset int32) ([]*entity.Balance, error)
 	// GetBalancesByRuneId returns the balances for the given runeId at the given blockHeight.
 	// Cannot use []byte as map key, so we're returning as slice.
-	GetBalancesByRuneId(ctx context.Context, runeId runes.RuneId, blockHeight uint64) ([]*entity.Balance, error)
+	// Use limit = -1 as no limit.
+	GetBalancesByRuneId(ctx context.Context, runeId runes.RuneId, blockHeight uint64, limit int32, offset int32) ([]*entity.Balance, error)
 	// GetBalancesByPkScriptAndRuneId returns the balance for the given pkScript and runeId at the given blockHeight.
 	GetBalanceByPkScriptAndRuneId(ctx context.Context, pkScript []byte, runeId runes.RuneId, blockHeight uint64) (*entity.Balance, error)
 }

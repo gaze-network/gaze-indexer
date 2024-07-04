@@ -14,12 +14,22 @@ import (
 type getHoldersRequest struct {
 	Id          string `params:"id"`
 	BlockHeight uint64 `query:"blockHeight"`
+	Limit       int32  `json:"limit"`
+	Offset      int32  `json:"offset"`
 }
+
+const getHoldersMaxLimit = 10000 // TODO: finalize this value
 
 func (r getHoldersRequest) Validate() error {
 	var errList []error
 	if !isRuneIdOrRuneName(r.Id) {
 		errList = append(errList, errors.New("'id' is not valid rune id or rune name"))
+	}
+	if r.Limit < 0 {
+		errList = append(errList, errors.New("'limit' must be non-negative"))
+	}
+	if r.Limit > getHoldersMaxLimit {
+		errList = append(errList, errors.Errorf("'limit' cannot exceed %d", getHoldersMaxLimit))
 	}
 	return errs.WithPublicMessage(errors.Join(errList...), "validation error")
 }
@@ -61,6 +71,10 @@ func (h *HttpHandler) GetHolders(ctx *fiber.Ctx) (err error) {
 		blockHeight = uint64(blockHeader.Height)
 	}
 
+	if req.Limit == 0 {
+		req.Limit = getHoldersMaxLimit
+	}
+
 	var runeId runes.RuneId
 	if req.Id != "" {
 		var ok bool
@@ -74,7 +88,7 @@ func (h *HttpHandler) GetHolders(ctx *fiber.Ctx) (err error) {
 	if err != nil {
 		return errors.Wrap(err, "error during GetHoldersByHeight")
 	}
-	holdingBalances, err := h.usecase.GetBalancesByRuneId(ctx.UserContext(), runeId, blockHeight)
+	holdingBalances, err := h.usecase.GetBalancesByRuneId(ctx.UserContext(), runeId, blockHeight, req.Limit, req.Offset)
 	if err != nil {
 		return errors.Wrap(err, "error during GetBalancesByRuneId")
 	}

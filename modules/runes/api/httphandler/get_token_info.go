@@ -101,7 +101,7 @@ func (h *HttpHandler) GetTokenInfo(ctx *fiber.Ctx) (err error) {
 	if err != nil {
 		return errors.Wrap(err, "error during GetTokenInfoByHeight")
 	}
-	holdingBalances, err := h.usecase.GetBalancesByRuneId(ctx.UserContext(), runeId, blockHeight)
+	holdingBalances, err := h.usecase.GetBalancesByRuneId(ctx.UserContext(), runeId, blockHeight, -1, 0) // get all balances
 	if err != nil {
 		return errors.Wrap(err, "error during GetBalancesByRuneId")
 	}

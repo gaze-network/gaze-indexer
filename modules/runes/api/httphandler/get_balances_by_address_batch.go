@@ -3,10 +3,11 @@ package httphandler
 import (
 	"context"
 	"fmt"
-	"slices"
 
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/common/errs"
+	"github.com/gaze-network/indexer-network/modules/runes/internal/entity"
+	"github.com/gaze-network/indexer-network/modules/runes/runes"
 	"github.com/gofiber/fiber/v2"
 	"github.com/samber/lo"
 	"golang.org/x/sync/errgroup"
@@ -16,6 +17,8 @@ type getBalanceQuery struct {
 	Wallet      string `json:"wallet"`
 	Id          string `json:"id"`
 	BlockHeight uint64 `json:"blockHeight"`
+	Limit       int32  `json:"limit"`
+	Offset      int32  `json:"offset"`
 }
 
 type getBalancesByAddressBatchRequest struct {
@@ -24,12 +27,18 @@ type getBalancesByAddressBatchRequest struct {
 
 func (r getBalancesByAddressBatchRequest) Validate() error {
 	var errList []error
-	for _, query := range r.Queries {
+	for i, query := range r.Queries {
 		if query.Wallet == "" {
-			errList = append(errList, errors.Errorf("queries[%d]: 'wallet' is required"))
+			errList = append(errList, errors.Errorf("queries[%d]: 'wallet' is required", i))
 		}
 		if query.Id != "" && !isRuneIdOrRuneName(query.Id) {
-			errList = append(errList, errors.Errorf("queries[%d]: 'id' is not valid rune id or rune name"))
+			errList = append(errList, errors.Errorf("queries[%d]: 'id' is not valid rune id or rune name", i))
+		}
+		if query.Limit < 0 {
+			errList = append(errList, errors.Errorf("queries[%d]: 'limit' must be non-negative", i))
+		}
+		if query.Limit > getBalancesByAddressMaxLimit {
+			errList = append(errList, errors.Errorf("queries[%d]: 'limit' cannot exceed %d", i, getBalancesByAddressMaxLimit))
 		}
 	}
 	return errs.WithPublicMessage(errors.Join(errList...), "validation error")
@@ -68,7 +77,11 @@ func (h *HttpHandler) GetBalancesByAddressBatch(ctx *fiber.Ctx) (err error) {
 			blockHeight = latestBlockHeight
 		}
 
-		balances, err := h.usecase.GetBalancesByPkScript(ctx, pkScript, blockHeight)
+		if query.Limit == 0 {
+			query.Limit = getBalancesByAddressMaxLimit
+		}
+
+		balances, err := h.usecase.GetBalancesByPkScript(ctx, pkScript, blockHeight, query.Limit, query.Offset)
 		if err != nil {
 			return nil, errors.Wrap(err, "error during GetBalancesByPkScript")
 		}
@@ -76,33 +89,30 @@ func (h *HttpHandler) GetBalancesByAddressBatch(ctx *fiber.Ctx) (err error) {
 		runeId, ok := h.resolveRuneId(ctx, query.Id)
 		if ok {
 			// filter out balances that don't match the requested rune id
-			for key := range balances {
-				if key != runeId {
-					delete(balances, key)
-				}
-			}
+			balances = lo.Filter(balances, func(b *entity.Balance, _ int) bool {
+				return b.RuneId == runeId
+			})
 		}
 
-		balanceRuneIds := lo.Keys(balances)
+		balanceRuneIds := lo.Map(balances, func(b *entity.Balance, _ int) runes.RuneId {
+			return b.RuneId
+		})
 		runeEntries, err := h.usecase.GetRuneEntryByRuneIdBatch(ctx, balanceRuneIds)
 		if err != nil {
 			return nil, errors.Wrap(err, "error during GetRuneEntryByRuneIdBatch")
 		}
 
 		balanceList := make([]balance, 0, len(balances))
-		for id, b := range balances {
-			runeEntry := runeEntries[id]
+		for _, b := range balances {
+			runeEntry := runeEntries[b.RuneId]
 			balanceList = append(balanceList, balance{
 				Amount:   b.Amount,
-				Id:       id,
+				Id:       b.RuneId,
 				Name:     runeEntry.SpacedRune,
 				Symbol:   string(runeEntry.Symbol),
 				Decimals: runeEntry.Divisibility,
 			})
 		}
-		slices.SortFunc(balanceList, func(i, j balance) int {
-			return j.Amount.Cmp(i.Amount)
-		})
 
 		result := getBalancesByAddressResult{
 			BlockHeight: blockHeight,

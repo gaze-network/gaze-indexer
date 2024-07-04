@@ -8,16 +8,18 @@ import (
 	"github.com/gaze-network/indexer-network/modules/runes/runes"
 )
 
-func (u *Usecase) GetBalancesByPkScript(ctx context.Context, pkScript []byte, blockHeight uint64) (map[runes.RuneId]*entity.Balance, error) {
-	balances, err := u.runesDg.GetBalancesByPkScript(ctx, pkScript, blockHeight)
+// Use limit = -1 as no limit.
+func (u *Usecase) GetBalancesByPkScript(ctx context.Context, pkScript []byte, blockHeight uint64, limit int32, offset int32) ([]*entity.Balance, error) {
+	balances, err := u.runesDg.GetBalancesByPkScript(ctx, pkScript, blockHeight, limit, offset)
 	if err != nil {
 		return nil, errors.Wrap(err, "error during GetBalancesByPkScript")
 	}
 	return balances, nil
 }
 
-func (u *Usecase) GetBalancesByRuneId(ctx context.Context, runeId runes.RuneId, blockHeight uint64) ([]*entity.Balance, error) {
-	balances, err := u.runesDg.GetBalancesByRuneId(ctx, runeId, blockHeight)
+// Use limit = -1 as no limit.
+func (u *Usecase) GetBalancesByRuneId(ctx context.Context, runeId runes.RuneId, blockHeight uint64, limit int32, offset int32) ([]*entity.Balance, error) {
+	balances, err := u.runesDg.GetBalancesByRuneId(ctx, runeId, blockHeight, limit, offset)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get rune holders by rune id")
 	}

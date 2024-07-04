@@ -2,13 +2,13 @@
 WITH balances AS (
   SELECT DISTINCT ON (rune_id) * FROM runes_balances WHERE pkscript = $1 AND block_height <= $2 ORDER BY rune_id, block_height DESC
 )
-SELECT * FROM balances WHERE amount > 0;
+SELECT * FROM balances WHERE amount > 0 ORDER BY amount DESC, rune_id LIMIT $3 OFFSET $4;
 
 -- name: GetBalancesByRuneId :many
 WITH balances AS (
   SELECT DISTINCT ON (pkscript) * FROM runes_balances WHERE rune_id = $1 AND block_height <= $2 ORDER BY pkscript, block_height DESC
 )
-SELECT * FROM balances WHERE amount > 0;
+SELECT * FROM balances WHERE amount > 0 ORDER BY amount DESC, pkscript LIMIT $3 OFFSET $4;
 
 -- name: GetBalanceByPkScriptAndRuneId :one
 SELECT * FROM runes_balances WHERE pkscript = $1 AND rune_id = $2 AND block_height <= $3 ORDER BY block_height DESC LIMIT 1;

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"math"
 
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/wire"
@@ -245,30 +246,46 @@ func (r *Repository) CountRuneEntries(ctx context.Context) (uint64, error) {
 	return uint64(count), nil
 }
 
-func (r *Repository) GetBalancesByPkScript(ctx context.Context, pkScript []byte, blockHeight uint64) (map[runes.RuneId]*entity.Balance, error) {
+func (r *Repository) GetBalancesByPkScript(ctx context.Context, pkScript []byte, blockHeight uint64, limit int32, offset int32) ([]*entity.Balance, error) {
+	if limit == -1 {
+		limit = math.MaxInt32
+	}
+	if limit < 0 {
+		return nil, errors.Wrap(errs.InvalidArgument, "limit must be -1 or non-negative")
+	}
 	balances, err := r.queries.GetBalancesByPkScript(ctx, gen.GetBalancesByPkScriptParams{
 		Pkscript:    hex.EncodeToString(pkScript),
 		BlockHeight: int32(blockHeight),
+		Limit:       limit,
+		Offset:      offset,
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "error during query")
 	}
 
-	result := make(map[runes.RuneId]*entity.Balance, len(balances))
+	result := make([]*entity.Balance, 0, len(balances))
 	for _, balanceModel := range balances {
 		balance, err := mapBalanceModelToType(gen.RunesBalance(balanceModel))
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to parse balance model")
 		}
-		result[balance.RuneId] = balance
+		result = append(result, balance)
 	}
 	return result, nil
 }
 
-func (r *Repository) GetBalancesByRuneId(ctx context.Context, runeId runes.RuneId, blockHeight uint64) ([]*entity.Balance, error) {
+func (r *Repository) GetBalancesByRuneId(ctx context.Context, runeId runes.RuneId, blockHeight uint64, limit int32, offset int32) ([]*entity.Balance, error) {
+	if limit == -1 {
+		limit = math.MaxInt32
+	}
+	if limit < 0 {
+		return nil, errors.Wrap(errs.InvalidArgument, "limit must be -1 or non-negative")
+	}
 	balances, err := r.queries.GetBalancesByRuneId(ctx, gen.GetBalancesByRuneIdParams{
 		RuneID:      runeId.String(),
 		BlockHeight: int32(blockHeight),
+		Limit:       limit,
+		Offset:      offset,
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "error during query")
