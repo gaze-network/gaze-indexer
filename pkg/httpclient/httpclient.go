@@ -90,7 +90,11 @@ func (h *Client) request(ctx context.Context, reqOptions RequestOptions) (*HttpR
 
 	parsedUrl := h.BaseURL()
 	parsedUrl.Path = path.Join(parsedUrl.Path, reqOptions.path)
-	parsedUrl.RawQuery = reqOptions.Query.Encode() // TODO: merge query params if base url already have query params
+	baseQuery := parsedUrl.Query()
+	for k, v := range reqOptions.Query {
+		baseQuery[k] = v
+	}
+	parsedUrl.RawQuery = baseQuery.Encode()
 
 	// remove %20 from url (empty space)
 	url := strings.TrimSuffix(parsedUrl.String(), "%20")
