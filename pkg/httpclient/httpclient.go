@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/url"
+	"path"
 	"strings"
 	"time"
 
-	"github.com/Cleverse/go-utilities/utils"
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/pkg/logger"
 	"github.com/valyala/fasthttp"
@@ -23,12 +23,13 @@ type Config struct {
 }
 
 type Client struct {
-	baseURL string
+	baseURL *url.URL
 	Config
 }
 
 func New(baseURL string, config ...Config) (*Client, error) {
-	if _, err := url.Parse(baseURL); err != nil {
+	parsedBaseURL, err := url.Parse(baseURL)
+	if err != nil {
 		return nil, errors.Wrap(err, "can't parse base url")
 	}
 	var cf Config
@@ -39,7 +40,7 @@ func New(baseURL string, config ...Config) (*Client, error) {
 		cf.Headers = make(map[string]string)
 	}
 	return &Client{
-		baseURL: baseURL,
+		baseURL: parsedBaseURL,
 		Config:  cf,
 	}, nil
 }
@@ -86,10 +87,10 @@ func (h *Client) request(ctx context.Context, reqOptions RequestOptions) (*HttpR
 	for k, v := range reqOptions.Header {
 		req.Header.Set(k, v)
 	}
-	// TODO: optimize performance, reduce unnecessary ops
-	parsedUrl := utils.Must(url.Parse(h.baseURL)) // checked in httpclient.New
-	parsedUrl.Path = reqOptions.path
-	parsedUrl.RawQuery = reqOptions.Query.Encode()
+
+	parsedUrl := h.BaseURL()
+	parsedUrl.Path = path.Join(parsedUrl.Path, reqOptions.path)
+	parsedUrl.RawQuery = reqOptions.Query.Encode() // TODO: merge query params if base url already have query params
 
 	// remove %20 from url (empty space)
 	url := strings.TrimSuffix(parsedUrl.String(), "%20")
@@ -143,6 +144,12 @@ func (h *Client) request(ctx context.Context, reqOptions RequestOptions) (*HttpR
 	resp.CopyTo(&httpResponse.Response)
 
 	return &httpResponse, nil
+}
+
+// BaseURL returns the cloned base URL of the client.
+func (h *Client) BaseURL() *url.URL {
+	u := *h.baseURL
+	return &u
 }
 
 func (h *Client) Do(ctx context.Context, method, path string, reqOptions RequestOptions) (*HttpResponse, error) {
