@@ -25,8 +25,16 @@ type getBalancesByAddressBatchRequest struct {
 	Queries []getBalanceQuery `json:"queries"`
 }
 
+const getBalancesByAddressBatchMaxQueries = 100
+
 func (r getBalancesByAddressBatchRequest) Validate() error {
 	var errList []error
+	if len(r.Queries) == 0 {
+		errList = append(errList, errors.New("at least one query is required"))
+	}
+	if len(r.Queries) > getBalancesByAddressBatchMaxQueries {
+		errList = append(errList, errors.Errorf("cannot exceed %d queries", getBalancesByAddressBatchMaxQueries))
+	}
 	for i, query := range r.Queries {
 		if query.Wallet == "" {
 			errList = append(errList, errors.Errorf("queries[%d]: 'wallet' is required", i))
