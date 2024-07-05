@@ -1,10 +1,13 @@
 package httphandler
 
 import (
+	"bytes"
 	"encoding/hex"
+	"slices"
 
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/common/errs"
+	"github.com/gaze-network/indexer-network/modules/runes/internal/entity"
 	"github.com/gaze-network/indexer-network/modules/runes/runes"
 	"github.com/gaze-network/uint128"
 	"github.com/gofiber/fiber/v2"
@@ -114,6 +117,14 @@ func (h *HttpHandler) GetHolders(ctx *fiber.Ctx) (err error) {
 			Percent:  percent.InexactFloat64(),
 		})
 	}
+
+	// sort by amount descending, then pk script ascending
+	slices.SortFunc(holdingBalances, func(b1, b2 *entity.Balance) int {
+		if b1.Amount.Cmp(b2.Amount) == 0 {
+			return bytes.Compare(b1.PkScript, b2.PkScript)
+		}
+		return b2.Amount.Cmp(b1.Amount)
+	})
 
 	resp := getHoldersResponse{
 		Result: &getHoldersResult{
