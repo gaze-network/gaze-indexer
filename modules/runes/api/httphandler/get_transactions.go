@@ -8,10 +8,7 @@ import (
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/common/errs"
-	"github.com/gaze-network/indexer-network/modules/runes/internal/entity"
 	"github.com/gaze-network/indexer-network/modules/runes/runes"
-	"github.com/gaze-network/indexer-network/pkg/logger"
-	"github.com/gaze-network/indexer-network/pkg/logger/slogx"
 	"github.com/gaze-network/uint128"
 	"github.com/gofiber/fiber/v2"
 	"github.com/samber/lo"
@@ -176,13 +173,6 @@ func (h *HttpHandler) GetTransactions(ctx *fiber.Ctx) (err error) {
 	txs, err := h.usecase.GetRuneTransactions(ctx.UserContext(), pkScript, runeId, uint64(req.FromBlock), uint64(req.ToBlock), req.Limit, req.Offset)
 	if err != nil {
 		return errors.Wrap(err, "error during GetRuneTransactions")
-	}
-
-	{
-		txHashes := lo.Map(txs, func(tx *entity.RuneTransaction, _ int) chainhash.Hash {
-			return tx.Hash
-		})
-		logger.Debug("txHashes", slogx.Any("txHashes", txHashes))
 	}
 
 	var allRuneIds []runes.RuneId
