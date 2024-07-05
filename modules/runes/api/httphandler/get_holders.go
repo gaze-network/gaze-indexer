@@ -18,7 +18,7 @@ type getHoldersRequest struct {
 	Offset      int32  `json:"offset"`
 }
 
-const getHoldersMaxLimit = 10000 // TODO: finalize this value
+const getHoldersMaxLimit = 1000
 
 func (r getHoldersRequest) Validate() error {
 	var errList []error

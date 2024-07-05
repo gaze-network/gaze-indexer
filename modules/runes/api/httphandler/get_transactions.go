@@ -8,19 +8,25 @@ import (
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/common/errs"
+	"github.com/gaze-network/indexer-network/modules/runes/internal/entity"
 	"github.com/gaze-network/indexer-network/modules/runes/runes"
+	"github.com/gaze-network/indexer-network/pkg/logger"
+	"github.com/gaze-network/indexer-network/pkg/logger/slogx"
 	"github.com/gaze-network/uint128"
 	"github.com/gofiber/fiber/v2"
 	"github.com/samber/lo"
 )
 
 type getTransactionsRequest struct {
-	Wallet string `query:"wallet"`
-	Id     string `query:"id"`
-
-	FromBlock int64 `query:"fromBlock"`
-	ToBlock   int64 `query:"toBlock"`
+	Wallet    string `query:"wallet"`
+	Id        string `query:"id"`
+	FromBlock int64  `query:"fromBlock"`
+	ToBlock   int64  `query:"toBlock"`
+	Limit     int32  `query:"limit"`
+	Offset    int32  `query:"offset"`
 }
+
+const getTransactionsMaxLimit = 3000
 
 func (r getTransactionsRequest) Validate() error {
 	var errList []error
@@ -32,6 +38,12 @@ func (r getTransactionsRequest) Validate() error {
 	}
 	if r.ToBlock < -1 {
 		errList = append(errList, errors.Errorf("invalid toBlock range"))
+	}
+	if r.Limit < 0 {
+		errList = append(errList, errors.New("'limit' must be non-negative"))
+	}
+	if r.Limit > getTransactionsMaxLimit {
+		errList = append(errList, errors.Errorf("'limit' cannot exceed %d", getTransactionsMaxLimit))
 	}
 	return errs.WithPublicMessage(errors.Join(errList...), "validation error")
 }
@@ -133,6 +145,9 @@ func (h *HttpHandler) GetTransactions(ctx *fiber.Ctx) (err error) {
 			return errs.NewPublicError("unable to resolve rune id from \"id\"")
 		}
 	}
+	if req.Limit == 0 {
+		req.Limit = getBalancesByAddressMaxLimit
+	}
 
 	// default to latest block
 	if req.ToBlock == 0 {
@@ -158,9 +173,16 @@ func (h *HttpHandler) GetTransactions(ctx *fiber.Ctx) (err error) {
 		return errs.NewPublicError(fmt.Sprintf("fromBlock must be less than or equal to toBlock, got fromBlock=%d, toBlock=%d", req.FromBlock, req.ToBlock))
 	}
 
-	txs, err := h.usecase.GetRuneTransactions(ctx.UserContext(), pkScript, runeId, uint64(req.FromBlock), uint64(req.ToBlock))
+	txs, err := h.usecase.GetRuneTransactions(ctx.UserContext(), pkScript, runeId, uint64(req.FromBlock), uint64(req.ToBlock), req.Limit, req.Offset)
 	if err != nil {
 		return errors.Wrap(err, "error during GetRuneTransactions")
+	}
+
+	{
+		txHashes := lo.Map(txs, func(tx *entity.RuneTransaction, _ int) chainhash.Hash {
+			return tx.Hash
+		})
+		logger.Debug("txHashes", slogx.Any("txHashes", txHashes))
 	}
 
 	var allRuneIds []runes.RuneId
@@ -279,12 +301,12 @@ func (h *HttpHandler) GetTransactions(ctx *fiber.Ctx) (err error) {
 		}
 		txList = append(txList, respTx)
 	}
-	// sort by block height ASC, then index ASC
+	// sort by block height DESC, then index DESC
 	slices.SortFunc(txList, func(t1, t2 transaction) int {
 		if t1.BlockHeight != t2.BlockHeight {
-			return int(t1.BlockHeight - t2.BlockHeight)
+			return int(t2.BlockHeight - t1.BlockHeight)
 		}
-		return int(t1.Index - t2.Index)
+		return int(t2.Index - t1.Index)
 	})
 
 	resp := getTransactionsResponse{

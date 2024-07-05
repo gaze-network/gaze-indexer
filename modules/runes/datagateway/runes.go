@@ -27,7 +27,7 @@ type RunesReaderDataGateway interface {
 	GetLatestBlock(ctx context.Context) (types.BlockHeader, error)
 	GetIndexedBlockByHeight(ctx context.Context, height int64) (*entity.IndexedBlock, error)
 	// GetRuneTransactions returns the runes transactions, filterable by pkScript, runeId and height. If pkScript, runeId or height is zero value, that filter is ignored.
-	GetRuneTransactions(ctx context.Context, pkScript []byte, runeId runes.RuneId, fromBlock, toBlock uint64) ([]*entity.RuneTransaction, error)
+	GetRuneTransactions(ctx context.Context, pkScript []byte, runeId runes.RuneId, fromBlock, toBlock uint64, limit int32, offset int32) ([]*entity.RuneTransaction, error)
 
 	GetRunesBalancesAtOutPoint(ctx context.Context, outPoint wire.OutPoint) (map[runes.RuneId]*entity.OutPointBalance, error)
 	GetUnspentOutPointBalancesByPkScript(ctx context.Context, pkScript []byte, blockHeight uint64) ([]*entity.OutPointBalance, error)

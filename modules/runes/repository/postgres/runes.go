@@ -63,7 +63,18 @@ func (r *Repository) GetIndexedBlockByHeight(ctx context.Context, height int64) 
 	return indexedBlock, nil
 }
 
-func (r *Repository) GetRuneTransactions(ctx context.Context, pkScript []byte, runeId runes.RuneId, fromBlock, toBlock uint64) ([]*entity.RuneTransaction, error) {
+const maxRuneTransactionsLimit = 10000 // temporary limit to prevent large queries from overwhelming the database
+
+func (r *Repository) GetRuneTransactions(ctx context.Context, pkScript []byte, runeId runes.RuneId, fromBlock, toBlock uint64, limit int32, offset int32) ([]*entity.RuneTransaction, error) {
+	if limit == -1 {
+		limit = maxRuneTransactionsLimit
+	}
+	if limit < 0 {
+		return nil, errors.Wrap(errs.InvalidArgument, "limit must be -1 or non-negative")
+	}
+	if limit > maxRuneTransactionsLimit {
+		return nil, errors.Wrapf(errs.InvalidArgument, "limit cannot exceed %d", maxRuneTransactionsLimit)
+	}
 	pkScriptParam := []byte(fmt.Sprintf(`[{"pkScript":"%s"}]`, hex.EncodeToString(pkScript)))
 	runeIdParam := []byte(fmt.Sprintf(`[{"runeId":"%s"}]`, runeId.String()))
 	rows, err := r.queries.GetRuneTransactions(ctx, gen.GetRuneTransactionsParams{
@@ -78,6 +89,9 @@ func (r *Repository) GetRuneTransactions(ctx context.Context, pkScript []byte, r
 
 		FromBlock: int32(fromBlock),
 		ToBlock:   int32(toBlock),
+
+		Limit:  limit,
+		Offset: offset,
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "error during query")

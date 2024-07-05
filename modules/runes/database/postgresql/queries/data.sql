@@ -57,7 +57,7 @@ SELECT * FROM runes_transactions
   ) AND (
     @from_block <= runes_transactions.block_height AND runes_transactions.block_height <= @to_block
   )
-ORDER BY runes_transactions.block_height DESC LIMIT 10000;
+ORDER BY runes_transactions.block_height DESC, runes_transactions.index DESC LIMIT $1 OFFSET $2;
 
 -- name: CountRuneEntries :one
 SELECT COUNT(*) FROM runes_entries;

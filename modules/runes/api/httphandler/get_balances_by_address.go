@@ -18,7 +18,7 @@ type getBalancesByAddressRequest struct {
 	Offset      int32  `query:"offset"`
 }
 
-const getBalancesByAddressMaxLimit = 10000 // TODO: finalize this value
+const getBalancesByAddressMaxLimit = 5000
 
 func (r getBalancesByAddressRequest) Validate() error {
 	var errList []error

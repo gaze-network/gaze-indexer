@@ -649,23 +649,25 @@ const getRuneTransactions = `-- name: GetRuneTransactions :many
 SELECT hash, runes_transactions.block_height, index, timestamp, inputs, outputs, mints, burns, rune_etched, tx_hash, runes_runestones.block_height, etching, etching_divisibility, etching_premine, etching_rune, etching_spacers, etching_symbol, etching_terms, etching_terms_amount, etching_terms_cap, etching_terms_height_start, etching_terms_height_end, etching_terms_offset_start, etching_terms_offset_end, etching_turbo, edicts, mint, pointer, cenotaph, flaws FROM runes_transactions
 	LEFT JOIN runes_runestones ON runes_transactions.hash = runes_runestones.tx_hash
 	WHERE (
-    $1::BOOLEAN = FALSE -- if @filter_pk_script is TRUE, apply pk_script filter
-    OR runes_transactions.outputs @> $2::JSONB 
-    OR runes_transactions.inputs @> $2::JSONB
-  ) AND (
-    $3::BOOLEAN = FALSE -- if @filter_rune_id is TRUE, apply rune_id filter
+    $3::BOOLEAN = FALSE -- if @filter_pk_script is TRUE, apply pk_script filter
     OR runes_transactions.outputs @> $4::JSONB 
-    OR runes_transactions.inputs @> $4::JSONB 
-    OR runes_transactions.mints ? $5 
-    OR runes_transactions.burns ? $5
-    OR (runes_transactions.rune_etched = TRUE AND runes_transactions.block_height = $6 AND runes_transactions.index = $7)
+    OR runes_transactions.inputs @> $4::JSONB
   ) AND (
-    $8 <= runes_transactions.block_height AND runes_transactions.block_height <= $9
+    $5::BOOLEAN = FALSE -- if @filter_rune_id is TRUE, apply rune_id filter
+    OR runes_transactions.outputs @> $6::JSONB 
+    OR runes_transactions.inputs @> $6::JSONB 
+    OR runes_transactions.mints ? $7 
+    OR runes_transactions.burns ? $7
+    OR (runes_transactions.rune_etched = TRUE AND runes_transactions.block_height = $8 AND runes_transactions.index = $9)
+  ) AND (
+    $10 <= runes_transactions.block_height AND runes_transactions.block_height <= $11
   )
-ORDER BY runes_transactions.block_height DESC LIMIT 10000
+ORDER BY runes_transactions.block_height DESC LIMIT $1 OFFSET $2
 `
 
 type GetRuneTransactionsParams struct {
+	Limit             int32
+	Offset            int32
 	FilterPkScript    bool
 	PkScriptParam     []byte
 	FilterRuneID      bool
@@ -712,6 +714,8 @@ type GetRuneTransactionsRow struct {
 
 func (q *Queries) GetRuneTransactions(ctx context.Context, arg GetRuneTransactionsParams) ([]GetRuneTransactionsRow, error) {
 	rows, err := q.db.Query(ctx, getRuneTransactions,
+		arg.Limit,
+		arg.Offset,
 		arg.FilterPkScript,
 		arg.PkScriptParam,
 		arg.FilterRuneID,
