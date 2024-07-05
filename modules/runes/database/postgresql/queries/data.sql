@@ -16,8 +16,28 @@ SELECT * FROM runes_balances WHERE pkscript = $1 AND rune_id = $2 AND block_heig
 -- name: GetOutPointBalancesAtOutPoint :many
 SELECT * FROM runes_outpoint_balances WHERE tx_hash = $1 AND tx_idx = $2;
 
--- name: GetUnspentOutPointBalancesByPkScript :many
-SELECT * FROM runes_outpoint_balances WHERE pkscript = @pkScript AND block_height <= @block_height AND (spent_height IS NULL OR spent_height > @block_height);
+-- name: GetRunesUTXOsByPkScript :many
+SELECT tx_hash, tx_idx, max("pkscript") as pkscript, array_agg("rune_id") as rune_ids, array_agg("amount") as amounts 
+  FROM runes_outpoint_balances 
+  WHERE
+    pkscript = @pkScript AND
+    block_height <= @block_height AND
+    (spent_height IS NULL OR spent_height > @block_height)
+  GROUP BY tx_hash, tx_idx
+  ORDER BY tx_hash, tx_idx 
+  LIMIT $1 OFFSET $2;
+
+-- name: GetRunesUTXOsByRuneIdAndPkScript :many
+SELECT tx_hash, tx_idx, max("pkscript") as pkscript, array_agg("rune_id") as rune_ids, array_agg("amount") as amounts 
+  FROM runes_outpoint_balances 
+  WHERE
+    pkscript = @pkScript AND 
+    block_height <= @block_height AND 
+    (spent_height IS NULL OR spent_height > @block_height)
+  GROUP BY tx_hash, tx_idx
+  HAVING array_agg("rune_id") @> @rune_ids::text[] 
+  ORDER BY tx_hash, tx_idx 
+  LIMIT $1 OFFSET $2;
 
 -- name: GetRuneEntriesByRuneIds :many
 WITH states AS (

@@ -662,7 +662,7 @@ SELECT hash, runes_transactions.block_height, index, timestamp, inputs, outputs,
   ) AND (
     $10 <= runes_transactions.block_height AND runes_transactions.block_height <= $11
   )
-ORDER BY runes_transactions.block_height DESC LIMIT $1 OFFSET $2
+ORDER BY runes_transactions.block_height DESC, runes_transactions.index DESC LIMIT $1 OFFSET $2
 `
 
 type GetRuneTransactionsParams struct {
@@ -775,32 +775,114 @@ func (q *Queries) GetRuneTransactions(ctx context.Context, arg GetRuneTransactio
 	return items, nil
 }
 
-const getUnspentOutPointBalancesByPkScript = `-- name: GetUnspentOutPointBalancesByPkScript :many
-SELECT rune_id, pkscript, tx_hash, tx_idx, amount, block_height, spent_height FROM runes_outpoint_balances WHERE pkscript = $1 AND block_height <= $2 AND (spent_height IS NULL OR spent_height > $2)
+const getRunesUTXOsByPkScript = `-- name: GetRunesUTXOsByPkScript :many
+SELECT tx_hash, tx_idx, max("pkscript") as pkscript, array_agg("rune_id") as rune_ids, array_agg("amount") as amounts 
+  FROM runes_outpoint_balances 
+  WHERE
+    pkscript = $3 AND
+    block_height <= $4 AND
+    (spent_height IS NULL OR spent_height > $4)
+  GROUP BY tx_hash, tx_idx
+  ORDER BY tx_hash, tx_idx 
+  LIMIT $1 OFFSET $2
 `
 
-type GetUnspentOutPointBalancesByPkScriptParams struct {
+type GetRunesUTXOsByPkScriptParams struct {
+	Limit       int32
+	Offset      int32
 	Pkscript    string
 	BlockHeight int32
 }
 
-func (q *Queries) GetUnspentOutPointBalancesByPkScript(ctx context.Context, arg GetUnspentOutPointBalancesByPkScriptParams) ([]RunesOutpointBalance, error) {
-	rows, err := q.db.Query(ctx, getUnspentOutPointBalancesByPkScript, arg.Pkscript, arg.BlockHeight)
+type GetRunesUTXOsByPkScriptRow struct {
+	TxHash   string
+	TxIdx    int32
+	Pkscript interface{}
+	RuneIds  interface{}
+	Amounts  interface{}
+}
+
+func (q *Queries) GetRunesUTXOsByPkScript(ctx context.Context, arg GetRunesUTXOsByPkScriptParams) ([]GetRunesUTXOsByPkScriptRow, error) {
+	rows, err := q.db.Query(ctx, getRunesUTXOsByPkScript,
+		arg.Limit,
+		arg.Offset,
+		arg.Pkscript,
+		arg.BlockHeight,
+	)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []RunesOutpointBalance
+	var items []GetRunesUTXOsByPkScriptRow
 	for rows.Next() {
-		var i RunesOutpointBalance
+		var i GetRunesUTXOsByPkScriptRow
 		if err := rows.Scan(
-			&i.RuneID,
-			&i.Pkscript,
 			&i.TxHash,
 			&i.TxIdx,
-			&i.Amount,
-			&i.BlockHeight,
-			&i.SpentHeight,
+			&i.Pkscript,
+			&i.RuneIds,
+			&i.Amounts,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getRunesUTXOsByRuneIdAndPkScript = `-- name: GetRunesUTXOsByRuneIdAndPkScript :many
+SELECT tx_hash, tx_idx, max("pkscript") as pkscript, array_agg("rune_id") as rune_ids, array_agg("amount") as amounts 
+  FROM runes_outpoint_balances 
+  WHERE
+    pkscript = $3 AND 
+    block_height <= $4 AND 
+    (spent_height IS NULL OR spent_height > $4)
+  GROUP BY tx_hash, tx_idx
+  HAVING array_agg("rune_id") @> $5::text[] 
+  ORDER BY tx_hash, tx_idx 
+  LIMIT $1 OFFSET $2
+`
+
+type GetRunesUTXOsByRuneIdAndPkScriptParams struct {
+	Limit       int32
+	Offset      int32
+	Pkscript    string
+	BlockHeight int32
+	RuneIds     []string
+}
+
+type GetRunesUTXOsByRuneIdAndPkScriptRow struct {
+	TxHash   string
+	TxIdx    int32
+	Pkscript interface{}
+	RuneIds  interface{}
+	Amounts  interface{}
+}
+
+func (q *Queries) GetRunesUTXOsByRuneIdAndPkScript(ctx context.Context, arg GetRunesUTXOsByRuneIdAndPkScriptParams) ([]GetRunesUTXOsByRuneIdAndPkScriptRow, error) {
+	rows, err := q.db.Query(ctx, getRunesUTXOsByRuneIdAndPkScript,
+		arg.Limit,
+		arg.Offset,
+		arg.Pkscript,
+		arg.BlockHeight,
+		arg.RuneIds,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetRunesUTXOsByRuneIdAndPkScriptRow
+	for rows.Next() {
+		var i GetRunesUTXOsByRuneIdAndPkScriptRow
+		if err := rows.Scan(
+			&i.TxHash,
+			&i.TxIdx,
+			&i.Pkscript,
+			&i.RuneIds,
+			&i.Amounts,
 		); err != nil {
 			return nil, err
 		}

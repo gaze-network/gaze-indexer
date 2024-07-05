@@ -2,7 +2,6 @@ package httphandler
 
 import (
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
-	"github.com/btcsuite/btcd/wire"
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/common/errs"
 	"github.com/gaze-network/indexer-network/modules/runes/internal/entity"
@@ -16,7 +15,11 @@ type getUTXOsByAddressRequest struct {
 	Wallet      string `params:"wallet"`
 	Id          string `query:"id"`
 	BlockHeight uint64 `query:"blockHeight"`
+	Limit       int32  `query:"limit"`
+	Offset      int32  `query:"offset"`
 }
+
+const getUTXOsByAddressMaxLimit = 3000
 
 func (r getUTXOsByAddressRequest) Validate() error {
 	var errList []error
@@ -25,6 +28,12 @@ func (r getUTXOsByAddressRequest) Validate() error {
 	}
 	if r.Id != "" && !isRuneIdOrRuneName(r.Id) {
 		errList = append(errList, errors.New("'id' is not valid rune id or rune name"))
+	}
+	if r.Limit < 0 {
+		errList = append(errList, errors.New("'limit' must be non-negative"))
+	}
+	if r.Limit > getUTXOsByAddressMaxLimit {
+		errList = append(errList, errors.Errorf("'limit' cannot exceed %d", getUTXOsByAddressMaxLimit))
 	}
 	return errs.WithPublicMessage(errors.Join(errList...), "validation error")
 }
@@ -41,15 +50,15 @@ type utxoExtend struct {
 	Runes []runeBalance `json:"runes"`
 }
 
-type utxo struct {
+type utxoItem struct {
 	TxHash      chainhash.Hash `json:"txHash"`
 	OutputIndex uint32         `json:"outputIndex"`
 	Extend      utxoExtend     `json:"extend"`
 }
 
 type getUTXOsByAddressResult struct {
-	List        []utxo `json:"list"`
-	BlockHeight uint64 `json:"blockHeight"`
+	List        []utxoItem `json:"list"`
+	BlockHeight uint64     `json:"blockHeight"`
 }
 
 type getUTXOsByAddressResponse = HttpResponse[getUTXOsByAddressResult]
@@ -71,6 +80,10 @@ func (h *HttpHandler) GetUTXOsByAddress(ctx *fiber.Ctx) (err error) {
 		return errs.NewPublicError("unable to resolve pkscript from \"wallet\"")
 	}
 
+	if req.Limit == 0 {
+		req.Limit = getBalancesByAddressMaxLimit
+	}
+
 	blockHeight := req.BlockHeight
 	if blockHeight == 0 {
 		blockHeader, err := h.usecase.GetLatestBlock(ctx.UserContext())
@@ -80,27 +93,35 @@ func (h *HttpHandler) GetUTXOsByAddress(ctx *fiber.Ctx) (err error) {
 		blockHeight = uint64(blockHeader.Height)
 	}
 
-	outPointBalances, err := h.usecase.GetUnspentOutPointBalancesByPkScript(ctx.UserContext(), pkScript, blockHeight)
-	if err != nil {
-		return errors.Wrap(err, "error during GetBalancesByPkScript")
+	var utxos []*entity.RunesUTXO
+	if runeId, ok := h.resolveRuneId(ctx.UserContext(), req.Id); ok {
+		utxos, err = h.usecase.GetRunesUTXOsByRuneIdAndPkScript(ctx.UserContext(), runeId, pkScript, blockHeight, req.Limit, req.Offset)
+		if err != nil {
+			return errors.Wrap(err, "error during GetBalancesByPkScript")
+		}
+	} else {
+		utxos, err = h.usecase.GetRunesUTXOsByPkScript(ctx.UserContext(), pkScript, blockHeight, req.Limit, req.Offset)
+		if err != nil {
+			return errors.Wrap(err, "error during GetBalancesByPkScript")
+		}
 	}
 
-	outPointBalanceRuneIds := lo.Map(outPointBalances, func(outPointBalance *entity.OutPointBalance, _ int) runes.RuneId {
-		return outPointBalance.RuneId
-	})
-	runeEntries, err := h.usecase.GetRuneEntryByRuneIdBatch(ctx.UserContext(), outPointBalanceRuneIds)
+	runeIds := make(map[runes.RuneId]struct{}, 0)
+	for _, utxo := range utxos {
+		for _, balance := range utxo.RuneBalances {
+			runeIds[balance.RuneId] = struct{}{}
+		}
+	}
+	runeIdsList := lo.Keys(runeIds)
+	runeEntries, err := h.usecase.GetRuneEntryByRuneIdBatch(ctx.UserContext(), runeIdsList)
 	if err != nil {
 		return errors.Wrap(err, "error during GetRuneEntryByRuneIdBatch")
 	}
 
-	groupedBalances := lo.GroupBy(outPointBalances, func(outPointBalance *entity.OutPointBalance) wire.OutPoint {
-		return outPointBalance.OutPoint
-	})
-
-	utxoList := make([]utxo, 0, len(groupedBalances))
-	for outPoint, balances := range groupedBalances {
-		runeBalances := make([]runeBalance, 0, len(balances))
-		for _, balance := range balances {
+	utxoRespList := make([]utxoItem, 0, len(utxos))
+	for _, utxo := range utxos {
+		runeBalances := make([]runeBalance, 0, len(utxo.RuneBalances))
+		for _, balance := range utxo.RuneBalances {
 			runeEntry := runeEntries[balance.RuneId]
 			runeBalances = append(runeBalances, runeBalance{
 				RuneId:       balance.RuneId,
@@ -111,34 +132,19 @@ func (h *HttpHandler) GetUTXOsByAddress(ctx *fiber.Ctx) (err error) {
 			})
 		}
 
-		utxoList = append(utxoList, utxo{
-			TxHash:      outPoint.Hash,
-			OutputIndex: outPoint.Index,
+		utxoRespList = append(utxoRespList, utxoItem{
+			TxHash:      utxo.OutPoint.Hash,
+			OutputIndex: utxo.OutPoint.Index,
 			Extend: utxoExtend{
 				Runes: runeBalances,
 			},
 		})
 	}
 
-	// filter by req.Id if exists
-	{
-		runeId, ok := h.resolveRuneId(ctx.UserContext(), req.Id)
-		if ok {
-			utxoList = lo.Filter(utxoList, func(u utxo, _ int) bool {
-				for _, runeBalance := range u.Extend.Runes {
-					if runeBalance.RuneId == runeId {
-						return true
-					}
-				}
-				return false
-			})
-		}
-	}
-
 	resp := getUTXOsByAddressResponse{
 		Result: &getUTXOsByAddressResult{
 			BlockHeight: blockHeight,
-			List:        utxoList,
+			List:        utxoRespList,
 		},
 	}
 
