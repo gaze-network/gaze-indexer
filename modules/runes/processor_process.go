@@ -146,7 +146,7 @@ func (p *Processor) processTx(ctx context.Context, tx *types.Transaction, blockH
 					// find all non-OP_RETURN outputs
 					var destinations []int
 					for i, txOut := range tx.TxOut {
-						if txOut.IsOpReturn() {
+						if !txOut.IsOpReturn() {
 							destinations = append(destinations, i)
 						}
 					}
