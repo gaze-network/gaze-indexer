@@ -479,7 +479,7 @@ func (p *Processor) txCommitsToRune(ctx context.Context, tx *types.Transaction, 
 				break
 			}
 			// input must be mature enough
-			confirmations := tx.BlockHeight - int64(blockHeight) + 1
+			confirmations := tx.BlockHeight - blockHeight + 1
 			if confirmations < runes.RUNE_COMMIT_BLOCKS {
 				continue
 			}
