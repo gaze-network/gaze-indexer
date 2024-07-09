@@ -243,39 +243,32 @@ func (d *BitcoinNodeDatasource) prepareRange(fromHeight, toHeight int64) (start,
 }
 
 // GetTransaction fetch transaction from Bitcoin node
-func (d *BitcoinNodeDatasource) GetTransactionByHash(ctx context.Context, txHash chainhash.Hash) (*types.Transaction, error) {
+func (d *BitcoinNodeDatasource) GetRawTransactionAndHeightByTxHash(ctx context.Context, txHash chainhash.Hash) (*wire.MsgTx, int64, error) {
 	rawTxVerbose, err := d.btcclient.GetRawTransactionVerbose(&txHash)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to get raw transaction")
+		return nil, 0, errors.Wrap(err, "failed to get raw transaction")
 	}
 
 	blockHash, err := chainhash.NewHashFromStr(rawTxVerbose.BlockHash)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to parse block hash")
+		return nil, 0, errors.Wrap(err, "failed to parse block hash")
 	}
-	block, err := d.btcclient.GetBlockVerboseTx(blockHash)
+	block, err := d.btcclient.GetBlockVerbose(blockHash)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to get block header")
+		return nil, 0, errors.Wrap(err, "failed to get block header")
 	}
 
 	// parse tx
 	txBytes, err := hex.DecodeString(rawTxVerbose.Hex)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to decode transaction hex")
+		return nil, 0, errors.Wrap(err, "failed to decode transaction hex")
 	}
 	var msgTx wire.MsgTx
 	if err := msgTx.Deserialize(bytes.NewReader(txBytes)); err != nil {
-		return nil, errors.Wrap(err, "failed to deserialize transaction")
-	}
-	var txIndex uint32
-	for i, tx := range block.Tx {
-		if tx.Hex == rawTxVerbose.Hex {
-			txIndex = uint32(i)
-			break
-		}
+		return nil, 0, errors.Wrap(err, "failed to deserialize transaction")
 	}
 
-	return types.ParseMsgTx(&msgTx, block.Height, *blockHash, txIndex), nil
+	return &msgTx, block.Height, nil
 }
 
 // GetBlockHeader fetch block header from Bitcoin node
