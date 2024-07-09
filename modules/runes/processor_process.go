@@ -466,7 +466,7 @@ func (p *Processor) txCommitsToRune(ctx context.Context, tx *types.Transaction, 
 			// It is impossible to verify that input utxo is a P2TR output with just the input.
 			// Need to verify with utxo's pk script.
 
-			prevTx, err := p.bitcoinClient.GetTransactionByHash(ctx, txIn.PreviousOutTxHash)
+			prevTx, blockHeight, err := p.bitcoinClient.GetRawTransactionAndHeightByTxHash(ctx, txIn.PreviousOutTxHash)
 			if err != nil && errors.Is(err, errs.NotFound) {
 				continue
 			}
@@ -479,7 +479,7 @@ func (p *Processor) txCommitsToRune(ctx context.Context, tx *types.Transaction, 
 				break
 			}
 			// input must be mature enough
-			confirmations := tx.BlockHeight - prevTx.BlockHeight + 1
+			confirmations := tx.BlockHeight - int64(blockHeight) + 1
 			if confirmations < runes.RUNE_COMMIT_BLOCKS {
 				continue
 			}
