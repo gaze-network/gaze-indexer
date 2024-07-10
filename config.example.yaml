@@ -47,3 +47,10 @@ modules:
       password: "password"
       db_name: "postgres"
       # url: "postgres://postgres:password@localhost:5432/postgres?sslmode=prefer" # [Optional] This will override other database credentials above.
+  nodesale:
+    postgres:
+      host: "localhost"
+      port: 5432
+      user: "postgres"
+      password: "P@ssw0rd"
+      db_name: "postgres"

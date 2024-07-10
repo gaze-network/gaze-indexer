@@ -1,0 +1,60 @@
+syntax = "proto3";
+
+// protoc modules/nodesale/protobuf/nodesale.proto --go_out=. --go_opt=module=github.com/gaze-network/indexer-network
+
+package nodesale;
+option go_package = "github.com/gaze-network/indexer-network/modules/nodesale/protobuf";
+
+enum Action {
+  ACTION_DEPLOY = 0;
+  ACTION_PURCHASE = 1;
+  ACTION_DELEGATE = 2;
+}
+
+message NodeSaleEvent {
+	Action action = 1;
+	optional ActionDeploy deploy = 2;
+	optional ActionPurchase purchase = 3;
+	optional ActionDelegate delegate = 4;
+}
+
+message ActionDeploy {
+	string name = 1;
+	uint32 startsAt = 2;
+	uint32 endsAt = 3;
+	repeated Tier tiers = 4;
+	string sellerPublicKey = 5;
+	uint32 maxPerAddress = 6;
+	uint32 maxDiscountPercentage = 7;
+	string sellerWallet = 8;
+}
+
+message Tier {
+	uint32 priceSat = 1;
+	uint32 limit = 2;
+	uint32 maxPerAddress = 3;
+}
+
+message ActionPurchase {
+	PurchasePayload payload = 1;
+	string sellerSignature = 2;
+}
+
+message PurchasePayload {
+	ActionID deployID = 1;
+	string buyerPublicKey = 2;
+	repeated uint32 nodeIDs = 3;
+	int64 totalAmountSat = 4;
+	uint64 timeOutBlock = 5;
+}
+
+message ActionID {
+	uint64 block = 1;
+	uint32 txIndex = 2;
+}
+
+message ActionDelegate {
+	string delegateePublicKey = 1;
+	repeated uint32 nodeIDs = 2;
+	ActionID deployID = 3;
+}
