@@ -13,10 +13,11 @@ import (
 )
 
 type Config struct {
-	WithRequestHeader    bool     `env:"REQUEST_HEADER" envDefault:"false" mapstructure:"request_header"`
-	WithRequestQuery     bool     `env:"REQUEST_QUERY" envDefault:"false" mapstructure:"request_query"`
-	Disable              bool     `env:"DISABLE" envDefault:"false" mapstructure:"disable"` // Disable logger level `INFO`
-	HiddenRequestHeaders []string `env:"HIDDEN_REQUEST_HEADERS" mapstructure:"hidden_request_headers"`
+	AllRequestHeaders    bool     `env:"REQUEST_HEADER" envDefault:"false" mapstructure:"request_header"` // Log all request headers
+	AllRequestQueries    bool     `env:"REQUEST_QUERY" envDefault:"false" mapstructure:"request_query"`   // Log all request queries
+	Disable              bool     `env:"DISABLE" envDefault:"false" mapstructure:"disable"`               // Disable logger level `INFO`
+	HiddenRequestHeaders []string `env:"HIDDEN_REQUEST_HEADERS" mapstructure:"hidden_request_headers"`    // Hide specific headers from log
+	WithRequestHeaders   []string `env:"WITH_REQUEST_HEADERS" mapstructure:"with_request_headers"`        // Add specific headers to log (higher priority than `HiddenRequestHeaders`)                                  // Additional fields to log
 }
 
 // New setup request context and information
@@ -24,6 +25,10 @@ func New(config Config) fiber.Handler {
 	hiddenRequestHeaders := make(map[string]struct{}, len(config.HiddenRequestHeaders))
 	for _, header := range config.HiddenRequestHeaders {
 		hiddenRequestHeaders[strings.TrimSpace(strings.ToLower(header))] = struct{}{}
+	}
+	withRequestHeaders := make(map[string]struct{}, len(config.WithRequestHeaders))
+	for _, header := range config.WithRequestHeaders {
+		withRequestHeaders[strings.TrimSpace(strings.ToLower(header))] = struct{}{}
 	}
 	return func(c *fiber.Ctx) error {
 		start := time.Now()
@@ -65,22 +70,36 @@ func New(config Config) fiber.Handler {
 		}
 
 		// request query
-		if config.WithRequestQuery {
-			requestAttributes = append(requestAttributes, slog.String("query", string(c.Request().URI().QueryString())))
+		if config.AllRequestQueries {
+			requestAttributes = append(requestAttributes, slog.String("queries", string(c.Request().URI().QueryString())))
 		}
 
 		// request headers
-		if config.WithRequestHeader {
+		if config.AllRequestHeaders || len(config.WithRequestHeaders) > 0 {
 			kv := []any{}
 
 			for k, v := range c.GetReqHeaders() {
-				if _, found := hiddenRequestHeaders[strings.ToLower(k)]; found {
+				h := strings.ToLower(k)
+
+				// add headers for WithRequestHeaders
+				if _, found := withRequestHeaders[h]; found {
+					goto add
+				}
+
+				// skip hidden headers
+				if _, found := hiddenRequestHeaders[h]; found {
 					continue
 				}
-				kv = append(kv, slog.Any(k, v))
+
+			add:
+				val := any(v)
+				if len(v) == 1 {
+					val = v[0]
+				}
+				kv = append(kv, slog.Any(k, val))
 			}
 
-			requestAttributes = append(requestAttributes, slog.Group("header", kv...))
+			requestAttributes = append(requestAttributes, slog.Group("headers", kv...))
 		}
 
 		level := slog.LevelInfo
