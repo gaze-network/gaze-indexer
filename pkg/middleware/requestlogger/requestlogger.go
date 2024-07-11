@@ -13,11 +13,12 @@ import (
 )
 
 type Config struct {
-	AllRequestHeaders    bool     `env:"REQUEST_HEADER" envDefault:"false" mapstructure:"request_header"` // Log all request headers
-	AllRequestQueries    bool     `env:"REQUEST_QUERY" envDefault:"false" mapstructure:"request_query"`   // Log all request queries
-	Disable              bool     `env:"DISABLE" envDefault:"false" mapstructure:"disable"`               // Disable logger level `INFO`
-	HiddenRequestHeaders []string `env:"HIDDEN_REQUEST_HEADERS" mapstructure:"hidden_request_headers"`    // Hide specific headers from log
-	WithRequestHeaders   []string `env:"WITH_REQUEST_HEADERS" mapstructure:"with_request_headers"`        // Add specific headers to log (higher priority than `HiddenRequestHeaders`)                                  // Additional fields to log
+	AllRequestHeaders    bool                   `env:"REQUEST_HEADER" envDefault:"false" mapstructure:"request_header"` // Log all request headers
+	AllRequestQueries    bool                   `env:"REQUEST_QUERY" envDefault:"false" mapstructure:"request_query"`   // Log all request queries
+	Disable              bool                   `env:"DISABLE" envDefault:"false" mapstructure:"disable"`               // Disable logger level `INFO`
+	HiddenRequestHeaders []string               `env:"HIDDEN_REQUEST_HEADERS" mapstructure:"hidden_request_headers"`    // Hide specific headers from log
+	WithRequestHeaders   []string               `env:"WITH_REQUEST_HEADERS" mapstructure:"with_request_headers"`        // Add specific headers to log (higher priority than `HiddenRequestHeaders`)
+	With                 map[string]interface{} `env:"WITH" mapstructure:"with"`                                        // Additional fields to log
 }
 
 // New setup request context and information
@@ -44,6 +45,11 @@ func New(config Config) fiber.Handler {
 			slog.String("event", "api_request"),
 			slog.Int64("latency", latency.Milliseconds()),
 			slog.String("latencyHuman", latency.String()),
+		}
+
+		// add `with` fields
+		for k, v := range config.With {
+			baseAttrs = append(baseAttrs, slog.Any(k, v))
 		}
 
 		// prep request attributes
