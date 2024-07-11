@@ -102,6 +102,11 @@ func New(config Config) fiber.Handler {
 					continue
 				}
 
+				// skip if not AllRequestHeaders
+				if !config.AllRequestHeaders {
+					continue
+				}
+
 			add:
 				val := any(v)
 				if len(v) == 1 {
