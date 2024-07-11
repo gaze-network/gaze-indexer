@@ -75,9 +75,14 @@ func New(config Config) fiber.Handler {
 			slog.Int("length", len(c.Response().Body())),
 		}
 
-		// request query
+		// request queries
 		if config.AllRequestQueries {
-			requestAttributes = append(requestAttributes, slog.String("queries", string(c.Request().URI().QueryString())))
+			args := c.Request().URI().QueryArgs()
+			logAttrs := make([]any, 0, args.Len())
+			args.VisitAll(func(k, v []byte) {
+				logAttrs = append(logAttrs, slog.Any(string(k), string(v)))
+			})
+			requestAttributes = append(requestAttributes, slog.Group("queries", logAttrs...))
 		}
 
 		// request headers
