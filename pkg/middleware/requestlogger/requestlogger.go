@@ -13,12 +13,13 @@ import (
 )
 
 type Config struct {
-	AllRequestHeaders    bool                   `env:"REQUEST_HEADER" envDefault:"false" mapstructure:"request_header"` // Log all request headers
-	AllRequestQueries    bool                   `env:"REQUEST_QUERY" envDefault:"false" mapstructure:"request_query"`   // Log all request queries
-	Disable              bool                   `env:"DISABLE" envDefault:"false" mapstructure:"disable"`               // Disable logger level `INFO`
-	HiddenRequestHeaders []string               `env:"HIDDEN_REQUEST_HEADERS" mapstructure:"hidden_request_headers"`    // Hide specific headers from log
-	WithRequestHeaders   []string               `env:"WITH_REQUEST_HEADERS" mapstructure:"with_request_headers"`        // Add specific headers to log (higher priority than `HiddenRequestHeaders`)
-	With                 map[string]interface{} `env:"WITH" mapstructure:"with"`                                        // Additional fields to log
+	AllRequestHeaders    bool                   `env:"REQUEST_HEADER" envDefault:"false" mapstructure:"request_header"`   // Log all request headers
+	AllResponseHeaders   bool                   `env:"RESPONSE_HEADER" envDefault:"false" mapstructure:"response_header"` // Log all response headers
+	AllRequestQueries    bool                   `env:"REQUEST_QUERY" envDefault:"false" mapstructure:"request_query"`     // Log all request queries
+	Disable              bool                   `env:"DISABLE" envDefault:"false" mapstructure:"disable"`                 // Disable logger level `INFO`
+	HiddenRequestHeaders []string               `env:"HIDDEN_REQUEST_HEADERS" mapstructure:"hidden_request_headers"`      // Hide specific headers from log
+	WithRequestHeaders   []string               `env:"WITH_REQUEST_HEADERS" mapstructure:"with_request_headers"`          // Add specific headers to log (higher priority than `HiddenRequestHeaders`)
+	With                 map[string]interface{} `env:"WITH" mapstructure:"with"`                                          // Additional fields to log
 }
 
 // New setup request context and information
@@ -116,6 +117,23 @@ func New(config Config) fiber.Handler {
 			}
 
 			requestAttributes = append(requestAttributes, slog.Group("headers", kv...))
+		}
+
+		if config.AllResponseHeaders {
+			kv := []any{}
+			for k, v := range c.GetRespHeaders() {
+				// skip hidden headers
+				if _, found := hiddenRequestHeaders[strings.ToLower(k)]; found {
+					continue
+				}
+
+				val := any(v)
+				if len(v) == 1 {
+					val = v[0]
+				}
+				kv = append(kv, slog.Any(k, val))
+			}
+			responseAttributes = append(responseAttributes, slog.Group("headers", kv...))
 		}
 
 		level := slog.LevelInfo
