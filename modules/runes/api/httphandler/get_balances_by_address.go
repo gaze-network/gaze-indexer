@@ -18,7 +18,10 @@ type getBalancesByAddressRequest struct {
 	Offset      int32  `query:"offset"`
 }
 
-const getBalancesByAddressMaxLimit = 5000
+const (
+	getBalancesByAddressMaxLimit     = 5000
+	getBalancesByAddressDefaultLimit = 100
+)
 
 func (r getBalancesByAddressRequest) Validate() error {
 	var errList []error
@@ -64,7 +67,7 @@ func (h *HttpHandler) GetBalancesByAddress(ctx *fiber.Ctx) (err error) {
 		return errors.WithStack(err)
 	}
 	if req.Limit == 0 {
-		req.Limit = getBalancesByAddressMaxLimit
+		req.Limit = getBalancesByAddressDefaultLimit
 	}
 
 	pkScript, ok := resolvePkScript(h.network, req.Wallet)

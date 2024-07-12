@@ -23,7 +23,10 @@ type getTransactionsRequest struct {
 	Offset    int32  `query:"offset"`
 }
 
-const getTransactionsMaxLimit = 3000
+const (
+	getTransactionsMaxLimit     = 3000
+	getTransactionsDefaultLimit = 100
+)
 
 func (r getTransactionsRequest) Validate() error {
 	var errList []error
@@ -143,7 +146,7 @@ func (h *HttpHandler) GetTransactions(ctx *fiber.Ctx) (err error) {
 		}
 	}
 	if req.Limit == 0 {
-		req.Limit = getBalancesByAddressMaxLimit
+		req.Limit = getTransactionsDefaultLimit
 	}
 
 	// default to latest block

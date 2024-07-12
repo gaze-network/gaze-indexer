@@ -21,7 +21,10 @@ type getHoldersRequest struct {
 	Offset      int32  `json:"offset"`
 }
 
-const getHoldersMaxLimit = 1000
+const (
+	getHoldersMaxLimit     = 1000
+	getHoldersDefaultLimit = 100
+)
 
 func (r getHoldersRequest) Validate() error {
 	var errList []error
@@ -75,7 +78,7 @@ func (h *HttpHandler) GetHolders(ctx *fiber.Ctx) (err error) {
 	}
 
 	if req.Limit == 0 {
-		req.Limit = getHoldersMaxLimit
+		req.Limit = getHoldersDefaultLimit
 	}
 
 	var runeId runes.RuneId

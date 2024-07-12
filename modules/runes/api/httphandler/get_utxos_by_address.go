@@ -19,7 +19,10 @@ type getUTXOsByAddressRequest struct {
 	Offset      int32  `query:"offset"`
 }
 
-const getUTXOsByAddressMaxLimit = 3000
+const (
+	getUTXOsByAddressMaxLimit     = 3000
+	getUTXOsByAddressDefaultLimit = 100
+)
 
 func (r getUTXOsByAddressRequest) Validate() error {
 	var errList []error
@@ -81,7 +84,7 @@ func (h *HttpHandler) GetUTXOsByAddress(ctx *fiber.Ctx) (err error) {
 	}
 
 	if req.Limit == 0 {
-		req.Limit = getBalancesByAddressMaxLimit
+		req.Limit = getUTXOsByAddressDefaultLimit
 	}
 
 	blockHeight := req.BlockHeight
