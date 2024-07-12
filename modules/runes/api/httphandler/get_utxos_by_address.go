@@ -11,7 +11,7 @@ import (
 	"github.com/samber/lo"
 )
 
-type getUTXOsByAddressRequest struct {
+type getUTXOsRequest struct {
 	Wallet      string `params:"wallet"`
 	Id          string `query:"id"`
 	BlockHeight uint64 `query:"blockHeight"`
@@ -20,11 +20,11 @@ type getUTXOsByAddressRequest struct {
 }
 
 const (
-	getUTXOsByAddressMaxLimit     = 3000
-	getUTXOsByAddressDefaultLimit = 100
+	getUTXOsMaxLimit     = 3000
+	getUTXOsDefaultLimit = 100
 )
 
-func (r getUTXOsByAddressRequest) Validate() error {
+func (r getUTXOsRequest) Validate() error {
 	var errList []error
 	if r.Wallet == "" {
 		errList = append(errList, errors.New("'wallet' is required"))
@@ -35,8 +35,8 @@ func (r getUTXOsByAddressRequest) Validate() error {
 	if r.Limit < 0 {
 		errList = append(errList, errors.New("'limit' must be non-negative"))
 	}
-	if r.Limit > getUTXOsByAddressMaxLimit {
-		errList = append(errList, errors.Errorf("'limit' cannot exceed %d", getUTXOsByAddressMaxLimit))
+	if r.Limit > getUTXOsMaxLimit {
+		errList = append(errList, errors.Errorf("'limit' cannot exceed %d", getUTXOsMaxLimit))
 	}
 	return errs.WithPublicMessage(errors.Join(errList...), "validation error")
 }
@@ -59,15 +59,15 @@ type utxoItem struct {
 	Extend      utxoExtend     `json:"extend"`
 }
 
-type getUTXOsByAddressResult struct {
+type getUTXOsResult struct {
 	List        []utxoItem `json:"list"`
 	BlockHeight uint64     `json:"blockHeight"`
 }
 
-type getUTXOsByAddressResponse = HttpResponse[getUTXOsByAddressResult]
+type getUTXOsResponse = HttpResponse[getUTXOsResult]
 
-func (h *HttpHandler) GetUTXOsByAddress(ctx *fiber.Ctx) (err error) {
-	var req getUTXOsByAddressRequest
+func (h *HttpHandler) GetUTXOs(ctx *fiber.Ctx) (err error) {
+	var req getUTXOsRequest
 	if err := ctx.ParamsParser(&req); err != nil {
 		return errors.WithStack(err)
 	}
@@ -84,7 +84,7 @@ func (h *HttpHandler) GetUTXOsByAddress(ctx *fiber.Ctx) (err error) {
 	}
 
 	if req.Limit == 0 {
-		req.Limit = getUTXOsByAddressDefaultLimit
+		req.Limit = getUTXOsDefaultLimit
 	}
 
 	blockHeight := req.BlockHeight
@@ -144,8 +144,8 @@ func (h *HttpHandler) GetUTXOsByAddress(ctx *fiber.Ctx) (err error) {
 		})
 	}
 
-	resp := getUTXOsByAddressResponse{
-		Result: &getUTXOsByAddressResult{
+	resp := getUTXOsResponse{
+		Result: &getUTXOsResult{
 			BlockHeight: blockHeight,
 			List:        utxoRespList,
 		},

@@ -10,7 +10,7 @@ import (
 	"github.com/samber/lo"
 )
 
-type getBalancesByAddressRequest struct {
+type getBalancesRequest struct {
 	Wallet      string `params:"wallet"`
 	Id          string `query:"id"`
 	BlockHeight uint64 `query:"blockHeight"`
@@ -19,11 +19,11 @@ type getBalancesByAddressRequest struct {
 }
 
 const (
-	getBalancesByAddressMaxLimit     = 5000
-	getBalancesByAddressDefaultLimit = 100
+	getBalancesMaxLimit     = 5000
+	getBalancesDefaultLimit = 100
 )
 
-func (r getBalancesByAddressRequest) Validate() error {
+func (r getBalancesRequest) Validate() error {
 	var errList []error
 	if r.Wallet == "" {
 		errList = append(errList, errors.New("'wallet' is required"))
@@ -34,8 +34,8 @@ func (r getBalancesByAddressRequest) Validate() error {
 	if r.Limit < 0 {
 		errList = append(errList, errors.New("'limit' must be non-negative"))
 	}
-	if r.Limit > getBalancesByAddressMaxLimit {
-		errList = append(errList, errors.Errorf("'limit' cannot exceed %d", getBalancesByAddressMaxLimit))
+	if r.Limit > getBalancesMaxLimit {
+		errList = append(errList, errors.Errorf("'limit' cannot exceed %d", getBalancesMaxLimit))
 	}
 	return errs.WithPublicMessage(errors.Join(errList...), "validation error")
 }
@@ -48,15 +48,15 @@ type balance struct {
 	Decimals uint8            `json:"decimals"`
 }
 
-type getBalancesByAddressResult struct {
+type getBalancesResult struct {
 	List        []balance `json:"list"`
 	BlockHeight uint64    `json:"blockHeight"`
 }
 
-type getBalancesByAddressResponse = HttpResponse[getBalancesByAddressResult]
+type getBalancesResponse = HttpResponse[getBalancesResult]
 
-func (h *HttpHandler) GetBalancesByAddress(ctx *fiber.Ctx) (err error) {
-	var req getBalancesByAddressRequest
+func (h *HttpHandler) GetBalances(ctx *fiber.Ctx) (err error) {
+	var req getBalancesRequest
 	if err := ctx.ParamsParser(&req); err != nil {
 		return errors.WithStack(err)
 	}
@@ -67,7 +67,7 @@ func (h *HttpHandler) GetBalancesByAddress(ctx *fiber.Ctx) (err error) {
 		return errors.WithStack(err)
 	}
 	if req.Limit == 0 {
-		req.Limit = getBalancesByAddressDefaultLimit
+		req.Limit = getBalancesDefaultLimit
 	}
 
 	pkScript, ok := resolvePkScript(h.network, req.Wallet)
@@ -117,8 +117,8 @@ func (h *HttpHandler) GetBalancesByAddress(ctx *fiber.Ctx) (err error) {
 		})
 	}
 
-	resp := getBalancesByAddressResponse{
-		Result: &getBalancesByAddressResult{
+	resp := getBalancesResponse{
+		Result: &getBalancesResult{
 			BlockHeight: blockHeight,
 			List:        balanceList,
 		},

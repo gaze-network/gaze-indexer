@@ -21,19 +21,19 @@ type getBalanceQuery struct {
 	Offset      int32  `json:"offset"`
 }
 
-type getBalancesByAddressBatchRequest struct {
+type getBalancesBatchRequest struct {
 	Queries []getBalanceQuery `json:"queries"`
 }
 
-const getBalancesByAddressBatchMaxQueries = 100
+const getBalancesBatchMaxQueries = 100
 
-func (r getBalancesByAddressBatchRequest) Validate() error {
+func (r getBalancesBatchRequest) Validate() error {
 	var errList []error
 	if len(r.Queries) == 0 {
 		errList = append(errList, errors.New("at least one query is required"))
 	}
-	if len(r.Queries) > getBalancesByAddressBatchMaxQueries {
-		errList = append(errList, errors.Errorf("cannot exceed %d queries", getBalancesByAddressBatchMaxQueries))
+	if len(r.Queries) > getBalancesBatchMaxQueries {
+		errList = append(errList, errors.Errorf("cannot exceed %d queries", getBalancesBatchMaxQueries))
 	}
 	for i, query := range r.Queries {
 		if query.Wallet == "" {
@@ -45,21 +45,21 @@ func (r getBalancesByAddressBatchRequest) Validate() error {
 		if query.Limit < 0 {
 			errList = append(errList, errors.Errorf("queries[%d]: 'limit' must be non-negative", i))
 		}
-		if query.Limit > getBalancesByAddressMaxLimit {
-			errList = append(errList, errors.Errorf("queries[%d]: 'limit' cannot exceed %d", i, getBalancesByAddressMaxLimit))
+		if query.Limit > getBalancesMaxLimit {
+			errList = append(errList, errors.Errorf("queries[%d]: 'limit' cannot exceed %d", i, getBalancesMaxLimit))
 		}
 	}
 	return errs.WithPublicMessage(errors.Join(errList...), "validation error")
 }
 
-type getBalancesByAddressBatchResult struct {
-	List []*getBalancesByAddressResult `json:"list"`
+type getBalancesBatchResult struct {
+	List []*getBalancesResult `json:"list"`
 }
 
-type getBalancesByAddressBatchResponse = HttpResponse[getBalancesByAddressBatchResult]
+type getBalancesBatchResponse = HttpResponse[getBalancesBatchResult]
 
-func (h *HttpHandler) GetBalancesByAddressBatch(ctx *fiber.Ctx) (err error) {
-	var req getBalancesByAddressBatchRequest
+func (h *HttpHandler) GetBalancesBatch(ctx *fiber.Ctx) (err error) {
+	var req getBalancesBatchRequest
 	if err := ctx.BodyParser(&req); err != nil {
 		return errors.WithStack(err)
 	}
@@ -74,7 +74,7 @@ func (h *HttpHandler) GetBalancesByAddressBatch(ctx *fiber.Ctx) (err error) {
 	}
 	latestBlockHeight = uint64(blockHeader.Height)
 
-	processQuery := func(ctx context.Context, query getBalanceQuery, queryIndex int) (*getBalancesByAddressResult, error) {
+	processQuery := func(ctx context.Context, query getBalanceQuery, queryIndex int) (*getBalancesResult, error) {
 		pkScript, ok := resolvePkScript(h.network, query.Wallet)
 		if !ok {
 			return nil, errs.NewPublicError(fmt.Sprintf("unable to resolve pkscript from \"queries[%d].wallet\"", queryIndex))
@@ -86,7 +86,7 @@ func (h *HttpHandler) GetBalancesByAddressBatch(ctx *fiber.Ctx) (err error) {
 		}
 
 		if query.Limit == 0 {
-			query.Limit = getBalancesByAddressMaxLimit
+			query.Limit = getBalancesMaxLimit
 		}
 
 		balances, err := h.usecase.GetBalancesByPkScript(ctx, pkScript, blockHeight, query.Limit, query.Offset)
@@ -122,14 +122,14 @@ func (h *HttpHandler) GetBalancesByAddressBatch(ctx *fiber.Ctx) (err error) {
 			})
 		}
 
-		result := getBalancesByAddressResult{
+		result := getBalancesResult{
 			BlockHeight: blockHeight,
 			List:        balanceList,
 		}
 		return &result, nil
 	}
 
-	results := make([]*getBalancesByAddressResult, len(req.Queries))
+	results := make([]*getBalancesResult, len(req.Queries))
 	eg, ectx := errgroup.WithContext(ctx.UserContext())
 	for i, query := range req.Queries {
 		i := i
@@ -147,8 +147,8 @@ func (h *HttpHandler) GetBalancesByAddressBatch(ctx *fiber.Ctx) (err error) {
 		return errors.WithStack(err)
 	}
 
-	resp := getBalancesByAddressBatchResponse{
-		Result: &getBalancesByAddressBatchResult{
+	resp := getBalancesBatchResponse{
+		Result: &getBalancesBatchResult{
 			List: results,
 		},
 	}
