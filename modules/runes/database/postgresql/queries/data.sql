@@ -13,6 +13,9 @@ SELECT * FROM balances WHERE amount > 0 ORDER BY amount DESC, pkscript LIMIT $3 
 -- name: GetBalanceByPkScriptAndRuneId :one
 SELECT * FROM runes_balances WHERE pkscript = $1 AND rune_id = $2 AND block_height <= $3 ORDER BY block_height DESC LIMIT 1;
 
+-- name: GetTotalHoldersByRuneIds :many
+SELECT rune_id, COUNT(pkscript) FROM runes_balances WHERE rune_id = ANY(@rune_ids::TEXT[]) AND amount > 0 GROUP BY rune_id;
+
 -- name: GetOutPointBalancesAtOutPoint :many
 SELECT * FROM runes_outpoint_balances WHERE tx_hash = $1 AND tx_idx = $2;
 
@@ -56,6 +59,11 @@ WITH states AS (
 SELECT * FROM runes_entries
   LEFT JOIN states ON runes_entries.rune_id = states.rune_id
   WHERE runes_entries.rune_id = ANY(@rune_ids::text[]) AND etching_block <= @height;
+
+-- name: GetRuneEntryList :many
+SELECT * FROM runes_entries 
+LEFT JOIN runes_entry_states ON runes_entries.rune_id = runes_entry_states.rune_id
+ORDER BY number LIMIT @_limit OFFSET @_offset;
 
 -- name: GetRuneIdFromRune :one
 SELECT rune_id FROM runes_entries WHERE rune = $1;

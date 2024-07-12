@@ -634,6 +634,89 @@ func (q *Queries) GetRuneEntriesByRuneIdsAndHeight(ctx context.Context, arg GetR
 	return items, nil
 }
 
+const getRuneEntryList = `-- name: GetRuneEntryList :many
+SELECT runes_entries.rune_id, number, rune, spacers, premine, symbol, divisibility, terms, terms_amount, terms_cap, terms_height_start, terms_height_end, terms_offset_start, terms_offset_end, turbo, etching_block, etching_tx_hash, etched_at, runes_entry_states.rune_id, block_height, mints, burned_amount, completed_at, completed_at_height FROM runes_entries 
+LEFT JOIN runes_entry_states ON runes_entries.rune_id = runes_entry_states.rune_id
+ORDER BY number LIMIT $2 OFFSET $1
+`
+
+type GetRuneEntryListParams struct {
+	Offset int32
+	Limit  int32
+}
+
+type GetRuneEntryListRow struct {
+	RuneID            string
+	Number            int64
+	Rune              string
+	Spacers           int32
+	Premine           pgtype.Numeric
+	Symbol            int32
+	Divisibility      int16
+	Terms             bool
+	TermsAmount       pgtype.Numeric
+	TermsCap          pgtype.Numeric
+	TermsHeightStart  pgtype.Int4
+	TermsHeightEnd    pgtype.Int4
+	TermsOffsetStart  pgtype.Int4
+	TermsOffsetEnd    pgtype.Int4
+	Turbo             bool
+	EtchingBlock      int32
+	EtchingTxHash     string
+	EtchedAt          pgtype.Timestamp
+	RuneID_2          pgtype.Text
+	BlockHeight       pgtype.Int4
+	Mints             pgtype.Numeric
+	BurnedAmount      pgtype.Numeric
+	CompletedAt       pgtype.Timestamp
+	CompletedAtHeight pgtype.Int4
+}
+
+func (q *Queries) GetRuneEntryList(ctx context.Context, arg GetRuneEntryListParams) ([]GetRuneEntryListRow, error) {
+	rows, err := q.db.Query(ctx, getRuneEntryList, arg.Offset, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetRuneEntryListRow
+	for rows.Next() {
+		var i GetRuneEntryListRow
+		if err := rows.Scan(
+			&i.RuneID,
+			&i.Number,
+			&i.Rune,
+			&i.Spacers,
+			&i.Premine,
+			&i.Symbol,
+			&i.Divisibility,
+			&i.Terms,
+			&i.TermsAmount,
+			&i.TermsCap,
+			&i.TermsHeightStart,
+			&i.TermsHeightEnd,
+			&i.TermsOffsetStart,
+			&i.TermsOffsetEnd,
+			&i.Turbo,
+			&i.EtchingBlock,
+			&i.EtchingTxHash,
+			&i.EtchedAt,
+			&i.RuneID_2,
+			&i.BlockHeight,
+			&i.Mints,
+			&i.BurnedAmount,
+			&i.CompletedAt,
+			&i.CompletedAtHeight,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getRuneIdFromRune = `-- name: GetRuneIdFromRune :one
 SELECT rune_id FROM runes_entries WHERE rune = $1
 `
@@ -884,6 +967,35 @@ func (q *Queries) GetRunesUTXOsByRuneIdAndPkScript(ctx context.Context, arg GetR
 			&i.RuneIds,
 			&i.Amounts,
 		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getTotalHoldersByRuneIds = `-- name: GetTotalHoldersByRuneIds :many
+SELECT rune_id, COUNT(pkscript) FROM runes_balances WHERE rune_id = ANY($1::TEXT[]) AND amount > 0 GROUP BY rune_id
+`
+
+type GetTotalHoldersByRuneIdsRow struct {
+	RuneID string
+	Count  int64
+}
+
+func (q *Queries) GetTotalHoldersByRuneIds(ctx context.Context, runeIds []string) ([]GetTotalHoldersByRuneIdsRow, error) {
+	rows, err := q.db.Query(ctx, getTotalHoldersByRuneIds, runeIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetTotalHoldersByRuneIdsRow
+	for rows.Next() {
+		var i GetTotalHoldersByRuneIdsRow
+		if err := rows.Scan(&i.RuneID, &i.Count); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
