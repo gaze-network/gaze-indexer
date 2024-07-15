@@ -99,6 +99,9 @@ func (h *HttpHandler) GetTokenInfo(ctx *fiber.Ctx) (err error) {
 
 	runeEntry, err := h.usecase.GetRuneEntryByRuneIdAndHeight(ctx.UserContext(), runeId, blockHeight)
 	if err != nil {
+		if errors.Is(err, errs.NotFound) {
+			return errs.NewPublicError("rune not found")
+		}
 		return errors.Wrap(err, "error during GetTokenInfoByHeight")
 	}
 	holdingBalances, err := h.usecase.GetBalancesByRuneId(ctx.UserContext(), runeId, blockHeight)
