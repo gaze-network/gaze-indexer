@@ -18,6 +18,7 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/core/datasources"
 	"github.com/gaze-network/indexer-network/modules/nodesale/datagateway"
+	"github.com/gaze-network/indexer-network/modules/nodesale/internal/entity"
 	"github.com/gaze-network/indexer-network/modules/nodesale/protobuf"
 )
 
@@ -178,7 +179,7 @@ func (p *Processor) Process(ctx context.Context, inputs []*types.Block) error {
 		}()
 
 		// write block
-		err = qtx.AddBlock(ctx, datagateway.Block{
+		err = qtx.AddBlock(ctx, entity.Block{
 			BlockHeight: block.Header.Height,
 			BlockHash:   block.Header.Hash.String(),
 			Module:      p.Name(),

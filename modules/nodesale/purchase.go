@@ -15,6 +15,7 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/core/types"
 	"github.com/gaze-network/indexer-network/modules/nodesale/datagateway"
+	"github.com/gaze-network/indexer-network/modules/nodesale/internal/entity"
 	"github.com/gaze-network/indexer-network/modules/nodesale/protobuf"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -46,7 +47,7 @@ func (p *Processor) processPurchase(ctx context.Context, qtx datagateway.Nodesal
 		}
 	}
 
-	var deploy *datagateway.NodeSale
+	var deploy *entity.NodeSale
 	if valid {
 		// check node existed
 		deploys, err := qtx.GetNodesale(ctx, datagateway.GetNodesaleParams{
@@ -192,7 +193,7 @@ func (p *Processor) processPurchase(ctx context.Context, qtx datagateway.Nodesal
 		}
 	}
 
-	var buyerOwnedNodes []datagateway.Node
+	var buyerOwnedNodes []entity.Node
 	if valid {
 		var err error
 		// check node limit
