@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"slices"
 
 	"github.com/btcsuite/btcd/btcec/v2"
@@ -13,10 +12,10 @@ import (
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/txscript"
+	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/core/types"
+	"github.com/gaze-network/indexer-network/modules/nodesale/datagateway"
 	"github.com/gaze-network/indexer-network/modules/nodesale/protobuf"
-	"github.com/gaze-network/indexer-network/modules/nodesale/repository/postgres/gen"
-	"github.com/jackc/pgx/v5/pgtype"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
@@ -27,7 +26,7 @@ type metaData struct {
 	PaidTotalAmount               int64
 }
 
-func (p *Processor) processPurchase(ctx context.Context, qtx gen.Querier, block *types.Block, event nodesaleEvent) error {
+func (p *Processor) processPurchase(ctx context.Context, qtx datagateway.NodesaleDataGatewayWithTx, block *types.Block, event nodesaleEvent) error {
 	valid := true
 	purchase := event.eventMessage.Purchase
 	payload := purchase.Payload
@@ -47,15 +46,15 @@ func (p *Processor) processPurchase(ctx context.Context, qtx gen.Querier, block 
 		}
 	}
 
-	var deploy *gen.NodeSale
+	var deploy *datagateway.NodeSale
 	if valid {
 		// check node existed
-		deploys, err := qtx.GetNodesale(ctx, gen.GetNodesaleParams{
-			BlockHeight: int32(payload.DeployID.Block),
+		deploys, err := qtx.GetNodesale(ctx, datagateway.GetNodesaleParams{
+			BlockHeight: int64(payload.DeployID.Block),
 			TxIndex:     int32(payload.DeployID.TxIndex),
 		})
 		if err != nil {
-			return fmt.Errorf("Failed to Get nodesale : %w", err)
+			return errors.Wrap(err, "Failed to Get nodesale")
 		}
 		if len(deploys) < 1 {
 			valid = false
@@ -67,8 +66,8 @@ func (p *Processor) processPurchase(ctx context.Context, qtx gen.Querier, block 
 	if valid {
 		// check timestamp
 		timestamp := block.Header.Timestamp
-		if timestamp.UTC().Before(deploy.StartsAt.Time.UTC()) ||
-			timestamp.UTC().After(deploy.EndsAt.Time.UTC()) {
+		if timestamp.Before(deploy.StartsAt) ||
+			timestamp.After(deploy.EndsAt) {
 			valid = false
 		}
 	}
@@ -108,7 +107,7 @@ func (p *Processor) processPurchase(ctx context.Context, qtx gen.Querier, block 
 			tier := &tiers[i]
 			err := protojson.Unmarshal(tierJson, tier)
 			if err != nil {
-				return fmt.Errorf("Failed to decode tiers json : %w", err)
+				return errors.Wrap(err, "Failed to decode tiers json")
 			}
 		}
 		slices.Sort(payload.NodeIDs)
@@ -135,13 +134,13 @@ func (p *Processor) processPurchase(ctx context.Context, qtx gen.Querier, block 
 		for i, id := range payload.NodeIDs {
 			nodeIds[i] = int32(id)
 		}
-		nodes, err := qtx.GetNodes(ctx, gen.GetNodesParams{
-			SaleBlock:   int32(payload.DeployID.Block),
+		nodes, err := qtx.GetNodes(ctx, datagateway.GetNodesParams{
+			SaleBlock:   int64(payload.DeployID.Block),
 			SaleTxIndex: int32(payload.DeployID.TxIndex),
 			NodeIds:     nodeIds,
 		})
 		if err != nil {
-			return fmt.Errorf("Failed to Get nodes : %w", err)
+			return errors.Wrap(err, "Failed to Get nodes")
 		}
 		if len(nodes) > 0 {
 			valid = false
@@ -193,18 +192,18 @@ func (p *Processor) processPurchase(ctx context.Context, qtx gen.Querier, block 
 		}
 	}
 
-	var buyerOwnedNodes []gen.Node
+	var buyerOwnedNodes []datagateway.Node
 	if valid {
 		var err error
 		// check node limit
 		// get all selled by seller and owned by buyer
-		buyerOwnedNodes, err = qtx.GetNodesByOwner(ctx, gen.GetNodesByOwnerParams{
+		buyerOwnedNodes, err = qtx.GetNodesByOwner(ctx, datagateway.GetNodesByOwnerParams{
 			SaleBlock:      deploy.BlockHeight,
 			SaleTxIndex:    deploy.TxIndex,
 			OwnerPublicKey: payload.BuyerPublicKey,
 		})
 		if err != nil {
-			return fmt.Errorf("Failed to GetNodesByOwner : %w", err)
+			return errors.Wrap(err, "Failed to GetNodesByOwner")
 		}
 		if len(buyerOwnedNodes)+len(payload.NodeIDs) > int(deploy.MaxPerAddress) {
 			valid = false
@@ -229,28 +228,27 @@ func (p *Processor) processPurchase(ctx context.Context, qtx gen.Querier, block 
 
 	metaDataBytes, _ := json.Marshal(meta)
 
-	err = qtx.AddEvent(ctx, gen.AddEventParams{
+	err = qtx.AddEvent(ctx, datagateway.AddEventParams{
 		TxHash:         event.transaction.TxHash.String(),
 		TxIndex:        int32(event.transaction.Index),
 		Action:         int32(event.eventMessage.Action),
 		RawMessage:     event.rawData,
 		ParsedMessage:  event.eventJson,
-		BlockTimestamp: pgtype.Timestamp{Time: block.Header.Timestamp, Valid: true},
+		BlockTimestamp: block.Header.Timestamp,
 		BlockHash:      event.transaction.BlockHash.String(),
-		BlockHeight:    int32(event.transaction.BlockHeight),
+		BlockHeight:    event.transaction.BlockHeight,
 		Valid:          valid,
-		// WalletAddress:  event.txAddress.EncodeAddress(),
-		WalletAddress: p.pubkeyToPkHashAddress(event.txPubkey).EncodeAddress(),
-		Metadata:      metaDataBytes,
+		WalletAddress:  p.pubkeyToPkHashAddress(event.txPubkey).EncodeAddress(),
+		Metadata:       metaDataBytes,
 	})
 	if err != nil {
-		return fmt.Errorf("Failed to insert event : %w", err)
+		return errors.Wrap(err, "Failed to insert event")
 	}
 
 	if valid {
 		// add to node
 		for _, nodeId := range payload.NodeIDs {
-			err := qtx.AddNode(ctx, gen.AddNodeParams{
+			err := qtx.AddNode(ctx, datagateway.AddNodeParams{
 				SaleBlock:      deploy.BlockHeight,
 				SaleTxIndex:    deploy.TxIndex,
 				NodeID:         int32(nodeId),
@@ -261,7 +259,7 @@ func (p *Processor) processPurchase(ctx context.Context, qtx gen.Querier, block 
 				DelegateTxHash: "",
 			})
 			if err != nil {
-				return fmt.Errorf("Failed to insert node : %w", err)
+				return errors.Wrap(err, "Failed to insert node")
 			}
 		}
 	}

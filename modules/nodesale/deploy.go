@@ -3,17 +3,16 @@ package nodesale
 import (
 	"context"
 	"encoding/hex"
-	"fmt"
 	"time"
 
 	"github.com/btcsuite/btcd/btcec/v2"
+	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/core/types"
-	"github.com/gaze-network/indexer-network/modules/nodesale/repository/postgres/gen"
-	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/gaze-network/indexer-network/modules/nodesale/datagateway"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
-func (p *Processor) processDeploy(ctx context.Context, qtx gen.Querier, block *types.Block, event nodesaleEvent) error {
+func (p *Processor) processDeploy(ctx context.Context, qtx datagateway.NodesaleDataGatewayWithTx, block *types.Block, event nodesaleEvent) error {
 	valid := true
 	deploy := event.eventMessage.Deploy
 
@@ -36,40 +35,34 @@ func (p *Processor) processDeploy(ctx context.Context, qtx gen.Querier, block *t
 	for i, tier := range deploy.Tiers {
 		tierJson, err := protojson.Marshal(tier)
 		if err != nil {
-			return fmt.Errorf("Failed to parse tiers to json : %w", err)
+			return errors.Wrap(err, "Failed to parse tiers to json")
 		}
 		tiers[i] = tierJson
 	}
 
-	err = qtx.AddEvent(ctx, gen.AddEventParams{
+	err = qtx.AddEvent(ctx, datagateway.AddEventParams{
 		TxHash:         event.transaction.TxHash.String(),
 		TxIndex:        int32(event.transaction.Index),
 		Action:         int32(event.eventMessage.Action),
 		RawMessage:     event.rawData,
 		ParsedMessage:  event.eventJson,
-		BlockTimestamp: pgtype.Timestamp{Time: block.Header.Timestamp, Valid: true},
+		BlockTimestamp: block.Header.Timestamp,
 		BlockHash:      event.transaction.BlockHash.String(),
-		BlockHeight:    int32(event.transaction.BlockHeight),
+		BlockHeight:    event.transaction.BlockHeight,
 		Valid:          valid,
 		WalletAddress:  p.pubkeyToPkHashAddress(event.txPubkey).EncodeAddress(),
 		Metadata:       []byte("{}"),
 	})
 	if err != nil {
-		return fmt.Errorf("Failed to insert event : %w", err)
+		return errors.Wrap(err, "Failed to insert event")
 	}
 	if valid {
-		err = qtx.AddNodesale(ctx, gen.AddNodesaleParams{
-			BlockHeight: int32(event.transaction.BlockHeight),
-			TxIndex:     int32(event.transaction.Index),
-			Name:        deploy.Name,
-			StartsAt: pgtype.Timestamp{
-				Time:  time.Unix(int64(deploy.StartsAt), 0).UTC(),
-				Valid: true,
-			},
-			EndsAt: pgtype.Timestamp{
-				Time:  time.Unix(int64(deploy.EndsAt), 0).UTC(),
-				Valid: true,
-			},
+		err = qtx.AddNodesale(ctx, datagateway.AddNodesaleParams{
+			BlockHeight:           event.transaction.BlockHeight,
+			TxIndex:               int32(event.transaction.Index),
+			Name:                  deploy.Name,
+			StartsAt:              time.Unix(int64(deploy.StartsAt), 0),
+			EndsAt:                time.Unix(int64(deploy.EndsAt), 0),
 			Tiers:                 tiers,
 			SellerPublicKey:       deploy.SellerPublicKey,
 			MaxPerAddress:         int32(deploy.MaxPerAddress),
@@ -78,7 +71,7 @@ func (p *Processor) processDeploy(ctx context.Context, qtx gen.Querier, block *t
 			SellerWallet:          deploy.SellerWallet,
 		})
 		if err != nil {
-			return fmt.Errorf("Failed to insert nodesale : %w", err)
+			return errors.Wrap(err, "Failed to insert nodesale")
 		}
 	}
 

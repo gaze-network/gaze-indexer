@@ -13,6 +13,7 @@ import (
 	"github.com/gaze-network/indexer-network/common"
 	"github.com/gaze-network/indexer-network/core/types"
 	"github.com/gaze-network/indexer-network/internal/postgres"
+	"github.com/gaze-network/indexer-network/modules/nodesale/datagateway"
 	"github.com/gaze-network/indexer-network/modules/nodesale/protobuf"
 	repository "github.com/gaze-network/indexer-network/modules/nodesale/repository/postgres"
 	"github.com/gaze-network/indexer-network/modules/nodesale/repository/postgres/gen"
@@ -28,15 +29,15 @@ var postgresConf postgres.Config = postgres.Config{
 	Password: "P@ssw0rd",
 }
 
-var qtx gen.Querier
+var qtx datagateway.NodesaleDataGatewayWithTx
 
 var ctx context.Context
 
 var tx pgx.Tx
 
 var (
-	testBlockHeigh int = 101
-	testTxIndex    int = 1
+	testBlockHeigh int64 = 101
+	testTxIndex    int   = 1
 )
 
 func TestMain(m *testing.M) {
@@ -49,16 +50,16 @@ func TestMain(m *testing.M) {
 
 	db, _ := postgres.NewPool(ctx, postgresConf)
 
-	repo := repository.NewRepository(db)
+	repo := gen.New(db)
+	datagateway := repository.NewRepository(db)
 
 	p = &Processor{
-		repository: repo,
-		network:    common.NetworkMainnet,
+		datagateway: datagateway,
+		network:     common.NetworkMainnet,
 	}
-	repo.Queries.ClearEvents(ctx)
+	repo.ClearEvents(ctx)
 
-	tx, _ = p.repository.Db.Begin(ctx)
-	qtx = p.repository.WithTx(tx)
+	qtx, _ = p.datagateway.BeginNodesaleTx(ctx)
 
 	res := m.Run()
 	tx.Commit(ctx)
@@ -66,7 +67,7 @@ func TestMain(m *testing.M) {
 	os.Exit(res)
 }
 
-func assembleTestEvent(privateKey *secp256k1.PrivateKey, blockHashHex, txHashHex string, blockHeight, txIndex int, message *protobuf.NodeSaleEvent) (nodesaleEvent, *types.Block) {
+func assembleTestEvent(privateKey *secp256k1.PrivateKey, blockHashHex, txHashHex string, blockHeight int64, txIndex int, message *protobuf.NodeSaleEvent) (nodesaleEvent, *types.Block) {
 	blockHash, _ := chainhash.NewHashFromStr(blockHashHex)
 	txHash, _ := chainhash.NewHashFromStr(txHashHex)
 

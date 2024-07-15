@@ -9,14 +9,14 @@ import (
 )
 
 type Block struct {
-	BlockHeight int32
+	BlockHeight int64
 	BlockHash   string
 	Module      string
 }
 
 type Event struct {
 	TxHash         string
-	BlockHeight    int32
+	BlockHeight    int64
 	TxIndex        int32
 	WalletAddress  string
 	Valid          bool
@@ -29,7 +29,7 @@ type Event struct {
 }
 
 type Node struct {
-	SaleBlock      int32
+	SaleBlock      int64
 	SaleTxIndex    int32
 	NodeID         int32
 	TierIndex      int32
@@ -40,7 +40,7 @@ type Node struct {
 }
 
 type NodeSale struct {
-	BlockHeight           int32
+	BlockHeight           int64
 	TxIndex               int32
 	Name                  string
 	StartsAt              pgtype.Timestamp

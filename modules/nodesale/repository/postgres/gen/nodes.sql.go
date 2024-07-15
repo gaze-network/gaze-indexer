@@ -7,8 +7,6 @@ package gen
 
 import (
 	"context"
-
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const addNode = `-- name: AddNode :exec
@@ -17,7 +15,7 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 `
 
 type AddNodeParams struct {
-	SaleBlock      int32
+	SaleBlock      int64
 	SaleTxIndex    int32
 	NodeID         int32
 	TierIndex      int32
@@ -69,7 +67,7 @@ ORDER BY tiers.tier_index
 `
 
 type GetNodeCountByTierIndexParams struct {
-	SaleBlock   int32
+	SaleBlock   int64
 	SaleTxIndex int32
 	FromTier    int32
 	ToTier      int32
@@ -114,7 +112,7 @@ WHERE sale_block = $1 AND
 `
 
 type GetNodesParams struct {
-	SaleBlock   int32
+	SaleBlock   int64
 	SaleTxIndex int32
 	NodeIds     []int32
 }
@@ -158,7 +156,7 @@ ORDER BY tier_index
 `
 
 type GetNodesByOwnerParams struct {
-	SaleBlock      int32
+	SaleBlock      int64
 	SaleTxIndex    int32
 	OwnerPublicKey string
 }
@@ -193,7 +191,7 @@ func (q *Queries) GetNodesByOwner(ctx context.Context, arg GetNodesByOwnerParams
 }
 
 const getNodesByPubkey = `-- name: GetNodesByPubkey :many
-SELECT sale_block, sale_tx_index, node_id, tier_index, delegated_to, owner_public_key, purchase_tx_hash, delegate_tx_hash, tx_hash, block_height, tx_index, wallet_address, valid, action, raw_message, parsed_message, block_timestamp, block_hash, metadata
+SELECT nodes.sale_block, nodes.sale_tx_index, nodes.node_id, nodes.tier_index, nodes.delegated_to, nodes.owner_public_key, nodes.purchase_tx_hash, nodes.delegate_tx_hash
 FROM nodes JOIN events ON nodes.purchase_tx_hash = events.tx_hash
 WHERE sale_block = $1 AND
     sale_tx_index = $2 AND
@@ -202,35 +200,13 @@ WHERE sale_block = $1 AND
 `
 
 type GetNodesByPubkeyParams struct {
-	SaleBlock      int32
+	SaleBlock      int64
 	SaleTxIndex    int32
 	OwnerPublicKey string
 	DelegatedTo    string
 }
 
-type GetNodesByPubkeyRow struct {
-	SaleBlock      int32
-	SaleTxIndex    int32
-	NodeID         int32
-	TierIndex      int32
-	DelegatedTo    string
-	OwnerPublicKey string
-	PurchaseTxHash string
-	DelegateTxHash string
-	TxHash         string
-	BlockHeight    int32
-	TxIndex        int32
-	WalletAddress  string
-	Valid          bool
-	Action         int32
-	RawMessage     []byte
-	ParsedMessage  []byte
-	BlockTimestamp pgtype.Timestamp
-	BlockHash      string
-	Metadata       []byte
-}
-
-func (q *Queries) GetNodesByPubkey(ctx context.Context, arg GetNodesByPubkeyParams) ([]GetNodesByPubkeyRow, error) {
+func (q *Queries) GetNodesByPubkey(ctx context.Context, arg GetNodesByPubkeyParams) ([]Node, error) {
 	rows, err := q.db.Query(ctx, getNodesByPubkey,
 		arg.SaleBlock,
 		arg.SaleTxIndex,
@@ -241,9 +217,9 @@ func (q *Queries) GetNodesByPubkey(ctx context.Context, arg GetNodesByPubkeyPara
 		return nil, err
 	}
 	defer rows.Close()
-	var items []GetNodesByPubkeyRow
+	var items []Node
 	for rows.Next() {
-		var i GetNodesByPubkeyRow
+		var i Node
 		if err := rows.Scan(
 			&i.SaleBlock,
 			&i.SaleTxIndex,
@@ -253,17 +229,6 @@ func (q *Queries) GetNodesByPubkey(ctx context.Context, arg GetNodesByPubkeyPara
 			&i.OwnerPublicKey,
 			&i.PurchaseTxHash,
 			&i.DelegateTxHash,
-			&i.TxHash,
-			&i.BlockHeight,
-			&i.TxIndex,
-			&i.WalletAddress,
-			&i.Valid,
-			&i.Action,
-			&i.RawMessage,
-			&i.ParsedMessage,
-			&i.BlockTimestamp,
-			&i.BlockHash,
-			&i.Metadata,
 		); err != nil {
 			return nil, err
 		}
@@ -284,7 +249,7 @@ WHERE sale_block = $1 AND
 `
 
 type SetDelegatesParams struct {
-	SaleBlock   int32
+	SaleBlock   int64
 	SaleTxIndex int32
 	Delegatee   string
 	NodeIds     []int32

@@ -6,7 +6,7 @@ import (
 )
 
 type infoResponse struct {
-	IndexedBlockHeight int32  `json:"indexedBlockHeight"`
+	IndexedBlockHeight int64  `json:"indexedBlockHeight"`
 	IndexedBlockHash   string `json:"indexedBlockHash"`
 }
 
@@ -41,7 +41,7 @@ type nodeResponse struct {
 
 type eventResposne struct {
 	TxHash         string          `json:"txHash"`
-	BlockHeight    int32           `json:"blockHeight"`
+	BlockHeight    int64           `json:"blockHeight"`
 	TxIndex        int32           `json:"txIndex"`
 	WalletAddress  string          `json:"walletAddress"`
 	Action         string          `json:"action"`

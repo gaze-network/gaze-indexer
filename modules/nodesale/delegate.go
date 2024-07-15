@@ -3,28 +3,27 @@ package nodesale
 import (
 	"context"
 	"encoding/hex"
-	"fmt"
 
 	"github.com/btcsuite/btcd/btcec/v2"
+	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/core/types"
-	"github.com/gaze-network/indexer-network/modules/nodesale/repository/postgres/gen"
-	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/gaze-network/indexer-network/modules/nodesale/datagateway"
 )
 
-func (p *Processor) processDelegate(ctx context.Context, qtx gen.Querier, block *types.Block, event nodesaleEvent) error {
+func (p *Processor) processDelegate(ctx context.Context, qtx datagateway.NodesaleDataGatewayWithTx, block *types.Block, event nodesaleEvent) error {
 	valid := true
 	delegate := event.eventMessage.Delegate
 	nodeIds := make([]int32, len(delegate.NodeIDs))
 	for i, id := range delegate.NodeIDs {
 		nodeIds[i] = int32(id)
 	}
-	nodes, err := qtx.GetNodes(ctx, gen.GetNodesParams{
-		SaleBlock:   int32(delegate.DeployID.Block),
+	nodes, err := qtx.GetNodes(ctx, datagateway.GetNodesParams{
+		SaleBlock:   int64(delegate.DeployID.Block),
 		SaleTxIndex: int32(delegate.DeployID.TxIndex),
 		NodeIds:     nodeIds,
 	})
 	if err != nil {
-		return fmt.Errorf("Failed to get nodes : %w", err)
+		return errors.Wrap(err, "Failed to get nodes")
 	}
 
 	if len(nodeIds) != len(nodes) {
@@ -50,32 +49,32 @@ func (p *Processor) processDelegate(ctx context.Context, qtx gen.Querier, block 
 		}
 	}
 
-	err = qtx.AddEvent(ctx, gen.AddEventParams{
+	err = qtx.AddEvent(ctx, datagateway.AddEventParams{
 		TxHash:         event.transaction.TxHash.String(),
 		TxIndex:        int32(event.transaction.Index),
 		Action:         int32(event.eventMessage.Action),
 		RawMessage:     event.rawData,
 		ParsedMessage:  event.eventJson,
-		BlockTimestamp: pgtype.Timestamp{Time: block.Header.Timestamp, Valid: true},
+		BlockTimestamp: block.Header.Timestamp,
 		BlockHash:      event.transaction.BlockHash.String(),
-		BlockHeight:    int32(event.transaction.BlockHeight),
+		BlockHeight:    event.transaction.BlockHeight,
 		Valid:          valid,
-		// WalletAddress:  event.txAddress.EncodeAddress(),
-		WalletAddress: p.pubkeyToPkHashAddress(event.txPubkey).EncodeAddress(),
-		Metadata:      []byte("{}"),
+		WalletAddress:  p.pubkeyToPkHashAddress(event.txPubkey).EncodeAddress(),
+		Metadata:       []byte("{}"),
 	})
 	if err != nil {
-		return fmt.Errorf("Failed to insert event : %w", err)
+		return errors.Wrap(err, "Failed to insert event")
 	}
+
 	if valid {
-		_, err = qtx.SetDelegates(ctx, gen.SetDelegatesParams{
-			SaleBlock:   int32(delegate.DeployID.Block),
+		_, err = qtx.SetDelegates(ctx, datagateway.SetDelegatesParams{
+			SaleBlock:   int64(delegate.DeployID.Block),
 			SaleTxIndex: int32(delegate.DeployID.TxIndex),
 			Delegatee:   delegate.DelegateePublicKey,
 			NodeIds:     nodeIds,
 		})
 		if err != nil {
-			return fmt.Errorf("Failed to set delegate : %w", err)
+			return errors.Wrap(err, "Failed to set delegate")
 		}
 	}
 

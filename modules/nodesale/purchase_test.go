@@ -11,8 +11,8 @@ import (
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4/ecdsa"
 	"github.com/gaze-network/indexer-network/core/types"
+	"github.com/gaze-network/indexer-network/modules/nodesale/datagateway"
 	"github.com/gaze-network/indexer-network/modules/nodesale/protobuf"
-	"github.com/gaze-network/indexer-network/modules/nodesale/repository/postgres/gen"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 )
@@ -44,7 +44,7 @@ func TestInvalidPurchase(t *testing.T) {
 
 	p.processPurchase(ctx, qtx, block, event)
 
-	nodes, _ := qtx.GetNodes(ctx, gen.GetNodesParams{
+	nodes, _ := qtx.GetNodes(ctx, datagateway.GetNodesParams{
 		SaleBlock:   111,
 		SaleTxIndex: 1,
 		NodeIds:     []int32{1, 2},
@@ -111,8 +111,8 @@ func TestInvalidTimestamp(t *testing.T) {
 	block.Header.Timestamp = time.Now().UTC().Add(time.Hour * 2)
 	p.processPurchase(ctx, qtx, block, event)
 
-	nodes, _ := qtx.GetNodes(ctx, gen.GetNodesParams{
-		SaleBlock:   int32(testBlockHeigh) - 2,
+	nodes, _ := qtx.GetNodes(ctx, datagateway.GetNodesParams{
+		SaleBlock:   testBlockHeigh - 2,
 		SaleTxIndex: int32(testTxIndex) - 2,
 		NodeIds:     []int32{1, 2},
 	})
@@ -176,8 +176,8 @@ func TestInvalidBuyerKey(t *testing.T) {
 	event, block = assembleTestEvent(buyerPrivateKey, "0707070707", "0707070707", 0, 0, message)
 	block.Header.Timestamp = time.Now().UTC().Add(time.Hour * 2)
 	p.processPurchase(ctx, qtx, block, event)
-	nodes, _ := qtx.GetNodes(ctx, gen.GetNodesParams{
-		SaleBlock:   int32(testBlockHeigh) - 2,
+	nodes, _ := qtx.GetNodes(ctx, datagateway.GetNodesParams{
+		SaleBlock:   testBlockHeigh - 2,
 		SaleTxIndex: int32(testTxIndex) - 2,
 		NodeIds:     []int32{1, 2},
 	})
@@ -241,8 +241,8 @@ func TestTimeOut(t *testing.T) {
 
 	event, block = assembleTestEvent(buyerPrivateKey, "090909090909", "090909090909", 0, 0, message)
 	p.processPurchase(ctx, qtx, block, event)
-	nodes, _ := qtx.GetNodes(ctx, gen.GetNodesParams{
-		SaleBlock:   int32(testBlockHeigh) - 2,
+	nodes, _ := qtx.GetNodes(ctx, datagateway.GetNodesParams{
+		SaleBlock:   testBlockHeigh - 2,
 		SaleTxIndex: int32(testTxIndex) - 2,
 		NodeIds:     []int32{1, 2},
 	})
@@ -313,8 +313,8 @@ func TestSignatureInvalid(t *testing.T) {
 
 	event, block = assembleTestEvent(buyerPrivateKey, "0B0B0B", "0B0B0B", 0, 0, message)
 	p.processPurchase(ctx, qtx, block, event)
-	nodes, _ := qtx.GetNodes(ctx, gen.GetNodesParams{
-		SaleBlock:   int32(testBlockHeigh) - 2,
+	nodes, _ := qtx.GetNodes(ctx, datagateway.GetNodesParams{
+		SaleBlock:   testBlockHeigh - 2,
 		SaleTxIndex: int32(testTxIndex) - 2,
 		NodeIds:     []int32{1, 2},
 	})
@@ -400,8 +400,8 @@ func TestValidPurchase(t *testing.T) {
 		},
 	}
 	p.processPurchase(ctx, qtx, block, event)
-	nodes, _ := qtx.GetNodes(ctx, gen.GetNodesParams{
-		SaleBlock:   int32(testBlockHeigh) - 2,
+	nodes, _ := qtx.GetNodes(ctx, datagateway.GetNodesParams{
+		SaleBlock:   testBlockHeigh - 2,
 		SaleTxIndex: int32(testTxIndex) - 2,
 		NodeIds:     []int32{0, 5, 6, 9},
 	})
@@ -496,9 +496,8 @@ func TestBuyingLimit(t *testing.T) {
 	}
 	p.processPurchase(ctx, qtx, block, event)
 
-	tx.Commit(ctx)
-	tx, _ = p.repository.Db.Begin(ctx)
-	qtx = p.repository.WithTx(tx)
+	qtx.Commit(ctx)
+	qtx, _ = p.datagateway.BeginNodesaleTx(ctx)
 
 	payload = &protobuf.PurchasePayload{
 		DeployID: &protobuf.ActionID{
@@ -536,8 +535,8 @@ func TestBuyingLimit(t *testing.T) {
 	}
 	p.processPurchase(ctx, qtx, block, event)
 
-	nodes, _ := qtx.GetNodes(ctx, gen.GetNodesParams{
-		SaleBlock:   int32(testBlockHeigh) - 3,
+	nodes, _ := qtx.GetNodes(ctx, datagateway.GetNodesParams{
+		SaleBlock:   testBlockHeigh - 3,
 		SaleTxIndex: int32(testTxIndex) - 3,
 		NodeIds:     []int32{9, 10, 11},
 	})
@@ -630,9 +629,8 @@ func TestBuyingTierLimit(t *testing.T) {
 	}
 	p.processPurchase(ctx, qtx, block, event)
 
-	tx.Commit(ctx)
-	tx, _ = p.repository.Db.Begin(ctx)
-	qtx = p.repository.WithTx(tx)
+	qtx.Commit(ctx)
+	qtx, _ = p.datagateway.BeginNodesaleTx(ctx)
 
 	payload = &protobuf.PurchasePayload{
 		DeployID: &protobuf.ActionID{
@@ -670,8 +668,8 @@ func TestBuyingTierLimit(t *testing.T) {
 	}
 	p.processPurchase(ctx, qtx, block, event)
 
-	nodes, _ := qtx.GetNodes(ctx, gen.GetNodesParams{
-		SaleBlock:   int32(testBlockHeigh) - 3,
+	nodes, _ := qtx.GetNodes(ctx, datagateway.GetNodesParams{
+		SaleBlock:   testBlockHeigh - 3,
 		SaleTxIndex: int32(testTxIndex) - 3,
 		NodeIds:     []int32{9, 10, 11, 12, 13, 14},
 	})

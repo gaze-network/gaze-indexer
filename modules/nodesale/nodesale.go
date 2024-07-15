@@ -42,7 +42,7 @@ func New(injector do.Injector) (indexer.IndexerWorker, error) {
 	repository := repository.NewRepository(pg)
 
 	processor := &Processor{
-		repository:   repository,
+		datagateway:  repository,
 		btcClient:    datasource,
 		network:      conf.Network,
 		cleanupFuncs: cleanupFuncs,

@@ -3,34 +3,34 @@ package httphandler
 import (
 	"fmt"
 
+	"github.com/cockroachdb/errors"
+	"github.com/gaze-network/indexer-network/modules/nodesale/datagateway"
 	"github.com/gaze-network/indexer-network/modules/nodesale/protobuf"
-	repository "github.com/gaze-network/indexer-network/modules/nodesale/repository/postgres"
-	"github.com/gaze-network/indexer-network/modules/nodesale/repository/postgres/gen"
 	"github.com/gofiber/fiber/v2"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
 type handler struct {
-	repository *repository.Repository
+	datagateway datagateway.NodesaleDataGateway
 }
 
-func New(repo *repository.Repository) *handler {
+func New(datagateway datagateway.NodesaleDataGateway) *handler {
 	h := handler{}
-	h.repository = repo
+	h.datagateway = datagateway
 	return &h
 }
 
 func (h *handler) infoHandler(ctx *fiber.Ctx) error {
-	block, err := h.repository.Queries.GetLastProcessedBlock(ctx.UserContext())
+	block, err := h.datagateway.GetLastProcessedBlock(ctx.UserContext())
 	if err != nil {
-		return fmt.Errorf("Cannot get last processed block : %w", err)
+		return errors.Wrap(err, "Cannot get last processed block")
 	}
 	err = ctx.JSON(infoResponse{
 		IndexedBlockHeight: block.BlockHeight,
 		IndexedBlockHash:   block.BlockHash,
 	})
 	if err != nil {
-		return fmt.Errorf("Go fiber cannot parse JSON: %w", err)
+		return errors.Wrap(err, "Go fiber cannot parse JSON")
 	}
 	return nil
 }
@@ -40,44 +40,45 @@ func (h *handler) deployHandler(ctx *fiber.Ctx) error {
 	if deployId == "" {
 		err := ctx.SendStatus(404)
 		if err != nil {
-			return fmt.Errorf("Go fiber cannot send status: %w", err)
+			return errors.Wrap(err, "Go fiber cannot send status")
 		}
 		return nil
 	}
-	var blockHeight, txIndex int32
+	var blockHeight int64
+	var txIndex int32
 	count, err := fmt.Sscanf(deployId, "%d-%d", &blockHeight, &txIndex)
 	if count != 2 || err != nil {
 		err := ctx.SendStatus(404)
 		if err != nil {
-			return fmt.Errorf("Go fiber cannot send status: %w", err)
+			return errors.Wrap(err, "Go fiber cannot send status")
 		}
 		return nil
 	}
-	deploys, err := h.repository.Queries.GetNodesale(ctx.UserContext(), gen.GetNodesaleParams{
+	deploys, err := h.datagateway.GetNodesale(ctx.UserContext(), datagateway.GetNodesaleParams{
 		BlockHeight: blockHeight,
 		TxIndex:     txIndex,
 	})
 	if err != nil {
-		return fmt.Errorf("Cannot get nodesale from db: %w", err)
+		return errors.Wrap(err, "Cannot get nodesale from db")
 	}
 	if len(deploys) < 1 {
 		err := ctx.SendStatus(404)
 		if err != nil {
-			return fmt.Errorf("Go fiber cannot send status: %w", err)
+			return errors.Wrap(err, "Go fiber cannot send status")
 		}
 		return nil
 	}
 
 	deploy := deploys[0]
 
-	nodeCount, err := h.repository.Queries.GetNodeCountByTierIndex(ctx.UserContext(), gen.GetNodeCountByTierIndexParams{
+	nodeCount, err := h.datagateway.GetNodeCountByTierIndex(ctx.UserContext(), datagateway.GetNodeCountByTierIndexParams{
 		SaleBlock:   deploy.BlockHeight,
 		SaleTxIndex: deploy.TxIndex,
 		FromTier:    0,
 		ToTier:      int32(len(deploy.Tiers) - 1),
 	})
 	if err != nil {
-		return fmt.Errorf("Cannot get node count from db : %w", err)
+		return errors.Wrap(err, "Cannot get node count from db")
 	}
 
 	tiers := make([]protobuf.Tier, len(deploy.Tiers))
@@ -86,7 +87,7 @@ func (h *handler) deployHandler(ctx *fiber.Ctx) error {
 		tier := &tiers[i]
 		err := protojson.Unmarshal(tierJson, tier)
 		if err != nil {
-			return fmt.Errorf("Failed to decode tiers json : %w", err)
+			return errors.Wrap(err, "Failed to decode tiers json")
 		}
 		tierResponses[i].Limit = tiers[i].Limit
 		tierResponses[i].MaxPerAddress = tiers[i].MaxPerAddress
@@ -97,15 +98,15 @@ func (h *handler) deployHandler(ctx *fiber.Ctx) error {
 	err = ctx.JSON(&deployResponse{
 		Id:              deployId,
 		Name:            deploy.Name,
-		StartAt:         deploy.StartsAt.Time.UTC(),
-		EndAt:           deploy.EndsAt.Time.UTC(),
+		StartAt:         deploy.StartsAt,
+		EndAt:           deploy.EndsAt,
 		Tiers:           tierResponses,
 		SellerPublicKey: deploy.SellerPublicKey,
 		MaxPerAddress:   deploy.MaxPerAddress,
 		DeployTxHash:    deploy.DeployTxHash,
 	})
 	if err != nil {
-		return fmt.Errorf("Go fiber cannot parse JSON: %w", err)
+		return errors.Wrap(err, "Go fiber cannot parse JSON")
 	}
 	return nil
 }
@@ -115,24 +116,25 @@ func (h *handler) nodesHandler(ctx *fiber.Ctx) error {
 	if deployId == "" {
 		err := ctx.SendStatus(404)
 		if err != nil {
-			return fmt.Errorf("Go fiber cannot send status: %w", err)
+			return errors.Wrap(err, "Go fiber cannot send status")
 		}
 		return nil
 	}
 	ownerPublicKey := ctx.Query("ownerPublicKey")
 	delegateePublicKey := ctx.Query("delegateePublicKey")
 
-	var blockHeight, txIndex int32
+	var blockHeight int64
+	var txIndex int32
 	count, err := fmt.Sscanf(deployId, "%d-%d", &blockHeight, &txIndex)
 	if count != 2 || err != nil {
 		err := ctx.SendStatus(404)
 		if err != nil {
-			return fmt.Errorf("Go fiber cannot send status: %w", err)
+			return errors.Wrap(err, "Go fiber cannot send status")
 		}
 		return nil
 	}
 
-	nodes, err := h.repository.Queries.GetNodesByPubkey(ctx.UserContext(), gen.GetNodesByPubkeyParams{
+	nodes, err := h.datagateway.GetNodesByPubkey(ctx.UserContext(), datagateway.GetNodesByPubkeyParams{
 		SaleBlock:      blockHeight,
 		SaleTxIndex:    txIndex,
 		OwnerPublicKey: ownerPublicKey,
@@ -141,7 +143,7 @@ func (h *handler) nodesHandler(ctx *fiber.Ctx) error {
 	if err != nil {
 		err := ctx.SendStatus(404)
 		if err != nil {
-			return fmt.Errorf("Can't get nodes from db: %w", err)
+			return errors.Wrap(err, "Can't get nodes from db")
 		}
 		return nil
 	}
@@ -154,12 +156,12 @@ func (h *handler) nodesHandler(ctx *fiber.Ctx) error {
 		responses[i].OwnerPublicKey = node.OwnerPublicKey
 		responses[i].PurchaseTxHash = node.PurchaseTxHash
 		responses[i].DelegateTxHash = node.DelegateTxHash
-		responses[i].PurchaseBlockHeight = node.TxIndex
+		responses[i].PurchaseBlockHeight = txIndex
 	}
 
 	err = ctx.JSON(responses)
 	if err != nil {
-		return fmt.Errorf("Go fiber cannot parse JSON: %w", err)
+		return errors.Wrap(err, "Go fiber cannot parse JSON")
 	}
 	return nil
 }
@@ -167,11 +169,11 @@ func (h *handler) nodesHandler(ctx *fiber.Ctx) error {
 func (h *handler) eventsHandler(ctx *fiber.Ctx) error {
 	walletAddress := ctx.Query("walletAddress")
 
-	events, err := h.repository.Queries.GetEventsByWallet(ctx.UserContext(), walletAddress)
+	events, err := h.datagateway.GetEventsByWallet(ctx.UserContext(), walletAddress)
 	if err != nil {
 		err := ctx.SendStatus(404)
 		if err != nil {
-			return fmt.Errorf("Can't get events from db: %w", err)
+			return errors.Wrap(err, "Can't get events from db")
 		}
 		return nil
 	}
@@ -184,13 +186,13 @@ func (h *handler) eventsHandler(ctx *fiber.Ctx) error {
 		responses[i].WalletAddress = event.WalletAddress
 		responses[i].Action = protobuf.Action_name[event.Action]
 		responses[i].ParsedMessage = event.ParsedMessage
-		responses[i].BlockTimestamp = event.BlockTimestamp.Time.UTC()
+		responses[i].BlockTimestamp = event.BlockTimestamp
 		responses[i].BlockHash = event.BlockHash
 	}
 
 	err = ctx.JSON(responses)
 	if err != nil {
-		return fmt.Errorf("Go fiber cannot parse JSON: %w", err)
+		return errors.Wrap(err, "Go fiber cannot parse JSON: %w")
 	}
 	return nil
 }

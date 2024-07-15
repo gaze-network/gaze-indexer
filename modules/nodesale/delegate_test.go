@@ -11,8 +11,8 @@ import (
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4/ecdsa"
 	"github.com/gaze-network/indexer-network/core/types"
+	"github.com/gaze-network/indexer-network/modules/nodesale/datagateway"
 	"github.com/gaze-network/indexer-network/modules/nodesale/protobuf"
-	"github.com/gaze-network/indexer-network/modules/nodesale/repository/postgres/gen"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 )
@@ -113,8 +113,8 @@ func TestDelegate(t *testing.T) {
 	event, block = assembleTestEvent(buyerPrivateKey, "131313131313", "131313131313", 0, 0, delegateMessage)
 	p.processDelegate(ctx, qtx, block, event)
 
-	nodes, _ := qtx.GetNodes(ctx, gen.GetNodesParams{
-		SaleBlock:   int32(testBlockHeigh) - 3,
+	nodes, _ := qtx.GetNodes(ctx, datagateway.GetNodesParams{
+		SaleBlock:   testBlockHeigh - 3,
 		SaleTxIndex: int32(testTxIndex) - 3,
 		NodeIds:     []int32{9, 10, 11},
 	})

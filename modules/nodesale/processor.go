@@ -3,8 +3,6 @@ package nodesale
 import (
 	"bytes"
 	"context"
-	"fmt"
-	"log/slog"
 
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
@@ -13,17 +11,18 @@ import (
 	"github.com/gaze-network/indexer-network/core/indexer"
 	"github.com/gaze-network/indexer-network/core/types"
 	"github.com/gaze-network/indexer-network/pkg/logger"
+	"github.com/gaze-network/indexer-network/pkg/logger/slogx"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
+	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/core/datasources"
+	"github.com/gaze-network/indexer-network/modules/nodesale/datagateway"
 	"github.com/gaze-network/indexer-network/modules/nodesale/protobuf"
-	repository "github.com/gaze-network/indexer-network/modules/nodesale/repository/postgres"
-	"github.com/gaze-network/indexer-network/modules/nodesale/repository/postgres/gen"
 )
 
 type Processor struct {
-	repository   *repository.Repository
+	datagateway  datagateway.NodesaleDataGateway
 	btcClient    *datasources.BitcoinNodeDatasource
 	network      common.Network
 	cleanupFuncs []func(context.Context) error
@@ -31,13 +30,13 @@ type Processor struct {
 
 // CurrentBlock implements indexer.Processor.
 func (p *Processor) CurrentBlock(ctx context.Context) (types.BlockHeader, error) {
-	block, err := p.repository.Queries.GetLastProcessedBlock(ctx)
+	block, err := p.datagateway.GetLastProcessedBlock(ctx)
 	if err != nil {
 		logger.InfoContext(ctx, "Couldn't get last processed block. Start from NODESALE_LAST_BLOCK_DEFAULT.",
-			slog.Int("currentBlock", NODESALE_LASTBLOCK_DEFAULT))
+			slogx.Int("currentBlock", NODESALE_LASTBLOCK_DEFAULT))
 		header, err := p.btcClient.GetBlockHeader(ctx, NODESALE_LASTBLOCK_DEFAULT)
 		if err != nil {
-			return types.BlockHeader{}, fmt.Errorf("Cannot get default block from bitcoin node : %w", err)
+			return types.BlockHeader{}, errors.Wrap(err, "Cannot get default block from bitcoin node")
 		}
 		return types.BlockHeader{
 			Hash:   header.Hash,
@@ -51,15 +50,15 @@ func (p *Processor) CurrentBlock(ctx context.Context) (types.BlockHeader, error)
 	}
 	return types.BlockHeader{
 		Hash:   *hash,
-		Height: int64(block.BlockHeight),
+		Height: block.BlockHeight,
 	}, nil
 }
 
 // GetIndexedBlock implements indexer.Processor.
 func (p *Processor) GetIndexedBlock(ctx context.Context, height int64) (types.BlockHeader, error) {
-	block, err := p.repository.Queries.GetBlock(ctx, int32(height))
+	block, err := p.datagateway.GetBlock(ctx, height)
 	if err != nil {
-		return types.BlockHeader{}, fmt.Errorf("Block %d not found : %w", height, err)
+		return types.BlockHeader{}, errors.Wrapf(err, "Block %d not found", height)
 	}
 	hash, err := chainhash.NewHashFromStr(block.BlockHash)
 	if err != nil {
@@ -67,7 +66,7 @@ func (p *Processor) GetIndexedBlock(ctx context.Context, height int64) (types.Bl
 	}
 	return types.BlockHeader{
 		Hash:   *hash,
-		Height: int64(block.BlockHeight),
+		Height: block.BlockHeight,
 	}, nil
 }
 
@@ -104,7 +103,9 @@ func extractNodesaleData(witness [][]byte) (data []byte, internalPubkey *btcec.P
 				state = 0
 			}
 		case 3:
-			if tokenizer.Opcode() == txscript.OP_PUSHDATA1 {
+			if tokenizer.Opcode() == txscript.OP_PUSHDATA1 ||
+				tokenizer.Opcode() == txscript.OP_PUSHDATA2 ||
+				tokenizer.Opcode() == txscript.OP_PUSHDATA4 {
 				data := tokenizer.Data()
 				return data, controlBlock.InternalKey, true
 			}
@@ -118,10 +119,8 @@ type nodesaleEvent struct {
 	transaction  *types.Transaction
 	eventMessage *protobuf.NodeSaleEvent
 	eventJson    []byte
-	// txAddress    btcutil.Address
-	txPubkey *btcec.PublicKey
-	rawData  []byte
-	// rawScript    []byte
+	txPubkey     *btcec.PublicKey
+	rawData      []byte
 }
 
 func (p *Processor) parseTransactions(ctx context.Context, transactions []*types.Transaction) ([]nodesaleEvent, error) {
@@ -137,39 +136,21 @@ func (p *Processor) parseTransactions(ctx context.Context, transactions []*types
 			err := proto.Unmarshal(data, event)
 			if err != nil {
 				logger.WarnContext(ctx, "Invalid Protobuf",
-					slog.String("block_hash", t.BlockHash.String()),
-					slog.Int("txIndex", int(t.Index)))
+					slogx.String("block_hash", t.BlockHash.String()),
+					slogx.Int("txIndex", int(t.Index)))
 				continue
 			}
 			eventJson, err := protojson.Marshal(event)
 			if err != nil {
-				return []nodesaleEvent{}, fmt.Errorf("Failed to parse protobuf to json : %w", err)
+				return []nodesaleEvent{}, errors.Wrap(err, "Failed to parse protobuf to json")
 			}
-
-			/*
-				outIndex := txIn.PreviousOutIndex
-				outHash := txIn.PreviousOutTxHash
-				result, err := p.btcClient.GetTransactionByHash(ctx, outHash)
-				if err != nil {
-					return []nodesaleEvent{}, fmt.Errorf("Failed to Get Bitcoin transaction : %w", err)
-				}
-				pkScript := result.TxOut[outIndex].PkScript
-				_, addresses, _, err := txscript.ExtractPkScriptAddrs(pkScript, p.network.ChainParams())
-				if err != nil {
-					return []nodesaleEvent{}, fmt.Errorf("Failed to Get Bitcoin address : %w", err)
-				}
-				if len(addresses) != 1 {
-					return []nodesaleEvent{}, fmt.Errorf("Multiple addresses detected.")
-				}*/
 
 			events = append(events, nodesaleEvent{
 				transaction:  t,
 				eventMessage: event,
 				eventJson:    eventJson,
-				// txAddress:    addresses[0],
-				rawData:  data,
-				txPubkey: txPubkey,
-				// rawScript:    rawScript,
+				rawData:      data,
+				txPubkey:     txPubkey,
 			})
 		}
 	}
@@ -180,95 +161,95 @@ func (p *Processor) parseTransactions(ctx context.Context, transactions []*types
 func (p *Processor) Process(ctx context.Context, inputs []*types.Block) error {
 	for _, block := range inputs {
 		logger.InfoContext(ctx, "Nodesale processing a block",
-			slog.Int64("block", block.Header.Height),
-			slog.String("hash", block.Header.Hash.String()))
+			slogx.Int64("block", block.Header.Height),
+			slogx.Stringer("hash", block.Header.Hash))
 		// parse all event from each transaction including reading tx wallet
 		events, err := p.parseTransactions(ctx, block.Transactions)
 		if err != nil {
-			return fmt.Errorf("Invalid data from bitcoin client : %w", err)
+			return errors.Wrap(err, "Invalid data from bitcoin client")
 		}
 		// open transaction
-		tx, err := p.repository.Db.Begin(ctx)
+		qtx, err := p.datagateway.BeginNodesaleTx(ctx)
 		if err != nil {
-			return fmt.Errorf("Failed to create transaction : %w", err)
+			return errors.Wrap(err, "Failed to create transaction")
 		}
-		defer tx.Rollback(ctx)
-		qtx := p.repository.WithTx(tx)
+		defer func() {
+			err = qtx.Rollback(ctx)
+		}()
 
 		// write block
-		err = qtx.AddBlock(ctx, gen.AddBlockParams{
-			BlockHeight: int32(block.Header.Height),
+		err = qtx.AddBlock(ctx, datagateway.Block{
+			BlockHeight: block.Header.Height,
 			BlockHash:   block.Header.Hash.String(),
 			Module:      p.Name(),
 		})
 		if err != nil {
-			return fmt.Errorf("Failed to add block %d : %w", block.Header.Height, err)
+			return errors.Wrapf(err, "Failed to add block %d", block.Header.Height)
 		}
 		// for each events
 		for _, event := range events {
 			logger.InfoContext(ctx, "Nodesale processing event",
-				slog.Int("txIndex", int(event.transaction.Index)),
-				slog.Int("blockHeight", int(block.Header.Height)),
-				slog.String("blockhash", block.Header.Hash.String()),
+				slogx.Uint32("txIndex", event.transaction.Index),
+				slogx.Int64("blockHeight", block.Header.Height),
+				slogx.Stringer("blockhash", block.Header.Hash),
 			)
 			eventMessage := event.eventMessage
 			switch eventMessage.Action {
 			case protobuf.Action_ACTION_DEPLOY:
 				err = p.processDeploy(ctx, qtx, block, event)
 				if err != nil {
-					return fmt.Errorf("Failed to deploy at block %d : %w", block.Header.Height, err)
+					return errors.Wrapf(err, "Failed to deploy at block %d", block.Header.Height)
 				}
 			case protobuf.Action_ACTION_DELEGATE:
 				err = p.processDelegate(ctx, qtx, block, event)
 				if err != nil {
-					return fmt.Errorf("Failed to delegate at block %d : %w", block.Header.Height, err)
+					return errors.Wrapf(err, "Failed to delegate at block %d", block.Header.Height)
 				}
 			case protobuf.Action_ACTION_PURCHASE:
 				err = p.processPurchase(ctx, qtx, block, event)
 				if err != nil {
-					return fmt.Errorf("Failed to purchase at block %d : %w", block.Header.Height, err)
+					return errors.Wrapf(err, "Failed to purchase at block %d", block.Header.Height)
 				}
 			}
 		}
 		// close transaction
-		err = tx.Commit(ctx)
+		err = qtx.Commit(ctx)
 		if err != nil {
-			return fmt.Errorf("Failed to commit transaction : %w", err)
+			return errors.Wrap(err, "Failed to commit transaction")
 		}
 		logger.InfoContext(ctx, "Nodesale finished processing block",
-			slog.Int64("block", block.Header.Height),
-			slog.String("hash", block.Header.Hash.String()))
+			slogx.Int64("block", block.Header.Height),
+			slogx.Stringer("hash", block.Header.Hash))
 	}
 	return nil
 }
 
 // RevertData implements indexer.Processor.
 func (p *Processor) RevertData(ctx context.Context, from int64) error {
-	tx, err := p.repository.Db.Begin(ctx)
+	qtx, err := p.datagateway.BeginNodesaleTx(ctx)
 	if err != nil {
-		return fmt.Errorf("Failed to create transaction : %w", err)
+		return errors.Wrap(err, "Failed to create transaction")
 	}
-	defer tx.Rollback(ctx)
-	qtx := p.repository.WithTx(tx)
-	_, err = qtx.RemoveBlockFrom(ctx, int32(from))
+	defer func() { err = qtx.Rollback(ctx) }()
+	_, err = qtx.RemoveBlockFrom(ctx, from)
 	if err != nil {
-		return fmt.Errorf("Failed to remove blocks. : %w", err)
+		return errors.Wrap(err, "Failed to remove blocks.")
 	}
 
-	affected, err := qtx.RemoveEventsFromBlock(ctx, int32(from))
+	affected, err := qtx.RemoveEventsFromBlock(ctx, from)
 	if err != nil {
-		return fmt.Errorf("Failed to remove events. : %w", err)
+		return errors.Wrap(err, "Failed to remove events.")
 	}
 	_, err = qtx.ClearDelegate(ctx)
 	if err != nil {
-		return fmt.Errorf("Failed to clear delegate from nodes : %w", err)
+		return errors.Wrap(err, "Failed to clear delegate from nodes")
 	}
-	err = tx.Commit(ctx)
+	err = qtx.Commit(ctx)
 	if err != nil {
-		return fmt.Errorf("Failed to commit transaction : %w", err)
+		return errors.Wrap(err, "Failed to commit transaction")
 	}
 	logger.InfoContext(ctx, "Events removed",
-		slog.Int("Total removed", int(affected)))
+		slogx.Int64("Total removed", affected))
 	return nil
 }
 
@@ -281,7 +262,7 @@ func (p *Processor) Shutdown(ctx context.Context) error {
 	for _, cleanupFunc := range p.cleanupFuncs {
 		err := cleanupFunc(ctx)
 		if err != nil {
-			return fmt.Errorf("cleanup function error : %w", err)
+			return errors.Wrap(err, "cleanup function error")
 		}
 	}
 	return nil

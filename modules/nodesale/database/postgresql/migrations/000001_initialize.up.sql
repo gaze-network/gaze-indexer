@@ -1,7 +1,7 @@
 BEGIN;
 
 CREATE TABLE IF NOT EXISTS blocks (
-    "block_height" INTEGER NOT NULL,
+    "block_height" BIGINT NOT NULL,
     "block_hash" TEXT NOT NULL,
     "module" TEXT NOT NULL,
     PRIMARY KEY("block_height", "block_hash")
@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS blocks (
 
 CREATE TABLE IF NOT EXISTS events (
     "tx_hash" TEXT NOT NULL PRIMARY KEY,
-    "block_height" INTEGER NOT NULL,
+    "block_height" BIGINT NOT NULL,
     "tx_index" INTEGER NOT NULL,
     "wallet_address" TEXT NOT NULL,
     "valid" BOOLEAN NOT NULL,
@@ -31,7 +31,7 @@ VALUES ('', -1, -1,
         '', '{}');
 
 CREATE TABLE IF NOT EXISTS node_sales (
-    "block_height" INTEGER NOT NULL,
+    "block_height" BIGINT NOT NULL,
     "tx_index" INTEGER NOT NULL,
     "name" TEXT NOT NULL,
     "starts_at" TIMESTAMP NOT NULL,
@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS node_sales (
 );
 
 CREATE TABLE IF NOT EXISTS nodes (
-    "sale_block" INTEGER NOT NULL,
+    "sale_block" BIGINT NOT NULL,
     "sale_tx_index" INTEGER NOT NULL,
     "node_id" INTEGER NOT NULL,
     "tier_index" INTEGER NOT NULL,

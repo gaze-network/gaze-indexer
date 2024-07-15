@@ -27,7 +27,7 @@ WHERE sale_block = $1 AND
 ORDER BY tier_index;
 
 -- name: GetNodesByPubkey :many
-SELECT *
+SELECT nodes.*
 FROM nodes JOIN events ON nodes.purchase_tx_hash = events.tx_hash
 WHERE sale_block = $1 AND
     sale_tx_index = $2 AND

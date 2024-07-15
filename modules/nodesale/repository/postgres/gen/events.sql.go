@@ -19,7 +19,7 @@ VALUES ( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 
 type AddEventParams struct {
 	TxHash         string
-	BlockHeight    int32
+	BlockHeight    int64
 	TxIndex        int32
 	WalletAddress  string
 	Valid          bool
@@ -91,7 +91,7 @@ DELETE FROM events
 WHERE "block_height" >= $1
 `
 
-func (q *Queries) RemoveEventsFromBlock(ctx context.Context, fromBlock int32) (int64, error) {
+func (q *Queries) RemoveEventsFromBlock(ctx context.Context, fromBlock int64) (int64, error) {
 	result, err := q.db.Exec(ctx, removeEventsFromBlock, fromBlock)
 	if err != nil {
 		return 0, err

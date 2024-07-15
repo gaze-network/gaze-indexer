@@ -15,7 +15,7 @@ VALUES ($1, $2, $3)
 `
 
 type AddBlockParams struct {
-	BlockHeight int32
+	BlockHeight int64
 	BlockHash   string
 	Module      string
 }
@@ -30,7 +30,7 @@ SELECT block_height, block_hash, module FROM blocks
 WHERE "block_height" = $1
 `
 
-func (q *Queries) GetBlock(ctx context.Context, blockHeight int32) (Block, error) {
+func (q *Queries) GetBlock(ctx context.Context, blockHeight int64) (Block, error) {
 	row := q.db.QueryRow(ctx, getBlock, blockHeight)
 	var i Block
 	err := row.Scan(&i.BlockHeight, &i.BlockHash, &i.Module)
@@ -54,7 +54,7 @@ DELETE FROM blocks
 WHERE "block_height" >= $1
 `
 
-func (q *Queries) RemoveBlockFrom(ctx context.Context, fromBlock int32) (int64, error) {
+func (q *Queries) RemoveBlockFrom(ctx context.Context, fromBlock int64) (int64, error) {
 	result, err := q.db.Exec(ctx, removeBlockFrom, fromBlock)
 	if err != nil {
 		return 0, err
