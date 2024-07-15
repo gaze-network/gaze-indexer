@@ -55,6 +55,8 @@ func (req paginationRequest) Validate() error {
 	if req.Offset < 0 {
 		errList = append(errList, errors.Errorf("offset must be greater than or equal to 0"))
 	}
+
+	// TODO:
 	// if req.OrderBy != "" && req.OrderBy != "ASC" && req.OrderBy != "DESC" {
 	// 	errList = append(errList, errors.Errorf("invalid orderBy value, must be `ASC` or `DESC`"))
 	// }
@@ -70,21 +72,13 @@ func (req *paginationRequest) ParseDefault() error {
 	if req.Limit == 0 {
 		req.Limit = 100
 	}
+
+	// TODO:
 	// if req.OrderBy == "" {
 	// 	req.OrderBy = "ASC"
 	// }
 	return nil
 }
-
-// func defaultPaginationRequest(req paginationRequest) paginationRequest {
-// 	if req.Limit == 0 {
-// 		req.Limit = 100
-// 	}
-// 	// if req.OrderBy == "" {
-// 	// 	req.OrderBy = "ASC"
-// 	// }
-// 	return req
-// }
 
 func resolvePkScript(network common.Network, wallet string) ([]byte, bool) {
 	if wallet == "" {
