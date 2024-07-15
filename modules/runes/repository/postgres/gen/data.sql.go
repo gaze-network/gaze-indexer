@@ -635,8 +635,8 @@ func (q *Queries) GetRuneEntriesByRuneIdsAndHeight(ctx context.Context, arg GetR
 }
 
 const getRuneEntryList = `-- name: GetRuneEntryList :many
-SELECT runes_entries.rune_id, number, rune, spacers, premine, symbol, divisibility, terms, terms_amount, terms_cap, terms_height_start, terms_height_end, terms_offset_start, terms_offset_end, turbo, etching_block, etching_tx_hash, etched_at, runes_entry_states.rune_id, block_height, mints, burned_amount, completed_at, completed_at_height FROM runes_entries 
-LEFT JOIN runes_entry_states ON runes_entries.rune_id = runes_entry_states.rune_id
+SELECT DISTINCT ON (number) runes_entries.rune_id, number, rune, spacers, premine, symbol, divisibility, terms, terms_amount, terms_cap, terms_height_start, terms_height_end, terms_offset_start, terms_offset_end, turbo, etching_block, etching_tx_hash, etched_at, states.rune_id, block_height, mints, burned_amount, completed_at, completed_at_height FROM runes_entries 
+LEFT JOIN runes_entry_states states ON runes_entries.rune_id = states.rune_id
 ORDER BY number LIMIT $2 OFFSET $1
 `
 

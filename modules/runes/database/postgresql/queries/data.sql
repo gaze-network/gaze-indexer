@@ -61,8 +61,8 @@ SELECT * FROM runes_entries
   WHERE runes_entries.rune_id = ANY(@rune_ids::text[]) AND etching_block <= @height;
 
 -- name: GetRuneEntryList :many
-SELECT * FROM runes_entries 
-LEFT JOIN runes_entry_states ON runes_entries.rune_id = runes_entry_states.rune_id
+SELECT DISTINCT ON (number) * FROM runes_entries 
+LEFT JOIN runes_entry_states states ON runes_entries.rune_id = states.rune_id
 ORDER BY number LIMIT @_limit OFFSET @_offset;
 
 -- name: GetRuneIdFromRune :one
