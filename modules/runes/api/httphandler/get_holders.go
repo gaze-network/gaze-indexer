@@ -72,6 +72,9 @@ func (h *HttpHandler) GetHolders(ctx *fiber.Ctx) (err error) {
 
 	runeEntry, err := h.usecase.GetRuneEntryByRuneIdAndHeight(ctx.UserContext(), runeId, blockHeight)
 	if err != nil {
+		if errors.Is(err, errs.NotFound) {
+			return errs.NewPublicError("rune not found")
+		}
 		return errors.Wrap(err, "error during GetHoldersByHeight")
 	}
 	holdingBalances, err := h.usecase.GetBalancesByRuneId(ctx.UserContext(), runeId, blockHeight)
