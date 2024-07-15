@@ -289,6 +289,32 @@ func (r *Repository) GetRuneEntryByRuneIdAndHeightBatch(ctx context.Context, run
 	return runeEntries, nil
 }
 
+func (r *Repository) GetRuneEntryList(ctx context.Context, limit int32, offset int32) ([]*runes.RuneEntry, error) {
+	rows, err := r.queries.GetRuneEntryList(ctx, gen.GetRuneEntryListParams{
+		Limit:  limit,
+		Offset: offset,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "error during query")
+	}
+
+	runeEntries := make([]*runes.RuneEntry, 0, len(rows))
+	var errs []error
+	for i, model := range rows {
+		runeEntry, err := mapRuneEntryModelToType(gen.GetRuneEntriesByRuneIdsRow(model))
+		if err != nil {
+			errs = append(errs, errors.Wrapf(err, "failed to parse rune entry model index %d", i))
+			continue
+		}
+		runeEntries = append(runeEntries, &runeEntry)
+	}
+	if len(errs) > 0 {
+		return nil, errors.Join(errs...)
+	}
+
+	return runeEntries, nil
+}
+
 func (r *Repository) CountRuneEntries(ctx context.Context) (uint64, error) {
 	count, err := r.queries.CountRuneEntries(ctx)
 	if err != nil {
@@ -371,6 +397,22 @@ func (r *Repository) GetBalanceByPkScriptAndRuneId(ctx context.Context, pkScript
 		return nil, errors.Wrap(err, "failed to parse balance model")
 	}
 	return result, nil
+}
+
+func (r *Repository) GetTotalHoldersByRuneIds(ctx context.Context, runeIds []runes.RuneId) (map[runes.RuneId]int64, error) {
+	rows, err := r.queries.GetTotalHoldersByRuneIds(ctx, lo.Map(runeIds, func(runeId runes.RuneId, _ int) string { return runeId.String() }))
+	if err != nil {
+		return nil, errors.Wrap(err, "error during query")
+	}
+	holders := make(map[runes.RuneId]int64, len(rows))
+	for _, row := range rows {
+		runeId, err := runes.NewRuneIdFromString(row.RuneID)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to parse RuneId")
+		}
+		holders[runeId] = row.Count
+	}
+	return holders, nil
 }
 
 func (r *Repository) CreateRuneTransaction(ctx context.Context, tx *entity.RuneTransaction) error {
