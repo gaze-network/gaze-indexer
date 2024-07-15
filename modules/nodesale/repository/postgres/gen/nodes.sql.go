@@ -54,7 +54,7 @@ func (q *Queries) ClearDelegate(ctx context.Context) (int64, error) {
 }
 
 const getNodeCountByTierIndex = `-- name: GetNodeCountByTierIndex :many
-SELECT tiers.tier_index as tier_index, count(nodes.tier_index)
+SELECT (tiers.tier_index)::int as tier_index, count(nodes.tier_index)
 FROM generate_series($3::int,$4::int) as tiers(tier_index)
 LEFT JOIN 
 	(select sale_block, sale_tx_index, node_id, tier_index, delegated_to, owner_public_key, purchase_tx_hash, delegate_tx_hash 
@@ -74,7 +74,7 @@ type GetNodeCountByTierIndexParams struct {
 }
 
 type GetNodeCountByTierIndexRow struct {
-	TierIndex interface{}
+	TierIndex int32
 	Count     int64
 }
 

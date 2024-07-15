@@ -39,7 +39,7 @@ INSERT INTO nodes(sale_block, sale_tx_index, node_id, tier_index, delegated_to, 
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8);
 
 -- name: GetNodeCountByTierIndex :many
-SELECT tiers.tier_index as tier_index, count(nodes.tier_index)
+SELECT (tiers.tier_index)::int as tier_index, count(nodes.tier_index)
 FROM generate_series(@from_tier::int,@to_tier::int) as tiers(tier_index)
 LEFT JOIN 
 	(select * 

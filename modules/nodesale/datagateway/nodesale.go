@@ -107,7 +107,7 @@ type GetNodeCountByTierIndexParams struct {
 }
 
 type GetNodeCountByTierIndexRow struct {
-	TierIndex interface{}
+	TierIndex int32
 	Count     int64
 }
 
