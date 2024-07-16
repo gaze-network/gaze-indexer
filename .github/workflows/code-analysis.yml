@@ -59,7 +59,7 @@ jobs:
       - run: echo "GOVERSION=$(go version)" >> $GITHUB_ENV
 
       - name: Touch test result file
-        run: touch test_output.json
+        run: echo "" > test_output.json
 
       - name: Build
         run: go build -v ./...
