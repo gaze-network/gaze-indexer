@@ -28,6 +28,7 @@ var postgresConf postgres.Config = postgres.Config{
 	DBName:   "gaze_indexer",
 }
 
+// TODO: should use mock dg or run db in CI
 var qtx datagateway.NodesaleDataGatewayWithTx
 
 var ctx context.Context
@@ -49,6 +50,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		return
 	}
+	defer db.Close()
 
 	repo := gen.New(db)
 	datagateway := repository.NewRepository(db)
@@ -66,8 +68,6 @@ func TestMain(m *testing.M) {
 
 	m.Run()
 	qtx.Commit(ctx)
-	db.Close()
-	// os.Exit(res)
 }
 
 func assembleTestEvent(privateKey *secp256k1.PrivateKey, blockHashHex, txHashHex string, blockHeight int64, txIndex int, message *protobuf.NodeSaleEvent) (nodesaleEvent, *types.Block) {
