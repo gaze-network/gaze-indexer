@@ -45,7 +45,10 @@ func TestMain(m *testing.M) {
 
 	ctx = context.Background()
 
-	db, _ := postgres.NewPool(ctx, postgresConf)
+	db, err := postgres.NewPool(ctx, postgresConf)
+	if err != nil {
+		return
+	}
 
 	repo := gen.New(db)
 	datagateway := repository.NewRepository(db)
@@ -56,7 +59,10 @@ func TestMain(m *testing.M) {
 	}
 	repo.ClearEvents(ctx)
 
-	qtx, _ = p.datagateway.BeginNodesaleTx(ctx)
+	qtx, err := p.datagateway.BeginNodesaleTx(ctx)
+	if err != nil {
+		return
+	}
 
 	m.Run()
 	qtx.Commit(ctx)
