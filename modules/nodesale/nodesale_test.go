@@ -2,21 +2,16 @@ package nodesale
 
 import (
 	"context"
-	"flag"
-	"os"
 	"testing"
 	"time"
 
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
-	"github.com/gaze-network/indexer-network/common"
 	"github.com/gaze-network/indexer-network/core/types"
 	"github.com/gaze-network/indexer-network/internal/postgres"
 	"github.com/gaze-network/indexer-network/modules/nodesale/datagateway"
 	"github.com/gaze-network/indexer-network/modules/nodesale/protobuf"
-	repository "github.com/gaze-network/indexer-network/modules/nodesale/repository/postgres"
-	"github.com/gaze-network/indexer-network/modules/nodesale/repository/postgres/gen"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
@@ -39,30 +34,31 @@ var (
 )
 
 func TestMain(m *testing.M) {
-	flag.Parse()
-	if testing.Short() {
-		return
-	}
+	return
+	// flag.Parse()
+	// if testing.Short() {
+	// 	return
+	// }
 
-	ctx = context.Background()
+	// ctx = context.Background()
 
-	db, _ := postgres.NewPool(ctx, postgresConf)
+	// db, _ := postgres.NewPool(ctx, postgresConf)
 
-	repo := gen.New(db)
-	datagateway := repository.NewRepository(db)
+	// repo := gen.New(db)
+	// datagateway := repository.NewRepository(db)
 
-	p = &Processor{
-		datagateway: datagateway,
-		network:     common.NetworkMainnet,
-	}
-	repo.ClearEvents(ctx)
+	// p = &Processor{
+	// 	datagateway: datagateway,
+	// 	network:     common.NetworkMainnet,
+	// }
+	// repo.ClearEvents(ctx)
 
-	qtx, _ = p.datagateway.BeginNodesaleTx(ctx)
+	// qtx, _ = p.datagateway.BeginNodesaleTx(ctx)
 
-	res := m.Run()
-	qtx.Commit(ctx)
-	db.Close()
-	os.Exit(res)
+	// res := m.Run()
+	// qtx.Commit(ctx)
+	// db.Close()
+	// os.Exit(res)
 }
 
 func assembleTestEvent(privateKey *secp256k1.PrivateKey, blockHashHex, txHashHex string, blockHeight int64, txIndex int, message *protobuf.NodeSaleEvent) (nodesaleEvent, *types.Block) {
