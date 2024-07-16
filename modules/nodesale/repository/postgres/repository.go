@@ -120,7 +120,7 @@ func (repo *Repository) AddEvent(ctx context.Context, arg datagateway.AddEventPa
 		Action:         arg.Action,
 		RawMessage:     arg.RawMessage,
 		ParsedMessage:  arg.ParsedMessage,
-		BlockTimestamp: pgtype.Timestamp{Time: arg.BlockTimestamp, Valid: true},
+		BlockTimestamp: pgtype.Timestamp{Time: arg.BlockTimestamp.UTC(), Valid: true},
 		BlockHash:      arg.BlockHash,
 		Metadata:       arg.Metadata,
 	})
@@ -148,8 +148,8 @@ func (repo *Repository) AddNodesale(ctx context.Context, arg datagateway.AddNode
 		BlockHeight:           arg.BlockHeight,
 		TxIndex:               arg.TxIndex,
 		Name:                  arg.Name,
-		StartsAt:              pgtype.Timestamp{Time: arg.StartsAt, Valid: true},
-		EndsAt:                pgtype.Timestamp{Time: arg.EndsAt, Valid: true},
+		StartsAt:              pgtype.Timestamp{Time: arg.StartsAt.UTC(), Valid: true},
+		EndsAt:                pgtype.Timestamp{Time: arg.EndsAt.UTC(), Valid: true},
 		Tiers:                 arg.Tiers,
 		SellerPublicKey:       arg.SellerPublicKey,
 		MaxPerAddress:         arg.MaxPerAddress,
@@ -286,7 +286,7 @@ func (repo *Repository) GetEventsByWallet(ctx context.Context, walletAddress str
 			Action:         item.Action,
 			RawMessage:     item.RawMessage,
 			ParsedMessage:  item.ParsedMessage,
-			BlockTimestamp: item.BlockTimestamp.Time,
+			BlockTimestamp: item.BlockTimestamp.Time.UTC(),
 			BlockHash:      item.BlockHash,
 			Metadata:       item.Metadata,
 		}

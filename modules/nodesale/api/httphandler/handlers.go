@@ -192,7 +192,7 @@ func (h *handler) eventsHandler(ctx *fiber.Ctx) error {
 
 	err = ctx.JSON(responses)
 	if err != nil {
-		return errors.Wrap(err, "Go fiber cannot parse JSON: %w")
+		return errors.Wrap(err, "Go fiber cannot parse JSON")
 	}
 	return nil
 }

@@ -158,10 +158,12 @@ func (p *Processor) processPurchase(ctx context.Context, qtx datagateway.Nodesal
 
 	var txPaid int64 = 0
 	meta := metaData{}
+
 	if valid {
 		// get total amount paid to seller
 		for _, txOut := range event.transaction.TxOut {
 			_, txOutAddrs, _, _ := txscript.ExtractPkScriptAddrs(txOut.PkScript, p.network.ChainParams())
+
 			if len(txOutAddrs) == 1 && bytes.Equal(
 				[]byte(sellerAddr.EncodeAddress()),
 				[]byte(txOutAddrs[0].EncodeAddress()),

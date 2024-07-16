@@ -17,7 +17,6 @@ import (
 	"github.com/gaze-network/indexer-network/modules/nodesale/protobuf"
 	repository "github.com/gaze-network/indexer-network/modules/nodesale/repository/postgres"
 	"github.com/gaze-network/indexer-network/modules/nodesale/repository/postgres/gen"
-	"github.com/jackc/pgx/v5"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
@@ -27,13 +26,12 @@ var p *Processor
 var postgresConf postgres.Config = postgres.Config{
 	User:     "postgres",
 	Password: "P@ssw0rd",
+	DBName:   "gaze_indexer",
 }
 
 var qtx datagateway.NodesaleDataGatewayWithTx
 
 var ctx context.Context
-
-var tx pgx.Tx
 
 var (
 	testBlockHeigh int64 = 101
@@ -62,7 +60,7 @@ func TestMain(m *testing.M) {
 	qtx, _ = p.datagateway.BeginNodesaleTx(ctx)
 
 	res := m.Run()
-	tx.Commit(ctx)
+	qtx.Commit(ctx)
 	db.Close()
 	os.Exit(res)
 }

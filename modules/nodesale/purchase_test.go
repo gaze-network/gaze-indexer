@@ -400,6 +400,7 @@ func TestValidPurchase(t *testing.T) {
 		},
 	}
 	p.processPurchase(ctx, qtx, block, event)
+
 	nodes, _ := qtx.GetNodes(ctx, datagateway.GetNodesParams{
 		SaleBlock:   testBlockHeigh - 2,
 		SaleTxIndex: int32(testTxIndex) - 2,
