@@ -56,7 +56,8 @@ func TestDelegate(t *testing.T) {
 		},
 	}
 	event, block := assembleTestEvent(sellerPrivateKey, "111111", "111111", 0, 0, deployMessage)
-	p.processDeploy(ctx, qtx, block, event)
+	err := p.processDeploy(ctx, qtx, block, event)
+	require.NoError(t, err)
 
 	buyerPrivateKey, _ := btcec.NewPrivateKey()
 	buyerPubkeyHex := hex.EncodeToString(buyerPrivateKey.PubKey().SerializeCompressed())

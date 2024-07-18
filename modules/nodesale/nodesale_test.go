@@ -61,7 +61,7 @@ func TestMain(m *testing.M) {
 	}
 	repo.ClearEvents(ctx)
 
-	qtx, err := p.datagateway.BeginNodesaleTx(ctx)
+	qtx, err = p.datagateway.BeginNodesaleTx(ctx)
 	if err != nil {
 		return
 	}
