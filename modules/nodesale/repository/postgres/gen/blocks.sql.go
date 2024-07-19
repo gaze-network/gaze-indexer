@@ -10,7 +10,7 @@ import (
 )
 
 const addBlock = `-- name: AddBlock :exec
-INSERT INTO blocks("block_height", "block_hash", "module")
+INSERT INTO blocks ("block_height", "block_hash", "module")
 VALUES ($1, $2, $3)
 `
 

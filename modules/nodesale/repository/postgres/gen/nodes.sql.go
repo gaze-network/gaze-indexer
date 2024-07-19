@@ -10,7 +10,7 @@ import (
 )
 
 const addNode = `-- name: AddNode :exec
-INSERT INTO nodes(sale_block, sale_tx_index, node_id, tier_index, delegated_to, owner_public_key, purchase_tx_hash, delegate_tx_hash)
+INSERT INTO nodes (sale_block, sale_tx_index, node_id, tier_index, delegated_to, owner_public_key, purchase_tx_hash, delegate_tx_hash)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 `
 
@@ -54,14 +54,14 @@ func (q *Queries) ClearDelegate(ctx context.Context) (int64, error) {
 }
 
 const getNodeCountByTierIndex = `-- name: GetNodeCountByTierIndex :many
-SELECT (tiers.tier_index)::int as tier_index, count(nodes.tier_index)
-FROM generate_series($3::int,$4::int) as tiers(tier_index)
+SELECT (tiers.tier_index)::int AS tier_index, count(nodes.tier_index)
+FROM generate_series($3::int,$4::int) AS tiers(tier_index)
 LEFT JOIN 
-	(select sale_block, sale_tx_index, node_id, tier_index, delegated_to, owner_public_key, purchase_tx_hash, delegate_tx_hash 
-	from nodes 
-	where sale_block = $1 and 
+	(SELECT sale_block, sale_tx_index, node_id, tier_index, delegated_to, owner_public_key, purchase_tx_hash, delegate_tx_hash 
+	FROM nodes 
+	WHERE sale_block = $1 AND 
 		sale_tx_index= $2) 
-	as nodes on tiers.tier_index = nodes.tier_index 
+	AS nodes ON tiers.tier_index = nodes.tier_index 
 group by tiers.tier_index
 ORDER BY tiers.tier_index
 `
