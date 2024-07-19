@@ -46,3 +46,9 @@ type Event struct {
 	BlockHash      string
 	Metadata       []byte
 }
+
+type MetaData struct {
+	ExpectedTotalAmountDiscounted int64
+	ReportedTotalAmount           int64
+	PaidTotalAmount               int64
+}
