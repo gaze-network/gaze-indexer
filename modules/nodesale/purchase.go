@@ -42,7 +42,10 @@ func (p *Processor) processPurchase(ctx context.Context, qtx datagateway.Nodesal
 		if err != nil {
 			valid = false
 		}
-		if valid && !event.txPubkey.IsEqual(buyerPubkey) {
+		xOnlyBuyerPubkey := btcec.ToSerialized(buyerPubkey).SchnorrSerialized()
+		xOnlyTxPubKey := btcec.ToSerialized(event.txPubkey).SchnorrSerialized()
+
+		if valid && !bytes.Equal(xOnlyBuyerPubkey[:], xOnlyTxPubKey[:]) {
 			valid = false
 		}
 	}

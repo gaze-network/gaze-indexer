@@ -1,6 +1,7 @@
 package nodesale
 
 import (
+	"bytes"
 	"context"
 	"encoding/hex"
 
@@ -42,7 +43,9 @@ func (p *Processor) processDelegate(ctx context.Context, qtx datagateway.Nodesal
 				valid = false
 				break
 			}
-			if !event.txPubkey.IsEqual(OwnerPublicKey) {
+			xOnlyOwnerPublicKey := btcec.ToSerialized(OwnerPublicKey).SchnorrSerialized()
+			xOnlyTxPubKey := btcec.ToSerialized(event.txPubkey).SchnorrSerialized()
+			if !bytes.Equal(xOnlyOwnerPublicKey[:], xOnlyTxPubKey[:]) {
 				valid = false
 				break
 			}

@@ -1,6 +1,7 @@
 package nodesale
 
 import (
+	"bytes"
 	"context"
 	"encoding/hex"
 	"time"
@@ -26,7 +27,10 @@ func (p *Processor) processDeploy(ctx context.Context, qtx datagateway.NodesaleD
 		if err != nil {
 			valid = false
 		}
-		if valid && !event.txPubkey.IsEqual(sellerPubKey) {
+		xOnlySellerPubKey := btcec.ToSerialized(sellerPubKey).SchnorrSerialized()
+		xOnlyTxPubKey := btcec.ToSerialized(event.txPubkey).SchnorrSerialized()
+
+		if valid && !bytes.Equal(xOnlySellerPubKey[:], xOnlyTxPubKey[:]) {
 			valid = false
 		}
 	}
