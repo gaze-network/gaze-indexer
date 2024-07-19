@@ -1,6 +1,7 @@
 package httphandler
 
 import (
+	"cmp"
 	"encoding/hex"
 	"fmt"
 	"slices"
@@ -297,9 +298,9 @@ func (h *HttpHandler) GetTransactions(ctx *fiber.Ctx) (err error) {
 	// sort by block height DESC, then index DESC
 	slices.SortFunc(txList, func(t1, t2 transaction) int {
 		if t1.BlockHeight != t2.BlockHeight {
-			return int(t2.BlockHeight - t1.BlockHeight)
+			return cmp.Compare(t2.BlockHeight, t1.BlockHeight)
 		}
-		return int(t2.Index - t1.Index)
+		return cmp.Compare(t2.Index, t1.Index)
 	})
 
 	resp := getTransactionsResponse{
