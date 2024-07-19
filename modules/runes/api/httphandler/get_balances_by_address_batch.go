@@ -70,6 +70,9 @@ func (h *HttpHandler) GetBalancesBatch(ctx *fiber.Ctx) (err error) {
 	var latestBlockHeight uint64
 	blockHeader, err := h.usecase.GetLatestBlock(ctx.UserContext())
 	if err != nil {
+		if errors.Is(err, errs.NotFound) {
+			return errs.NewPublicError("latest block not found")
+		}
 		return errors.Wrap(err, "error during GetLatestBlock")
 	}
 	latestBlockHeight = uint64(blockHeader.Height)
@@ -91,6 +94,9 @@ func (h *HttpHandler) GetBalancesBatch(ctx *fiber.Ctx) (err error) {
 
 		balances, err := h.usecase.GetBalancesByPkScript(ctx, pkScript, blockHeight, query.Limit, query.Offset)
 		if err != nil {
+			if errors.Is(err, errs.NotFound) {
+				return nil, errs.NewPublicError("balances not found")
+			}
 			return nil, errors.Wrap(err, "error during GetBalancesByPkScript")
 		}
 
@@ -107,6 +113,9 @@ func (h *HttpHandler) GetBalancesBatch(ctx *fiber.Ctx) (err error) {
 		})
 		runeEntries, err := h.usecase.GetRuneEntryByRuneIdBatch(ctx, balanceRuneIds)
 		if err != nil {
+			if errors.Is(err, errs.NotFound) {
+				return nil, errs.NewPublicError("rune not found")
+			}
 			return nil, errors.Wrap(err, "error during GetRuneEntryByRuneIdBatch")
 		}
 
