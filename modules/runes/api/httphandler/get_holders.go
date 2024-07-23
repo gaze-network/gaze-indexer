@@ -1,10 +1,13 @@
 package httphandler
 
 import (
+	"bytes"
 	"encoding/hex"
+	"slices"
 
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/common/errs"
+	"github.com/gaze-network/indexer-network/modules/runes/internal/entity"
 	"github.com/gaze-network/indexer-network/modules/runes/runes"
 	"github.com/gaze-network/uint128"
 	"github.com/gofiber/fiber/v2"
@@ -14,12 +17,25 @@ import (
 type getHoldersRequest struct {
 	Id          string `params:"id"`
 	BlockHeight uint64 `query:"blockHeight"`
+	Limit       int32  `json:"limit"`
+	Offset      int32  `json:"offset"`
 }
+
+const (
+	getHoldersMaxLimit     = 1000
+	getHoldersDefaultLimit = 100
+)
 
 func (r getHoldersRequest) Validate() error {
 	var errList []error
 	if !isRuneIdOrRuneName(r.Id) {
 		errList = append(errList, errors.New("'id' is not valid rune id or rune name"))
+	}
+	if r.Limit < 0 {
+		errList = append(errList, errors.New("'limit' must be non-negative"))
+	}
+	if r.Limit > getHoldersMaxLimit {
+		errList = append(errList, errors.Errorf("'limit' cannot exceed %d", getHoldersMaxLimit))
 	}
 	return errs.WithPublicMessage(errors.Join(errList...), "validation error")
 }
@@ -61,6 +77,10 @@ func (h *HttpHandler) GetHolders(ctx *fiber.Ctx) (err error) {
 		blockHeight = uint64(blockHeader.Height)
 	}
 
+	if req.Limit == 0 {
+		req.Limit = getHoldersDefaultLimit
+	}
+
 	var runeId runes.RuneId
 	if req.Id != "" {
 		var ok bool
@@ -75,10 +95,13 @@ func (h *HttpHandler) GetHolders(ctx *fiber.Ctx) (err error) {
 		if errors.Is(err, errs.NotFound) {
 			return errs.NewPublicError("rune not found")
 		}
-		return errors.Wrap(err, "error during GetHoldersByHeight")
+		return errors.Wrap(err, "error during GetRuneEntryByRuneIdAndHeight")
 	}
-	holdingBalances, err := h.usecase.GetBalancesByRuneId(ctx.UserContext(), runeId, blockHeight)
+	holdingBalances, err := h.usecase.GetBalancesByRuneId(ctx.UserContext(), runeId, blockHeight, req.Limit, req.Offset)
 	if err != nil {
+		if errors.Is(err, errs.NotFound) {
+			return errs.NewPublicError("balances not found")
+		}
 		return errors.Wrap(err, "error during GetBalancesByRuneId")
 	}
 
@@ -103,6 +126,14 @@ func (h *HttpHandler) GetHolders(ctx *fiber.Ctx) (err error) {
 			Percent:  percent.InexactFloat64(),
 		})
 	}
+
+	// sort by amount descending, then pk script ascending
+	slices.SortFunc(holdingBalances, func(b1, b2 *entity.Balance) int {
+		if b1.Amount.Cmp(b2.Amount) == 0 {
+			return bytes.Compare(b1.PkScript, b2.PkScript)
+		}
+		return b2.Amount.Cmp(b1.Amount)
+	})
 
 	resp := getHoldersResponse{
 		Result: &getHoldersResult{

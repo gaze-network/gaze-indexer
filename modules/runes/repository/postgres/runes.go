@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"math"
 
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/wire"
@@ -62,7 +63,18 @@ func (r *Repository) GetIndexedBlockByHeight(ctx context.Context, height int64) 
 	return indexedBlock, nil
 }
 
-func (r *Repository) GetRuneTransactions(ctx context.Context, pkScript []byte, runeId runes.RuneId, fromBlock, toBlock uint64) ([]*entity.RuneTransaction, error) {
+const maxRuneTransactionsLimit = 10000 // temporary limit to prevent large queries from overwhelming the database
+
+func (r *Repository) GetRuneTransactions(ctx context.Context, pkScript []byte, runeId runes.RuneId, fromBlock, toBlock uint64, limit int32, offset int32) ([]*entity.RuneTransaction, error) {
+	if limit == -1 {
+		limit = maxRuneTransactionsLimit
+	}
+	if limit < 0 {
+		return nil, errors.Wrap(errs.InvalidArgument, "limit must be -1 or non-negative")
+	}
+	if limit > maxRuneTransactionsLimit {
+		return nil, errors.Wrapf(errs.InvalidArgument, "limit cannot exceed %d", maxRuneTransactionsLimit)
+	}
 	pkScriptParam := []byte(fmt.Sprintf(`[{"pkScript":"%s"}]`, hex.EncodeToString(pkScript)))
 	runeIdParam := []byte(fmt.Sprintf(`[{"runeId":"%s"}]`, runeId.String()))
 	rows, err := r.queries.GetRuneTransactions(ctx, gen.GetRuneTransactionsParams{
@@ -77,6 +89,9 @@ func (r *Repository) GetRuneTransactions(ctx context.Context, pkScript []byte, r
 
 		FromBlock: int32(fromBlock),
 		ToBlock:   int32(toBlock),
+
+		Limit:  limit,
+		Offset: offset,
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "error during query")
@@ -125,22 +140,59 @@ func (r *Repository) GetRunesBalancesAtOutPoint(ctx context.Context, outPoint wi
 	return result, nil
 }
 
-func (r *Repository) GetUnspentOutPointBalancesByPkScript(ctx context.Context, pkScript []byte, blockHeight uint64) ([]*entity.OutPointBalance, error) {
-	balances, err := r.queries.GetUnspentOutPointBalancesByPkScript(ctx, gen.GetUnspentOutPointBalancesByPkScriptParams{
+func (r *Repository) GetRunesUTXOsByPkScript(ctx context.Context, pkScript []byte, blockHeight uint64, limit int32, offset int32) ([]*entity.RunesUTXO, error) {
+	if limit == -1 {
+		limit = math.MaxInt32
+	}
+	if limit < 0 {
+		return nil, errors.Wrap(errs.InvalidArgument, "limit must be -1 or non-negative")
+	}
+	rows, err := r.queries.GetRunesUTXOsByPkScript(ctx, gen.GetRunesUTXOsByPkScriptParams{
 		Pkscript:    hex.EncodeToString(pkScript),
 		BlockHeight: int32(blockHeight),
+		Limit:       limit,
+		Offset:      offset,
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "error during query")
 	}
 
-	result := make([]*entity.OutPointBalance, 0, len(balances))
-	for _, balanceModel := range balances {
-		balance, err := mapOutPointBalanceModelToType(balanceModel)
+	result := make([]*entity.RunesUTXO, 0, len(rows))
+	for _, row := range rows {
+		utxo, err := mapRunesUTXOModelToType(row)
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to parse balance model")
+			return nil, errors.Wrap(err, "failed to parse row model")
 		}
-		result = append(result, &balance)
+		result = append(result, &utxo)
+	}
+	return result, nil
+}
+
+func (r *Repository) GetRunesUTXOsByRuneIdAndPkScript(ctx context.Context, runeId runes.RuneId, pkScript []byte, blockHeight uint64, limit int32, offset int32) ([]*entity.RunesUTXO, error) {
+	if limit == -1 {
+		limit = math.MaxInt32
+	}
+	if limit < 0 {
+		return nil, errors.Wrap(errs.InvalidArgument, "limit must be -1 or non-negative")
+	}
+	rows, err := r.queries.GetRunesUTXOsByRuneIdAndPkScript(ctx, gen.GetRunesUTXOsByRuneIdAndPkScriptParams{
+		Pkscript:    hex.EncodeToString(pkScript),
+		BlockHeight: int32(blockHeight),
+		RuneIds:     []string{runeId.String()},
+		Limit:       limit,
+		Offset:      offset,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "error during query")
+	}
+
+	result := make([]*entity.RunesUTXO, 0, len(rows))
+	for _, row := range rows {
+		utxo, err := mapRunesUTXOModelToType(gen.GetRunesUTXOsByPkScriptRow(row))
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to parse row")
+		}
+		result = append(result, &utxo)
 	}
 	return result, nil
 }
@@ -245,30 +297,46 @@ func (r *Repository) CountRuneEntries(ctx context.Context) (uint64, error) {
 	return uint64(count), nil
 }
 
-func (r *Repository) GetBalancesByPkScript(ctx context.Context, pkScript []byte, blockHeight uint64) (map[runes.RuneId]*entity.Balance, error) {
+func (r *Repository) GetBalancesByPkScript(ctx context.Context, pkScript []byte, blockHeight uint64, limit int32, offset int32) ([]*entity.Balance, error) {
+	if limit == -1 {
+		limit = math.MaxInt32
+	}
+	if limit < 0 {
+		return nil, errors.Wrap(errs.InvalidArgument, "limit must be -1 or non-negative")
+	}
 	balances, err := r.queries.GetBalancesByPkScript(ctx, gen.GetBalancesByPkScriptParams{
 		Pkscript:    hex.EncodeToString(pkScript),
 		BlockHeight: int32(blockHeight),
+		Limit:       limit,
+		Offset:      offset,
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "error during query")
 	}
 
-	result := make(map[runes.RuneId]*entity.Balance, len(balances))
+	result := make([]*entity.Balance, 0, len(balances))
 	for _, balanceModel := range balances {
 		balance, err := mapBalanceModelToType(gen.RunesBalance(balanceModel))
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to parse balance model")
 		}
-		result[balance.RuneId] = balance
+		result = append(result, balance)
 	}
 	return result, nil
 }
 
-func (r *Repository) GetBalancesByRuneId(ctx context.Context, runeId runes.RuneId, blockHeight uint64) ([]*entity.Balance, error) {
+func (r *Repository) GetBalancesByRuneId(ctx context.Context, runeId runes.RuneId, blockHeight uint64, limit int32, offset int32) ([]*entity.Balance, error) {
+	if limit == -1 {
+		limit = math.MaxInt32
+	}
+	if limit < 0 {
+		return nil, errors.Wrap(errs.InvalidArgument, "limit must be -1 or non-negative")
+	}
 	balances, err := r.queries.GetBalancesByRuneId(ctx, gen.GetBalancesByRuneIdParams{
 		RuneID:      runeId.String(),
 		BlockHeight: int32(blockHeight),
+		Limit:       limit,
+		Offset:      offset,
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "error during query")

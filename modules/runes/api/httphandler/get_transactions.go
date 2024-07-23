@@ -1,6 +1,7 @@
 package httphandler
 
 import (
+	"cmp"
 	"encoding/hex"
 	"fmt"
 	"slices"
@@ -15,12 +16,18 @@ import (
 )
 
 type getTransactionsRequest struct {
-	Wallet string `query:"wallet"`
-	Id     string `query:"id"`
-
-	FromBlock int64 `query:"fromBlock"`
-	ToBlock   int64 `query:"toBlock"`
+	Wallet    string `query:"wallet"`
+	Id        string `query:"id"`
+	FromBlock int64  `query:"fromBlock"`
+	ToBlock   int64  `query:"toBlock"`
+	Limit     int32  `query:"limit"`
+	Offset    int32  `query:"offset"`
 }
+
+const (
+	getTransactionsMaxLimit     = 3000
+	getTransactionsDefaultLimit = 100
+)
 
 func (r getTransactionsRequest) Validate() error {
 	var errList []error
@@ -32,6 +39,12 @@ func (r getTransactionsRequest) Validate() error {
 	}
 	if r.ToBlock < -1 {
 		errList = append(errList, errors.Errorf("invalid toBlock range"))
+	}
+	if r.Limit < 0 {
+		errList = append(errList, errors.New("'limit' must be non-negative"))
+	}
+	if r.Limit > getTransactionsMaxLimit {
+		errList = append(errList, errors.Errorf("'limit' cannot exceed %d", getTransactionsMaxLimit))
 	}
 	return errs.WithPublicMessage(errors.Join(errList...), "validation error")
 }
@@ -133,6 +146,9 @@ func (h *HttpHandler) GetTransactions(ctx *fiber.Ctx) (err error) {
 			return errs.NewPublicError("unable to resolve rune id from \"id\"")
 		}
 	}
+	if req.Limit == 0 {
+		req.Limit = getTransactionsDefaultLimit
+	}
 
 	// default to latest block
 	if req.ToBlock == 0 {
@@ -143,6 +159,9 @@ func (h *HttpHandler) GetTransactions(ctx *fiber.Ctx) (err error) {
 	if req.FromBlock == -1 || req.ToBlock == -1 {
 		blockHeader, err := h.usecase.GetLatestBlock(ctx.UserContext())
 		if err != nil {
+			if errors.Is(err, errs.NotFound) {
+				return errs.NewPublicError("latest block not found")
+			}
 			return errors.Wrap(err, "error during GetLatestBlock")
 		}
 		if req.FromBlock == -1 {
@@ -158,8 +177,11 @@ func (h *HttpHandler) GetTransactions(ctx *fiber.Ctx) (err error) {
 		return errs.NewPublicError(fmt.Sprintf("fromBlock must be less than or equal to toBlock, got fromBlock=%d, toBlock=%d", req.FromBlock, req.ToBlock))
 	}
 
-	txs, err := h.usecase.GetRuneTransactions(ctx.UserContext(), pkScript, runeId, uint64(req.FromBlock), uint64(req.ToBlock))
+	txs, err := h.usecase.GetRuneTransactions(ctx.UserContext(), pkScript, runeId, uint64(req.FromBlock), uint64(req.ToBlock), req.Limit, req.Offset)
 	if err != nil {
+		if errors.Is(err, errs.NotFound) {
+			return errs.NewPublicError("transactions not found")
+		}
 		return errors.Wrap(err, "error during GetRuneTransactions")
 	}
 
@@ -181,6 +203,9 @@ func (h *HttpHandler) GetTransactions(ctx *fiber.Ctx) (err error) {
 	allRuneIds = lo.Uniq(allRuneIds)
 	runeEntries, err := h.usecase.GetRuneEntryByRuneIdBatch(ctx.UserContext(), allRuneIds)
 	if err != nil {
+		if errors.Is(err, errs.NotFound) {
+			return errs.NewPublicError("rune entries not found")
+		}
 		return errors.Wrap(err, "error during GetRuneEntryByRuneIdBatch")
 	}
 
@@ -279,12 +304,12 @@ func (h *HttpHandler) GetTransactions(ctx *fiber.Ctx) (err error) {
 		}
 		txList = append(txList, respTx)
 	}
-	// sort by block height ASC, then index ASC
+	// sort by block height DESC, then index DESC
 	slices.SortFunc(txList, func(t1, t2 transaction) int {
 		if t1.BlockHeight != t2.BlockHeight {
-			return int(t1.BlockHeight - t2.BlockHeight)
+			return cmp.Compare(t2.BlockHeight, t1.BlockHeight)
 		}
-		return int(t1.Index - t2.Index)
+		return cmp.Compare(t2.Index, t1.Index)
 	})
 
 	resp := getTransactionsResponse{

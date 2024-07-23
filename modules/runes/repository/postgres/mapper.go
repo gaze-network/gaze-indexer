@@ -638,6 +638,72 @@ func mapIndexedBlockTypeToParams(src entity.IndexedBlock) (gen.CreateIndexedBloc
 	}, nil
 }
 
+func mapRunesUTXOModelToType(src gen.GetRunesUTXOsByPkScriptRow) (entity.RunesUTXO, error) {
+	pkScriptRaw, ok := src.Pkscript.(string)
+	if !ok {
+		return entity.RunesUTXO{}, errors.New("pkscript from database is not string")
+	}
+	pkScript, err := hex.DecodeString(pkScriptRaw)
+	if err != nil {
+		return entity.RunesUTXO{}, errors.Wrap(err, "failed to parse pkscript")
+	}
+	txHash, err := chainhash.NewHashFromStr(src.TxHash)
+	if err != nil {
+		return entity.RunesUTXO{}, errors.Wrap(err, "failed to parse tx hash")
+	}
+	runeIdsRaw, ok := src.RuneIds.([]interface{})
+	if !ok {
+		return entity.RunesUTXO{}, errors.New("src.RuneIds is not a slice")
+	}
+	runeIds := make([]string, 0, len(runeIdsRaw))
+	for i, raw := range runeIdsRaw {
+		runeId, ok := raw.(string)
+		if !ok {
+			return entity.RunesUTXO{}, errors.Errorf("src.RuneIds[%d] is not a string", i)
+		}
+		runeIds = append(runeIds, runeId)
+	}
+	amountsRaw, ok := src.Amounts.([]interface{})
+	if !ok {
+		return entity.RunesUTXO{}, errors.New("amounts from database is not a slice")
+	}
+	amounts := make([]pgtype.Numeric, 0, len(amountsRaw))
+	for i, raw := range amountsRaw {
+		amount, ok := raw.(pgtype.Numeric)
+		if !ok {
+			return entity.RunesUTXO{}, errors.Errorf("src.Amounts[%d] is not pgtype.Numeric", i)
+		}
+		amounts = append(amounts, amount)
+	}
+	if len(runeIds) != len(amounts) {
+		return entity.RunesUTXO{}, errors.New("rune ids and amounts have different lengths")
+	}
+
+	runesBalances := make([]entity.RunesUTXOBalance, 0, len(runeIds))
+	for i := range runeIds {
+		runeId, err := runes.NewRuneIdFromString(runeIds[i])
+		if err != nil {
+			return entity.RunesUTXO{}, errors.Wrap(err, "failed to parse rune id")
+		}
+		amount, err := uint128FromNumeric(amounts[i])
+		if err != nil {
+			return entity.RunesUTXO{}, errors.Wrap(err, "failed to parse amount")
+		}
+		runesBalances = append(runesBalances, entity.RunesUTXOBalance{
+			RuneId: runeId,
+			Amount: lo.FromPtr(amount),
+		})
+	}
+	return entity.RunesUTXO{
+		PkScript: pkScript,
+		OutPoint: wire.OutPoint{
+			Hash:  *txHash,
+			Index: uint32(src.TxIdx),
+		},
+		RuneBalances: runesBalances,
+	}, nil
+}
+
 func mapOutPointBalanceModelToType(src gen.RunesOutpointBalance) (entity.OutPointBalance, error) {
 	runeId, err := runes.NewRuneIdFromString(src.RuneID)
 	if err != nil {

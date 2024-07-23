@@ -2,13 +2,13 @@
 WITH balances AS (
   SELECT DISTINCT ON (rune_id) * FROM runes_balances WHERE pkscript = $1 AND block_height <= $2 ORDER BY rune_id, block_height DESC
 )
-SELECT * FROM balances WHERE amount > 0;
+SELECT * FROM balances WHERE amount > 0 ORDER BY amount DESC, rune_id LIMIT $3 OFFSET $4;
 
 -- name: GetBalancesByRuneId :many
 WITH balances AS (
   SELECT DISTINCT ON (pkscript) * FROM runes_balances WHERE rune_id = $1 AND block_height <= $2 ORDER BY pkscript, block_height DESC
 )
-SELECT * FROM balances WHERE amount > 0;
+SELECT * FROM balances WHERE amount > 0 ORDER BY amount DESC, pkscript LIMIT $3 OFFSET $4;
 
 -- name: GetBalanceByPkScriptAndRuneId :one
 SELECT * FROM runes_balances WHERE pkscript = $1 AND rune_id = $2 AND block_height <= $3 ORDER BY block_height DESC LIMIT 1;
@@ -16,8 +16,28 @@ SELECT * FROM runes_balances WHERE pkscript = $1 AND rune_id = $2 AND block_heig
 -- name: GetOutPointBalancesAtOutPoint :many
 SELECT * FROM runes_outpoint_balances WHERE tx_hash = $1 AND tx_idx = $2;
 
--- name: GetUnspentOutPointBalancesByPkScript :many
-SELECT * FROM runes_outpoint_balances WHERE pkscript = @pkScript AND block_height <= @block_height AND (spent_height IS NULL OR spent_height > @block_height);
+-- name: GetRunesUTXOsByPkScript :many
+SELECT tx_hash, tx_idx, max("pkscript") as pkscript, array_agg("rune_id") as rune_ids, array_agg("amount") as amounts 
+  FROM runes_outpoint_balances 
+  WHERE
+    pkscript = @pkScript AND
+    block_height <= @block_height AND
+    (spent_height IS NULL OR spent_height > @block_height)
+  GROUP BY tx_hash, tx_idx
+  ORDER BY tx_hash, tx_idx 
+  LIMIT $1 OFFSET $2;
+
+-- name: GetRunesUTXOsByRuneIdAndPkScript :many
+SELECT tx_hash, tx_idx, max("pkscript") as pkscript, array_agg("rune_id") as rune_ids, array_agg("amount") as amounts 
+  FROM runes_outpoint_balances 
+  WHERE
+    pkscript = @pkScript AND 
+    block_height <= @block_height AND 
+    (spent_height IS NULL OR spent_height > @block_height)
+  GROUP BY tx_hash, tx_idx
+  HAVING array_agg("rune_id") @> @rune_ids::text[] 
+  ORDER BY tx_hash, tx_idx 
+  LIMIT $1 OFFSET $2;
 
 -- name: GetRuneEntriesByRuneIds :many
 WITH states AS (
@@ -57,7 +77,7 @@ SELECT * FROM runes_transactions
   ) AND (
     @from_block <= runes_transactions.block_height AND runes_transactions.block_height <= @to_block
   )
-ORDER BY runes_transactions.block_height DESC LIMIT 10000;
+ORDER BY runes_transactions.block_height DESC, runes_transactions.index DESC LIMIT $1 OFFSET $2;
 
 -- name: CountRuneEntries :one
 SELECT COUNT(*) FROM runes_entries;

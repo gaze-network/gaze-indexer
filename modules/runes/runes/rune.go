@@ -29,6 +29,10 @@ var ErrInvalidBase26 = errors.New("invalid base-26 character: must be in the ran
 func NewRuneFromString(value string) (Rune, error) {
 	n := uint128.From64(0)
 	for i, char := range value {
+		// skip spacers
+		if char == '.' || char == '•' {
+			continue
+		}
 		if i > 0 {
 			n = n.Add(uint128.From64(1))
 		}
