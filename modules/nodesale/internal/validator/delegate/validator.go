@@ -16,8 +16,9 @@ type DelegateValidator struct {
 }
 
 func New() *DelegateValidator {
+	v := validator.New()
 	return &DelegateValidator{
-		Validator: validator.Validator{Valid: true},
+		Validator: *v,
 	}
 }
 

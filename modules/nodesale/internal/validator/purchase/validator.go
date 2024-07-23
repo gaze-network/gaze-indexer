@@ -28,8 +28,9 @@ type PurchaseValidator struct {
 }
 
 func New() *PurchaseValidator {
+	v := validator.New()
 	return &PurchaseValidator{
-		Validator: validator.Validator{Valid: true},
+		Validator: *v,
 	}
 }
 
@@ -49,10 +50,9 @@ func (v *PurchaseValidator) NodeSaleExists(ctx context.Context, qtx datagateway.
 	if len(deploys) < 1 {
 		v.Valid = false
 		return v.Valid, nil, nil
-	} else {
-		v.Valid = true
-		return v.Valid, &deploys[0], nil
 	}
+	v.Valid = true
+	return v.Valid, &deploys[0], nil
 }
 
 func (v *PurchaseValidator) ValidTimestamp(deploy *entity.NodeSale, timestamp time.Time) bool {
