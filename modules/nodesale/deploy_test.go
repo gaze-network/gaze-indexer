@@ -3,6 +3,7 @@ package nodesale
 import (
 	"encoding/hex"
 	"testing"
+	"time"
 
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/gaze-network/indexer-network/modules/nodesale/datagateway"
@@ -62,12 +63,14 @@ func TestDeployValid(t *testing.T) {
 	privateKey, _ := btcec.NewPrivateKey()
 	pubkeyHex := hex.EncodeToString(privateKey.PubKey().SerializeCompressed())
 	sellerWallet := p.pubkeyToPkHashAddress(privateKey.PubKey())
+	startAt := time.Now().Add(time.Hour * -1)
+	endAt := time.Now().Add(time.Hour * 1)
 	message := &protobuf.NodeSaleEvent{
 		Action: protobuf.Action_ACTION_DEPLOY,
 		Deploy: &protobuf.ActionDeploy{
 			Name:     t.Name(),
-			StartsAt: 100,
-			EndsAt:   200,
+			StartsAt: uint32(startAt.UTC().Unix()),
+			EndsAt:   uint32(endAt.UTC().Unix()),
 			Tiers: []*protobuf.Tier{
 				{
 					PriceSat:      100,

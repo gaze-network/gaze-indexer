@@ -54,3 +54,4 @@ modules:
       user: "postgres"
       password: "P@ssw0rd"
       db_name: "postgres"
+    last_block_default: 400

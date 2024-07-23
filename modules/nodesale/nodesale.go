@@ -19,8 +19,7 @@ import (
 var NODESALE_MAGIC = []byte{0x6e, 0x73, 0x6f, 0x70}
 
 const (
-	NODESALE_LASTBLOCK_DEFAULT = 846851
-	Version                    = "v0.0.1-alpha"
+	Version = "v0.0.1-alpha"
 )
 
 func New(injector do.Injector) (indexer.IndexerWorker, error) {
@@ -42,10 +41,11 @@ func New(injector do.Injector) (indexer.IndexerWorker, error) {
 	repository := repository.NewRepository(pg)
 
 	processor := &Processor{
-		datagateway:  repository,
-		btcClient:    datasource,
-		network:      conf.Network,
-		cleanupFuncs: cleanupFuncs,
+		datagateway:      repository,
+		btcClient:        datasource,
+		network:          conf.Network,
+		cleanupFuncs:     cleanupFuncs,
+		lastBlockDefault: conf.Modules.Nodesale.LastBlockDefault,
 	}
 
 	httpServer := do.MustInvoke[*fiber.App](injector)

@@ -23,10 +23,11 @@ import (
 )
 
 type Processor struct {
-	datagateway  datagateway.NodesaleDataGateway
-	btcClient    *datasources.BitcoinNodeDatasource
-	network      common.Network
-	cleanupFuncs []func(context.Context) error
+	datagateway      datagateway.NodesaleDataGateway
+	btcClient        *datasources.BitcoinNodeDatasource
+	network          common.Network
+	cleanupFuncs     []func(context.Context) error
+	lastBlockDefault int64
 }
 
 // CurrentBlock implements indexer.Processor.
@@ -34,14 +35,14 @@ func (p *Processor) CurrentBlock(ctx context.Context) (types.BlockHeader, error)
 	block, err := p.datagateway.GetLastProcessedBlock(ctx)
 	if err != nil {
 		logger.InfoContext(ctx, "Couldn't get last processed block. Start from NODESALE_LAST_BLOCK_DEFAULT.",
-			slogx.Int("currentBlock", NODESALE_LASTBLOCK_DEFAULT))
-		header, err := p.btcClient.GetBlockHeader(ctx, NODESALE_LASTBLOCK_DEFAULT)
+			slogx.Int64("currentBlock", p.lastBlockDefault))
+		header, err := p.btcClient.GetBlockHeader(ctx, p.lastBlockDefault)
 		if err != nil {
 			return types.BlockHeader{}, errors.Wrap(err, "Cannot get default block from bitcoin node")
 		}
 		return types.BlockHeader{
 			Hash:   header.Hash,
-			Height: NODESALE_LASTBLOCK_DEFAULT,
+			Height: p.lastBlockDefault,
 		}, nil
 	}
 
