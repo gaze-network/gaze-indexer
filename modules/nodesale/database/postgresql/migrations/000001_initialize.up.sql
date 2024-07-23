@@ -15,10 +15,10 @@ CREATE TABLE IF NOT EXISTS events (
     "valid" BOOLEAN NOT NULL,
     "action" INTEGER NOT NULL,
     "raw_message" BYTEA NOT NULL,
-    "parsed_message" JSONB NOT NULL,
+    "parsed_message" JSONB NOT NULL DEFAULT '{}',
     "block_timestamp" TIMESTAMP NOT NULL,
     "block_hash" TEXT NOT NULL,
-    "metadata" JSONB NOT NULL
+    "metadata" JSONB NOT NULL DEFAULT '{}'
 );
 
 INSERT INTO events("tx_hash", "block_height", "tx_index",
