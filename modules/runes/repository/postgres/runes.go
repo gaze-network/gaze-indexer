@@ -120,7 +120,7 @@ func (r *Repository) GetRuneTransactions(ctx context.Context, pkScript []byte, r
 	return runeTxs, nil
 }
 
-func (r *Repository) GetRuneTransaction(ctx context.Context, txHash *chainhash.Hash) (*entity.RuneTransaction, error) {
+func (r *Repository) GetRuneTransaction(ctx context.Context, txHash chainhash.Hash) (*entity.RuneTransaction, error) {
 	row, err := r.queries.GetRuneTransaction(ctx, txHash.String())
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, errors.WithStack(errs.NotFound)

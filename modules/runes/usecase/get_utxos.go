@@ -26,7 +26,7 @@ func (u *Usecase) GetRunesUTXOsByRuneIdAndPkScript(ctx context.Context, runeId r
 	return balances, nil
 }
 
-func (u *Usecase) GetUTXOsOutputByLocation(ctx context.Context, txHash *chainhash.Hash, outputIdx uint32) (*entity.RunesUTXO, error) {
+func (u *Usecase) GetUTXOsOutputByLocation(ctx context.Context, txHash chainhash.Hash, outputIdx uint32) (*entity.RunesUTXO, error) {
 	transaction, err := u.runesDg.GetRuneTransaction(ctx, txHash)
 	if err != nil {
 		return nil, errors.Wrap(err, "error during GetUTXOsByTxHash")
