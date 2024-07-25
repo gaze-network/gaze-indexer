@@ -285,3 +285,12 @@ func (d *BitcoinNodeDatasource) GetBlockHeader(ctx context.Context, height int64
 
 	return types.ParseMsgBlockHeader(*block, height), nil
 }
+
+func (d *BitcoinNodeDatasource) GetRawTransactionByTxHash(ctx context.Context, txHash chainhash.Hash) (*wire.MsgTx, error) {
+	transaction, err := d.btcclient.GetRawTransaction(&txHash)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get raw transaction")
+	}
+
+	return transaction.MsgTx(), nil
+}
