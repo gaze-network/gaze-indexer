@@ -11,12 +11,12 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const addNodesale = `-- name: AddNodesale :exec
+const createNodeSale = `-- name: CreateNodeSale :exec
 INSERT INTO node_sales ("block_height", "tx_index", "name", "starts_at", "ends_at", "tiers", "seller_public_key", "max_per_address", "deploy_tx_hash", "max_discount_percentage", "seller_wallet")
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 `
 
-type AddNodesaleParams struct {
+type CreateNodeSaleParams struct {
 	BlockHeight           int64
 	TxIndex               int32
 	Name                  string
@@ -30,8 +30,8 @@ type AddNodesaleParams struct {
 	SellerWallet          string
 }
 
-func (q *Queries) AddNodesale(ctx context.Context, arg AddNodesaleParams) error {
-	_, err := q.db.Exec(ctx, addNodesale,
+func (q *Queries) CreateNodeSale(ctx context.Context, arg CreateNodeSaleParams) error {
+	_, err := q.db.Exec(ctx, createNodeSale,
 		arg.BlockHeight,
 		arg.TxIndex,
 		arg.Name,
@@ -47,20 +47,20 @@ func (q *Queries) AddNodesale(ctx context.Context, arg AddNodesaleParams) error 
 	return err
 }
 
-const getNodesale = `-- name: GetNodesale :many
+const getNodeSale = `-- name: GetNodeSale :many
 SELECT block_height, tx_index, name, starts_at, ends_at, tiers, seller_public_key, max_per_address, deploy_tx_hash, max_discount_percentage, seller_wallet
 FROM node_sales
 WHERE block_height = $1 AND
     tx_index = $2
 `
 
-type GetNodesaleParams struct {
+type GetNodeSaleParams struct {
 	BlockHeight int64
 	TxIndex     int32
 }
 
-func (q *Queries) GetNodesale(ctx context.Context, arg GetNodesaleParams) ([]NodeSale, error) {
-	rows, err := q.db.Query(ctx, getNodesale, arg.BlockHeight, arg.TxIndex)
+func (q *Queries) GetNodeSale(ctx context.Context, arg GetNodeSaleParams) ([]NodeSale, error) {
+	rows, err := q.db.Query(ctx, getNodeSale, arg.BlockHeight, arg.TxIndex)
 	if err != nil {
 		return nil, err
 	}

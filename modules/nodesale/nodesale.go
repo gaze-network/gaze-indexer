@@ -29,7 +29,7 @@ func New(injector do.Injector) (indexer.IndexerWorker, error) {
 	btcClient := do.MustInvoke[*rpcclient.Client](injector)
 	datasource := datasources.NewBitcoinNode(btcClient)
 
-	pg, err := postgres.NewPool(ctx, conf.Modules.Nodesale.Postgres)
+	pg, err := postgres.NewPool(ctx, conf.Modules.NodeSale.Postgres)
 	if err != nil {
 		return nil, fmt.Errorf("Can't create postgres connection : %w", err)
 	}
@@ -41,21 +41,21 @@ func New(injector do.Injector) (indexer.IndexerWorker, error) {
 	repository := repository.NewRepository(pg)
 
 	processor := &Processor{
-		datagateway:      repository,
+		nodeSaleDg:       repository,
 		btcClient:        datasource,
 		network:          conf.Network,
 		cleanupFuncs:     cleanupFuncs,
-		lastBlockDefault: conf.Modules.Nodesale.LastBlockDefault,
+		lastBlockDefault: conf.Modules.NodeSale.LastBlockDefault,
 	}
 
 	httpServer := do.MustInvoke[*fiber.App](injector)
-	nodesaleHandler := httphandler.New(repository)
-	if err := nodesaleHandler.Mount(httpServer); err != nil {
+	nodeSaleHandler := httphandler.New(repository)
+	if err := nodeSaleHandler.Mount(httpServer); err != nil {
 		return nil, fmt.Errorf("Can't mount nodesale API : %w", err)
 	}
 	logger.InfoContext(ctx, "Mounted nodesale HTTP handler")
 
 	indexer := indexer.New(processor, datasource)
-	logger.InfoContext(ctx, "Nodesale module started.")
+	logger.InfoContext(ctx, "NodeSale module started.")
 	return indexer, nil
 }

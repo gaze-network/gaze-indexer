@@ -24,7 +24,7 @@ func New() *DelegateValidator {
 
 func (v *DelegateValidator) NodesExist(
 	ctx context.Context,
-	qtx datagateway.NodesaleDataGatewayWithTx,
+	qtx datagateway.NodeSaleDataGatewayWithTx,
 	deployId *protobuf.ActionID,
 	nodeIds []uint32,
 ) (bool, []entity.Node, error) {
@@ -32,7 +32,7 @@ func (v *DelegateValidator) NodesExist(
 		return false, nil, nil
 	}
 
-	nodes, err := qtx.GetNodes(ctx, datagateway.GetNodesParams{
+	nodes, err := qtx.GetNodesByIds(ctx, datagateway.GetNodesByIdsParams{
 		SaleBlock:   int64(deployId.Block),
 		SaleTxIndex: int32(deployId.TxIndex),
 		NodeIds:     lo.Map(nodeIds, func(item uint32, index int) int32 { return int32(item) }),

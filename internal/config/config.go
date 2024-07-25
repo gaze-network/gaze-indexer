@@ -63,7 +63,7 @@ type BitcoinNodeClient struct {
 
 type Modules struct {
 	Runes    runesconfig.Config    `mapstructure:"runes"`
-	Nodesale nodesaleconfig.Config `mapstructure:"nodesale"`
+	NodeSale nodesaleconfig.Config `mapstructure:"nodesale"`
 }
 
 type HTTPServerConfig struct {

@@ -11,13 +11,13 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const addEvent = `-- name: AddEvent :exec
+const createEvent = `-- name: CreateEvent :exec
 INSERT INTO events ("tx_hash", "block_height", "tx_index", "wallet_address", "valid", "action", 
                     "raw_message", "parsed_message", "block_timestamp", "block_hash", "metadata")
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 `
 
-type AddEventParams struct {
+type CreateEventParams struct {
 	TxHash         string
 	BlockHeight    int64
 	TxIndex        int32
@@ -31,8 +31,8 @@ type AddEventParams struct {
 	Metadata       []byte
 }
 
-func (q *Queries) AddEvent(ctx context.Context, arg AddEventParams) error {
-	_, err := q.db.Exec(ctx, addEvent,
+func (q *Queries) CreateEvent(ctx context.Context, arg CreateEventParams) error {
+	_, err := q.db.Exec(ctx, createEvent,
 		arg.TxHash,
 		arg.BlockHeight,
 		arg.TxIndex,

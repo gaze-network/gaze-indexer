@@ -26,7 +26,7 @@ func (r *Repository) begin(ctx context.Context) (*Repository, error) {
 	}, nil
 }
 
-func (r *Repository) BeginNodesaleTx(ctx context.Context) (datagateway.NodesaleDataGatewayWithTx, error) {
+func (r *Repository) BeginNodeSaleTx(ctx context.Context) (datagateway.NodeSaleDataGatewayWithTx, error) {
 	repo, err := r.begin(ctx)
 	if err != nil {
 		return nil, errors.WithStack(err)

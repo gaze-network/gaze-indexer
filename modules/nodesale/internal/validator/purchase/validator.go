@@ -34,18 +34,18 @@ func New() *PurchaseValidator {
 	}
 }
 
-func (v *PurchaseValidator) NodeSaleExists(ctx context.Context, qtx datagateway.NodesaleDataGatewayWithTx, payload *protobuf.PurchasePayload) (bool, *entity.NodeSale, error) {
+func (v *PurchaseValidator) NodeSaleExists(ctx context.Context, qtx datagateway.NodeSaleDataGatewayWithTx, payload *protobuf.PurchasePayload) (bool, *entity.NodeSale, error) {
 	if !v.Valid {
 		return false, nil, nil
 	}
 	// check node existed
-	deploys, err := qtx.GetNodesale(ctx, datagateway.GetNodesaleParams{
+	deploys, err := qtx.GetNodeSale(ctx, datagateway.GetNodeSaleParams{
 		BlockHeight: int64(payload.DeployID.Block),
 		TxIndex:     int32(payload.DeployID.TxIndex),
 	})
 	if err != nil {
 		v.Valid = false
-		return v.Valid, nil, errors.Wrap(err, "Failed to Get nodesale")
+		return v.Valid, nil, errors.Wrap(err, "Failed to Get NodeSale")
 	}
 	if len(deploys) < 1 {
 		v.Valid = false
@@ -68,11 +68,11 @@ func (v *PurchaseValidator) ValidTimestamp(deploy *entity.NodeSale, timestamp ti
 	return v.Valid
 }
 
-func (v *PurchaseValidator) WithinTimeoutBlock(payload *protobuf.PurchasePayload, blockHeight uint64) bool {
+func (v *PurchaseValidator) WithinTimeoutBlock(timeOutBlock uint64, blockHeight uint64) bool {
 	if !v.Valid {
 		return false
 	}
-	if payload.TimeOutBlock < blockHeight {
+	if timeOutBlock < blockHeight {
 		v.Valid = false
 		return v.Valid
 	}
@@ -104,12 +104,18 @@ func (v *PurchaseValidator) VerifySignature(purchase *protobuf.ActionPurchase, d
 	return v.Valid, nil
 }
 
+type TierMap struct {
+	Tiers            []protobuf.Tier
+	BuyingTiersCount []uint32
+	NodeIdToTier     map[uint32]int32
+}
+
 func (v *PurchaseValidator) ValidTiers(
 	payload *protobuf.PurchasePayload,
 	deploy *entity.NodeSale,
-) (bool, []protobuf.Tier, []uint32, map[uint32]int32, error) {
+) (bool, *TierMap, error) {
 	if !v.Valid {
-		return false, nil, nil, nil, nil
+		return false, nil, nil
 	}
 	tiers := make([]protobuf.Tier, len(deploy.Tiers))
 	buyingTiersCount := make([]uint32, len(tiers))
@@ -120,7 +126,7 @@ func (v *PurchaseValidator) ValidTiers(
 		err := protojson.Unmarshal(tierJson, tier)
 		if err != nil {
 			v.Valid = false
-			return v.Valid, nil, nil, nil, errors.Wrap(err, "Failed to decode tiers json")
+			return v.Valid, nil, errors.Wrap(err, "Failed to decode tiers json")
 		}
 	}
 
@@ -138,16 +144,20 @@ func (v *PurchaseValidator) ValidTiers(
 			nodeIdToTier[nodeId] = currentTier
 		} else {
 			v.Valid = false
-			return false, nil, nil, nil, nil
+			return false, nil, nil
 		}
 	}
 	v.Valid = true
-	return v.Valid, tiers, buyingTiersCount, nodeIdToTier, nil
+	return v.Valid, &TierMap{
+		Tiers:            tiers,
+		BuyingTiersCount: buyingTiersCount,
+		NodeIdToTier:     nodeIdToTier,
+	}, nil
 }
 
 func (v *PurchaseValidator) ValidUnpurchasedNodes(
 	ctx context.Context,
-	qtx datagateway.NodesaleDataGatewayWithTx,
+	qtx datagateway.NodeSaleDataGatewayWithTx,
 	payload *protobuf.PurchasePayload,
 ) (bool, error) {
 	if !v.Valid {
@@ -159,7 +169,7 @@ func (v *PurchaseValidator) ValidUnpurchasedNodes(
 	for i, id := range payload.NodeIDs {
 		nodeIds[i] = int32(id)
 	}
-	nodes, err := qtx.GetNodes(ctx, datagateway.GetNodesParams{
+	nodes, err := qtx.GetNodesByIds(ctx, datagateway.GetNodesByIdsParams{
 		SaleBlock:   int64(payload.DeployID.Block),
 		SaleTxIndex: int32(payload.DeployID.TxIndex),
 		NodeIds:     nodeIds,
@@ -183,7 +193,7 @@ func (v *PurchaseValidator) ValidPaidAmount(
 	tiers []protobuf.Tier,
 	buyingTiersCount []uint32,
 	network *chaincfg.Params,
-) (bool, *entity.MetaData, error) {
+) (bool, *entity.MetadataEventPurchase, error) {
 	if !v.Valid {
 		return false, nil, nil
 	}
@@ -194,7 +204,7 @@ func (v *PurchaseValidator) ValidPaidAmount(
 	}
 
 	var txPaid int64 = 0
-	meta := entity.MetaData{}
+	meta := entity.MetadataEventPurchase{}
 
 	// get total amount paid to seller
 	for _, txOut := range txOuts {
@@ -237,7 +247,7 @@ func (v *PurchaseValidator) ValidPaidAmount(
 
 func (v *PurchaseValidator) WithinLimit(
 	ctx context.Context,
-	qtx datagateway.NodesaleDataGatewayWithTx,
+	qtx datagateway.NodeSaleDataGatewayWithTx,
 	payload *protobuf.PurchasePayload,
 	deploy *entity.NodeSale,
 	tiers []protobuf.Tier,

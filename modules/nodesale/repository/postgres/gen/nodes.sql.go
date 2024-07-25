@@ -9,36 +9,6 @@ import (
 	"context"
 )
 
-const addNode = `-- name: AddNode :exec
-INSERT INTO nodes (sale_block, sale_tx_index, node_id, tier_index, delegated_to, owner_public_key, purchase_tx_hash, delegate_tx_hash)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-`
-
-type AddNodeParams struct {
-	SaleBlock      int64
-	SaleTxIndex    int32
-	NodeID         int32
-	TierIndex      int32
-	DelegatedTo    string
-	OwnerPublicKey string
-	PurchaseTxHash string
-	DelegateTxHash string
-}
-
-func (q *Queries) AddNode(ctx context.Context, arg AddNodeParams) error {
-	_, err := q.db.Exec(ctx, addNode,
-		arg.SaleBlock,
-		arg.SaleTxIndex,
-		arg.NodeID,
-		arg.TierIndex,
-		arg.DelegatedTo,
-		arg.OwnerPublicKey,
-		arg.PurchaseTxHash,
-		arg.DelegateTxHash,
-	)
-	return err
-}
-
 const clearDelegate = `-- name: ClearDelegate :execrows
 UPDATE nodes
 SET "delegated_to" = ''
@@ -51,6 +21,36 @@ func (q *Queries) ClearDelegate(ctx context.Context) (int64, error) {
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const createNode = `-- name: CreateNode :exec
+INSERT INTO nodes (sale_block, sale_tx_index, node_id, tier_index, delegated_to, owner_public_key, purchase_tx_hash, delegate_tx_hash)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+`
+
+type CreateNodeParams struct {
+	SaleBlock      int64
+	SaleTxIndex    int32
+	NodeID         int32
+	TierIndex      int32
+	DelegatedTo    string
+	OwnerPublicKey string
+	PurchaseTxHash string
+	DelegateTxHash string
+}
+
+func (q *Queries) CreateNode(ctx context.Context, arg CreateNodeParams) error {
+	_, err := q.db.Exec(ctx, createNode,
+		arg.SaleBlock,
+		arg.SaleTxIndex,
+		arg.NodeID,
+		arg.TierIndex,
+		arg.DelegatedTo,
+		arg.OwnerPublicKey,
+		arg.PurchaseTxHash,
+		arg.DelegateTxHash,
+	)
+	return err
 }
 
 const getNodeCountByTierIndex = `-- name: GetNodeCountByTierIndex :many
@@ -103,7 +103,7 @@ func (q *Queries) GetNodeCountByTierIndex(ctx context.Context, arg GetNodeCountB
 	return items, nil
 }
 
-const getNodes = `-- name: GetNodes :many
+const getNodesByIds = `-- name: GetNodesByIds :many
 SELECT sale_block, sale_tx_index, node_id, tier_index, delegated_to, owner_public_key, purchase_tx_hash, delegate_tx_hash
 FROM nodes
 WHERE sale_block = $1 AND
@@ -111,14 +111,14 @@ WHERE sale_block = $1 AND
     node_id = ANY ($3::int[])
 `
 
-type GetNodesParams struct {
+type GetNodesByIdsParams struct {
 	SaleBlock   int64
 	SaleTxIndex int32
 	NodeIds     []int32
 }
 
-func (q *Queries) GetNodes(ctx context.Context, arg GetNodesParams) ([]Node, error) {
-	rows, err := q.db.Query(ctx, getNodes, arg.SaleBlock, arg.SaleTxIndex, arg.NodeIds)
+func (q *Queries) GetNodesByIds(ctx context.Context, arg GetNodesByIdsParams) ([]Node, error) {
+	rows, err := q.db.Query(ctx, getNodesByIds, arg.SaleBlock, arg.SaleTxIndex, arg.NodeIds)
 	if err != nil {
 		return nil, err
 	}

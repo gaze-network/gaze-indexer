@@ -2,17 +2,17 @@ package nodesale
 
 import (
 	"context"
-	"encoding/json"
 
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/core/types"
 	"github.com/gaze-network/indexer-network/modules/nodesale/datagateway"
+	"github.com/gaze-network/indexer-network/modules/nodesale/internal/entity"
 	purchasevalidator "github.com/gaze-network/indexer-network/modules/nodesale/internal/validator/purchase"
 	"github.com/gaze-network/indexer-network/pkg/logger"
 	"github.com/gaze-network/indexer-network/pkg/logger/slogx"
 )
 
-func (p *Processor) processPurchase(ctx context.Context, qtx datagateway.NodesaleDataGatewayWithTx, block *types.Block, event nodesaleEvent) error {
+func (p *Processor) processPurchase(ctx context.Context, qtx datagateway.NodeSaleDataGatewayWithTx, block *types.Block, event nodeSaleEvent) error {
 	purchase := event.eventMessage.Purchase
 	payload := purchase.Payload
 
@@ -29,17 +29,20 @@ func (p *Processor) processPurchase(ctx context.Context, qtx datagateway.Nodesal
 	}
 
 	validator.ValidTimestamp(deploy, block.Header.Timestamp)
-	validator.WithinTimeoutBlock(payload, uint64(event.transaction.BlockHeight))
+	validator.WithinTimeoutBlock(payload.TimeOutBlock, uint64(event.transaction.BlockHeight))
 
 	_, err = validator.VerifySignature(purchase, deploy)
 	if err != nil {
 		logger.DebugContext(ctx, "incorrect Signature format", slogx.Error(err))
 	}
 
-	_, tiers, buyingTiersCount, nodeIdToTier, err := validator.ValidTiers(payload, deploy)
+	_, tierMap, err := validator.ValidTiers(payload, deploy)
 	if err != nil {
-		logger.DebugContext(ctx, "invalid nodesale tiers data", slogx.Error(err))
+		logger.DebugContext(ctx, "invalid NodeSale tiers data", slogx.Error(err))
 	}
+	tiers := tierMap.Tiers
+	buyingTiersCount := tierMap.BuyingTiersCount
+	nodeIdToTier := tierMap.NodeIdToTier
 
 	_, err = validator.ValidUnpurchasedNodes(ctx, qtx, payload)
 	if err != nil {
@@ -56,12 +59,7 @@ func (p *Processor) processPurchase(ctx context.Context, qtx datagateway.Nodesal
 		return errors.Wrap(err, "Cannot connect to datagateway")
 	}
 
-	metaDataBytes, _ := json.Marshal(meta)
-	if meta == nil {
-		metaDataBytes = []byte("{}")
-	}
-
-	err = qtx.AddEvent(ctx, datagateway.AddEventParams{
+	err = qtx.CreateEvent(ctx, entity.NodeSaleEvent{
 		TxHash:         event.transaction.TxHash.String(),
 		TxIndex:        int32(event.transaction.Index),
 		Action:         int32(event.eventMessage.Action),
@@ -72,7 +70,7 @@ func (p *Processor) processPurchase(ctx context.Context, qtx datagateway.Nodesal
 		BlockHeight:    event.transaction.BlockHeight,
 		Valid:          validator.Valid,
 		WalletAddress:  p.pubkeyToPkHashAddress(event.txPubkey).EncodeAddress(),
-		Metadata:       metaDataBytes,
+		Metadata:       meta,
 	})
 	if err != nil {
 		return errors.Wrap(err, "Failed to insert event")
@@ -81,7 +79,7 @@ func (p *Processor) processPurchase(ctx context.Context, qtx datagateway.Nodesal
 	if validator.Valid {
 		// add to node
 		for _, nodeId := range payload.NodeIDs {
-			err := qtx.AddNode(ctx, datagateway.AddNodeParams{
+			err := qtx.CreateNode(ctx, entity.Node{
 				SaleBlock:      deploy.BlockHeight,
 				SaleTxIndex:    deploy.TxIndex,
 				NodeID:         int32(nodeId),

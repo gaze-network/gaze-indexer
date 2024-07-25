@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/internal/postgres"
@@ -10,7 +11,6 @@ import (
 	"github.com/gaze-network/indexer-network/modules/nodesale/repository/postgres/gen"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/samber/lo"
 )
 
 type Repository struct {
@@ -26,8 +26,8 @@ func NewRepository(db postgres.DB) *Repository {
 	}
 }
 
-func (repo *Repository) AddBlock(ctx context.Context, arg entity.Block) error {
-	err := repo.queries.AddBlock(ctx, gen.AddBlockParams{
+func (repo *Repository) CreateBlock(ctx context.Context, arg entity.Block) error {
+	err := repo.queries.CreateBlock(ctx, gen.CreateBlockParams{
 		BlockHeight: arg.BlockHeight,
 		BlockHash:   arg.BlockHash,
 		Module:      arg.Module,
@@ -87,8 +87,8 @@ func (repo *Repository) ClearDelegate(ctx context.Context) (int64, error) {
 	return affected, nil
 }
 
-func (repo *Repository) GetNodes(ctx context.Context, arg datagateway.GetNodesParams) ([]entity.Node, error) {
-	nodes, err := repo.queries.GetNodes(ctx, gen.GetNodesParams{
+func (repo *Repository) GetNodesByIds(ctx context.Context, arg datagateway.GetNodesByIdsParams) ([]entity.Node, error) {
+	nodes, err := repo.queries.GetNodesByIds(ctx, gen.GetNodesByIdsParams{
 		SaleBlock:   arg.SaleBlock,
 		SaleTxIndex: arg.SaleTxIndex,
 		NodeIds:     arg.NodeIds,
@@ -96,22 +96,15 @@ func (repo *Repository) GetNodes(ctx context.Context, arg datagateway.GetNodesPa
 	if err != nil {
 		return nil, errors.Wrap(err, "Cannot get nodes")
 	}
-	return lo.Map(nodes, func(item gen.Node, index int) entity.Node {
-		return entity.Node{
-			SaleBlock:      item.SaleBlock,
-			SaleTxIndex:    item.SaleTxIndex,
-			NodeID:         item.NodeID,
-			TierIndex:      item.TierIndex,
-			DelegatedTo:    item.DelegatedTo,
-			OwnerPublicKey: item.OwnerPublicKey,
-			PurchaseTxHash: item.PurchaseTxHash,
-			DelegateTxHash: item.DelegateTxHash,
-		}
-	}), nil
+	return mapNodes(nodes), nil
 }
 
-func (repo *Repository) AddEvent(ctx context.Context, arg datagateway.AddEventParams) error {
-	err := repo.queries.AddEvent(ctx, gen.AddEventParams{
+func (repo *Repository) CreateEvent(ctx context.Context, arg entity.NodeSaleEvent) error {
+	metaDataBytes := []byte("{}")
+	if arg.Metadata != nil {
+		metaDataBytes, _ = json.Marshal(arg.Metadata)
+	}
+	err := repo.queries.CreateEvent(ctx, gen.CreateEventParams{
 		TxHash:         arg.TxHash,
 		BlockHeight:    arg.BlockHeight,
 		TxIndex:        arg.TxIndex,
@@ -122,7 +115,7 @@ func (repo *Repository) AddEvent(ctx context.Context, arg datagateway.AddEventPa
 		ParsedMessage:  arg.ParsedMessage,
 		BlockTimestamp: pgtype.Timestamp{Time: arg.BlockTimestamp.UTC(), Valid: true},
 		BlockHash:      arg.BlockHash,
-		Metadata:       arg.Metadata,
+		Metadata:       metaDataBytes,
 	})
 	if err != nil {
 		return errors.Wrap(err, "Cannot add event")
@@ -143,8 +136,8 @@ func (repo *Repository) SetDelegates(ctx context.Context, arg datagateway.SetDel
 	return affected, nil
 }
 
-func (repo *Repository) AddNodesale(ctx context.Context, arg datagateway.AddNodesaleParams) error {
-	err := repo.queries.AddNodesale(ctx, gen.AddNodesaleParams{
+func (repo *Repository) CreateNodeSale(ctx context.Context, arg entity.NodeSale) error {
+	err := repo.queries.CreateNodeSale(ctx, gen.CreateNodeSaleParams{
 		BlockHeight:           arg.BlockHeight,
 		TxIndex:               arg.TxIndex,
 		Name:                  arg.Name,
@@ -158,35 +151,21 @@ func (repo *Repository) AddNodesale(ctx context.Context, arg datagateway.AddNode
 		SellerWallet:          arg.SellerWallet,
 	})
 	if err != nil {
-		return errors.Wrap(err, "Cannot add nodesale")
+		return errors.Wrap(err, "Cannot add NodeSale")
 	}
 	return nil
 }
 
-func (repo *Repository) GetNodesale(ctx context.Context, arg datagateway.GetNodesaleParams) ([]entity.NodeSale, error) {
-	nodesales, err := repo.queries.GetNodesale(ctx, gen.GetNodesaleParams{
+func (repo *Repository) GetNodeSale(ctx context.Context, arg datagateway.GetNodeSaleParams) ([]entity.NodeSale, error) {
+	nodeSales, err := repo.queries.GetNodeSale(ctx, gen.GetNodeSaleParams{
 		BlockHeight: arg.BlockHeight,
 		TxIndex:     arg.TxIndex,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "Cannot get nodesale")
+		return nil, errors.Wrap(err, "Cannot get NodeSale")
 	}
 
-	return lo.Map(nodesales, func(item gen.NodeSale, index int) entity.NodeSale {
-		return entity.NodeSale{
-			BlockHeight:           item.BlockHeight,
-			TxIndex:               item.TxIndex,
-			Name:                  item.Name,
-			StartsAt:              item.StartsAt.Time,
-			EndsAt:                item.EndsAt.Time,
-			Tiers:                 item.Tiers,
-			SellerPublicKey:       item.SellerPublicKey,
-			MaxPerAddress:         item.MaxPerAddress,
-			DeployTxHash:          item.DeployTxHash,
-			MaxDiscountPercentage: item.MaxDiscountPercentage,
-			SellerWallet:          item.SellerWallet,
-		}
-	}), nil
+	return mapNodeSales(nodeSales), nil
 }
 
 func (repo *Repository) GetNodesByOwner(ctx context.Context, arg datagateway.GetNodesByOwnerParams) ([]entity.Node, error) {
@@ -198,22 +177,11 @@ func (repo *Repository) GetNodesByOwner(ctx context.Context, arg datagateway.Get
 	if err != nil {
 		return nil, errors.Wrap(err, "Cannot get nodes by owner")
 	}
-	return lo.Map(nodes, func(item gen.Node, index int) entity.Node {
-		return entity.Node{
-			SaleBlock:      item.SaleBlock,
-			SaleTxIndex:    item.SaleTxIndex,
-			NodeID:         item.NodeID,
-			TierIndex:      item.TierIndex,
-			DelegatedTo:    item.DelegatedTo,
-			OwnerPublicKey: item.OwnerPublicKey,
-			PurchaseTxHash: item.PurchaseTxHash,
-			DelegateTxHash: item.DelegateTxHash,
-		}
-	}), nil
+	return mapNodes(nodes), nil
 }
 
-func (repo *Repository) AddNode(ctx context.Context, arg datagateway.AddNodeParams) error {
-	err := repo.queries.AddNode(ctx, gen.AddNodeParams{
+func (repo *Repository) CreateNode(ctx context.Context, arg entity.Node) error {
+	err := repo.queries.CreateNode(ctx, gen.CreateNodeParams{
 		SaleBlock:      arg.SaleBlock,
 		SaleTxIndex:    arg.SaleTxIndex,
 		NodeID:         arg.NodeID,
@@ -230,7 +198,7 @@ func (repo *Repository) AddNode(ctx context.Context, arg datagateway.AddNodePara
 }
 
 func (repo *Repository) GetNodeCountByTierIndex(ctx context.Context, arg datagateway.GetNodeCountByTierIndexParams) ([]datagateway.GetNodeCountByTierIndexRow, error) {
-	nodecount, err := repo.queries.GetNodeCountByTierIndex(ctx, gen.GetNodeCountByTierIndexParams{
+	nodeCount, err := repo.queries.GetNodeCountByTierIndex(ctx, gen.GetNodeCountByTierIndexParams{
 		SaleBlock:   arg.SaleBlock,
 		SaleTxIndex: arg.SaleTxIndex,
 		FromTier:    arg.FromTier,
@@ -240,11 +208,7 @@ func (repo *Repository) GetNodeCountByTierIndex(ctx context.Context, arg datagat
 		return nil, errors.Wrap(err, "Cannot get node count by tier index")
 	}
 
-	return lo.Map(nodecount, func(item gen.GetNodeCountByTierIndexRow, index int) datagateway.GetNodeCountByTierIndexRow {
-		return datagateway.GetNodeCountByTierIndexRow{
-			TierIndex: item.TierIndex,
-		}
-	}), nil
+	return mapNodeCountByTierIndexRows(nodeCount), nil
 }
 
 func (repo *Repository) GetNodesByPubkey(ctx context.Context, arg datagateway.GetNodesByPubkeyParams) ([]entity.Node, error) {
@@ -257,38 +221,13 @@ func (repo *Repository) GetNodesByPubkey(ctx context.Context, arg datagateway.Ge
 	if err != nil {
 		return nil, errors.Wrap(err, "Cannot get nodes by public key")
 	}
-	return lo.Map(nodes, func(item gen.Node, index int) entity.Node {
-		return entity.Node{
-			SaleBlock:      item.SaleBlock,
-			SaleTxIndex:    item.SaleTxIndex,
-			NodeID:         item.NodeID,
-			TierIndex:      item.TierIndex,
-			DelegatedTo:    item.DelegatedTo,
-			OwnerPublicKey: item.OwnerPublicKey,
-			PurchaseTxHash: item.PurchaseTxHash,
-			DelegateTxHash: item.DelegateTxHash,
-		}
-	}), nil
+	return mapNodes(nodes), nil
 }
 
-func (repo *Repository) GetEventsByWallet(ctx context.Context, walletAddress string) ([]entity.Event, error) {
+func (repo *Repository) GetEventsByWallet(ctx context.Context, walletAddress string) ([]entity.NodeSaleEvent, error) {
 	events, err := repo.queries.GetEventsByWallet(ctx, walletAddress)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot get events by wallet")
 	}
-	return lo.Map(events, func(item gen.Event, index int) entity.Event {
-		return entity.Event{
-			TxHash:         item.TxHash,
-			BlockHeight:    item.BlockHeight,
-			TxIndex:        item.TxIndex,
-			WalletAddress:  item.WalletAddress,
-			Valid:          item.Valid,
-			Action:         item.Action,
-			RawMessage:     item.RawMessage,
-			ParsedMessage:  item.ParsedMessage,
-			BlockTimestamp: item.BlockTimestamp.Time.UTC(),
-			BlockHash:      item.BlockHash,
-			Metadata:       item.Metadata,
-		}
-	}), nil
+	return mapNodeSalesEvents(events), nil
 }

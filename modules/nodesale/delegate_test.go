@@ -21,7 +21,8 @@ func TestDelegate(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping test in short mode.")
 	}
-	sellerPrivateKey, _ := btcec.NewPrivateKey()
+	sellerPrivateKey, err := btcec.NewPrivateKey()
+	require.NoError(t, err)
 	sellerPubkeyHex := hex.EncodeToString(sellerPrivateKey.PubKey().SerializeCompressed())
 	sellerWallet := p.pubkeyToPkHashAddress(sellerPrivateKey.PubKey())
 	startAt := time.Now().Add(time.Hour * -1)
@@ -56,7 +57,7 @@ func TestDelegate(t *testing.T) {
 		},
 	}
 	event, block := assembleTestEvent(sellerPrivateKey, "111111", "111111", 0, 0, deployMessage)
-	err := p.processDeploy(ctx, qtx, block, event)
+	err = p.processDeploy(ctx, qtx, block, event)
 	require.NoError(t, err)
 
 	buyerPrivateKey, _ := btcec.NewPrivateKey()
@@ -64,11 +65,11 @@ func TestDelegate(t *testing.T) {
 
 	payload := &protobuf.PurchasePayload{
 		DeployID: &protobuf.ActionID{
-			Block:   uint64(testBlockHeigh) - 1,
+			Block:   uint64(testBlockHeight) - 1,
 			TxIndex: uint32(testTxIndex) - 1,
 		},
 		BuyerPublicKey: buyerPubkeyHex,
-		TimeOutBlock:   uint64(testBlockHeigh) + 5,
+		TimeOutBlock:   uint64(testBlockHeight) + 5,
 		NodeIDs:        []uint32{9, 10, 11},
 		TotalAmountSat: 600,
 	}
@@ -106,7 +107,7 @@ func TestDelegate(t *testing.T) {
 			DelegateePublicKey: delegateePubkeyHex,
 			NodeIDs:            []uint32{9, 10},
 			DeployID: &protobuf.ActionID{
-				Block:   uint64(testBlockHeigh) - 2,
+				Block:   uint64(testBlockHeight) - 2,
 				TxIndex: uint32(testTxIndex) - 2,
 			},
 		},
@@ -114,8 +115,8 @@ func TestDelegate(t *testing.T) {
 	event, block = assembleTestEvent(buyerPrivateKey, "131313131313", "131313131313", 0, 0, delegateMessage)
 	p.processDelegate(ctx, qtx, block, event)
 
-	nodes, _ := qtx.GetNodes(ctx, datagateway.GetNodesParams{
-		SaleBlock:   testBlockHeigh - 3,
+	nodes, _ := qtx.GetNodesByIds(ctx, datagateway.GetNodesByIdsParams{
+		SaleBlock:   testBlockHeight - 3,
 		SaleTxIndex: int32(testTxIndex) - 3,
 		NodeIds:     []int32{9, 10, 11},
 	})

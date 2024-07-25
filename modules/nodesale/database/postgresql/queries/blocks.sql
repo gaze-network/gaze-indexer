@@ -1,6 +1,5 @@
 -- name: GetLastProcessedBlock :one
-SELECT * FROM blocks
-WHERE "block_height" = (SELECT MAX("block_height") FROM blocks);
+SELECT * FROM blocks ORDER BY block_height DESC LIMIT 1;  
 
 
 -- name: GetBlock :one
@@ -11,6 +10,6 @@ WHERE "block_height" = $1;
 DELETE FROM blocks
 WHERE "block_height" >= @from_block;
 
--- name: AddBlock :exec
+-- name: CreateBlock :exec
 INSERT INTO blocks ("block_height", "block_hash", "module")
 VALUES ($1, $2, $3);

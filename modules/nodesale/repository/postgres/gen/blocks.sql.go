@@ -9,19 +9,19 @@ import (
 	"context"
 )
 
-const addBlock = `-- name: AddBlock :exec
+const createBlock = `-- name: CreateBlock :exec
 INSERT INTO blocks ("block_height", "block_hash", "module")
 VALUES ($1, $2, $3)
 `
 
-type AddBlockParams struct {
+type CreateBlockParams struct {
 	BlockHeight int64
 	BlockHash   string
 	Module      string
 }
 
-func (q *Queries) AddBlock(ctx context.Context, arg AddBlockParams) error {
-	_, err := q.db.Exec(ctx, addBlock, arg.BlockHeight, arg.BlockHash, arg.Module)
+func (q *Queries) CreateBlock(ctx context.Context, arg CreateBlockParams) error {
+	_, err := q.db.Exec(ctx, createBlock, arg.BlockHeight, arg.BlockHash, arg.Module)
 	return err
 }
 
@@ -38,8 +38,7 @@ func (q *Queries) GetBlock(ctx context.Context, blockHeight int64) (Block, error
 }
 
 const getLastProcessedBlock = `-- name: GetLastProcessedBlock :one
-SELECT block_height, block_hash, module FROM blocks
-WHERE "block_height" = (SELECT MAX("block_height") FROM blocks)
+SELECT block_height, block_hash, module FROM blocks ORDER BY block_height DESC LIMIT 1
 `
 
 func (q *Queries) GetLastProcessedBlock(ctx context.Context) (Block, error) {

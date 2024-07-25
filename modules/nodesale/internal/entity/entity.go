@@ -33,7 +33,7 @@ type NodeSale struct {
 	SellerWallet          string
 }
 
-type Event struct {
+type NodeSaleEvent struct {
 	TxHash         string
 	BlockHeight    int64
 	TxIndex        int32
@@ -44,10 +44,10 @@ type Event struct {
 	ParsedMessage  []byte
 	BlockTimestamp time.Time
 	BlockHash      string
-	Metadata       []byte
+	Metadata       *MetadataEventPurchase
 }
 
-type MetaData struct {
+type MetadataEventPurchase struct {
 	ExpectedTotalAmountDiscounted int64
 	ReportedTotalAmount           int64
 	PaidTotalAmount               int64

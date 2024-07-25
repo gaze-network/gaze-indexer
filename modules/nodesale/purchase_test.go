@@ -21,7 +21,8 @@ func TestInvalidPurchase(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping test in short mode.")
 	}
-	buyerPrivateKey, _ := btcec.NewPrivateKey()
+	buyerPrivateKey, err := btcec.NewPrivateKey()
+	require.NoError(t, err)
 	buyerPubkeyHex := hex.EncodeToString(buyerPrivateKey.PubKey().SerializeCompressed())
 
 	message := &protobuf.NodeSaleEvent{
@@ -35,7 +36,7 @@ func TestInvalidPurchase(t *testing.T) {
 				NodeIDs:        []uint32{1, 2},
 				BuyerPublicKey: buyerPubkeyHex,
 				TotalAmountSat: 500,
-				TimeOutBlock:   uint64(testBlockHeigh) + 5,
+				TimeOutBlock:   uint64(testBlockHeight) + 5,
 			},
 		},
 	}
@@ -44,7 +45,7 @@ func TestInvalidPurchase(t *testing.T) {
 
 	p.processPurchase(ctx, qtx, block, event)
 
-	nodes, _ := qtx.GetNodes(ctx, datagateway.GetNodesParams{
+	nodes, _ := qtx.GetNodesByIds(ctx, datagateway.GetNodesByIdsParams{
 		SaleBlock:   111,
 		SaleTxIndex: 1,
 		NodeIds:     []int32{1, 2},
@@ -96,13 +97,13 @@ func TestInvalidTimestamp(t *testing.T) {
 		Purchase: &protobuf.ActionPurchase{
 			Payload: &protobuf.PurchasePayload{
 				DeployID: &protobuf.ActionID{
-					Block:   uint64(testBlockHeigh) - 1,
+					Block:   uint64(testBlockHeight) - 1,
 					TxIndex: uint32(testTxIndex) - 1,
 				},
 				NodeIDs:        []uint32{1, 2},
 				BuyerPublicKey: buyerPubkeyHex,
 				TotalAmountSat: 200,
-				TimeOutBlock:   uint64(testBlockHeigh) + 5,
+				TimeOutBlock:   uint64(testBlockHeight) + 5,
 			},
 		},
 	}
@@ -111,8 +112,8 @@ func TestInvalidTimestamp(t *testing.T) {
 	block.Header.Timestamp = time.Now().UTC().Add(time.Hour * 2)
 	p.processPurchase(ctx, qtx, block, event)
 
-	nodes, _ := qtx.GetNodes(ctx, datagateway.GetNodesParams{
-		SaleBlock:   testBlockHeigh - 2,
+	nodes, _ := qtx.GetNodesByIds(ctx, datagateway.GetNodesByIdsParams{
+		SaleBlock:   testBlockHeight - 2,
 		SaleTxIndex: int32(testTxIndex) - 2,
 		NodeIds:     []int32{1, 2},
 	})
@@ -162,13 +163,13 @@ func TestInvalidBuyerKey(t *testing.T) {
 		Purchase: &protobuf.ActionPurchase{
 			Payload: &protobuf.PurchasePayload{
 				DeployID: &protobuf.ActionID{
-					Block:   uint64(testBlockHeigh) - 1,
+					Block:   uint64(testBlockHeight) - 1,
 					TxIndex: uint32(testTxIndex) - 1,
 				},
 				NodeIDs:        []uint32{1, 2},
 				BuyerPublicKey: sellerPubkeyHex,
 				TotalAmountSat: 200,
-				TimeOutBlock:   uint64(testBlockHeigh) + 5,
+				TimeOutBlock:   uint64(testBlockHeight) + 5,
 			},
 		},
 	}
@@ -176,8 +177,8 @@ func TestInvalidBuyerKey(t *testing.T) {
 	event, block = assembleTestEvent(buyerPrivateKey, "0707070707", "0707070707", 0, 0, message)
 	block.Header.Timestamp = time.Now().UTC().Add(time.Hour * 2)
 	p.processPurchase(ctx, qtx, block, event)
-	nodes, _ := qtx.GetNodes(ctx, datagateway.GetNodesParams{
-		SaleBlock:   testBlockHeigh - 2,
+	nodes, _ := qtx.GetNodesByIds(ctx, datagateway.GetNodesByIdsParams{
+		SaleBlock:   testBlockHeight - 2,
 		SaleTxIndex: int32(testTxIndex) - 2,
 		NodeIds:     []int32{1, 2},
 	})
@@ -228,12 +229,12 @@ func TestTimeOut(t *testing.T) {
 		Purchase: &protobuf.ActionPurchase{
 			Payload: &protobuf.PurchasePayload{
 				DeployID: &protobuf.ActionID{
-					Block:   uint64(testBlockHeigh) - 1,
+					Block:   uint64(testBlockHeight) - 1,
 					TxIndex: uint32(testTxIndex) - 1,
 				},
 				NodeIDs:        []uint32{1, 2},
 				BuyerPublicKey: buyerPubkeyHex,
-				TimeOutBlock:   uint64(testBlockHeigh) - 5,
+				TimeOutBlock:   uint64(testBlockHeight) - 5,
 				TotalAmountSat: 200,
 			},
 		},
@@ -241,8 +242,8 @@ func TestTimeOut(t *testing.T) {
 
 	event, block = assembleTestEvent(buyerPrivateKey, "090909090909", "090909090909", 0, 0, message)
 	p.processPurchase(ctx, qtx, block, event)
-	nodes, _ := qtx.GetNodes(ctx, datagateway.GetNodesParams{
-		SaleBlock:   testBlockHeigh - 2,
+	nodes, _ := qtx.GetNodesByIds(ctx, datagateway.GetNodesByIdsParams{
+		SaleBlock:   testBlockHeight - 2,
 		SaleTxIndex: int32(testTxIndex) - 2,
 		NodeIds:     []int32{1, 2},
 	})
@@ -290,12 +291,12 @@ func TestSignatureInvalid(t *testing.T) {
 
 	payload := &protobuf.PurchasePayload{
 		DeployID: &protobuf.ActionID{
-			Block:   uint64(testBlockHeigh) - 1,
+			Block:   uint64(testBlockHeight) - 1,
 			TxIndex: uint32(testTxIndex) - 1,
 		},
 		NodeIDs:        []uint32{1, 2},
 		BuyerPublicKey: buyerPubkeyHex,
-		TimeOutBlock:   uint64(testBlockHeigh) + 5,
+		TimeOutBlock:   uint64(testBlockHeight) + 5,
 	}
 
 	payloadBytes, _ := proto.Marshal(payload)
@@ -313,8 +314,8 @@ func TestSignatureInvalid(t *testing.T) {
 
 	event, block = assembleTestEvent(buyerPrivateKey, "0B0B0B", "0B0B0B", 0, 0, message)
 	p.processPurchase(ctx, qtx, block, event)
-	nodes, _ := qtx.GetNodes(ctx, datagateway.GetNodesParams{
-		SaleBlock:   testBlockHeigh - 2,
+	nodes, _ := qtx.GetNodesByIds(ctx, datagateway.GetNodesByIdsParams{
+		SaleBlock:   testBlockHeight - 2,
 		SaleTxIndex: int32(testTxIndex) - 2,
 		NodeIds:     []int32{1, 2},
 	})
@@ -367,11 +368,11 @@ func TestValidPurchase(t *testing.T) {
 
 	payload := &protobuf.PurchasePayload{
 		DeployID: &protobuf.ActionID{
-			Block:   uint64(testBlockHeigh) - 1,
+			Block:   uint64(testBlockHeight) - 1,
 			TxIndex: uint32(testTxIndex) - 1,
 		},
 		BuyerPublicKey: buyerPubkeyHex,
-		TimeOutBlock:   uint64(testBlockHeigh) + 5,
+		TimeOutBlock:   uint64(testBlockHeight) + 5,
 		NodeIDs:        []uint32{0, 5, 6, 9},
 		TotalAmountSat: 500,
 	}
@@ -401,8 +402,8 @@ func TestValidPurchase(t *testing.T) {
 	}
 	p.processPurchase(ctx, qtx, block, event)
 
-	nodes, _ := qtx.GetNodes(ctx, datagateway.GetNodesParams{
-		SaleBlock:   testBlockHeigh - 2,
+	nodes, _ := qtx.GetNodesByIds(ctx, datagateway.GetNodesByIdsParams{
+		SaleBlock:   testBlockHeight - 2,
 		SaleTxIndex: int32(testTxIndex) - 2,
 		NodeIds:     []int32{0, 5, 6, 9},
 	})
@@ -463,11 +464,11 @@ func TestBuyingLimit(t *testing.T) {
 
 	payload := &protobuf.PurchasePayload{
 		DeployID: &protobuf.ActionID{
-			Block:   uint64(testBlockHeigh) - 1,
+			Block:   uint64(testBlockHeight) - 1,
 			TxIndex: uint32(testTxIndex) - 1,
 		},
 		BuyerPublicKey: buyerPubkeyHex,
-		TimeOutBlock:   uint64(testBlockHeigh) + 5,
+		TimeOutBlock:   uint64(testBlockHeight) + 5,
 		NodeIDs:        []uint32{9, 10},
 		TotalAmountSat: 600,
 	}
@@ -498,15 +499,15 @@ func TestBuyingLimit(t *testing.T) {
 	p.processPurchase(ctx, qtx, block, event)
 
 	qtx.Commit(ctx)
-	qtx, _ = p.datagateway.BeginNodesaleTx(ctx)
+	qtx, _ = p.nodeSaleDg.BeginNodeSaleTx(ctx)
 
 	payload = &protobuf.PurchasePayload{
 		DeployID: &protobuf.ActionID{
-			Block:   uint64(testBlockHeigh) - 2,
+			Block:   uint64(testBlockHeight) - 2,
 			TxIndex: uint32(testTxIndex) - 2,
 		},
 		BuyerPublicKey: buyerPubkeyHex,
-		TimeOutBlock:   uint64(testBlockHeigh) + 5,
+		TimeOutBlock:   uint64(testBlockHeight) + 5,
 		NodeIDs:        []uint32{11},
 		TotalAmountSat: 600,
 	}
@@ -536,8 +537,8 @@ func TestBuyingLimit(t *testing.T) {
 	}
 	p.processPurchase(ctx, qtx, block, event)
 
-	nodes, _ := qtx.GetNodes(ctx, datagateway.GetNodesParams{
-		SaleBlock:   testBlockHeigh - 3,
+	nodes, _ := qtx.GetNodesByIds(ctx, datagateway.GetNodesByIdsParams{
+		SaleBlock:   testBlockHeight - 3,
 		SaleTxIndex: int32(testTxIndex) - 3,
 		NodeIds:     []int32{9, 10, 11},
 	})
@@ -596,11 +597,11 @@ func TestBuyingTierLimit(t *testing.T) {
 
 	payload := &protobuf.PurchasePayload{
 		DeployID: &protobuf.ActionID{
-			Block:   uint64(testBlockHeigh) - 1,
+			Block:   uint64(testBlockHeight) - 1,
 			TxIndex: uint32(testTxIndex) - 1,
 		},
 		BuyerPublicKey: buyerPubkeyHex,
-		TimeOutBlock:   uint64(testBlockHeigh) + 5,
+		TimeOutBlock:   uint64(testBlockHeight) + 5,
 		NodeIDs:        []uint32{9, 10, 11},
 		TotalAmountSat: 600,
 	}
@@ -631,15 +632,15 @@ func TestBuyingTierLimit(t *testing.T) {
 	p.processPurchase(ctx, qtx, block, event)
 
 	qtx.Commit(ctx)
-	qtx, _ = p.datagateway.BeginNodesaleTx(ctx)
+	qtx, _ = p.nodeSaleDg.BeginNodeSaleTx(ctx)
 
 	payload = &protobuf.PurchasePayload{
 		DeployID: &protobuf.ActionID{
-			Block:   uint64(testBlockHeigh) - 2,
+			Block:   uint64(testBlockHeight) - 2,
 			TxIndex: uint32(testTxIndex) - 2,
 		},
 		BuyerPublicKey: buyerPubkeyHex,
-		TimeOutBlock:   uint64(testBlockHeigh) + 5,
+		TimeOutBlock:   uint64(testBlockHeight) + 5,
 		NodeIDs:        []uint32{12, 13, 14},
 		TotalAmountSat: 600,
 	}
@@ -669,8 +670,8 @@ func TestBuyingTierLimit(t *testing.T) {
 	}
 	p.processPurchase(ctx, qtx, block, event)
 
-	nodes, _ := qtx.GetNodes(ctx, datagateway.GetNodesParams{
-		SaleBlock:   testBlockHeigh - 3,
+	nodes, _ := qtx.GetNodesByIds(ctx, datagateway.GetNodesByIdsParams{
+		SaleBlock:   testBlockHeight - 3,
 		SaleTxIndex: int32(testTxIndex) - 3,
 		NodeIds:     []int32{9, 10, 11, 12, 13, 14},
 	})

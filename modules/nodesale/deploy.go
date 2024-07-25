@@ -7,13 +7,14 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/core/types"
 	"github.com/gaze-network/indexer-network/modules/nodesale/datagateway"
+	"github.com/gaze-network/indexer-network/modules/nodesale/internal/entity"
 	"github.com/gaze-network/indexer-network/modules/nodesale/internal/validator"
 	"github.com/gaze-network/indexer-network/pkg/logger"
 	"github.com/gaze-network/indexer-network/pkg/logger/slogx"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
-func (p *Processor) processDeploy(ctx context.Context, qtx datagateway.NodesaleDataGatewayWithTx, block *types.Block, event nodesaleEvent) error {
+func (p *Processor) processDeploy(ctx context.Context, qtx datagateway.NodeSaleDataGatewayWithTx, block *types.Block, event nodeSaleEvent) error {
 	deploy := event.eventMessage.Deploy
 
 	validator := validator.New()
@@ -23,7 +24,7 @@ func (p *Processor) processDeploy(ctx context.Context, qtx datagateway.NodesaleD
 		logger.DebugContext(ctx, "Invalid public key", slogx.Error(err))
 	}
 
-	err = qtx.AddEvent(ctx, datagateway.AddEventParams{
+	err = qtx.CreateEvent(ctx, entity.NodeSaleEvent{
 		TxHash:         event.transaction.TxHash.String(),
 		TxIndex:        int32(event.transaction.Index),
 		Action:         int32(event.eventMessage.Action),
@@ -34,7 +35,7 @@ func (p *Processor) processDeploy(ctx context.Context, qtx datagateway.NodesaleD
 		BlockHeight:    event.transaction.BlockHeight,
 		Valid:          validator.Valid,
 		WalletAddress:  p.pubkeyToPkHashAddress(event.txPubkey).EncodeAddress(),
-		Metadata:       []byte("{}"),
+		Metadata:       nil,
 	})
 	if err != nil {
 		return errors.Wrap(err, "Failed to insert event")
@@ -48,7 +49,7 @@ func (p *Processor) processDeploy(ctx context.Context, qtx datagateway.NodesaleD
 			}
 			tiers[i] = tierJson
 		}
-		err = qtx.AddNodesale(ctx, datagateway.AddNodesaleParams{
+		err = qtx.CreateNodeSale(ctx, entity.NodeSale{
 			BlockHeight:           event.transaction.BlockHeight,
 			TxIndex:               int32(event.transaction.Index),
 			Name:                  deploy.Name,
@@ -62,7 +63,7 @@ func (p *Processor) processDeploy(ctx context.Context, qtx datagateway.NodesaleD
 			SellerWallet:          deploy.SellerWallet,
 		})
 		if err != nil {
-			return errors.Wrap(err, "Failed to insert nodesale")
+			return errors.Wrap(err, "Failed to insert NodeSale")
 		}
 	}
 

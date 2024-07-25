@@ -29,13 +29,13 @@ var postgresConf postgres.Config = postgres.Config{
 }
 
 // TODO: should use mock dg or run db in CI
-var qtx datagateway.NodesaleDataGatewayWithTx
+var qtx datagateway.NodeSaleDataGatewayWithTx
 
 var ctx context.Context
 
 var (
-	testBlockHeigh int64 = 101
-	testTxIndex    int   = 1
+	testBlockHeight int64 = 101
+	testTxIndex     int   = 1
 )
 
 func TestMain(m *testing.M) {
@@ -56,12 +56,12 @@ func TestMain(m *testing.M) {
 	datagateway := repository.NewRepository(db)
 
 	p = &Processor{
-		datagateway: datagateway,
-		network:     common.NetworkMainnet,
+		nodeSaleDg: datagateway,
+		network:    common.NetworkMainnet,
 	}
 	repo.ClearEvents(ctx)
 
-	qtx, err = p.datagateway.BeginNodesaleTx(ctx)
+	qtx, err = p.nodeSaleDg.BeginNodeSaleTx(ctx)
 	if err != nil {
 		return
 	}
@@ -70,7 +70,7 @@ func TestMain(m *testing.M) {
 	qtx.Commit(ctx)
 }
 
-func assembleTestEvent(privateKey *secp256k1.PrivateKey, blockHashHex, txHashHex string, blockHeight int64, txIndex int, message *protobuf.NodeSaleEvent) (nodesaleEvent, *types.Block) {
+func assembleTestEvent(privateKey *secp256k1.PrivateKey, blockHashHex, txHashHex string, blockHeight int64, txIndex int, message *protobuf.NodeSaleEvent) (nodeSaleEvent, *types.Block) {
 	blockHash, _ := chainhash.NewHashFromStr(blockHashHex)
 	txHash, _ := chainhash.NewHashFromStr(txHashHex)
 
@@ -85,15 +85,15 @@ func assembleTestEvent(privateKey *secp256k1.PrivateKey, blockHashHex, txHashHex
 	messageJson, _ := protojson.Marshal(message)
 
 	if blockHeight == 0 {
-		blockHeight = testBlockHeigh
-		testBlockHeigh++
+		blockHeight = testBlockHeight
+		testBlockHeight++
 	}
 	if txIndex == 0 {
 		txIndex = testTxIndex
 		testTxIndex++
 	}
 
-	event := nodesaleEvent{
+	event := nodeSaleEvent{
 		transaction: &types.Transaction{
 			BlockHeight: int64(blockHeight),
 			BlockHash:   *blockHash,
