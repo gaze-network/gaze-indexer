@@ -80,7 +80,7 @@ SELECT * FROM runes_transactions
 ORDER BY runes_transactions.block_height DESC, runes_transactions.index DESC LIMIT $1 OFFSET $2;
 
 -- name: GetRuneTransaction :one
-SELECT * FROM runes_transactions LEFT JOIN runes_runestones ON runes_transactions.hash = runes_runestones.tx_hash WHERE hash = $1 LIMIT 1;
+SELECT * FROM runes_transactions WHERE hash = $1 LIMIT 1;
 
 -- name: CountRuneEntries :one
 SELECT COUNT(*) FROM runes_entries;
