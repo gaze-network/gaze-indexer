@@ -8,8 +8,6 @@ import (
 	"github.com/gaze-network/indexer-network/modules/nodesale/datagateway"
 	"github.com/gaze-network/indexer-network/modules/nodesale/internal/entity"
 	delegatevalidator "github.com/gaze-network/indexer-network/modules/nodesale/internal/validator/delegate"
-	"github.com/gaze-network/indexer-network/pkg/logger"
-	"github.com/gaze-network/indexer-network/pkg/logger/slogx"
 	"github.com/samber/lo"
 )
 
@@ -23,10 +21,7 @@ func (p *Processor) processDelegate(ctx context.Context, qtx datagateway.NodeSal
 	}
 
 	for _, node := range nodes {
-		valid, err := validator.EqualXonlyPublicKey(node.OwnerPublicKey, event.txPubkey)
-		if err != nil {
-			logger.DebugContext(ctx, "Invalid public key", slogx.Error(err))
-		}
+		valid := validator.EqualXonlyPublicKey(node.OwnerPublicKey, event.txPubkey)
 		if !valid {
 			break
 		}
@@ -44,6 +39,7 @@ func (p *Processor) processDelegate(ctx context.Context, qtx datagateway.NodeSal
 		Valid:          validator.Valid,
 		WalletAddress:  p.pubkeyToPkHashAddress(event.txPubkey).EncodeAddress(),
 		Metadata:       nil,
+		Reason:         validator.Reason,
 	})
 	if err != nil {
 		return errors.Wrap(err, "Failed to insert event")

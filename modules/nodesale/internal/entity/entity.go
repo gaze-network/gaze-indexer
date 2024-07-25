@@ -45,6 +45,7 @@ type NodeSaleEvent struct {
 	BlockTimestamp time.Time
 	BlockHash      string
 	Metadata       *MetadataEventPurchase
+	Reason         string
 }
 
 type MetadataEventPurchase struct {

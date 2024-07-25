@@ -18,7 +18,8 @@ CREATE TABLE IF NOT EXISTS events (
     "parsed_message" JSONB NOT NULL DEFAULT '{}',
     "block_timestamp" TIMESTAMP NOT NULL,
     "block_hash" TEXT NOT NULL,
-    "metadata" JSONB NOT NULL DEFAULT '{}'
+    "metadata" JSONB NOT NULL DEFAULT '{}',
+    "reason" TEXT NOT NULL DEFAULT ''
 );
 
 INSERT INTO events("tx_hash", "block_height", "tx_index",

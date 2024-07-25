@@ -9,8 +9,6 @@ import (
 	"github.com/gaze-network/indexer-network/modules/nodesale/datagateway"
 	"github.com/gaze-network/indexer-network/modules/nodesale/internal/entity"
 	"github.com/gaze-network/indexer-network/modules/nodesale/internal/validator"
-	"github.com/gaze-network/indexer-network/pkg/logger"
-	"github.com/gaze-network/indexer-network/pkg/logger/slogx"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
@@ -19,12 +17,9 @@ func (p *Processor) processDeploy(ctx context.Context, qtx datagateway.NodeSaleD
 
 	validator := validator.New()
 
-	_, err := validator.EqualXonlyPublicKey(deploy.SellerPublicKey, event.txPubkey)
-	if err != nil {
-		logger.DebugContext(ctx, "Invalid public key", slogx.Error(err))
-	}
+	validator.EqualXonlyPublicKey(deploy.SellerPublicKey, event.txPubkey)
 
-	err = qtx.CreateEvent(ctx, entity.NodeSaleEvent{
+	err := qtx.CreateEvent(ctx, entity.NodeSaleEvent{
 		TxHash:         event.transaction.TxHash.String(),
 		TxIndex:        int32(event.transaction.Index),
 		Action:         int32(event.eventMessage.Action),
@@ -36,6 +31,7 @@ func (p *Processor) processDeploy(ctx context.Context, qtx datagateway.NodeSaleD
 		Valid:          validator.Valid,
 		WalletAddress:  p.pubkeyToPkHashAddress(event.txPubkey).EncodeAddress(),
 		Metadata:       nil,
+		Reason:         validator.Reason,
 	})
 	if err != nil {
 		return errors.Wrap(err, "Failed to insert event")

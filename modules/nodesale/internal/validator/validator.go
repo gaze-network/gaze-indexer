@@ -5,11 +5,11 @@ import (
 	"encoding/hex"
 
 	"github.com/btcsuite/btcd/btcec/v2"
-	"github.com/cockroachdb/errors"
 )
 
 type Validator struct {
-	Valid bool
+	Valid  bool
+	Reason string
 }
 
 func New() *Validator {
@@ -18,24 +18,27 @@ func New() *Validator {
 	}
 }
 
-func (v *Validator) EqualXonlyPublicKey(target string, expected *btcec.PublicKey) (bool, error) {
+func (v *Validator) EqualXonlyPublicKey(target string, expected *btcec.PublicKey) bool {
 	if !v.Valid {
-		return false, nil
+		return false
 	}
 	targetBytes, err := hex.DecodeString(target)
 	if err != nil {
 		v.Valid = false
-		return v.Valid, errors.Wrap(err, "cannot decode hexstring")
+		v.Reason = "cannot decode publickey hexstring"
 	}
 
 	targetPubKey, err := btcec.ParsePubKey(targetBytes)
 	if err != nil {
 		v.Valid = false
-		return v.Valid, errors.Wrap(err, "cannot parse public key")
+		v.Reason = "cannot parse public key"
 	}
 	xOnlyTargetPubKey := btcec.ToSerialized(targetPubKey).SchnorrSerialized()
 	xOnlyExpectedPubKey := btcec.ToSerialized(expected).SchnorrSerialized()
 
 	v.Valid = bytes.Equal(xOnlyTargetPubKey[:], xOnlyExpectedPubKey[:])
-	return v.Valid, nil
+	if !v.Valid {
+		v.Reason = "Invalid public key"
+	}
+	return v.Valid
 }

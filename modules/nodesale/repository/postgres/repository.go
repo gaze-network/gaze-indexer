@@ -116,6 +116,7 @@ func (repo *Repository) CreateEvent(ctx context.Context, arg entity.NodeSaleEven
 		BlockTimestamp: pgtype.Timestamp{Time: arg.BlockTimestamp.UTC(), Valid: true},
 		BlockHash:      arg.BlockHash,
 		Metadata:       metaDataBytes,
+		Reason:         arg.Reason,
 	})
 	if err != nil {
 		return errors.Wrap(err, "Cannot add event")

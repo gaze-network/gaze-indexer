@@ -26,6 +26,7 @@ type Event struct {
 	BlockTimestamp pgtype.Timestamp
 	BlockHash      string
 	Metadata       []byte
+	Reason         string
 }
 
 type Node struct {

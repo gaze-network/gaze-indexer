@@ -49,6 +49,7 @@ func (v *PurchaseValidator) NodeSaleExists(ctx context.Context, qtx datagateway.
 	}
 	if len(deploys) < 1 {
 		v.Valid = false
+		v.Reason = "Depoloy ID not found."
 		return v.Valid, nil, nil
 	}
 	v.Valid = true
@@ -62,6 +63,7 @@ func (v *PurchaseValidator) ValidTimestamp(deploy *entity.NodeSale, timestamp ti
 	if timestamp.Before(deploy.StartsAt) ||
 		timestamp.After(deploy.EndsAt) {
 		v.Valid = false
+		v.Reason = "Purchase Timeout"
 		return v.Valid
 	}
 	v.Valid = true
@@ -74,15 +76,16 @@ func (v *PurchaseValidator) WithinTimeoutBlock(timeOutBlock uint64, blockHeight 
 	}
 	if timeOutBlock < blockHeight {
 		v.Valid = false
+		v.Reason = "Block height over timeout block"
 		return v.Valid
 	}
 	v.Valid = true
 	return v.Valid
 }
 
-func (v *PurchaseValidator) VerifySignature(purchase *protobuf.ActionPurchase, deploy *entity.NodeSale) (bool, error) {
+func (v *PurchaseValidator) VerifySignature(purchase *protobuf.ActionPurchase, deploy *entity.NodeSale) bool {
 	if !v.Valid {
-		return false, nil
+		return false
 	}
 	payload := purchase.Payload
 	payloadBytes, _ := proto.Marshal(payload)
@@ -90,7 +93,8 @@ func (v *PurchaseValidator) VerifySignature(purchase *protobuf.ActionPurchase, d
 	signature, err := ecdsa.ParseSignature(signatureBytes)
 	if err != nil {
 		v.Valid = false
-		return v.Valid, errors.Wrap(err, "cannot parse signature")
+		v.Reason = "Cannot parse signature"
+		return v.Valid
 	}
 	hash := chainhash.DoubleHashB(payloadBytes)
 	pubkeyBytes, _ := hex.DecodeString(deploy.SellerPublicKey)
@@ -98,10 +102,11 @@ func (v *PurchaseValidator) VerifySignature(purchase *protobuf.ActionPurchase, d
 	verified := signature.Verify(hash[:], pubKey)
 	if !verified {
 		v.Valid = false
-		return v.Valid, nil
+		v.Reason = "Invalid Signature"
+		return v.Valid
 	}
 	v.Valid = true
-	return v.Valid, nil
+	return v.Valid
 }
 
 type TierMap struct {
@@ -113,9 +118,9 @@ type TierMap struct {
 func (v *PurchaseValidator) ValidTiers(
 	payload *protobuf.PurchasePayload,
 	deploy *entity.NodeSale,
-) (bool, *TierMap, error) {
+) (bool, *TierMap) {
 	if !v.Valid {
-		return false, nil, nil
+		return false, nil
 	}
 	tiers := make([]protobuf.Tier, len(deploy.Tiers))
 	buyingTiersCount := make([]uint32, len(tiers))
@@ -126,7 +131,8 @@ func (v *PurchaseValidator) ValidTiers(
 		err := protojson.Unmarshal(tierJson, tier)
 		if err != nil {
 			v.Valid = false
-			return v.Valid, nil, errors.Wrap(err, "Failed to decode tiers json")
+			v.Reason = "Invalid Tier format"
+			return v.Valid, nil
 		}
 	}
 
@@ -144,7 +150,8 @@ func (v *PurchaseValidator) ValidTiers(
 			nodeIdToTier[nodeId] = currentTier
 		} else {
 			v.Valid = false
-			return false, nil, nil
+			v.Reason = "Invalid NodeId."
+			return false, nil
 		}
 	}
 	v.Valid = true
@@ -152,7 +159,7 @@ func (v *PurchaseValidator) ValidTiers(
 		Tiers:            tiers,
 		BuyingTiersCount: buyingTiersCount,
 		NodeIdToTier:     nodeIdToTier,
-	}, nil
+	}
 }
 
 func (v *PurchaseValidator) ValidUnpurchasedNodes(
@@ -180,6 +187,7 @@ func (v *PurchaseValidator) ValidUnpurchasedNodes(
 	}
 	if len(nodes) > 0 {
 		v.Valid = false
+		v.Reason = "Some node is already purchased."
 		return false, nil
 	}
 	v.Valid = true
@@ -193,14 +201,15 @@ func (v *PurchaseValidator) ValidPaidAmount(
 	tiers []protobuf.Tier,
 	buyingTiersCount []uint32,
 	network *chaincfg.Params,
-) (bool, *entity.MetadataEventPurchase, error) {
+) (bool, *entity.MetadataEventPurchase) {
 	if !v.Valid {
-		return false, nil, nil
+		return false, nil
 	}
 	sellerAddr, err := btcutil.DecodeAddress(deploy.SellerWallet, network) // default to mainnet
 	if err != nil {
 		v.Valid = false
-		return v.Valid, nil, errors.Wrap(err, "Cannot decode Sellerwallet")
+		v.Reason = "Invalid seller address."
+		return v.Valid, nil
 	}
 
 	var txPaid int64 = 0
@@ -222,7 +231,8 @@ func (v *PurchaseValidator) ValidPaidAmount(
 	// total amount paid is greater than report paid
 	if txPaid < payload.TotalAmountSat {
 		v.Valid = false
-		return v.Valid, nil, nil
+		v.Reason = "Total amount paid is greater than reported paid"
+		return v.Valid, nil
 	}
 	// calculate total price
 	var totalPrice int64 = 0
@@ -239,10 +249,11 @@ func (v *PurchaseValidator) ValidPaidAmount(
 	meta.ExpectedTotalAmountDiscounted = maxDiscounted
 	if payload.TotalAmountSat < maxDiscounted {
 		v.Valid = false
-		return v.Valid, nil, nil
+		v.Reason = "Discounted over allowed discount."
+		return v.Valid, nil
 	}
 	v.Valid = true
-	return v.Valid, &meta, nil
+	return v.Valid, &meta
 }
 
 func (v *PurchaseValidator) WithinLimit(
@@ -270,6 +281,7 @@ func (v *PurchaseValidator) WithinLimit(
 	}
 	if len(buyerOwnedNodes)+len(payload.NodeIDs) > int(deploy.MaxPerAddress) {
 		v.Valid = false
+		v.Reason = "Purchase over limit per address."
 		return v.Valid, nil
 	}
 
@@ -283,6 +295,7 @@ func (v *PurchaseValidator) WithinLimit(
 	for i := 0; i < len(tiers); i++ {
 		if ownedTiersCount[i]+buyingTiersCount[i] > tiers[i].MaxPerAddress {
 			v.Valid = false
+			v.Reason = "Purchase over limit per address."
 			return v.Valid, nil
 		}
 	}
