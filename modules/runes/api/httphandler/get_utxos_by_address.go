@@ -56,6 +56,7 @@ type utxoExtend struct {
 type utxoItem struct {
 	TxHash      chainhash.Hash `json:"txHash"`
 	OutputIndex uint32         `json:"outputIndex"`
+	Sats        int64          `json:"sats"`
 	Extend      utxoExtend     `json:"extend"`
 }
 

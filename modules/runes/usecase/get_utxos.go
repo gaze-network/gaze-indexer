@@ -44,6 +44,7 @@ func (u *Usecase) GetUTXOsOutputByLocation(ctx context.Context, txHash chainhash
 			Hash:  txHash,
 			Index: outputIdx,
 		},
+		Sats: tx.TxOut[outputIdx].Value,
 	}
 
 	transaction, err := u.runesDg.GetRuneTransaction(ctx, txHash)

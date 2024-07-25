@@ -82,6 +82,7 @@ func (h *HttpHandler) GetUTXOsOutputByLocation(ctx *fiber.Ctx) (err error) {
 		Result: &utxoItem{
 			TxHash:      utxo.OutPoint.Hash,
 			OutputIndex: utxo.OutPoint.Index,
+			Sats:        utxo.Sats,
 			Extend: utxoExtend{
 				Runes: runeBalances,
 			},

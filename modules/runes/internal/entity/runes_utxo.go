@@ -14,5 +14,6 @@ type RunesUTXOBalance struct {
 type RunesUTXO struct {
 	PkScript     []byte
 	OutPoint     wire.OutPoint
+	Sats         int64
 	RuneBalances []RunesUTXOBalance
 }
