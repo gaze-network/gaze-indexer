@@ -27,10 +27,11 @@ type RunesReaderDataGateway interface {
 	GetLatestBlock(ctx context.Context) (types.BlockHeader, error)
 	GetIndexedBlockByHeight(ctx context.Context, height int64) (*entity.IndexedBlock, error)
 	// GetRuneTransactions returns the runes transactions, filterable by pkScript, runeId and height. If pkScript, runeId or height is zero value, that filter is ignored.
-	GetRuneTransactions(ctx context.Context, pkScript []byte, runeId runes.RuneId, fromBlock, toBlock uint64) ([]*entity.RuneTransaction, error)
+	GetRuneTransactions(ctx context.Context, pkScript []byte, runeId runes.RuneId, fromBlock, toBlock uint64, limit int32, offset int32) ([]*entity.RuneTransaction, error)
 
 	GetRunesBalancesAtOutPoint(ctx context.Context, outPoint wire.OutPoint) (map[runes.RuneId]*entity.OutPointBalance, error)
-	GetUnspentOutPointBalancesByPkScript(ctx context.Context, pkScript []byte, blockHeight uint64) ([]*entity.OutPointBalance, error)
+	GetRunesUTXOsByRuneIdAndPkScript(ctx context.Context, runeId runes.RuneId, pkScript []byte, blockHeight uint64, limit int32, offset int32) ([]*entity.RunesUTXO, error)
+	GetRunesUTXOsByPkScript(ctx context.Context, pkScript []byte, blockHeight uint64, limit int32, offset int32) ([]*entity.RunesUTXO, error)
 	// GetRuneIdFromRune returns the RuneId for the given rune. Returns errs.NotFound if the rune entry is not found.
 	GetRuneIdFromRune(ctx context.Context, rune runes.Rune) (runes.RuneId, error)
 	// GetRuneEntryByRuneId returns the RuneEntry for the given runeId. Returns errs.NotFound if the rune entry is not found.
@@ -45,10 +46,12 @@ type RunesReaderDataGateway interface {
 	CountRuneEntries(ctx context.Context) (uint64, error)
 
 	// GetBalancesByPkScript returns the balances for the given pkScript at the given blockHeight.
-	GetBalancesByPkScript(ctx context.Context, pkScript []byte, blockHeight uint64) (map[runes.RuneId]*entity.Balance, error)
+	// Use limit = -1 as no limit.
+	GetBalancesByPkScript(ctx context.Context, pkScript []byte, blockHeight uint64, limit int32, offset int32) ([]*entity.Balance, error)
 	// GetBalancesByRuneId returns the balances for the given runeId at the given blockHeight.
 	// Cannot use []byte as map key, so we're returning as slice.
-	GetBalancesByRuneId(ctx context.Context, runeId runes.RuneId, blockHeight uint64) ([]*entity.Balance, error)
+	// Use limit = -1 as no limit.
+	GetBalancesByRuneId(ctx context.Context, runeId runes.RuneId, blockHeight uint64, limit int32, offset int32) ([]*entity.Balance, error)
 	// GetBalancesByPkScriptAndRuneId returns the balance for the given pkScript and runeId at the given blockHeight.
 	GetBalanceByPkScriptAndRuneId(ctx context.Context, pkScript []byte, runeId runes.RuneId, blockHeight uint64) (*entity.Balance, error)
 }

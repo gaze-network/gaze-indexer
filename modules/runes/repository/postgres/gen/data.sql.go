@@ -296,12 +296,14 @@ const getBalancesByPkScript = `-- name: GetBalancesByPkScript :many
 WITH balances AS (
   SELECT DISTINCT ON (rune_id) pkscript, block_height, rune_id, amount FROM runes_balances WHERE pkscript = $1 AND block_height <= $2 ORDER BY rune_id, block_height DESC
 )
-SELECT pkscript, block_height, rune_id, amount FROM balances WHERE amount > 0
+SELECT pkscript, block_height, rune_id, amount FROM balances WHERE amount > 0 ORDER BY amount DESC, rune_id LIMIT $3 OFFSET $4
 `
 
 type GetBalancesByPkScriptParams struct {
 	Pkscript    string
 	BlockHeight int32
+	Limit       int32
+	Offset      int32
 }
 
 type GetBalancesByPkScriptRow struct {
@@ -312,7 +314,12 @@ type GetBalancesByPkScriptRow struct {
 }
 
 func (q *Queries) GetBalancesByPkScript(ctx context.Context, arg GetBalancesByPkScriptParams) ([]GetBalancesByPkScriptRow, error) {
-	rows, err := q.db.Query(ctx, getBalancesByPkScript, arg.Pkscript, arg.BlockHeight)
+	rows, err := q.db.Query(ctx, getBalancesByPkScript,
+		arg.Pkscript,
+		arg.BlockHeight,
+		arg.Limit,
+		arg.Offset,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -340,12 +347,14 @@ const getBalancesByRuneId = `-- name: GetBalancesByRuneId :many
 WITH balances AS (
   SELECT DISTINCT ON (pkscript) pkscript, block_height, rune_id, amount FROM runes_balances WHERE rune_id = $1 AND block_height <= $2 ORDER BY pkscript, block_height DESC
 )
-SELECT pkscript, block_height, rune_id, amount FROM balances WHERE amount > 0
+SELECT pkscript, block_height, rune_id, amount FROM balances WHERE amount > 0 ORDER BY amount DESC, pkscript LIMIT $3 OFFSET $4
 `
 
 type GetBalancesByRuneIdParams struct {
 	RuneID      string
 	BlockHeight int32
+	Limit       int32
+	Offset      int32
 }
 
 type GetBalancesByRuneIdRow struct {
@@ -356,7 +365,12 @@ type GetBalancesByRuneIdRow struct {
 }
 
 func (q *Queries) GetBalancesByRuneId(ctx context.Context, arg GetBalancesByRuneIdParams) ([]GetBalancesByRuneIdRow, error) {
-	rows, err := q.db.Query(ctx, getBalancesByRuneId, arg.RuneID, arg.BlockHeight)
+	rows, err := q.db.Query(ctx, getBalancesByRuneId,
+		arg.RuneID,
+		arg.BlockHeight,
+		arg.Limit,
+		arg.Offset,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -635,23 +649,25 @@ const getRuneTransactions = `-- name: GetRuneTransactions :many
 SELECT hash, runes_transactions.block_height, index, timestamp, inputs, outputs, mints, burns, rune_etched, tx_hash, runes_runestones.block_height, etching, etching_divisibility, etching_premine, etching_rune, etching_spacers, etching_symbol, etching_terms, etching_terms_amount, etching_terms_cap, etching_terms_height_start, etching_terms_height_end, etching_terms_offset_start, etching_terms_offset_end, etching_turbo, edicts, mint, pointer, cenotaph, flaws FROM runes_transactions
 	LEFT JOIN runes_runestones ON runes_transactions.hash = runes_runestones.tx_hash
 	WHERE (
-    $1::BOOLEAN = FALSE -- if @filter_pk_script is TRUE, apply pk_script filter
-    OR runes_transactions.outputs @> $2::JSONB 
-    OR runes_transactions.inputs @> $2::JSONB
-  ) AND (
-    $3::BOOLEAN = FALSE -- if @filter_rune_id is TRUE, apply rune_id filter
+    $3::BOOLEAN = FALSE -- if @filter_pk_script is TRUE, apply pk_script filter
     OR runes_transactions.outputs @> $4::JSONB 
-    OR runes_transactions.inputs @> $4::JSONB 
-    OR runes_transactions.mints ? $5 
-    OR runes_transactions.burns ? $5
-    OR (runes_transactions.rune_etched = TRUE AND runes_transactions.block_height = $6 AND runes_transactions.index = $7)
+    OR runes_transactions.inputs @> $4::JSONB
   ) AND (
-    $8 <= runes_transactions.block_height AND runes_transactions.block_height <= $9
+    $5::BOOLEAN = FALSE -- if @filter_rune_id is TRUE, apply rune_id filter
+    OR runes_transactions.outputs @> $6::JSONB 
+    OR runes_transactions.inputs @> $6::JSONB 
+    OR runes_transactions.mints ? $7 
+    OR runes_transactions.burns ? $7
+    OR (runes_transactions.rune_etched = TRUE AND runes_transactions.block_height = $8 AND runes_transactions.index = $9)
+  ) AND (
+    $10 <= runes_transactions.block_height AND runes_transactions.block_height <= $11
   )
-ORDER BY runes_transactions.block_height DESC LIMIT 10000
+ORDER BY runes_transactions.block_height DESC, runes_transactions.index DESC LIMIT $1 OFFSET $2
 `
 
 type GetRuneTransactionsParams struct {
+	Limit             int32
+	Offset            int32
 	FilterPkScript    bool
 	PkScriptParam     []byte
 	FilterRuneID      bool
@@ -698,6 +714,8 @@ type GetRuneTransactionsRow struct {
 
 func (q *Queries) GetRuneTransactions(ctx context.Context, arg GetRuneTransactionsParams) ([]GetRuneTransactionsRow, error) {
 	rows, err := q.db.Query(ctx, getRuneTransactions,
+		arg.Limit,
+		arg.Offset,
 		arg.FilterPkScript,
 		arg.PkScriptParam,
 		arg.FilterRuneID,
@@ -757,32 +775,114 @@ func (q *Queries) GetRuneTransactions(ctx context.Context, arg GetRuneTransactio
 	return items, nil
 }
 
-const getUnspentOutPointBalancesByPkScript = `-- name: GetUnspentOutPointBalancesByPkScript :many
-SELECT rune_id, pkscript, tx_hash, tx_idx, amount, block_height, spent_height FROM runes_outpoint_balances WHERE pkscript = $1 AND block_height <= $2 AND (spent_height IS NULL OR spent_height > $2)
+const getRunesUTXOsByPkScript = `-- name: GetRunesUTXOsByPkScript :many
+SELECT tx_hash, tx_idx, max("pkscript") as pkscript, array_agg("rune_id") as rune_ids, array_agg("amount") as amounts 
+  FROM runes_outpoint_balances 
+  WHERE
+    pkscript = $3 AND
+    block_height <= $4 AND
+    (spent_height IS NULL OR spent_height > $4)
+  GROUP BY tx_hash, tx_idx
+  ORDER BY tx_hash, tx_idx 
+  LIMIT $1 OFFSET $2
 `
 
-type GetUnspentOutPointBalancesByPkScriptParams struct {
+type GetRunesUTXOsByPkScriptParams struct {
+	Limit       int32
+	Offset      int32
 	Pkscript    string
 	BlockHeight int32
 }
 
-func (q *Queries) GetUnspentOutPointBalancesByPkScript(ctx context.Context, arg GetUnspentOutPointBalancesByPkScriptParams) ([]RunesOutpointBalance, error) {
-	rows, err := q.db.Query(ctx, getUnspentOutPointBalancesByPkScript, arg.Pkscript, arg.BlockHeight)
+type GetRunesUTXOsByPkScriptRow struct {
+	TxHash   string
+	TxIdx    int32
+	Pkscript interface{}
+	RuneIds  interface{}
+	Amounts  interface{}
+}
+
+func (q *Queries) GetRunesUTXOsByPkScript(ctx context.Context, arg GetRunesUTXOsByPkScriptParams) ([]GetRunesUTXOsByPkScriptRow, error) {
+	rows, err := q.db.Query(ctx, getRunesUTXOsByPkScript,
+		arg.Limit,
+		arg.Offset,
+		arg.Pkscript,
+		arg.BlockHeight,
+	)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []RunesOutpointBalance
+	var items []GetRunesUTXOsByPkScriptRow
 	for rows.Next() {
-		var i RunesOutpointBalance
+		var i GetRunesUTXOsByPkScriptRow
 		if err := rows.Scan(
-			&i.RuneID,
-			&i.Pkscript,
 			&i.TxHash,
 			&i.TxIdx,
-			&i.Amount,
-			&i.BlockHeight,
-			&i.SpentHeight,
+			&i.Pkscript,
+			&i.RuneIds,
+			&i.Amounts,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getRunesUTXOsByRuneIdAndPkScript = `-- name: GetRunesUTXOsByRuneIdAndPkScript :many
+SELECT tx_hash, tx_idx, max("pkscript") as pkscript, array_agg("rune_id") as rune_ids, array_agg("amount") as amounts 
+  FROM runes_outpoint_balances 
+  WHERE
+    pkscript = $3 AND 
+    block_height <= $4 AND 
+    (spent_height IS NULL OR spent_height > $4)
+  GROUP BY tx_hash, tx_idx
+  HAVING array_agg("rune_id") @> $5::text[] 
+  ORDER BY tx_hash, tx_idx 
+  LIMIT $1 OFFSET $2
+`
+
+type GetRunesUTXOsByRuneIdAndPkScriptParams struct {
+	Limit       int32
+	Offset      int32
+	Pkscript    string
+	BlockHeight int32
+	RuneIds     []string
+}
+
+type GetRunesUTXOsByRuneIdAndPkScriptRow struct {
+	TxHash   string
+	TxIdx    int32
+	Pkscript interface{}
+	RuneIds  interface{}
+	Amounts  interface{}
+}
+
+func (q *Queries) GetRunesUTXOsByRuneIdAndPkScript(ctx context.Context, arg GetRunesUTXOsByRuneIdAndPkScriptParams) ([]GetRunesUTXOsByRuneIdAndPkScriptRow, error) {
+	rows, err := q.db.Query(ctx, getRunesUTXOsByRuneIdAndPkScript,
+		arg.Limit,
+		arg.Offset,
+		arg.Pkscript,
+		arg.BlockHeight,
+		arg.RuneIds,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetRunesUTXOsByRuneIdAndPkScriptRow
+	for rows.Next() {
+		var i GetRunesUTXOsByRuneIdAndPkScriptRow
+		if err := rows.Scan(
+			&i.TxHash,
+			&i.TxIdx,
+			&i.Pkscript,
+			&i.RuneIds,
+			&i.Amounts,
 		); err != nil {
 			return nil, err
 		}

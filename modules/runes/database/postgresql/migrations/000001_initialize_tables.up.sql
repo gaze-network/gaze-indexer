@@ -118,5 +118,7 @@ CREATE TABLE IF NOT EXISTS "runes_balances" (
 	"amount" DECIMAL NOT NULL,
 	PRIMARY KEY ("pkscript", "rune_id", "block_height")
 );
+CREATE INDEX IF NOT EXISTS runes_balances_rune_id_block_height_idx ON "runes_balances" USING BTREE ("rune_id", "block_height");
+CREATE INDEX IF NOT EXISTS runes_balances_pkscript_block_height_idx ON "runes_balances" USING BTREE ("pkscript", "block_height");
 
 COMMIT;
