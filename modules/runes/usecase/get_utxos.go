@@ -11,23 +11,75 @@ import (
 	"github.com/gaze-network/indexer-network/modules/runes/runes"
 )
 
-func (u *Usecase) GetRunesUTXOsByPkScript(ctx context.Context, pkScript []byte, blockHeight uint64, limit int32, offset int32) ([]*entity.RunesUTXO, error) {
+func (u *Usecase) GetRunesUTXOsByPkScript(ctx context.Context, pkScript []byte, blockHeight uint64, limit int32, offset int32) ([]*entity.RunesUTXOWithSats, error) {
 	balances, err := u.runesDg.GetRunesUTXOsByPkScript(ctx, pkScript, blockHeight, limit, offset)
 	if err != nil {
 		return nil, errors.Wrap(err, "error during GetBalancesByPkScript")
 	}
-	return balances, nil
+
+	result := make([]*entity.RunesUTXOWithSats, 0, len(balances))
+	for _, balance := range balances {
+		tx, err := u.bitcoinClient.GetRawTransactionByTxHash(ctx, balance.OutPoint.Hash)
+		if err != nil {
+			return nil, errors.WithStack(ErrUTXONotFound)
+		}
+
+		runeBalances := make([]entity.RunesUTXOBalance, 0, len(balance.RuneBalances))
+		for _, runeBalance := range balance.RuneBalances {
+			runeBalances = append(runeBalances, entity.RunesUTXOBalance{
+				RuneId: runeBalance.RuneId,
+				Amount: runeBalance.Amount,
+			})
+		}
+
+		result = append(result, &entity.RunesUTXOWithSats{
+			RunesUTXO: entity.RunesUTXO{
+				PkScript:     balance.PkScript,
+				OutPoint:     balance.OutPoint,
+				RuneBalances: runeBalances,
+			},
+			Sats: tx.TxOut[balance.OutPoint.Index].Value,
+		})
+	}
+
+	return result, nil
 }
 
-func (u *Usecase) GetRunesUTXOsByRuneIdAndPkScript(ctx context.Context, runeId runes.RuneId, pkScript []byte, blockHeight uint64, limit int32, offset int32) ([]*entity.RunesUTXO, error) {
+func (u *Usecase) GetRunesUTXOsByRuneIdAndPkScript(ctx context.Context, runeId runes.RuneId, pkScript []byte, blockHeight uint64, limit int32, offset int32) ([]*entity.RunesUTXOWithSats, error) {
 	balances, err := u.runesDg.GetRunesUTXOsByRuneIdAndPkScript(ctx, runeId, pkScript, blockHeight, limit, offset)
 	if err != nil {
 		return nil, errors.Wrap(err, "error during GetBalancesByPkScript")
 	}
-	return balances, nil
+
+	result := make([]*entity.RunesUTXOWithSats, 0, len(balances))
+	for _, balance := range balances {
+		tx, err := u.bitcoinClient.GetRawTransactionByTxHash(ctx, balance.OutPoint.Hash)
+		if err != nil {
+			return nil, errors.WithStack(ErrUTXONotFound)
+		}
+
+		runeBalances := make([]entity.RunesUTXOBalance, 0, len(balance.RuneBalances))
+		for _, runeBalance := range balance.RuneBalances {
+			runeBalances = append(runeBalances, entity.RunesUTXOBalance{
+				RuneId: runeBalance.RuneId,
+				Amount: runeBalance.Amount,
+			})
+		}
+
+		result = append(result, &entity.RunesUTXOWithSats{
+			RunesUTXO: entity.RunesUTXO{
+				PkScript:     balance.PkScript,
+				OutPoint:     balance.OutPoint,
+				RuneBalances: runeBalances,
+			},
+			Sats: tx.TxOut[balance.OutPoint.Index].Value,
+		})
+	}
+
+	return result, nil
 }
 
-func (u *Usecase) GetUTXOsOutputByLocation(ctx context.Context, txHash chainhash.Hash, outputIdx uint32) (*entity.RunesUTXO, error) {
+func (u *Usecase) GetUTXOsOutputByLocation(ctx context.Context, txHash chainhash.Hash, outputIdx uint32) (*entity.RunesUTXOWithSats, error) {
 	tx, err := u.bitcoinClient.GetRawTransactionByTxHash(ctx, txHash)
 	if err != nil {
 		return nil, errors.WithStack(ErrUTXONotFound)
@@ -38,11 +90,13 @@ func (u *Usecase) GetUTXOsOutputByLocation(ctx context.Context, txHash chainhash
 		return nil, errors.WithStack(ErrUTXONotFound)
 	}
 
-	rune := &entity.RunesUTXO{
-		PkScript: tx.TxOut[0].PkScript,
-		OutPoint: wire.OutPoint{
-			Hash:  txHash,
-			Index: outputIdx,
+	rune := &entity.RunesUTXOWithSats{
+		RunesUTXO: entity.RunesUTXO{
+			PkScript: tx.TxOut[0].PkScript,
+			OutPoint: wire.OutPoint{
+				Hash:  txHash,
+				Index: outputIdx,
+			},
 		},
 		Sats: tx.TxOut[outputIdx].Value,
 	}
