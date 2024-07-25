@@ -13,6 +13,7 @@ func (h *HttpHandler) Mount(router fiber.Router) error {
 	r.Get("/holders/:id", h.GetHolders)
 	r.Get("/info/:id", h.GetTokenInfo)
 	r.Get("/utxos/wallet/:wallet", h.GetUTXOs)
+	r.Post("/utxos/output/batch", h.GetUTXOsOutputByLocationBatch)
 	r.Get("/utxos/output/:txid", h.GetUTXOsOutputByLocation)
 	r.Get("/block", h.GetCurrentBlock)
 	return nil
