@@ -8,6 +8,7 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/common/errs"
 	"github.com/gaze-network/indexer-network/modules/runes/runes"
+	"github.com/gaze-network/indexer-network/modules/runes/usecase"
 	"github.com/gofiber/fiber/v2"
 	"github.com/samber/lo"
 	"golang.org/x/sync/errgroup"
@@ -66,6 +67,9 @@ func (h *HttpHandler) GetUTXOsOutputByLocationBatch(ctx *fiber.Ctx) (err error) 
 
 		utxo, err := h.usecase.GetUTXOsOutputByLocation(ctx, *txHash, uint32(query.OutputIdx))
 		if err != nil {
+			if errors.Is(err, usecase.ErrUTXONotFound) {
+				return nil, errs.NewPublicError("utxo not found")
+			}
 			return nil, errors.WithStack(err)
 		}
 
