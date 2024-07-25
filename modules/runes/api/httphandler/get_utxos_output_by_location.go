@@ -45,7 +45,7 @@ func (h *HttpHandler) GetUTXOsOutputByLocation(ctx *fiber.Ctx) (err error) {
 		return errors.WithStack(err)
 	}
 
-	utxo, err := h.usecase.GetUTXOsOutputByLocation(ctx.Context(), *txHash, uint32(req.OutputIdx))
+	utxo, err := h.usecase.GetUTXOsOutputByLocation(ctx.UserContext(), *txHash, uint32(req.OutputIdx))
 	if err != nil {
 		if errors.Is(err, usecase.ErrUTXONotFound) {
 			return errs.NewPublicError("utxo not found")
