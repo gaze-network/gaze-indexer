@@ -118,9 +118,9 @@ type TierMap struct {
 func (v *PurchaseValidator) ValidTiers(
 	payload *protobuf.PurchasePayload,
 	deploy *entity.NodeSale,
-) (bool, *TierMap) {
+) (bool, TierMap) {
 	if !v.Valid {
-		return false, nil
+		return false, TierMap{}
 	}
 	tiers := make([]protobuf.Tier, len(deploy.Tiers))
 	buyingTiersCount := make([]uint32, len(tiers))
@@ -132,7 +132,7 @@ func (v *PurchaseValidator) ValidTiers(
 		if err != nil {
 			v.Valid = false
 			v.Reason = "Invalid Tier format"
-			return v.Valid, nil
+			return v.Valid, TierMap{}
 		}
 	}
 
@@ -151,11 +151,11 @@ func (v *PurchaseValidator) ValidTiers(
 		} else {
 			v.Valid = false
 			v.Reason = "Invalid NodeId."
-			return false, nil
+			return false, TierMap{}
 		}
 	}
 	v.Valid = true
-	return v.Valid, &TierMap{
+	return v.Valid, TierMap{
 		Tiers:            tiers,
 		BuyingTiersCount: buyingTiersCount,
 		NodeIdToTier:     nodeIdToTier,

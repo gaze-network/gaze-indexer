@@ -12,7 +12,7 @@ import (
 const clearDelegate = `-- name: ClearDelegate :execrows
 UPDATE nodes
 SET "delegated_to" = ''
-WHERE "delegate_tx_hash" = NULL
+WHERE "delegate_tx_hash" = ''
 `
 
 func (q *Queries) ClearDelegate(ctx context.Context) (int64, error) {
@@ -242,23 +242,25 @@ func (q *Queries) GetNodesByPubkey(ctx context.Context, arg GetNodesByPubkeyPara
 
 const setDelegates = `-- name: SetDelegates :execrows
 UPDATE nodes
-SET delegated_to = $3
+SET delegated_to = $4, delegate_tx_hash = $3
 WHERE sale_block = $1 AND
     sale_tx_index = $2 AND
-    node_id = ANY ($4::int[])
+    node_id = ANY ($5::int[])
 `
 
 type SetDelegatesParams struct {
-	SaleBlock   int64
-	SaleTxIndex int32
-	Delegatee   string
-	NodeIds     []int32
+	SaleBlock      int64
+	SaleTxIndex    int32
+	DelegateTxHash string
+	Delegatee      string
+	NodeIds        []int32
 }
 
 func (q *Queries) SetDelegates(ctx context.Context, arg SetDelegatesParams) (int64, error) {
 	result, err := q.db.Exec(ctx, setDelegates,
 		arg.SaleBlock,
 		arg.SaleTxIndex,
+		arg.DelegateTxHash,
 		arg.Delegatee,
 		arg.NodeIds,
 	)

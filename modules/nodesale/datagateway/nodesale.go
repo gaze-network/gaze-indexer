@@ -38,10 +38,11 @@ type GetNodesByIdsParams struct {
 }
 
 type SetDelegatesParams struct {
-	SaleBlock   int64
-	SaleTxIndex int32
-	Delegatee   string
-	NodeIds     []int32
+	SaleBlock      int64
+	SaleTxIndex    int32
+	Delegatee      string
+	DelegateTxHash string
+	NodeIds        []int32
 }
 
 type GetNodeSaleParams struct {

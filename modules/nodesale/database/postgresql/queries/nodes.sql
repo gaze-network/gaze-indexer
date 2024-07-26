@@ -1,11 +1,11 @@
 -- name: ClearDelegate :execrows
 UPDATE nodes
 SET "delegated_to" = ''
-WHERE "delegate_tx_hash" = NULL;
+WHERE "delegate_tx_hash" = '';
 
 -- name: SetDelegates :execrows
 UPDATE nodes
-SET delegated_to = @delegatee
+SET delegated_to = @delegatee, delegate_tx_hash = $3
 WHERE sale_block = $1 AND
     sale_tx_index = $2 AND
     node_id = ANY (@node_ids::int[]);

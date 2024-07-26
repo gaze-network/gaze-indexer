@@ -48,10 +48,11 @@ func (p *Processor) processDelegate(ctx context.Context, qtx datagateway.NodeSal
 	if validator.Valid {
 		nodeIds := lo.Map(delegate.NodeIDs, func(item uint32, index int) int32 { return int32(item) })
 		_, err = qtx.SetDelegates(ctx, datagateway.SetDelegatesParams{
-			SaleBlock:   int64(delegate.DeployID.Block),
-			SaleTxIndex: int32(delegate.DeployID.TxIndex),
-			Delegatee:   delegate.DelegateePublicKey,
-			NodeIds:     nodeIds,
+			SaleBlock:      int64(delegate.DeployID.Block),
+			SaleTxIndex:    int32(delegate.DeployID.TxIndex),
+			Delegatee:      delegate.DelegateePublicKey,
+			DelegateTxHash: event.transaction.TxHash.String(),
+			NodeIds:        nodeIds,
 		})
 		if err != nil {
 			return errors.Wrap(err, "Failed to set delegate")

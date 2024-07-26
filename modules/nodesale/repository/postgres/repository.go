@@ -126,10 +126,11 @@ func (repo *Repository) CreateEvent(ctx context.Context, arg entity.NodeSaleEven
 
 func (repo *Repository) SetDelegates(ctx context.Context, arg datagateway.SetDelegatesParams) (int64, error) {
 	affected, err := repo.queries.SetDelegates(ctx, gen.SetDelegatesParams{
-		SaleBlock:   arg.SaleBlock,
-		SaleTxIndex: arg.SaleTxIndex,
-		Delegatee:   arg.Delegatee,
-		NodeIds:     arg.NodeIds,
+		SaleBlock:      arg.SaleBlock,
+		SaleTxIndex:    arg.SaleTxIndex,
+		Delegatee:      arg.Delegatee,
+		DelegateTxHash: arg.DelegateTxHash,
+		NodeIds:        arg.NodeIds,
 	})
 	if err != nil {
 		return 0, errors.Wrap(err, "Cannot set delegate")
