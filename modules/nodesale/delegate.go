@@ -11,9 +11,9 @@ import (
 	"github.com/samber/lo"
 )
 
-func (p *Processor) processDelegate(ctx context.Context, qtx datagateway.NodeSaleDataGatewayWithTx, block *types.Block, event nodeSaleEvent) error {
+func (p *Processor) ProcessDelegate(ctx context.Context, qtx datagateway.NodeSaleDataGatewayWithTx, block *types.Block, event NodeSaleEvent) error {
 	validator := delegatevalidator.New()
-	delegate := event.eventMessage.Delegate
+	delegate := event.EventMessage.Delegate
 
 	_, nodes, err := validator.NodesExist(ctx, qtx, delegate.DeployID, delegate.NodeIDs)
 	if err != nil {
@@ -21,23 +21,23 @@ func (p *Processor) processDelegate(ctx context.Context, qtx datagateway.NodeSal
 	}
 
 	for _, node := range nodes {
-		valid := validator.EqualXonlyPublicKey(node.OwnerPublicKey, event.txPubkey)
+		valid := validator.EqualXonlyPublicKey(node.OwnerPublicKey, event.TxPubkey)
 		if !valid {
 			break
 		}
 	}
 
 	err = qtx.CreateEvent(ctx, entity.NodeSaleEvent{
-		TxHash:         event.transaction.TxHash.String(),
-		TxIndex:        int32(event.transaction.Index),
-		Action:         int32(event.eventMessage.Action),
-		RawMessage:     event.rawData,
-		ParsedMessage:  event.eventJson,
+		TxHash:         event.Transaction.TxHash.String(),
+		TxIndex:        int32(event.Transaction.Index),
+		Action:         int32(event.EventMessage.Action),
+		RawMessage:     event.RawData,
+		ParsedMessage:  event.EventJson,
 		BlockTimestamp: block.Header.Timestamp,
-		BlockHash:      event.transaction.BlockHash.String(),
-		BlockHeight:    event.transaction.BlockHeight,
+		BlockHash:      event.Transaction.BlockHash.String(),
+		BlockHeight:    event.Transaction.BlockHeight,
 		Valid:          validator.Valid,
-		WalletAddress:  p.pubkeyToPkHashAddress(event.txPubkey).EncodeAddress(),
+		WalletAddress:  p.PubkeyToPkHashAddress(event.TxPubkey).EncodeAddress(),
 		Metadata:       nil,
 		Reason:         validator.Reason,
 	})
@@ -51,7 +51,7 @@ func (p *Processor) processDelegate(ctx context.Context, qtx datagateway.NodeSal
 			SaleBlock:      int64(delegate.DeployID.Block),
 			SaleTxIndex:    int32(delegate.DeployID.TxIndex),
 			Delegatee:      delegate.DelegateePublicKey,
-			DelegateTxHash: event.transaction.TxHash.String(),
+			DelegateTxHash: event.Transaction.TxHash.String(),
 			NodeIds:        nodeIds,
 		})
 		if err != nil {

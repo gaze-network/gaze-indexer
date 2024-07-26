@@ -20,7 +20,7 @@ func TestDeployInvalid(t *testing.T) {
 	strangerKey, err := btcec.NewPrivateKey()
 	require.NoError(t, err)
 	strangerPubkeyHex := hex.EncodeToString(strangerKey.PubKey().SerializeCompressed())
-	sellerWallet := p.pubkeyToPkHashAddress(prvKey.PubKey())
+	sellerWallet := p.PubkeyToPkHashAddress(prvKey.PubKey())
 	message := &protobuf.NodeSaleEvent{
 		Action: protobuf.Action_ACTION_DEPLOY,
 		Deploy: &protobuf.ActionDeploy{
@@ -47,7 +47,7 @@ func TestDeployInvalid(t *testing.T) {
 	}
 
 	event, block := assembleTestEvent(prvKey, "0101010101", "0101010101", 0, 0, message)
-	p.processDeploy(ctx, qtx, block, event)
+	p.ProcessDeploy(ctx, qtx, block, event)
 
 	nodeSales, _ := qtx.GetNodeSale(ctx, datagateway.GetNodeSaleParams{
 		BlockHeight: testBlockHeight - 1,
@@ -62,7 +62,7 @@ func TestDeployValid(t *testing.T) {
 	}
 	privateKey, _ := btcec.NewPrivateKey()
 	pubkeyHex := hex.EncodeToString(privateKey.PubKey().SerializeCompressed())
-	sellerWallet := p.pubkeyToPkHashAddress(privateKey.PubKey())
+	sellerWallet := p.PubkeyToPkHashAddress(privateKey.PubKey())
 	startAt := time.Now().Add(time.Hour * -1)
 	endAt := time.Now().Add(time.Hour * 1)
 	message := &protobuf.NodeSaleEvent{
@@ -91,7 +91,7 @@ func TestDeployValid(t *testing.T) {
 	}
 
 	event, block := assembleTestEvent(privateKey, "0202020202", "0202020202", 0, 0, message)
-	p.processDeploy(ctx, qtx, block, event)
+	p.ProcessDeploy(ctx, qtx, block, event)
 
 	nodeSales, _ := qtx.GetNodeSale(ctx, datagateway.GetNodeSaleParams{
 		BlockHeight: testBlockHeight - 1,

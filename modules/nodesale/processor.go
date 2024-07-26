@@ -22,6 +22,29 @@ import (
 	"github.com/gaze-network/indexer-network/modules/nodesale/protobuf"
 )
 
+type NodeSaleEvent struct {
+	Transaction  *types.Transaction
+	EventMessage *protobuf.NodeSaleEvent
+	EventJson    []byte
+	TxPubkey     *btcec.PublicKey
+	RawData      []byte
+}
+
+func NewProcessor(repository datagateway.NodeSaleDataGateway,
+	datasource *datasources.BitcoinNodeDatasource,
+	network common.Network,
+	cleanupFuncs []func(context.Context) error,
+	lastBlockDefault int64,
+) *Processor {
+	return &Processor{
+		NodeSaleDg:       repository,
+		BtcClient:        datasource,
+		Network:          network,
+		cleanupFuncs:     cleanupFuncs,
+		lastBlockDefault: lastBlockDefault,
+	}
+}
+
 func (p *Processor) Shutdown(ctx context.Context) error {
 	for _, cleanupFunc := range p.cleanupFuncs {
 		err := cleanupFunc(ctx)
@@ -33,20 +56,20 @@ func (p *Processor) Shutdown(ctx context.Context) error {
 }
 
 type Processor struct {
-	nodeSaleDg       datagateway.NodeSaleDataGateway
-	btcClient        *datasources.BitcoinNodeDatasource
-	network          common.Network
+	NodeSaleDg       datagateway.NodeSaleDataGateway
+	BtcClient        *datasources.BitcoinNodeDatasource
+	Network          common.Network
 	cleanupFuncs     []func(context.Context) error
 	lastBlockDefault int64
 }
 
 // CurrentBlock implements indexer.Processor.
 func (p *Processor) CurrentBlock(ctx context.Context) (types.BlockHeader, error) {
-	block, err := p.nodeSaleDg.GetLastProcessedBlock(ctx)
+	block, err := p.NodeSaleDg.GetLastProcessedBlock(ctx)
 	if err != nil {
 		logger.InfoContext(ctx, "Couldn't get last processed block. Start from NODESALE_LAST_BLOCK_DEFAULT.",
 			slogx.Int64("currentBlock", p.lastBlockDefault))
-		header, err := p.btcClient.GetBlockHeader(ctx, p.lastBlockDefault)
+		header, err := p.BtcClient.GetBlockHeader(ctx, p.lastBlockDefault)
 		if err != nil {
 			return types.BlockHeader{}, errors.Wrap(err, "Cannot get default block from bitcoin node")
 		}
@@ -68,7 +91,7 @@ func (p *Processor) CurrentBlock(ctx context.Context) (types.BlockHeader, error)
 
 // GetIndexedBlock implements indexer.Processor.
 func (p *Processor) GetIndexedBlock(ctx context.Context, height int64) (types.BlockHeader, error) {
-	block, err := p.nodeSaleDg.GetBlock(ctx, height)
+	block, err := p.NodeSaleDg.GetBlock(ctx, height)
 	if err != nil {
 		return types.BlockHeader{}, errors.Wrapf(err, "Block %d not found", height)
 	}
@@ -126,16 +149,8 @@ func extractNodeSaleData(witness [][]byte) (data []byte, internalPubkey *btcec.P
 	return []byte{}, nil, false
 }
 
-type nodeSaleEvent struct {
-	transaction  *types.Transaction
-	eventMessage *protobuf.NodeSaleEvent
-	eventJson    []byte
-	txPubkey     *btcec.PublicKey
-	rawData      []byte
-}
-
-func (p *Processor) parseTransactions(ctx context.Context, transactions []*types.Transaction) ([]nodeSaleEvent, error) {
-	var events []nodeSaleEvent
+func (p *Processor) parseTransactions(ctx context.Context, transactions []*types.Transaction) ([]NodeSaleEvent, error) {
+	var events []NodeSaleEvent
 	for _, t := range transactions {
 		for _, txIn := range t.TxIn {
 			data, txPubkey, isNodeSale := extractNodeSaleData(txIn.Witness)
@@ -153,15 +168,15 @@ func (p *Processor) parseTransactions(ctx context.Context, transactions []*types
 			}
 			eventJson, err := protojson.Marshal(event)
 			if err != nil {
-				return []nodeSaleEvent{}, errors.Wrap(err, "Failed to parse protobuf to json")
+				return []NodeSaleEvent{}, errors.Wrap(err, "Failed to parse protobuf to json")
 			}
 
-			events = append(events, nodeSaleEvent{
-				transaction:  t,
-				eventMessage: event,
-				eventJson:    eventJson,
-				rawData:      data,
-				txPubkey:     txPubkey,
+			events = append(events, NodeSaleEvent{
+				Transaction:  t,
+				EventMessage: event,
+				EventJson:    eventJson,
+				RawData:      data,
+				TxPubkey:     txPubkey,
 			})
 		}
 	}
@@ -180,7 +195,7 @@ func (p *Processor) Process(ctx context.Context, inputs []*types.Block) error {
 			return errors.Wrap(err, "Invalid data from bitcoin client")
 		}
 		// open transaction
-		qtx, err := p.nodeSaleDg.BeginNodeSaleTx(ctx)
+		qtx, err := p.NodeSaleDg.BeginNodeSaleTx(ctx)
 		if err != nil {
 			return errors.Wrap(err, "Failed to create transaction")
 		}
@@ -203,29 +218,29 @@ func (p *Processor) Process(ctx context.Context, inputs []*types.Block) error {
 		// for each events
 		for _, event := range events {
 			logger.InfoContext(ctx, "NodeSale processing event",
-				slogx.Uint32("txIndex", event.transaction.Index),
+				slogx.Uint32("txIndex", event.Transaction.Index),
 				slogx.Int64("blockHeight", block.Header.Height),
 				slogx.Stringer("blockhash", block.Header.Hash),
 			)
-			eventMessage := event.eventMessage
+			eventMessage := event.EventMessage
 			switch eventMessage.Action {
 			case protobuf.Action_ACTION_DEPLOY:
-				err = p.processDeploy(ctx, qtx, block, event)
+				err = p.ProcessDeploy(ctx, qtx, block, event)
 				if err != nil {
 					return errors.Wrapf(err, "Failed to deploy at block %d", block.Header.Height)
 				}
 			case protobuf.Action_ACTION_DELEGATE:
-				err = p.processDelegate(ctx, qtx, block, event)
+				err = p.ProcessDelegate(ctx, qtx, block, event)
 				if err != nil {
 					return errors.Wrapf(err, "Failed to delegate at block %d", block.Header.Height)
 				}
 			case protobuf.Action_ACTION_PURCHASE:
-				err = p.processPurchase(ctx, qtx, block, event)
+				err = p.ProcessPurchase(ctx, qtx, block, event)
 				if err != nil {
 					return errors.Wrapf(err, "Failed to purchase at block %d", block.Header.Height)
 				}
 			default:
-				logger.DebugContext(ctx, "Invalid event ACTION", slogx.Stringer("txHash", (event.transaction.TxHash)))
+				logger.DebugContext(ctx, "Invalid event ACTION", slogx.Stringer("txHash", (event.Transaction.TxHash)))
 			}
 		}
 		// close transaction
@@ -242,7 +257,7 @@ func (p *Processor) Process(ctx context.Context, inputs []*types.Block) error {
 
 // RevertData implements indexer.Processor.
 func (p *Processor) RevertData(ctx context.Context, from int64) error {
-	qtx, err := p.nodeSaleDg.BeginNodeSaleTx(ctx)
+	qtx, err := p.NodeSaleDg.BeginNodeSaleTx(ctx)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create transaction")
 	}

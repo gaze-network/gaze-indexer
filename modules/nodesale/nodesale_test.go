@@ -56,12 +56,12 @@ func TestMain(m *testing.M) {
 	datagateway := repository.NewRepository(db)
 
 	p = &Processor{
-		nodeSaleDg: datagateway,
-		network:    common.NetworkMainnet,
+		NodeSaleDg: datagateway,
+		Network:    common.NetworkMainnet,
 	}
 	repo.ClearEvents(ctx)
 
-	qtx, err = p.nodeSaleDg.BeginNodeSaleTx(ctx)
+	qtx, err = p.NodeSaleDg.BeginNodeSaleTx(ctx)
 	if err != nil {
 		return
 	}
@@ -70,7 +70,7 @@ func TestMain(m *testing.M) {
 	qtx.Commit(ctx)
 }
 
-func assembleTestEvent(privateKey *secp256k1.PrivateKey, blockHashHex, txHashHex string, blockHeight int64, txIndex int, message *protobuf.NodeSaleEvent) (nodeSaleEvent, *types.Block) {
+func assembleTestEvent(privateKey *secp256k1.PrivateKey, blockHashHex, txHashHex string, blockHeight int64, txIndex int, message *protobuf.NodeSaleEvent) (NodeSaleEvent, *types.Block) {
 	blockHash, _ := chainhash.NewHashFromStr(blockHashHex)
 	txHash, _ := chainhash.NewHashFromStr(txHashHex)
 
@@ -93,17 +93,17 @@ func assembleTestEvent(privateKey *secp256k1.PrivateKey, blockHashHex, txHashHex
 		testTxIndex++
 	}
 
-	event := nodeSaleEvent{
-		transaction: &types.Transaction{
+	event := NodeSaleEvent{
+		Transaction: &types.Transaction{
 			BlockHeight: int64(blockHeight),
 			BlockHash:   *blockHash,
 			Index:       uint32(txIndex),
 			TxHash:      *txHash,
 		},
-		rawData:      rawData,
-		eventMessage: message,
-		eventJson:    messageJson,
-		txPubkey:     privateKey.PubKey(),
+		RawData:      rawData,
+		EventMessage: message,
+		EventJson:    messageJson,
+		TxPubkey:     privateKey.PubKey(),
 	}
 	block := &types.Block{
 		Header: types.BlockHeader{

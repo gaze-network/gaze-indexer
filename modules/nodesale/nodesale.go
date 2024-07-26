@@ -41,9 +41,9 @@ func New(injector do.Injector) (indexer.IndexerWorker, error) {
 	repository := repository.NewRepository(pg)
 
 	processor := &Processor{
-		nodeSaleDg:       repository,
-		btcClient:        datasource,
-		network:          conf.Network,
+		NodeSaleDg:       repository,
+		BtcClient:        datasource,
+		Network:          conf.Network,
 		cleanupFuncs:     cleanupFuncs,
 		lastBlockDefault: conf.Modules.NodeSale.LastBlockDefault,
 	}

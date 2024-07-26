@@ -5,8 +5,8 @@ import (
 	"github.com/btcsuite/btcd/btcutil"
 )
 
-func (p *Processor) pubkeyToPkHashAddress(pubKey *btcec.PublicKey) btcutil.Address {
-	addrPubKey, _ := btcutil.NewAddressPubKey(pubKey.SerializeCompressed(), p.network.ChainParams())
+func (p *Processor) PubkeyToPkHashAddress(pubKey *btcec.PublicKey) btcutil.Address {
+	addrPubKey, _ := btcutil.NewAddressPubKey(pubKey.SerializeCompressed(), p.Network.ChainParams())
 	addrPubKeyHash := addrPubKey.AddressPubKeyHash()
 	return addrPubKeyHash
 }

@@ -12,24 +12,24 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
-func (p *Processor) processDeploy(ctx context.Context, qtx datagateway.NodeSaleDataGatewayWithTx, block *types.Block, event nodeSaleEvent) error {
-	deploy := event.eventMessage.Deploy
+func (p *Processor) ProcessDeploy(ctx context.Context, qtx datagateway.NodeSaleDataGatewayWithTx, block *types.Block, event NodeSaleEvent) error {
+	deploy := event.EventMessage.Deploy
 
 	validator := validator.New()
 
-	validator.EqualXonlyPublicKey(deploy.SellerPublicKey, event.txPubkey)
+	validator.EqualXonlyPublicKey(deploy.SellerPublicKey, event.TxPubkey)
 
 	err := qtx.CreateEvent(ctx, entity.NodeSaleEvent{
-		TxHash:         event.transaction.TxHash.String(),
-		TxIndex:        int32(event.transaction.Index),
-		Action:         int32(event.eventMessage.Action),
-		RawMessage:     event.rawData,
-		ParsedMessage:  event.eventJson,
+		TxHash:         event.Transaction.TxHash.String(),
+		TxIndex:        int32(event.Transaction.Index),
+		Action:         int32(event.EventMessage.Action),
+		RawMessage:     event.RawData,
+		ParsedMessage:  event.EventJson,
 		BlockTimestamp: block.Header.Timestamp,
-		BlockHash:      event.transaction.BlockHash.String(),
-		BlockHeight:    event.transaction.BlockHeight,
+		BlockHash:      event.Transaction.BlockHash.String(),
+		BlockHeight:    event.Transaction.BlockHeight,
 		Valid:          validator.Valid,
-		WalletAddress:  p.pubkeyToPkHashAddress(event.txPubkey).EncodeAddress(),
+		WalletAddress:  p.PubkeyToPkHashAddress(event.TxPubkey).EncodeAddress(),
 		Metadata:       nil,
 		Reason:         validator.Reason,
 	})
@@ -46,15 +46,15 @@ func (p *Processor) processDeploy(ctx context.Context, qtx datagateway.NodeSaleD
 			tiers[i] = tierJson
 		}
 		err = qtx.CreateNodeSale(ctx, entity.NodeSale{
-			BlockHeight:           event.transaction.BlockHeight,
-			TxIndex:               int32(event.transaction.Index),
+			BlockHeight:           event.Transaction.BlockHeight,
+			TxIndex:               int32(event.Transaction.Index),
 			Name:                  deploy.Name,
 			StartsAt:              time.Unix(int64(deploy.StartsAt), 0),
 			EndsAt:                time.Unix(int64(deploy.EndsAt), 0),
 			Tiers:                 tiers,
 			SellerPublicKey:       deploy.SellerPublicKey,
 			MaxPerAddress:         int32(deploy.MaxPerAddress),
-			DeployTxHash:          event.transaction.TxHash.String(),
+			DeployTxHash:          event.Transaction.TxHash.String(),
 			MaxDiscountPercentage: int32(deploy.MaxDiscountPercentage),
 			SellerWallet:          deploy.SellerWallet,
 		})

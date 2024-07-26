@@ -10,13 +10,13 @@ import (
 	purchasevalidator "github.com/gaze-network/indexer-network/modules/nodesale/internal/validator/purchase"
 )
 
-func (p *Processor) processPurchase(ctx context.Context, qtx datagateway.NodeSaleDataGatewayWithTx, block *types.Block, event nodeSaleEvent) error {
-	purchase := event.eventMessage.Purchase
+func (p *Processor) ProcessPurchase(ctx context.Context, qtx datagateway.NodeSaleDataGatewayWithTx, block *types.Block, event NodeSaleEvent) error {
+	purchase := event.EventMessage.Purchase
 	payload := purchase.Payload
 
 	validator := purchasevalidator.New()
 
-	validator.EqualXonlyPublicKey(payload.BuyerPublicKey, event.txPubkey)
+	validator.EqualXonlyPublicKey(payload.BuyerPublicKey, event.TxPubkey)
 
 	_, deploy, err := validator.NodeSaleExists(ctx, qtx, payload)
 	if err != nil {
@@ -24,7 +24,7 @@ func (p *Processor) processPurchase(ctx context.Context, qtx datagateway.NodeSal
 	}
 
 	validator.ValidTimestamp(deploy, block.Header.Timestamp)
-	validator.WithinTimeoutBlock(payload.TimeOutBlock, uint64(event.transaction.BlockHeight))
+	validator.WithinTimeoutBlock(payload.TimeOutBlock, uint64(event.Transaction.BlockHeight))
 
 	validator.VerifySignature(purchase, deploy)
 
@@ -39,7 +39,7 @@ func (p *Processor) processPurchase(ctx context.Context, qtx datagateway.NodeSal
 		return errors.Wrap(err, "cannot query. Something wrong.")
 	}
 
-	_, meta := validator.ValidPaidAmount(payload, deploy, event.transaction.TxOut, tiers, buyingTiersCount, p.network.ChainParams())
+	_, meta := validator.ValidPaidAmount(payload, deploy, event.Transaction.TxOut, tiers, buyingTiersCount, p.Network.ChainParams())
 
 	_, err = validator.WithinLimit(ctx, qtx, payload, deploy, tiers, buyingTiersCount)
 	if err != nil {
@@ -47,16 +47,16 @@ func (p *Processor) processPurchase(ctx context.Context, qtx datagateway.NodeSal
 	}
 
 	err = qtx.CreateEvent(ctx, entity.NodeSaleEvent{
-		TxHash:         event.transaction.TxHash.String(),
-		TxIndex:        int32(event.transaction.Index),
-		Action:         int32(event.eventMessage.Action),
-		RawMessage:     event.rawData,
-		ParsedMessage:  event.eventJson,
+		TxHash:         event.Transaction.TxHash.String(),
+		TxIndex:        int32(event.Transaction.Index),
+		Action:         int32(event.EventMessage.Action),
+		RawMessage:     event.RawData,
+		ParsedMessage:  event.EventJson,
 		BlockTimestamp: block.Header.Timestamp,
-		BlockHash:      event.transaction.BlockHash.String(),
-		BlockHeight:    event.transaction.BlockHeight,
+		BlockHash:      event.Transaction.BlockHash.String(),
+		BlockHeight:    event.Transaction.BlockHeight,
 		Valid:          validator.Valid,
-		WalletAddress:  p.pubkeyToPkHashAddress(event.txPubkey).EncodeAddress(),
+		WalletAddress:  p.PubkeyToPkHashAddress(event.TxPubkey).EncodeAddress(),
 		Metadata:       meta,
 		Reason:         validator.Reason,
 	})
@@ -74,7 +74,7 @@ func (p *Processor) processPurchase(ctx context.Context, qtx datagateway.NodeSal
 				TierIndex:      nodeIdToTier[nodeId],
 				DelegatedTo:    "",
 				OwnerPublicKey: payload.BuyerPublicKey,
-				PurchaseTxHash: event.transaction.TxHash.String(),
+				PurchaseTxHash: event.Transaction.TxHash.String(),
 				DelegateTxHash: "",
 			})
 			if err != nil {

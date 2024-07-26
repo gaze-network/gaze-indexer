@@ -24,7 +24,7 @@ func TestDelegate(t *testing.T) {
 	sellerPrivateKey, err := btcec.NewPrivateKey()
 	require.NoError(t, err)
 	sellerPubkeyHex := hex.EncodeToString(sellerPrivateKey.PubKey().SerializeCompressed())
-	sellerWallet := p.pubkeyToPkHashAddress(sellerPrivateKey.PubKey())
+	sellerWallet := p.PubkeyToPkHashAddress(sellerPrivateKey.PubKey())
 	startAt := time.Now().Add(time.Hour * -1)
 	endAt := time.Now().Add(time.Hour * 1)
 	deployMessage := &protobuf.NodeSaleEvent{
@@ -57,7 +57,7 @@ func TestDelegate(t *testing.T) {
 		},
 	}
 	event, block := assembleTestEvent(sellerPrivateKey, "111111", "111111", 0, 0, deployMessage)
-	err = p.processDeploy(ctx, qtx, block, event)
+	err = p.ProcessDeploy(ctx, qtx, block, event)
 	require.NoError(t, err)
 
 	buyerPrivateKey, _ := btcec.NewPrivateKey()
@@ -89,15 +89,15 @@ func TestDelegate(t *testing.T) {
 
 	event, block = assembleTestEvent(buyerPrivateKey, "1212121212", "1212121212", 0, 0, message)
 
-	addr, _ := btcutil.NewAddressPubKey(sellerPrivateKey.PubKey().SerializeCompressed(), p.network.ChainParams())
+	addr, _ := btcutil.NewAddressPubKey(sellerPrivateKey.PubKey().SerializeCompressed(), p.Network.ChainParams())
 	pkscript, _ := txscript.PayToAddrScript(addr.AddressPubKeyHash())
-	event.transaction.TxOut = []*types.TxOut{
+	event.Transaction.TxOut = []*types.TxOut{
 		{
 			PkScript: pkscript,
 			Value:    600,
 		},
 	}
-	p.processPurchase(ctx, qtx, block, event)
+	p.ProcessPurchase(ctx, qtx, block, event)
 
 	delegateePrivateKey, _ := btcec.NewPrivateKey()
 	delegateePubkeyHex := hex.EncodeToString(delegateePrivateKey.PubKey().SerializeCompressed())
@@ -113,7 +113,7 @@ func TestDelegate(t *testing.T) {
 		},
 	}
 	event, block = assembleTestEvent(buyerPrivateKey, "131313131313", "131313131313", 0, 0, delegateMessage)
-	p.processDelegate(ctx, qtx, block, event)
+	p.ProcessDelegate(ctx, qtx, block, event)
 
 	nodes, _ := qtx.GetNodesByIds(ctx, datagateway.GetNodesByIdsParams{
 		SaleBlock:   testBlockHeight - 3,
