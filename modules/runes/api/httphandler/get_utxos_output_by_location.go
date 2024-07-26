@@ -11,19 +11,19 @@ import (
 )
 
 type getUTXOsOutputByTxIdRequest struct {
-	TxHash    string `params:"txid"`
-	OutputIdx int32  `query:"outputIndex"`
+	TxHash      string `params:"txHash"`
+	outputIndex int32  `query:"outputIndex"`
 }
 
 func (r getUTXOsOutputByTxIdRequest) Validate() error {
 	var errList []error
 	if r.TxHash == "" {
-		errList = append(errList, errors.New("'txid' is required"))
+		errList = append(errList, errors.New("'txHash' is required"))
 	}
-	if r.OutputIdx < 0 {
+	if r.outputIndex < 0 {
 		errList = append(errList, errors.New("'outputIndex' must be non-negative"))
 	}
-	return errors.Join(errList...)
+	return errs.WithPublicMessage(errors.Join(errList...), "validation error")
 }
 
 type getUTXOsOutputByTxIdResponse = HttpResponse[utxoItem]
@@ -42,10 +42,10 @@ func (h *HttpHandler) GetUTXOsOutputByLocation(ctx *fiber.Ctx) (err error) {
 
 	txHash, err := chainhash.NewHashFromStr(req.TxHash)
 	if err != nil {
-		return errors.WithStack(err)
+		return errs.NewPublicError("unable to resolve txHash")
 	}
 
-	utxo, err := h.usecase.GetUTXOsOutputByLocation(ctx.UserContext(), *txHash, uint32(req.OutputIdx))
+	utxo, err := h.usecase.GetUTXOsOutputByLocation(ctx.UserContext(), *txHash, uint32(req.outputIndex))
 	if err != nil {
 		if errors.Is(err, usecase.ErrUTXONotFound) {
 			return errs.NewPublicError("utxo not found")

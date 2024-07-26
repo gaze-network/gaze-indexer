@@ -15,8 +15,8 @@ import (
 )
 
 type getUTXOsOutputByLocationQuery struct {
-	TxHash    string `json:"txHash"`
-	OutputIdx int32  `json:"outputIndex"`
+	TxHash      string `json:"txHash"`
+	OutputIndex int32  `json:"outputIndex"`
 }
 
 type getUTXOsOutputByLocationBatchRequest struct {
@@ -37,7 +37,7 @@ func (r getUTXOsOutputByLocationBatchRequest) Validate() error {
 		if query.TxHash == "" {
 			errList = append(errList, errors.Errorf("queries[%d]: 'txHash' is required", i))
 		}
-		if query.OutputIdx < 0 {
+		if query.OutputIndex < 0 {
 			errList = append(errList, errors.Errorf("queries[%d]: 'outputIndex' must be non-negative", i))
 		}
 	}
@@ -65,10 +65,10 @@ func (h *HttpHandler) GetUTXOsOutputByLocationBatch(ctx *fiber.Ctx) (err error) 
 			return nil, errs.NewPublicError(fmt.Sprintf("unable to parse txHash from \"queries[%d].txHash\"", queryIndex))
 		}
 
-		utxo, err := h.usecase.GetUTXOsOutputByLocation(ctx, *txHash, uint32(query.OutputIdx))
+		utxo, err := h.usecase.GetUTXOsOutputByLocation(ctx, *txHash, uint32(query.OutputIndex))
 		if err != nil {
 			if errors.Is(err, usecase.ErrUTXONotFound) {
-				return nil, errs.NewPublicError("utxo not found")
+				return nil, errs.NewPublicError(fmt.Sprintf("utxo not found for queries[%d]", queryIndex))
 			}
 			return nil, errors.WithStack(err)
 		}
@@ -81,7 +81,7 @@ func (h *HttpHandler) GetUTXOsOutputByLocationBatch(ctx *fiber.Ctx) (err error) 
 		runeEntries, err := h.usecase.GetRuneEntryByRuneIdBatch(ctx, runeIdsList)
 		if err != nil {
 			if errors.Is(err, errs.NotFound) {
-				return nil, errs.NewPublicError("rune entries not found")
+				return nil, errs.NewPublicError(fmt.Sprintf("rune entries not found for queries[%d]", queryIndex))
 			}
 			return nil, errors.Wrap(err, "error during GetRuneEntryByRuneIdBatch")
 		}
