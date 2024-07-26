@@ -125,6 +125,7 @@ func (r *Repository) GetRuneTransaction(ctx context.Context, txHash chainhash.Ha
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, errors.WithStack(errs.NotFound)
 	}
+
 	runeTxModel, runestoneModel, err := extractModelRuneTxAndRunestone(gen.GetRuneTransactionsRow(row))
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to extract rune transaction and runestone from row")
@@ -134,6 +135,7 @@ func (r *Repository) GetRuneTransaction(ctx context.Context, txHash chainhash.Ha
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to parse rune transaction model")
 	}
+
 	if runestoneModel != nil {
 		runestone, err := mapRunestoneModelToType(*runestoneModel)
 		if err != nil {
