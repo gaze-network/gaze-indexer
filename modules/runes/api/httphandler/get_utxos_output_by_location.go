@@ -10,12 +10,12 @@ import (
 	"github.com/samber/lo"
 )
 
-type getUTXOsOutputByTxIdRequest struct {
+type getUTXOsOutputByLocationRequest struct {
 	TxHash      string `params:"txHash"`
 	outputIndex int32  `query:"outputIndex"`
 }
 
-func (r getUTXOsOutputByTxIdRequest) Validate() error {
+func (r getUTXOsOutputByLocationRequest) Validate() error {
 	var errList []error
 	if r.TxHash == "" {
 		errList = append(errList, errors.New("'txHash' is required"))
@@ -29,7 +29,7 @@ func (r getUTXOsOutputByTxIdRequest) Validate() error {
 type getUTXOsOutputByTxIdResponse = HttpResponse[utxoItem]
 
 func (h *HttpHandler) GetUTXOsOutputByLocation(ctx *fiber.Ctx) (err error) {
-	var req getUTXOsOutputByTxIdRequest
+	var req getUTXOsOutputByLocationRequest
 	if err := ctx.ParamsParser(&req); err != nil {
 		return errors.WithStack(err)
 	}
@@ -42,7 +42,7 @@ func (h *HttpHandler) GetUTXOsOutputByLocation(ctx *fiber.Ctx) (err error) {
 
 	txHash, err := chainhash.NewHashFromStr(req.TxHash)
 	if err != nil {
-		return errs.NewPublicError("unable to resolve txHash")
+		return errs.WithPublicMessage(err, "unable to resolve txHash")
 	}
 
 	utxo, err := h.usecase.GetUTXOsOutputByLocation(ctx.UserContext(), *txHash, uint32(req.outputIndex))

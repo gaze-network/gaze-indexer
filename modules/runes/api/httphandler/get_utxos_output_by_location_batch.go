@@ -62,7 +62,7 @@ func (h *HttpHandler) GetUTXOsOutputByLocationBatch(ctx *fiber.Ctx) (err error) 
 	processQuery := func(ctx context.Context, query getUTXOsOutputByLocationQuery, queryIndex int) (*utxoItem, error) {
 		txHash, err := chainhash.NewHashFromStr(query.TxHash)
 		if err != nil {
-			return nil, errs.NewPublicError(fmt.Sprintf("unable to parse txHash from \"queries[%d].txHash\"", queryIndex))
+			return nil, errs.WithPublicMessage(err, fmt.Sprintf("unable to parse txHash from \"queries[%d].txHash\"", queryIndex))
 		}
 
 		utxo, err := h.usecase.GetUTXOsOutputByLocation(ctx, *txHash, uint32(query.OutputIndex))

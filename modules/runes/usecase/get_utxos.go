@@ -21,10 +21,10 @@ func (u *Usecase) GetRunesUTXOsByPkScript(ctx context.Context, pkScript []byte, 
 	result := make([]*entity.RunesUTXOWithSats, 0, len(balances))
 	for _, balance := range balances {
 		tx, err := u.bitcoinClient.GetRawTransactionByTxHash(ctx, balance.OutPoint.Hash)
-		if strings.Contains(err.Error(), "No such mempool or blockchain transaction.") {
-			return nil, errors.WithStack(ErrUTXONotFound)
-		}
 		if err != nil {
+			if strings.Contains(err.Error(), "No such mempool or blockchain transaction.") {
+				return nil, errors.WithStack(ErrUTXONotFound)
+			}
 			return nil, errors.WithStack(err)
 		}
 
@@ -50,10 +50,10 @@ func (u *Usecase) GetRunesUTXOsByRuneIdAndPkScript(ctx context.Context, runeId r
 	result := make([]*entity.RunesUTXOWithSats, 0, len(balances))
 	for _, balance := range balances {
 		tx, err := u.bitcoinClient.GetRawTransactionByTxHash(ctx, balance.OutPoint.Hash)
-		if strings.Contains(err.Error(), "No such mempool or blockchain transaction.") {
-			return nil, errors.WithStack(ErrUTXONotFound)
-		}
 		if err != nil {
+			if strings.Contains(err.Error(), "No such mempool or blockchain transaction.") {
+				return nil, errors.WithStack(ErrUTXONotFound)
+			}
 			return nil, errors.WithStack(err)
 		}
 
@@ -72,10 +72,10 @@ func (u *Usecase) GetRunesUTXOsByRuneIdAndPkScript(ctx context.Context, runeId r
 
 func (u *Usecase) GetUTXOsOutputByLocation(ctx context.Context, txHash chainhash.Hash, outputIdx uint32) (*entity.RunesUTXOWithSats, error) {
 	tx, err := u.bitcoinClient.GetRawTransactionByTxHash(ctx, txHash)
-	if strings.Contains(err.Error(), "No such mempool or blockchain transaction.") {
-		return nil, errors.WithStack(ErrUTXONotFound)
-	}
 	if err != nil {
+		if strings.Contains(err.Error(), "No such mempool or blockchain transaction.") {
+			return nil, errors.WithStack(ErrUTXONotFound)
+		}
 		return nil, errors.WithStack(err)
 	}
 
