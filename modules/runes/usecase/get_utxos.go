@@ -24,19 +24,11 @@ func (u *Usecase) GetRunesUTXOsByPkScript(ctx context.Context, pkScript []byte, 
 			return nil, errors.WithStack(ErrUTXONotFound)
 		}
 
-		runeBalances := make([]entity.RunesUTXOBalance, 0, len(balance.RuneBalances))
-		for _, runeBalance := range balance.RuneBalances {
-			runeBalances = append(runeBalances, entity.RunesUTXOBalance{
-				RuneId: runeBalance.RuneId,
-				Amount: runeBalance.Amount,
-			})
-		}
-
 		result = append(result, &entity.RunesUTXOWithSats{
 			RunesUTXO: entity.RunesUTXO{
 				PkScript:     balance.PkScript,
 				OutPoint:     balance.OutPoint,
-				RuneBalances: runeBalances,
+				RuneBalances: balance.RuneBalances,
 			},
 			Sats: tx.TxOut[balance.OutPoint.Index].Value,
 		})
@@ -58,19 +50,11 @@ func (u *Usecase) GetRunesUTXOsByRuneIdAndPkScript(ctx context.Context, runeId r
 			return nil, errors.WithStack(ErrUTXONotFound)
 		}
 
-		runeBalances := make([]entity.RunesUTXOBalance, 0, len(balance.RuneBalances))
-		for _, runeBalance := range balance.RuneBalances {
-			runeBalances = append(runeBalances, entity.RunesUTXOBalance{
-				RuneId: runeBalance.RuneId,
-				Amount: runeBalance.Amount,
-			})
-		}
-
 		result = append(result, &entity.RunesUTXOWithSats{
 			RunesUTXO: entity.RunesUTXO{
 				PkScript:     balance.PkScript,
 				OutPoint:     balance.OutPoint,
-				RuneBalances: runeBalances,
+				RuneBalances: balance.RuneBalances,
 			},
 			Sats: tx.TxOut[balance.OutPoint.Index].Value,
 		})
