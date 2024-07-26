@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"strings"
 
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/wire"
@@ -20,8 +21,11 @@ func (u *Usecase) GetRunesUTXOsByPkScript(ctx context.Context, pkScript []byte, 
 	result := make([]*entity.RunesUTXOWithSats, 0, len(balances))
 	for _, balance := range balances {
 		tx, err := u.bitcoinClient.GetRawTransactionByTxHash(ctx, balance.OutPoint.Hash)
-		if err != nil {
+		if strings.Contains(err.Error(), "No such mempool or blockchain transaction.") {
 			return nil, errors.WithStack(ErrUTXONotFound)
+		}
+		if err != nil {
+			return nil, errors.WithStack(err)
 		}
 
 		result = append(result, &entity.RunesUTXOWithSats{
@@ -46,8 +50,11 @@ func (u *Usecase) GetRunesUTXOsByRuneIdAndPkScript(ctx context.Context, runeId r
 	result := make([]*entity.RunesUTXOWithSats, 0, len(balances))
 	for _, balance := range balances {
 		tx, err := u.bitcoinClient.GetRawTransactionByTxHash(ctx, balance.OutPoint.Hash)
-		if err != nil {
+		if strings.Contains(err.Error(), "No such mempool or blockchain transaction.") {
 			return nil, errors.WithStack(ErrUTXONotFound)
+		}
+		if err != nil {
+			return nil, errors.WithStack(err)
 		}
 
 		result = append(result, &entity.RunesUTXOWithSats{
@@ -65,8 +72,11 @@ func (u *Usecase) GetRunesUTXOsByRuneIdAndPkScript(ctx context.Context, runeId r
 
 func (u *Usecase) GetUTXOsOutputByLocation(ctx context.Context, txHash chainhash.Hash, outputIdx uint32) (*entity.RunesUTXOWithSats, error) {
 	tx, err := u.bitcoinClient.GetRawTransactionByTxHash(ctx, txHash)
-	if err != nil {
+	if strings.Contains(err.Error(), "No such mempool or blockchain transaction.") {
 		return nil, errors.WithStack(ErrUTXONotFound)
+	}
+	if err != nil {
+		return nil, errors.WithStack(err)
 	}
 
 	// If the output index is out of range, return an error
