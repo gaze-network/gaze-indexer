@@ -1,7 +1,6 @@
 package purchase
 
 import (
-	"bytes"
 	"context"
 	"encoding/hex"
 	"slices"
@@ -9,12 +8,9 @@ import (
 
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/ecdsa"
-	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
-	"github.com/btcsuite/btcd/txscript"
 	"github.com/cockroachdb/errors"
-	"github.com/gaze-network/indexer-network/core/types"
 	"github.com/gaze-network/indexer-network/modules/nodesale/datagateway"
 	"github.com/gaze-network/indexer-network/modules/nodesale/internal/entity"
 	"github.com/gaze-network/indexer-network/modules/nodesale/internal/validator"
@@ -193,7 +189,7 @@ func (v *PurchaseValidator) ValidUnpurchasedNodes(
 func (v *PurchaseValidator) ValidPaidAmount(
 	payload *protobuf.PurchasePayload,
 	deploy *entity.NodeSale,
-	txOuts []*types.TxOut,
+	txPaid uint64,
 	tiers []protobuf.Tier,
 	buyingTiersCount []uint32,
 	network *chaincfg.Params,
@@ -201,49 +197,31 @@ func (v *PurchaseValidator) ValidPaidAmount(
 	if !v.Valid {
 		return false, nil
 	}
-	sellerAddr, err := btcutil.DecodeAddress(deploy.SellerWallet, network) // default to mainnet
-	if err != nil {
-		v.Valid = false
-		v.Reason = INVALID_SELLER_ADDR_FORMAT
-		return v.Valid, nil
-	}
 
-	var txPaid int64 = 0
 	meta := entity.MetadataEventPurchase{}
 
-	// get total amount paid to seller
-	for _, txOut := range txOuts {
-		_, txOutAddrs, _, _ := txscript.ExtractPkScriptAddrs(txOut.PkScript, network)
-
-		if len(txOutAddrs) == 1 && bytes.Equal(
-			[]byte(sellerAddr.EncodeAddress()),
-			[]byte(txOutAddrs[0].EncodeAddress()),
-		) {
-			txPaid += txOut.Value
-		}
-	}
 	meta.PaidTotalAmount = txPaid
-	meta.ReportedTotalAmount = payload.TotalAmountSat
+	meta.ReportedTotalAmount = uint64(payload.TotalAmountSat)
 	// total amount paid is greater than report paid
-	if txPaid < payload.TotalAmountSat {
+	if txPaid < uint64(payload.TotalAmountSat) {
 		v.Valid = false
 		v.Reason = INVALID_PAYMENT
 		return v.Valid, nil
 	}
 	// calculate total price
-	var totalPrice int64 = 0
+	var totalPrice uint64 = 0
 	for i := 0; i < len(tiers); i++ {
-		totalPrice += int64(buyingTiersCount[i] * tiers[i].PriceSat)
+		totalPrice += uint64(buyingTiersCount[i] * tiers[i].PriceSat)
 	}
 	// report paid is greater than max discounted total price
-	maxDiscounted := totalPrice * (100 - int64(deploy.MaxDiscountPercentage))
+	maxDiscounted := totalPrice * (100 - uint64(deploy.MaxDiscountPercentage))
 	decimal := maxDiscounted % 100
 	maxDiscounted /= 100
 	if decimal%100 >= 50 {
 		maxDiscounted++
 	}
 	meta.ExpectedTotalAmountDiscounted = maxDiscounted
-	if payload.TotalAmountSat < maxDiscounted {
+	if uint64(payload.TotalAmountSat) < maxDiscounted {
 		v.Valid = false
 		v.Reason = INSUFFICIENT_FUND
 		return v.Valid, nil

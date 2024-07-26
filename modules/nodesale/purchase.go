@@ -39,7 +39,7 @@ func (p *Processor) ProcessPurchase(ctx context.Context, qtx datagateway.NodeSal
 		return errors.Wrap(err, "cannot query. Something wrong.")
 	}
 
-	_, meta := validator.ValidPaidAmount(payload, deploy, event.Transaction.TxOut, tiers, buyingTiersCount, p.Network.ChainParams())
+	_, meta := validator.ValidPaidAmount(payload, deploy, event.InputValue, tiers, buyingTiersCount, p.Network.ChainParams())
 
 	_, err = validator.WithinLimit(ctx, qtx, payload, deploy, tiers, buyingTiersCount)
 	if err != nil {

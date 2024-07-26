@@ -49,7 +49,7 @@ type NodeSaleEvent struct {
 }
 
 type MetadataEventPurchase struct {
-	ExpectedTotalAmountDiscounted int64
-	ReportedTotalAmount           int64
-	PaidTotalAmount               int64
+	ExpectedTotalAmountDiscounted uint64
+	ReportedTotalAmount           uint64
+	PaidTotalAmount               uint64
 }

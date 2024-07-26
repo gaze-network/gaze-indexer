@@ -7,12 +7,9 @@ import (
 	"time"
 
 	"github.com/btcsuite/btcd/btcec/v2"
-	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
-	"github.com/btcsuite/btcd/txscript"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4/ecdsa"
 	"github.com/gaze-network/indexer-network/common"
-	"github.com/gaze-network/indexer-network/core/types"
 	"github.com/gaze-network/indexer-network/modules/nodesale/datagateway"
 	"github.com/gaze-network/indexer-network/modules/nodesale/datagateway/mocks"
 	"github.com/gaze-network/indexer-network/modules/nodesale/internal/entity"
@@ -111,6 +108,7 @@ func TestInvalidTimestamp(t *testing.T) {
 
 	sellerPrivateKey, err := btcec.NewPrivateKey()
 	require.NoError(t, err)
+
 	sellerPubkeyHex := hex.EncodeToString(sellerPrivateKey.PubKey().SerializeCompressed())
 	sellerWallet := p.PubkeyToPkHashAddress(sellerPrivateKey.PubKey())
 
@@ -272,6 +270,7 @@ func TestSignatureInvalid(t *testing.T) {
 	sellerPrivateKey, _ := btcec.NewPrivateKey()
 	sellerPubkeyHex := hex.EncodeToString(sellerPrivateKey.PubKey().SerializeCompressed())
 	sellerWallet := p.PubkeyToPkHashAddress(sellerPrivateKey.PubKey())
+
 	startAt := time.Now().Add(time.Hour * -1)
 	endAt := time.Now().Add(time.Hour * 1)
 
@@ -356,6 +355,7 @@ func TestValidPurchase(t *testing.T) {
 	sellerPrivateKey, _ := btcec.NewPrivateKey()
 	sellerPubkeyHex := hex.EncodeToString(sellerPrivateKey.PubKey().SerializeCompressed())
 	sellerWallet := p.PubkeyToPkHashAddress(sellerPrivateKey.PubKey())
+
 	startAt := time.Now().Add(time.Hour * -1)
 	endAt := time.Now().Add(time.Hour * 1)
 
@@ -432,15 +432,7 @@ func TestValidPurchase(t *testing.T) {
 	}
 
 	event, block := assembleTestEvent(buyerPrivateKey, "0D0D0D0D", "0D0D0D0D", 0, 0, message)
-
-	addr, _ := btcutil.NewAddressPubKey(sellerPrivateKey.PubKey().SerializeCompressed(), p.Network.ChainParams())
-	pkscript, _ := txscript.PayToAddrScript(addr.AddressPubKeyHash())
-	event.Transaction.TxOut = []*types.TxOut{
-		{
-			PkScript: pkscript,
-			Value:    500,
-		},
-	}
+	event.InputValue = 500
 
 	mockDgTx.EXPECT().CreateEvent(mock.Anything, mock.MatchedBy(func(event entity.NodeSaleEvent) bool {
 		return event.Valid == true && event.Reason == ""
@@ -486,6 +478,137 @@ func TestValidPurchase(t *testing.T) {
 	require.NoError(t, err)
 }
 
+/*func TestMismatchPayment(t *testing.T) {
+	ctx := context.Background()
+	mockDgTx := mocks.NewNodeSaleDataGatewayWithTx(t)
+	p := NewProcessor(mockDgTx, nil, common.NetworkMainnet, nil, 0)
+
+	sellerPrivateKey, _ := btcec.NewPrivateKey()
+	sellerPubkeyHex := hex.EncodeToString(sellerPrivateKey.PubKey().SerializeCompressed())
+	sellerWallet := p.PubkeyToPkHashAddress(sellerPrivateKey.PubKey())
+
+	startAt := time.Now().Add(time.Hour * -1)
+	endAt := time.Now().Add(time.Hour * 1)
+
+	tiers := lo.Map([]*protobuf.Tier{
+		{
+			PriceSat:      100,
+			Limit:         5,
+			MaxPerAddress: 100,
+		},
+		{
+			PriceSat:      200,
+			Limit:         4,
+			MaxPerAddress: 2,
+		},
+		{
+			PriceSat:      400,
+			Limit:         3,
+			MaxPerAddress: 100,
+		},
+	}, func(tier *protobuf.Tier, _ int) []byte {
+		tierJson, err := protojson.Marshal(tier)
+		require.NoError(t, err)
+		return tierJson
+	})
+
+	mockDgTx.EXPECT().GetNodeSale(mock.Anything, datagateway.GetNodeSaleParams{
+		BlockHeight: 100,
+		TxIndex:     1,
+	}).Return([]entity.NodeSale{
+		{
+			BlockHeight:           100,
+			TxIndex:               1,
+			Name:                  t.Name(),
+			StartsAt:              startAt,
+			EndsAt:                endAt,
+			Tiers:                 tiers,
+			SellerPublicKey:       sellerPubkeyHex,
+			MaxPerAddress:         100,
+			DeployTxHash:          "040404040404",
+			MaxDiscountPercentage: 50,
+			SellerWallet:          sellerWallet.EncodeAddress(),
+		},
+	}, nil)
+
+	mockDgTx.EXPECT().GetNodesByIds(mock.Anything, mock.Anything).Return(nil, nil)
+
+	mockDgTx.EXPECT().GetNodesByOwner(mock.Anything, mock.Anything).Return(nil, nil)
+
+	buyerPrivateKey, _ := btcec.NewPrivateKey()
+	buyerPubkeyHex := hex.EncodeToString(buyerPrivateKey.PubKey().SerializeCompressed())
+
+	payload := &protobuf.PurchasePayload{
+		DeployID: &protobuf.ActionID{
+			Block:   100,
+			TxIndex: 1,
+		},
+		BuyerPublicKey: buyerPubkeyHex,
+		TimeOutBlock:   uint64(testBlockHeight) + 5,
+		NodeIDs:        []uint32{0, 5, 6, 9},
+		TotalAmountSat: 500,
+	}
+
+	payloadBytes, _ := proto.Marshal(payload)
+	payloadHash := chainhash.DoubleHashB(payloadBytes)
+	signature := ecdsa.Sign(sellerPrivateKey, payloadHash[:])
+	signatureHex := hex.EncodeToString(signature.Serialize())
+
+	message := &protobuf.NodeSaleEvent{
+		Action: protobuf.Action_ACTION_PURCHASE,
+		Purchase: &protobuf.ActionPurchase{
+			Payload:         payload,
+			SellerSignature: signatureHex,
+		},
+	}
+
+	event, block := assembleTestEvent(buyerPrivateKey, "0D0D0D0D", "0D0D0D0D", 0, 0, message)
+	event.InputValue = 500
+
+	mockDgTx.EXPECT().CreateEvent(mock.Anything, mock.MatchedBy(func(event entity.NodeSaleEvent) bool {
+		return event.Valid == true && event.Reason == ""
+	})).Return(nil)
+
+	mockDgTx.EXPECT().CreateNode(mock.Anything, mock.MatchedBy(func(node entity.Node) bool {
+		return node.NodeID == 0 &&
+			node.TierIndex == 0 &&
+			node.OwnerPublicKey == buyerPubkeyHex &&
+			node.PurchaseTxHash == event.Transaction.TxHash.String() &&
+			node.SaleBlock == 100 &&
+			node.SaleTxIndex == 1
+	})).Return(nil)
+
+	mockDgTx.EXPECT().CreateNode(mock.Anything, mock.MatchedBy(func(node entity.Node) bool {
+		return node.NodeID == 5 &&
+			node.TierIndex == 1 &&
+			node.OwnerPublicKey == buyerPubkeyHex &&
+			node.PurchaseTxHash == event.Transaction.TxHash.String() &&
+			node.SaleBlock == 100 &&
+			node.SaleTxIndex == 1
+	})).Return(nil)
+
+	mockDgTx.EXPECT().CreateNode(mock.Anything, mock.MatchedBy(func(node entity.Node) bool {
+		return node.NodeID == 6 &&
+			node.TierIndex == 1 &&
+			node.OwnerPublicKey == buyerPubkeyHex &&
+			node.PurchaseTxHash == event.Transaction.TxHash.String() &&
+			node.SaleBlock == 100 &&
+			node.SaleTxIndex == 1
+	})).Return(nil)
+
+	mockDgTx.EXPECT().CreateNode(mock.Anything, mock.MatchedBy(func(node entity.Node) bool {
+		return node.NodeID == 9 &&
+			node.TierIndex == 2 &&
+			node.OwnerPublicKey == buyerPubkeyHex &&
+			node.PurchaseTxHash == event.Transaction.TxHash.String() &&
+			node.SaleBlock == 100 &&
+			node.SaleTxIndex == 1
+	})).Return(nil)
+
+	err := p.ProcessPurchase(ctx, mockDgTx, block, event)
+	require.NoError(t, err)
+}*/
+
 func TestBuyingLimit(t *testing.T) {
 	ctx := context.Background()
 	mockDgTx := mocks.NewNodeSaleDataGatewayWithTx(t)
@@ -494,6 +617,7 @@ func TestBuyingLimit(t *testing.T) {
 	sellerPrivateKey, _ := btcec.NewPrivateKey()
 	sellerPubkeyHex := hex.EncodeToString(sellerPrivateKey.PubKey().SerializeCompressed())
 	sellerWallet := p.PubkeyToPkHashAddress(sellerPrivateKey.PubKey())
+
 	startAt := time.Now().Add(time.Hour * -1)
 	endAt := time.Now().Add(time.Hour * 1)
 
@@ -589,15 +713,7 @@ func TestBuyingLimit(t *testing.T) {
 	}
 
 	event, block := assembleTestEvent(buyerPrivateKey, "22222222", "22222222", 0, 0, message)
-
-	addr, _ := btcutil.NewAddressPubKey(sellerPrivateKey.PubKey().SerializeCompressed(), p.Network.ChainParams())
-	pkscript, _ := txscript.PayToAddrScript(addr.AddressPubKeyHash())
-	event.Transaction.TxOut = []*types.TxOut{
-		{
-			PkScript: pkscript,
-			Value:    600,
-		},
-	}
+	event.InputValue = 600
 
 	mockDgTx.EXPECT().CreateEvent(mock.Anything, mock.MatchedBy(func(event entity.NodeSaleEvent) bool {
 		return event.Valid == false && event.Reason == purchase.OVER_LIMIT_PER_ADDR
@@ -617,6 +733,7 @@ func TestBuyingTierLimit(t *testing.T) {
 	sellerPrivateKey, _ := btcec.NewPrivateKey()
 	sellerPubkeyHex := hex.EncodeToString(sellerPrivateKey.PubKey().SerializeCompressed())
 	sellerWallet := p.PubkeyToPkHashAddress(sellerPrivateKey.PubKey())
+
 	startAt := time.Now().Add(time.Hour * -1)
 	endAt := time.Now().Add(time.Hour * 1)
 
@@ -719,15 +836,8 @@ func TestBuyingTierLimit(t *testing.T) {
 	}
 
 	event, block := assembleTestEvent(buyerPrivateKey, "10101010", "10101010", 0, 0, message)
+	event.InputValue = 600
 
-	addr, _ := btcutil.NewAddressPubKey(sellerPrivateKey.PubKey().SerializeCompressed(), p.Network.ChainParams())
-	pkscript, _ := txscript.PayToAddrScript(addr.AddressPubKeyHash())
-	event.Transaction.TxOut = []*types.TxOut{
-		{
-			PkScript: pkscript,
-			Value:    600,
-		},
-	}
 	mockDgTx.EXPECT().CreateEvent(mock.Anything, mock.MatchedBy(func(event entity.NodeSaleEvent) bool {
 		return event.Valid == false && event.Reason == purchase.OVER_LIMIT_PER_TIER
 	})).Return(nil)

@@ -28,6 +28,7 @@ type NodeSaleEvent struct {
 	EventJson    []byte
 	TxPubkey     *btcec.PublicKey
 	RawData      []byte
+	InputValue   uint64
 }
 
 func NewProcessor(repository datagateway.NodeSaleDataGateway,
@@ -171,12 +172,22 @@ func (p *Processor) parseTransactions(ctx context.Context, transactions []*types
 				return []NodeSaleEvent{}, errors.Wrap(err, "Failed to parse protobuf to json")
 			}
 
+			prevTx, _, err := p.BtcClient.GetRawTransactionAndHeightByTxHash(ctx, txIn.PreviousOutTxHash)
+			if err != nil {
+				return nil, errors.Wrap(err, "Failed to get Previous transaction data")
+			}
+
+			if txIn.PreviousOutIndex >= uint32(len(prevTx.TxOut)) {
+				return nil, errors.Wrap(err, "Invalid previous transaction from bitcoin")
+			}
+
 			events = append(events, NodeSaleEvent{
 				Transaction:  t,
 				EventMessage: event,
 				EventJson:    eventJson,
 				RawData:      data,
 				TxPubkey:     txPubkey,
+				InputValue:   uint64(prevTx.TxOut[txIn.PreviousOutIndex].Value),
 			})
 		}
 	}
