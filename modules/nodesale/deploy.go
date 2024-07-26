@@ -46,14 +46,14 @@ func (p *Processor) ProcessDeploy(ctx context.Context, qtx datagateway.NodeSaleD
 			tiers[i] = tierJson
 		}
 		err = qtx.CreateNodeSale(ctx, entity.NodeSale{
-			BlockHeight:           event.Transaction.BlockHeight,
-			TxIndex:               int32(event.Transaction.Index),
+			BlockHeight:           uint64(event.Transaction.BlockHeight),
+			TxIndex:               event.Transaction.Index,
 			Name:                  deploy.Name,
 			StartsAt:              time.Unix(int64(deploy.StartsAt), 0),
 			EndsAt:                time.Unix(int64(deploy.EndsAt), 0),
 			Tiers:                 tiers,
 			SellerPublicKey:       deploy.SellerPublicKey,
-			MaxPerAddress:         int32(deploy.MaxPerAddress),
+			MaxPerAddress:         deploy.MaxPerAddress,
 			DeployTxHash:          event.Transaction.TxHash.String(),
 			MaxDiscountPercentage: int32(deploy.MaxDiscountPercentage),
 			SellerWallet:          deploy.SellerWallet,

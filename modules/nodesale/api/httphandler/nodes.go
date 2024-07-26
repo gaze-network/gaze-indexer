@@ -17,7 +17,7 @@ type nodeRequest struct {
 
 type nodeResponse struct {
 	DeployId            string `json:"deployId"`
-	NodeId              int32  `json:"nodeId"`
+	NodeId              uint32 `json:"nodeId"`
 	TierIndex           int32  `json:"tierIndex"`
 	DelegatedTo         string `json:"delegatedTo"`
 	OwnerPublicKey      string `json:"ownerPublicKey"`

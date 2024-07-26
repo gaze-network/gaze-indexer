@@ -25,20 +25,20 @@ func (v *Validator) EqualXonlyPublicKey(target string, expected *btcec.PublicKey
 	targetBytes, err := hex.DecodeString(target)
 	if err != nil {
 		v.Valid = false
-		v.Reason = "cannot decode publickey hexstring"
+		v.Reason = INVALID_PUBKEY_FORMAT
 	}
 
 	targetPubKey, err := btcec.ParsePubKey(targetBytes)
 	if err != nil {
 		v.Valid = false
-		v.Reason = "cannot parse public key"
+		v.Reason = INVALID_PUBKEY_FORMAT
 	}
 	xOnlyTargetPubKey := btcec.ToSerialized(targetPubKey).SchnorrSerialized()
 	xOnlyExpectedPubKey := btcec.ToSerialized(expected).SchnorrSerialized()
 
 	v.Valid = bytes.Equal(xOnlyTargetPubKey[:], xOnlyExpectedPubKey[:])
 	if !v.Valid {
-		v.Reason = "Invalid public key"
+		v.Reason = INVALID_PUBKEY
 	}
 	return v.Valid
 }

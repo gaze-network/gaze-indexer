@@ -32,35 +32,35 @@ type NodeSaleDataGatewayWithTx interface {
 }
 
 type GetNodesByIdsParams struct {
-	SaleBlock   int64
-	SaleTxIndex int32
-	NodeIds     []int32
+	SaleBlock   uint64
+	SaleTxIndex uint32
+	NodeIds     []uint32
 }
 
 type SetDelegatesParams struct {
-	SaleBlock      int64
+	SaleBlock      uint64
 	SaleTxIndex    int32
 	Delegatee      string
 	DelegateTxHash string
-	NodeIds        []int32
+	NodeIds        []uint32
 }
 
 type GetNodeSaleParams struct {
-	BlockHeight int64
-	TxIndex     int32
+	BlockHeight uint64
+	TxIndex     uint32
 }
 
 type GetNodesByOwnerParams struct {
-	SaleBlock      int64
-	SaleTxIndex    int32
+	SaleBlock      uint64
+	SaleTxIndex    uint32
 	OwnerPublicKey string
 }
 
 type GetNodeCountByTierIndexParams struct {
-	SaleBlock   int64
-	SaleTxIndex int32
-	FromTier    int32
-	ToTier      int32
+	SaleBlock   uint64
+	SaleTxIndex uint32
+	FromTier    uint32
+	ToTier      uint32
 }
 
 type GetNodeCountByTierIndexRow struct {

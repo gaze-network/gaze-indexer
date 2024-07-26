@@ -8,7 +8,6 @@ import (
 	"github.com/gaze-network/indexer-network/modules/nodesale/datagateway"
 	"github.com/gaze-network/indexer-network/modules/nodesale/internal/entity"
 	delegatevalidator "github.com/gaze-network/indexer-network/modules/nodesale/internal/validator/delegate"
-	"github.com/samber/lo"
 )
 
 func (p *Processor) ProcessDelegate(ctx context.Context, qtx datagateway.NodeSaleDataGatewayWithTx, block *types.Block, event NodeSaleEvent) error {
@@ -46,13 +45,12 @@ func (p *Processor) ProcessDelegate(ctx context.Context, qtx datagateway.NodeSal
 	}
 
 	if validator.Valid {
-		nodeIds := lo.Map(delegate.NodeIDs, func(item uint32, index int) int32 { return int32(item) })
 		_, err = qtx.SetDelegates(ctx, datagateway.SetDelegatesParams{
-			SaleBlock:      int64(delegate.DeployID.Block),
+			SaleBlock:      delegate.DeployID.Block,
 			SaleTxIndex:    int32(delegate.DeployID.TxIndex),
 			Delegatee:      delegate.DelegateePublicKey,
 			DelegateTxHash: event.Transaction.TxHash.String(),
-			NodeIds:        nodeIds,
+			NodeIds:        delegate.NodeIDs,
 		})
 		if err != nil {
 			return errors.Wrap(err, "Failed to set delegate")

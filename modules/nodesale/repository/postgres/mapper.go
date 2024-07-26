@@ -12,9 +12,9 @@ import (
 func mapNodes(nodes []gen.Node) []entity.Node {
 	return lo.Map(nodes, func(item gen.Node, index int) entity.Node {
 		return entity.Node{
-			SaleBlock:      item.SaleBlock,
-			SaleTxIndex:    item.SaleTxIndex,
-			NodeID:         item.NodeID,
+			SaleBlock:      uint64(item.SaleBlock),
+			SaleTxIndex:    uint32(item.SaleTxIndex),
+			NodeID:         uint32(item.NodeID),
 			TierIndex:      item.TierIndex,
 			DelegatedTo:    item.DelegatedTo,
 			OwnerPublicKey: item.OwnerPublicKey,
@@ -27,14 +27,14 @@ func mapNodes(nodes []gen.Node) []entity.Node {
 func mapNodeSales(nodeSales []gen.NodeSale) []entity.NodeSale {
 	return lo.Map(nodeSales, func(item gen.NodeSale, index int) entity.NodeSale {
 		return entity.NodeSale{
-			BlockHeight:           item.BlockHeight,
-			TxIndex:               item.TxIndex,
+			BlockHeight:           uint64(item.BlockHeight),
+			TxIndex:               uint32(item.TxIndex),
 			Name:                  item.Name,
 			StartsAt:              item.StartsAt.Time,
 			EndsAt:                item.EndsAt.Time,
 			Tiers:                 item.Tiers,
 			SellerPublicKey:       item.SellerPublicKey,
-			MaxPerAddress:         item.MaxPerAddress,
+			MaxPerAddress:         uint32(item.MaxPerAddress),
 			DeployTxHash:          item.DeployTxHash,
 			MaxDiscountPercentage: item.MaxDiscountPercentage,
 			SellerWallet:          item.SellerWallet,

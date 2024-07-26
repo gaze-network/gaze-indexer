@@ -30,7 +30,7 @@ type deployResponse struct {
 	EndsAt          time.Time      `json:"endsAt"`
 	Tiers           []tierResponse `json:"tiers"`
 	SellerPublicKey string         `json:"sellerPublicKey"`
-	MaxPerAddress   int32          `json:"maxPerAddress"`
+	MaxPerAddress   uint32         `json:"maxPerAddress"`
 	DeployTxHash    string         `json:"deployTxHash"`
 }
 
@@ -40,8 +40,8 @@ func (h *handler) deployHandler(ctx *fiber.Ctx) error {
 	if err != nil {
 		return errors.Wrap(err, "cannot parse param")
 	}
-	var blockHeight int64
-	var txIndex int32
+	var blockHeight uint64
+	var txIndex uint32
 	count, err := fmt.Sscanf(request.DeployID, "%d-%d", &blockHeight, &txIndex)
 	if count != 2 || err != nil {
 		return errs.NewPublicError("Invalid deploy ID")
@@ -63,7 +63,7 @@ func (h *handler) deployHandler(ctx *fiber.Ctx) error {
 		SaleBlock:   deploy.BlockHeight,
 		SaleTxIndex: deploy.TxIndex,
 		FromTier:    0,
-		ToTier:      int32(len(deploy.Tiers) - 1),
+		ToTier:      uint32(len(deploy.Tiers) - 1),
 	})
 	if err != nil {
 		return errors.Wrap(err, "Cannot get node count from db")

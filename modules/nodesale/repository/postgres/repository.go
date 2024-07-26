@@ -11,6 +11,7 @@ import (
 	"github.com/gaze-network/indexer-network/modules/nodesale/repository/postgres/gen"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/samber/lo"
 )
 
 type Repository struct {
@@ -89,9 +90,9 @@ func (repo *Repository) ClearDelegate(ctx context.Context) (int64, error) {
 
 func (repo *Repository) GetNodesByIds(ctx context.Context, arg datagateway.GetNodesByIdsParams) ([]entity.Node, error) {
 	nodes, err := repo.queries.GetNodesByIds(ctx, gen.GetNodesByIdsParams{
-		SaleBlock:   arg.SaleBlock,
-		SaleTxIndex: arg.SaleTxIndex,
-		NodeIds:     arg.NodeIds,
+		SaleBlock:   int64(arg.SaleBlock),
+		SaleTxIndex: int32(arg.SaleTxIndex),
+		NodeIds:     lo.Map(arg.NodeIds, func(item uint32, index int) int32 { return int32(item) }),
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "Cannot get nodes")
@@ -126,11 +127,11 @@ func (repo *Repository) CreateEvent(ctx context.Context, arg entity.NodeSaleEven
 
 func (repo *Repository) SetDelegates(ctx context.Context, arg datagateway.SetDelegatesParams) (int64, error) {
 	affected, err := repo.queries.SetDelegates(ctx, gen.SetDelegatesParams{
-		SaleBlock:      arg.SaleBlock,
+		SaleBlock:      int64(arg.SaleBlock),
 		SaleTxIndex:    arg.SaleTxIndex,
 		Delegatee:      arg.Delegatee,
 		DelegateTxHash: arg.DelegateTxHash,
-		NodeIds:        arg.NodeIds,
+		NodeIds:        lo.Map(arg.NodeIds, func(item uint32, index int) int32 { return int32(item) }),
 	})
 	if err != nil {
 		return 0, errors.Wrap(err, "Cannot set delegate")
@@ -140,14 +141,14 @@ func (repo *Repository) SetDelegates(ctx context.Context, arg datagateway.SetDel
 
 func (repo *Repository) CreateNodeSale(ctx context.Context, arg entity.NodeSale) error {
 	err := repo.queries.CreateNodeSale(ctx, gen.CreateNodeSaleParams{
-		BlockHeight:           arg.BlockHeight,
-		TxIndex:               arg.TxIndex,
+		BlockHeight:           int64(arg.BlockHeight),
+		TxIndex:               int32(arg.TxIndex),
 		Name:                  arg.Name,
 		StartsAt:              pgtype.Timestamp{Time: arg.StartsAt.UTC(), Valid: true},
 		EndsAt:                pgtype.Timestamp{Time: arg.EndsAt.UTC(), Valid: true},
 		Tiers:                 arg.Tiers,
 		SellerPublicKey:       arg.SellerPublicKey,
-		MaxPerAddress:         arg.MaxPerAddress,
+		MaxPerAddress:         int32(arg.MaxPerAddress),
 		DeployTxHash:          arg.DeployTxHash,
 		MaxDiscountPercentage: arg.MaxDiscountPercentage,
 		SellerWallet:          arg.SellerWallet,
@@ -160,8 +161,8 @@ func (repo *Repository) CreateNodeSale(ctx context.Context, arg entity.NodeSale)
 
 func (repo *Repository) GetNodeSale(ctx context.Context, arg datagateway.GetNodeSaleParams) ([]entity.NodeSale, error) {
 	nodeSales, err := repo.queries.GetNodeSale(ctx, gen.GetNodeSaleParams{
-		BlockHeight: arg.BlockHeight,
-		TxIndex:     arg.TxIndex,
+		BlockHeight: int64(arg.BlockHeight),
+		TxIndex:     int32(arg.TxIndex),
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "Cannot get NodeSale")
@@ -172,8 +173,8 @@ func (repo *Repository) GetNodeSale(ctx context.Context, arg datagateway.GetNode
 
 func (repo *Repository) GetNodesByOwner(ctx context.Context, arg datagateway.GetNodesByOwnerParams) ([]entity.Node, error) {
 	nodes, err := repo.queries.GetNodesByOwner(ctx, gen.GetNodesByOwnerParams{
-		SaleBlock:      arg.SaleBlock,
-		SaleTxIndex:    arg.SaleTxIndex,
+		SaleBlock:      int64(arg.SaleBlock),
+		SaleTxIndex:    int32(arg.SaleTxIndex),
 		OwnerPublicKey: arg.OwnerPublicKey,
 	})
 	if err != nil {
@@ -184,9 +185,9 @@ func (repo *Repository) GetNodesByOwner(ctx context.Context, arg datagateway.Get
 
 func (repo *Repository) CreateNode(ctx context.Context, arg entity.Node) error {
 	err := repo.queries.CreateNode(ctx, gen.CreateNodeParams{
-		SaleBlock:      arg.SaleBlock,
-		SaleTxIndex:    arg.SaleTxIndex,
-		NodeID:         arg.NodeID,
+		SaleBlock:      int64(arg.SaleBlock),
+		SaleTxIndex:    int32(arg.SaleTxIndex),
+		NodeID:         int32(arg.NodeID),
 		TierIndex:      arg.TierIndex,
 		DelegatedTo:    arg.DelegatedTo,
 		OwnerPublicKey: arg.OwnerPublicKey,
@@ -201,10 +202,10 @@ func (repo *Repository) CreateNode(ctx context.Context, arg entity.Node) error {
 
 func (repo *Repository) GetNodeCountByTierIndex(ctx context.Context, arg datagateway.GetNodeCountByTierIndexParams) ([]datagateway.GetNodeCountByTierIndexRow, error) {
 	nodeCount, err := repo.queries.GetNodeCountByTierIndex(ctx, gen.GetNodeCountByTierIndexParams{
-		SaleBlock:   arg.SaleBlock,
-		SaleTxIndex: arg.SaleTxIndex,
-		FromTier:    arg.FromTier,
-		ToTier:      arg.ToTier,
+		SaleBlock:   int64(arg.SaleBlock),
+		SaleTxIndex: int32(arg.SaleTxIndex),
+		FromTier:    int32(arg.FromTier),
+		ToTier:      int32(arg.ToTier),
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "Cannot get node count by tier index")

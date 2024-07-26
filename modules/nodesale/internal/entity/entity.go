@@ -9,9 +9,9 @@ type Block struct {
 }
 
 type Node struct {
-	SaleBlock      int64
-	SaleTxIndex    int32
-	NodeID         int32
+	SaleBlock      uint64
+	SaleTxIndex    uint32
+	NodeID         uint32
 	TierIndex      int32
 	DelegatedTo    string
 	OwnerPublicKey string
@@ -20,14 +20,14 @@ type Node struct {
 }
 
 type NodeSale struct {
-	BlockHeight           int64
-	TxIndex               int32
+	BlockHeight           uint64
+	TxIndex               uint32
 	Name                  string
 	StartsAt              time.Time
 	EndsAt                time.Time
 	Tiers                 [][]byte
 	SellerPublicKey       string
-	MaxPerAddress         int32
+	MaxPerAddress         uint32
 	DeployTxHash          string
 	MaxDiscountPercentage int32
 	SellerWallet          string

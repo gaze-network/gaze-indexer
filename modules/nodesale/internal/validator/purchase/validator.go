@@ -1,4 +1,4 @@
-package purchasevalidator
+package purchase
 
 import (
 	"bytes"
@@ -40,8 +40,8 @@ func (v *PurchaseValidator) NodeSaleExists(ctx context.Context, qtx datagateway.
 	}
 	// check node existed
 	deploys, err := qtx.GetNodeSale(ctx, datagateway.GetNodeSaleParams{
-		BlockHeight: int64(payload.DeployID.Block),
-		TxIndex:     int32(payload.DeployID.TxIndex),
+		BlockHeight: payload.DeployID.Block,
+		TxIndex:     payload.DeployID.TxIndex,
 	})
 	if err != nil {
 		v.Valid = false
@@ -49,7 +49,7 @@ func (v *PurchaseValidator) NodeSaleExists(ctx context.Context, qtx datagateway.
 	}
 	if len(deploys) < 1 {
 		v.Valid = false
-		v.Reason = "Depoloy ID not found."
+		v.Reason = DEPLOYID_NOT_FOUND
 		return v.Valid, nil, nil
 	}
 	v.Valid = true
@@ -63,7 +63,7 @@ func (v *PurchaseValidator) ValidTimestamp(deploy *entity.NodeSale, timestamp ti
 	if timestamp.Before(deploy.StartsAt) ||
 		timestamp.After(deploy.EndsAt) {
 		v.Valid = false
-		v.Reason = "Purchase Timeout"
+		v.Reason = PURCHASE_TIMEOUT
 		return v.Valid
 	}
 	v.Valid = true
@@ -76,7 +76,7 @@ func (v *PurchaseValidator) WithinTimeoutBlock(timeOutBlock uint64, blockHeight 
 	}
 	if timeOutBlock < blockHeight {
 		v.Valid = false
-		v.Reason = "Block height over timeout block"
+		v.Reason = BLOCK_HEIGHT_TIMEOUT
 		return v.Valid
 	}
 	v.Valid = true
@@ -93,7 +93,7 @@ func (v *PurchaseValidator) VerifySignature(purchase *protobuf.ActionPurchase, d
 	signature, err := ecdsa.ParseSignature(signatureBytes)
 	if err != nil {
 		v.Valid = false
-		v.Reason = "Cannot parse signature"
+		v.Reason = INVALID_SIGNATURE_FORMAT
 		return v.Valid
 	}
 	hash := chainhash.DoubleHashB(payloadBytes)
@@ -102,7 +102,7 @@ func (v *PurchaseValidator) VerifySignature(purchase *protobuf.ActionPurchase, d
 	verified := signature.Verify(hash[:], pubKey)
 	if !verified {
 		v.Valid = false
-		v.Reason = "Invalid Signature"
+		v.Reason = INVALID_SIGNATURE
 		return v.Valid
 	}
 	v.Valid = true
@@ -131,7 +131,7 @@ func (v *PurchaseValidator) ValidTiers(
 		err := protojson.Unmarshal(tierJson, tier)
 		if err != nil {
 			v.Valid = false
-			v.Reason = "Invalid Tier format"
+			v.Reason = INVALID_TIER_JSON
 			return v.Valid, TierMap{}
 		}
 	}
@@ -150,7 +150,7 @@ func (v *PurchaseValidator) ValidTiers(
 			nodeIdToTier[nodeId] = currentTier
 		} else {
 			v.Valid = false
-			v.Reason = "Invalid NodeId."
+			v.Reason = INVALID_NODE_ID
 			return false, TierMap{}
 		}
 	}
@@ -172,14 +172,10 @@ func (v *PurchaseValidator) ValidUnpurchasedNodes(
 	}
 
 	// valid unpurchased node ID
-	nodeIds := make([]int32, len(payload.NodeIDs))
-	for i, id := range payload.NodeIDs {
-		nodeIds[i] = int32(id)
-	}
 	nodes, err := qtx.GetNodesByIds(ctx, datagateway.GetNodesByIdsParams{
-		SaleBlock:   int64(payload.DeployID.Block),
-		SaleTxIndex: int32(payload.DeployID.TxIndex),
-		NodeIds:     nodeIds,
+		SaleBlock:   payload.DeployID.Block,
+		SaleTxIndex: payload.DeployID.TxIndex,
+		NodeIds:     payload.NodeIDs,
 	})
 	if err != nil {
 		v.Valid = false
@@ -187,7 +183,7 @@ func (v *PurchaseValidator) ValidUnpurchasedNodes(
 	}
 	if len(nodes) > 0 {
 		v.Valid = false
-		v.Reason = "Some node is already purchased."
+		v.Reason = NODE_ALREADY_PURCHASED
 		return false, nil
 	}
 	v.Valid = true
@@ -208,7 +204,7 @@ func (v *PurchaseValidator) ValidPaidAmount(
 	sellerAddr, err := btcutil.DecodeAddress(deploy.SellerWallet, network) // default to mainnet
 	if err != nil {
 		v.Valid = false
-		v.Reason = "Invalid seller address."
+		v.Reason = INVALID_SELLER_ADDR_FORMAT
 		return v.Valid, nil
 	}
 
@@ -231,7 +227,7 @@ func (v *PurchaseValidator) ValidPaidAmount(
 	// total amount paid is greater than report paid
 	if txPaid < payload.TotalAmountSat {
 		v.Valid = false
-		v.Reason = "Total amount paid is greater than reported paid"
+		v.Reason = INVALID_PAYMENT
 		return v.Valid, nil
 	}
 	// calculate total price
@@ -249,7 +245,7 @@ func (v *PurchaseValidator) ValidPaidAmount(
 	meta.ExpectedTotalAmountDiscounted = maxDiscounted
 	if payload.TotalAmountSat < maxDiscounted {
 		v.Valid = false
-		v.Reason = "Discounted over allowed discount."
+		v.Reason = INSUFFICIENT_FUND
 		return v.Valid, nil
 	}
 	v.Valid = true
@@ -295,7 +291,7 @@ func (v *PurchaseValidator) WithinLimit(
 	for i := 0; i < len(tiers); i++ {
 		if ownedTiersCount[i]+buyingTiersCount[i] > tiers[i].MaxPerAddress {
 			v.Valid = false
-			v.Reason = "Purchase over limit per address."
+			v.Reason = "Purchase over limit per tier."
 			return v.Valid, nil
 		}
 	}

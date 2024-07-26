@@ -8,7 +8,6 @@ import (
 	"github.com/gaze-network/indexer-network/modules/nodesale/internal/entity"
 	"github.com/gaze-network/indexer-network/modules/nodesale/internal/validator"
 	"github.com/gaze-network/indexer-network/modules/nodesale/protobuf"
-	"github.com/samber/lo"
 )
 
 type DelegateValidator struct {
@@ -33,9 +32,9 @@ func (v *DelegateValidator) NodesExist(
 	}
 
 	nodes, err := qtx.GetNodesByIds(ctx, datagateway.GetNodesByIdsParams{
-		SaleBlock:   int64(deployId.Block),
-		SaleTxIndex: int32(deployId.TxIndex),
-		NodeIds:     lo.Map(nodeIds, func(item uint32, index int) int32 { return int32(item) }),
+		SaleBlock:   deployId.Block,
+		SaleTxIndex: deployId.TxIndex,
+		NodeIds:     nodeIds,
 	})
 	if err != nil {
 		v.Valid = false

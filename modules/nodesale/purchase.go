@@ -70,7 +70,7 @@ func (p *Processor) ProcessPurchase(ctx context.Context, qtx datagateway.NodeSal
 			err := qtx.CreateNode(ctx, entity.Node{
 				SaleBlock:      deploy.BlockHeight,
 				SaleTxIndex:    deploy.TxIndex,
-				NodeID:         int32(nodeId),
+				NodeID:         nodeId,
 				TierIndex:      nodeIdToTier[nodeId],
 				DelegatedTo:    "",
 				OwnerPublicKey: payload.BuyerPublicKey,

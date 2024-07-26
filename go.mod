@@ -28,6 +28,8 @@ require (
 	google.golang.org/protobuf v1.33.0
 )
 
+require github.com/stretchr/objx v0.5.2 // indirect
+
 require (
 	github.com/andybalholm/brotli v1.0.5 // indirect
 	github.com/bitonicnl/verify-signed-message v0.7.1
