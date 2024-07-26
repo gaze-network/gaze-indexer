@@ -478,7 +478,7 @@ func TestValidPurchase(t *testing.T) {
 	require.NoError(t, err)
 }
 
-/*func TestMismatchPayment(t *testing.T) {
+func TestMismatchPayment(t *testing.T) {
 	ctx := context.Background()
 	mockDgTx := mocks.NewNodeSaleDataGatewayWithTx(t)
 	p := NewProcessor(mockDgTx, nil, common.NetworkMainnet, nil, 0)
@@ -533,8 +533,6 @@ func TestValidPurchase(t *testing.T) {
 
 	mockDgTx.EXPECT().GetNodesByIds(mock.Anything, mock.Anything).Return(nil, nil)
 
-	mockDgTx.EXPECT().GetNodesByOwner(mock.Anything, mock.Anything).Return(nil, nil)
-
 	buyerPrivateKey, _ := btcec.NewPrivateKey()
 	buyerPubkeyHex := hex.EncodeToString(buyerPrivateKey.PubKey().SerializeCompressed())
 
@@ -563,51 +561,108 @@ func TestValidPurchase(t *testing.T) {
 	}
 
 	event, block := assembleTestEvent(buyerPrivateKey, "0D0D0D0D", "0D0D0D0D", 0, 0, message)
-	event.InputValue = 500
+	event.InputValue = 400
 
 	mockDgTx.EXPECT().CreateEvent(mock.Anything, mock.MatchedBy(func(event entity.NodeSaleEvent) bool {
-		return event.Valid == true && event.Reason == ""
-	})).Return(nil)
-
-	mockDgTx.EXPECT().CreateNode(mock.Anything, mock.MatchedBy(func(node entity.Node) bool {
-		return node.NodeID == 0 &&
-			node.TierIndex == 0 &&
-			node.OwnerPublicKey == buyerPubkeyHex &&
-			node.PurchaseTxHash == event.Transaction.TxHash.String() &&
-			node.SaleBlock == 100 &&
-			node.SaleTxIndex == 1
-	})).Return(nil)
-
-	mockDgTx.EXPECT().CreateNode(mock.Anything, mock.MatchedBy(func(node entity.Node) bool {
-		return node.NodeID == 5 &&
-			node.TierIndex == 1 &&
-			node.OwnerPublicKey == buyerPubkeyHex &&
-			node.PurchaseTxHash == event.Transaction.TxHash.String() &&
-			node.SaleBlock == 100 &&
-			node.SaleTxIndex == 1
-	})).Return(nil)
-
-	mockDgTx.EXPECT().CreateNode(mock.Anything, mock.MatchedBy(func(node entity.Node) bool {
-		return node.NodeID == 6 &&
-			node.TierIndex == 1 &&
-			node.OwnerPublicKey == buyerPubkeyHex &&
-			node.PurchaseTxHash == event.Transaction.TxHash.String() &&
-			node.SaleBlock == 100 &&
-			node.SaleTxIndex == 1
-	})).Return(nil)
-
-	mockDgTx.EXPECT().CreateNode(mock.Anything, mock.MatchedBy(func(node entity.Node) bool {
-		return node.NodeID == 9 &&
-			node.TierIndex == 2 &&
-			node.OwnerPublicKey == buyerPubkeyHex &&
-			node.PurchaseTxHash == event.Transaction.TxHash.String() &&
-			node.SaleBlock == 100 &&
-			node.SaleTxIndex == 1
+		return event.Valid == false && event.Reason == purchase.INVALID_PAYMENT
 	})).Return(nil)
 
 	err := p.ProcessPurchase(ctx, mockDgTx, block, event)
 	require.NoError(t, err)
-}*/
+}
+
+func TestInsufficientFund(t *testing.T) {
+	ctx := context.Background()
+	mockDgTx := mocks.NewNodeSaleDataGatewayWithTx(t)
+	p := NewProcessor(mockDgTx, nil, common.NetworkMainnet, nil, 0)
+
+	sellerPrivateKey, _ := btcec.NewPrivateKey()
+	sellerPubkeyHex := hex.EncodeToString(sellerPrivateKey.PubKey().SerializeCompressed())
+	sellerWallet := p.PubkeyToPkHashAddress(sellerPrivateKey.PubKey())
+
+	startAt := time.Now().Add(time.Hour * -1)
+	endAt := time.Now().Add(time.Hour * 1)
+
+	tiers := lo.Map([]*protobuf.Tier{
+		{
+			PriceSat:      100,
+			Limit:         5,
+			MaxPerAddress: 100,
+		},
+		{
+			PriceSat:      200,
+			Limit:         4,
+			MaxPerAddress: 2,
+		},
+		{
+			PriceSat:      400,
+			Limit:         3,
+			MaxPerAddress: 100,
+		},
+	}, func(tier *protobuf.Tier, _ int) []byte {
+		tierJson, err := protojson.Marshal(tier)
+		require.NoError(t, err)
+		return tierJson
+	})
+
+	mockDgTx.EXPECT().GetNodeSale(mock.Anything, datagateway.GetNodeSaleParams{
+		BlockHeight: 100,
+		TxIndex:     1,
+	}).Return([]entity.NodeSale{
+		{
+			BlockHeight:           100,
+			TxIndex:               1,
+			Name:                  t.Name(),
+			StartsAt:              startAt,
+			EndsAt:                endAt,
+			Tiers:                 tiers,
+			SellerPublicKey:       sellerPubkeyHex,
+			MaxPerAddress:         100,
+			DeployTxHash:          "040404040404",
+			MaxDiscountPercentage: 50,
+			SellerWallet:          sellerWallet.EncodeAddress(),
+		},
+	}, nil)
+
+	mockDgTx.EXPECT().GetNodesByIds(mock.Anything, mock.Anything).Return(nil, nil)
+
+	buyerPrivateKey, _ := btcec.NewPrivateKey()
+	buyerPubkeyHex := hex.EncodeToString(buyerPrivateKey.PubKey().SerializeCompressed())
+
+	payload := &protobuf.PurchasePayload{
+		DeployID: &protobuf.ActionID{
+			Block:   100,
+			TxIndex: 1,
+		},
+		BuyerPublicKey: buyerPubkeyHex,
+		TimeOutBlock:   uint64(testBlockHeight) + 5,
+		NodeIDs:        []uint32{0, 5, 6, 9},
+		TotalAmountSat: 200,
+	}
+
+	payloadBytes, _ := proto.Marshal(payload)
+	payloadHash := chainhash.DoubleHashB(payloadBytes)
+	signature := ecdsa.Sign(sellerPrivateKey, payloadHash[:])
+	signatureHex := hex.EncodeToString(signature.Serialize())
+
+	message := &protobuf.NodeSaleEvent{
+		Action: protobuf.Action_ACTION_PURCHASE,
+		Purchase: &protobuf.ActionPurchase{
+			Payload:         payload,
+			SellerSignature: signatureHex,
+		},
+	}
+
+	event, block := assembleTestEvent(buyerPrivateKey, "0D0D0D0D", "0D0D0D0D", 0, 0, message)
+	event.InputValue = 200
+
+	mockDgTx.EXPECT().CreateEvent(mock.Anything, mock.MatchedBy(func(event entity.NodeSaleEvent) bool {
+		return event.Valid == false && event.Reason == purchase.INSUFFICIENT_FUND
+	})).Return(nil)
+
+	err := p.ProcessPurchase(ctx, mockDgTx, block, event)
+	require.NoError(t, err)
+}
 
 func TestBuyingLimit(t *testing.T) {
 	ctx := context.Background()
