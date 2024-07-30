@@ -120,6 +120,33 @@ func (r *Repository) GetRuneTransactions(ctx context.Context, pkScript []byte, r
 	return runeTxs, nil
 }
 
+func (r *Repository) GetRuneTransaction(ctx context.Context, txHash chainhash.Hash) (*entity.RuneTransaction, error) {
+	row, err := r.queries.GetRuneTransaction(ctx, txHash.String())
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, errors.WithStack(errs.NotFound)
+	}
+
+	runeTxModel, runestoneModel, err := extractModelRuneTxAndRunestone(gen.GetRuneTransactionsRow(row))
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to extract rune transaction and runestone from row")
+	}
+
+	runeTx, err := mapRuneTransactionModelToType(runeTxModel)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse rune transaction model")
+	}
+
+	if runestoneModel != nil {
+		runestone, err := mapRunestoneModelToType(*runestoneModel)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to parse runestone model")
+		}
+		runeTx.Runestone = &runestone
+	}
+
+	return &runeTx, nil
+}
+
 func (r *Repository) GetRunesBalancesAtOutPoint(ctx context.Context, outPoint wire.OutPoint) (map[runes.RuneId]*entity.OutPointBalance, error) {
 	balances, err := r.queries.GetOutPointBalancesAtOutPoint(ctx, gen.GetOutPointBalancesAtOutPointParams{
 		TxHash: outPoint.Hash.String(),

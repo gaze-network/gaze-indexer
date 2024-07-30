@@ -9,4 +9,6 @@ import (
 
 type Contract interface {
 	GetRawTransactionAndHeightByTxHash(ctx context.Context, txHash chainhash.Hash) (*wire.MsgTx, int64, error)
+
+	GetRawTransactionByTxHash(ctx context.Context, txHash chainhash.Hash) (*wire.MsgTx, error)
 }
