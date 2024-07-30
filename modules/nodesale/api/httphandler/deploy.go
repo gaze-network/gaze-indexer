@@ -2,7 +2,6 @@ package httphandler
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/common/errs"
@@ -26,8 +25,8 @@ type tierResponse struct {
 type deployResponse struct {
 	Id              string         `json:"id"`
 	Name            string         `json:"name"`
-	StartsAt        time.Time      `json:"startsAt"`
-	EndsAt          time.Time      `json:"endsAt"`
+	StartsAt        int64          `json:"startsAt"`
+	EndsAt          int64          `json:"endsAt"`
 	Tiers           []tierResponse `json:"tiers"`
 	SellerPublicKey string         `json:"sellerPublicKey"`
 	MaxPerAddress   uint32         `json:"maxPerAddress"`
@@ -86,8 +85,8 @@ func (h *handler) deployHandler(ctx *fiber.Ctx) error {
 	err = ctx.JSON(&deployResponse{
 		Id:              request.DeployID,
 		Name:            deploy.Name,
-		StartsAt:        deploy.StartsAt,
-		EndsAt:          deploy.EndsAt,
+		StartsAt:        deploy.StartsAt.UTC().Unix(),
+		EndsAt:          deploy.EndsAt.UTC().Unix(),
 		Tiers:           tierResponses,
 		SellerPublicKey: deploy.SellerPublicKey,
 		MaxPerAddress:   deploy.MaxPerAddress,
