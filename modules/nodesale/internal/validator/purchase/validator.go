@@ -70,6 +70,11 @@ func (v *PurchaseValidator) WithinTimeoutBlock(timeOutBlock uint64, blockHeight 
 	if !v.Valid {
 		return false
 	}
+	if timeOutBlock == 0 {
+		// No timeout
+		v.Valid = true
+		return v.Valid
+	}
 	if timeOutBlock < blockHeight {
 		v.Valid = false
 		v.Reason = BLOCK_HEIGHT_TIMEOUT
