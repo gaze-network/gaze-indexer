@@ -6,13 +6,15 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/common/errs"
 	"github.com/gaze-network/indexer-network/core/constants"
+	"github.com/gaze-network/indexer-network/modules/nodesale"
 	"github.com/gaze-network/indexer-network/modules/runes"
 	"github.com/spf13/cobra"
 )
 
 var versions = map[string]string{
-	"":      constants.Version,
-	"runes": runes.Version,
+	"":         constants.Version,
+	"runes":    runes.Version,
+	"nodesale": nodesale.Version,
 }
 
 type versionCmdOptions struct {
