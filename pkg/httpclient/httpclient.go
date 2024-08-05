@@ -90,6 +90,10 @@ func (h *Client) request(ctx context.Context, reqOptions RequestOptions) (*HttpR
 
 	parsedUrl := h.BaseURL()
 	parsedUrl.Path = path.Join(parsedUrl.Path, reqOptions.path)
+	// Because path.Join cleans the joined path. If path ends with /, append "/" to parsedUrl.Path
+	if strings.HasSuffix(reqOptions.path, "/") && !strings.HasSuffix(parsedUrl.Path, "/") {
+		parsedUrl.Path += "/"
+	}
 	baseQuery := parsedUrl.Query()
 	for k, v := range reqOptions.Query {
 		baseQuery[k] = v
