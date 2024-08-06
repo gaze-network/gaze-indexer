@@ -64,13 +64,14 @@ func (r *HttpResponse) UnmarshalBody(out any) error {
 	if err != nil {
 		return errors.Wrapf(err, "can't uncompress body from %v", r.URL)
 	}
-	switch strings.ToLower(string(r.Header.ContentType())) {
-	case "application/json", "application/json; charset=utf-8":
+	contentType := strings.ToLower(string(r.Header.ContentType()))
+	switch {
+	case strings.Contains(contentType, "application/json"):
 		if err := json.Unmarshal(body, out); err != nil {
 			return errors.Wrapf(err, "can't unmarshal json body from %s, %q", r.URL, string(body))
 		}
 		return nil
-	case "text/plain", "text/plain; charset=utf-8":
+	case strings.Contains(contentType, "text/plain"):
 		return errors.Errorf("can't unmarshal plain text %q", string(body))
 	default:
 		return errors.Errorf("unsupported content type: %s, contents: %v", r.Header.ContentType(), string(r.Body()))
