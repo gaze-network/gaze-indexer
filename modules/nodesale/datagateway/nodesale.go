@@ -23,6 +23,7 @@ type NodeSaleDataGateway interface {
 	CreateNode(ctx context.Context, arg entity.Node) error
 	GetNodeCountByTierIndex(ctx context.Context, arg GetNodeCountByTierIndexParams) ([]GetNodeCountByTierIndexRow, error)
 	GetNodesByPubkey(ctx context.Context, arg GetNodesByPubkeyParams) ([]entity.Node, error)
+	GetNodesByDeploy(ctx context.Context, saleBlock int64, saleTxIndex int32) ([]entity.Node, error)
 	GetEventsByWallet(ctx context.Context, walletAddress string) ([]entity.NodeSaleEvent, error)
 }
 
