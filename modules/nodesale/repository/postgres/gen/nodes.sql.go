@@ -103,20 +103,20 @@ func (q *Queries) GetNodeCountByTierIndex(ctx context.Context, arg GetNodeCountB
 	return items, nil
 }
 
-const getNodesByDeploy = `-- name: GetNodesByDeploy :many
+const getNodesByDeployment = `-- name: GetNodesByDeployment :many
 SELECT sale_block, sale_tx_index, node_id, tier_index, delegated_to, owner_public_key, purchase_tx_hash, delegate_tx_hash 
 FROM nodes
 WHERE sale_block = $1 AND
     sale_tx_index = $2
 `
 
-type GetNodesByDeployParams struct {
+type GetNodesByDeploymentParams struct {
 	SaleBlock   int64
 	SaleTxIndex int32
 }
 
-func (q *Queries) GetNodesByDeploy(ctx context.Context, arg GetNodesByDeployParams) ([]Node, error) {
-	rows, err := q.db.Query(ctx, getNodesByDeploy, arg.SaleBlock, arg.SaleTxIndex)
+func (q *Queries) GetNodesByDeployment(ctx context.Context, arg GetNodesByDeploymentParams) ([]Node, error) {
+	rows, err := q.db.Query(ctx, getNodesByDeployment, arg.SaleBlock, arg.SaleTxIndex)
 	if err != nil {
 		return nil, err
 	}

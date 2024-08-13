@@ -666,12 +666,12 @@ func (_c *NodeSaleDataGatewayWithTx_GetNodeSale_Call) RunAndReturn(run func(cont
 	return _c
 }
 
-// GetNodesByDeploy provides a mock function with given fields: ctx, saleBlock, saleTxIndex
-func (_m *NodeSaleDataGatewayWithTx) GetNodesByDeploy(ctx context.Context, saleBlock int64, saleTxIndex int32) ([]entity.Node, error) {
+// GetNodesByDeployment provides a mock function with given fields: ctx, saleBlock, saleTxIndex
+func (_m *NodeSaleDataGatewayWithTx) GetNodesByDeployment(ctx context.Context, saleBlock int64, saleTxIndex int32) ([]entity.Node, error) {
 	ret := _m.Called(ctx, saleBlock, saleTxIndex)
 
 	if len(ret) == 0 {
-		panic("no return value specified for GetNodesByDeploy")
+		panic("no return value specified for GetNodesByDeployment")
 	}
 
 	var r0 []entity.Node
@@ -696,32 +696,32 @@ func (_m *NodeSaleDataGatewayWithTx) GetNodesByDeploy(ctx context.Context, saleB
 	return r0, r1
 }
 
-// NodeSaleDataGatewayWithTx_GetNodesByDeploy_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetNodesByDeploy'
-type NodeSaleDataGatewayWithTx_GetNodesByDeploy_Call struct {
+// NodeSaleDataGatewayWithTx_GetNodesByDeployment_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetNodesByDeployment'
+type NodeSaleDataGatewayWithTx_GetNodesByDeployment_Call struct {
 	*mock.Call
 }
 
-// GetNodesByDeploy is a helper method to define mock.On call
+// GetNodesByDeployment is a helper method to define mock.On call
 //   - ctx context.Context
 //   - saleBlock int64
 //   - saleTxIndex int32
-func (_e *NodeSaleDataGatewayWithTx_Expecter) GetNodesByDeploy(ctx interface{}, saleBlock interface{}, saleTxIndex interface{}) *NodeSaleDataGatewayWithTx_GetNodesByDeploy_Call {
-	return &NodeSaleDataGatewayWithTx_GetNodesByDeploy_Call{Call: _e.mock.On("GetNodesByDeploy", ctx, saleBlock, saleTxIndex)}
+func (_e *NodeSaleDataGatewayWithTx_Expecter) GetNodesByDeployment(ctx interface{}, saleBlock interface{}, saleTxIndex interface{}) *NodeSaleDataGatewayWithTx_GetNodesByDeployment_Call {
+	return &NodeSaleDataGatewayWithTx_GetNodesByDeployment_Call{Call: _e.mock.On("GetNodesByDeployment", ctx, saleBlock, saleTxIndex)}
 }
 
-func (_c *NodeSaleDataGatewayWithTx_GetNodesByDeploy_Call) Run(run func(ctx context.Context, saleBlock int64, saleTxIndex int32)) *NodeSaleDataGatewayWithTx_GetNodesByDeploy_Call {
+func (_c *NodeSaleDataGatewayWithTx_GetNodesByDeployment_Call) Run(run func(ctx context.Context, saleBlock int64, saleTxIndex int32)) *NodeSaleDataGatewayWithTx_GetNodesByDeployment_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(context.Context), args[1].(int64), args[2].(int32))
 	})
 	return _c
 }
 
-func (_c *NodeSaleDataGatewayWithTx_GetNodesByDeploy_Call) Return(_a0 []entity.Node, _a1 error) *NodeSaleDataGatewayWithTx_GetNodesByDeploy_Call {
+func (_c *NodeSaleDataGatewayWithTx_GetNodesByDeployment_Call) Return(_a0 []entity.Node, _a1 error) *NodeSaleDataGatewayWithTx_GetNodesByDeployment_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *NodeSaleDataGatewayWithTx_GetNodesByDeploy_Call) RunAndReturn(run func(context.Context, int64, int32) ([]entity.Node, error)) *NodeSaleDataGatewayWithTx_GetNodesByDeploy_Call {
+func (_c *NodeSaleDataGatewayWithTx_GetNodesByDeployment_Call) RunAndReturn(run func(context.Context, int64, int32) ([]entity.Node, error)) *NodeSaleDataGatewayWithTx_GetNodesByDeployment_Call {
 	_c.Call.Return(run)
 	return _c
 }

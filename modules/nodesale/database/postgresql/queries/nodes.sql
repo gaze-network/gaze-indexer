@@ -50,7 +50,7 @@ LEFT JOIN
 GROUP BY tiers.tier_index
 ORDER BY tiers.tier_index;
 
--- name: GetNodesByDeploy :many
+-- name: GetNodesByDeployment :many
 SELECT * 
 FROM nodes
 WHERE sale_block = $1 AND

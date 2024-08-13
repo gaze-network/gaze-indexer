@@ -46,7 +46,7 @@ func (h *handler) nodesHandler(ctx *fiber.Ctx) error {
 
 	var nodes []entity.Node
 	if ownerPublicKey == "" {
-		nodes, err = h.nodeSaleDg.GetNodesByDeploy(ctx.UserContext(), blockHeight, txIndex)
+		nodes, err = h.nodeSaleDg.GetNodesByDeployment(ctx.UserContext(), blockHeight, txIndex)
 		if err != nil {
 			return errors.Wrap(err, "Can't get nodes from db")
 		}
