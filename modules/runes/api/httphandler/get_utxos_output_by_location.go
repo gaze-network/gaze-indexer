@@ -12,7 +12,7 @@ import (
 
 type getUTXOsOutputByLocationRequest struct {
 	TxHash      string `params:"txHash"`
-	outputIndex int32  `query:"outputIndex"`
+	OutputIndex int32  `query:"outputIndex"`
 }
 
 func (r getUTXOsOutputByLocationRequest) Validate() error {
@@ -20,7 +20,7 @@ func (r getUTXOsOutputByLocationRequest) Validate() error {
 	if r.TxHash == "" {
 		errList = append(errList, errors.New("'txHash' is required"))
 	}
-	if r.outputIndex < 0 {
+	if r.OutputIndex < 0 {
 		errList = append(errList, errors.New("'outputIndex' must be non-negative"))
 	}
 	return errs.WithPublicMessage(errors.Join(errList...), "validation error")
@@ -45,7 +45,7 @@ func (h *HttpHandler) GetUTXOsOutputByLocation(ctx *fiber.Ctx) (err error) {
 		return errs.WithPublicMessage(err, "unable to resolve txHash")
 	}
 
-	utxo, err := h.usecase.GetUTXOsOutputByLocation(ctx.UserContext(), *txHash, uint32(req.outputIndex))
+	utxo, err := h.usecase.GetUTXOsOutputByLocation(ctx.UserContext(), *txHash, uint32(req.OutputIndex))
 	if err != nil {
 		if errors.Is(err, usecase.ErrUTXONotFound) {
 			return errs.NewPublicError("utxo not found")
