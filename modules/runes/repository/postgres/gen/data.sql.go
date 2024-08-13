@@ -645,6 +645,83 @@ func (q *Queries) GetRuneIdFromRune(ctx context.Context, rune string) (string, e
 	return rune_id, err
 }
 
+const getRuneTransaction = `-- name: GetRuneTransaction :one
+SELECT hash, runes_transactions.block_height, index, timestamp, inputs, outputs, mints, burns, rune_etched, tx_hash, runes_runestones.block_height, etching, etching_divisibility, etching_premine, etching_rune, etching_spacers, etching_symbol, etching_terms, etching_terms_amount, etching_terms_cap, etching_terms_height_start, etching_terms_height_end, etching_terms_offset_start, etching_terms_offset_end, etching_turbo, edicts, mint, pointer, cenotaph, flaws FROM runes_transactions
+  LEFT JOIN runes_runestones ON runes_transactions.hash = runes_runestones.tx_hash
+  WHERE hash = $1 LIMIT 1
+`
+
+type GetRuneTransactionRow struct {
+	Hash                    string
+	BlockHeight             int32
+	Index                   int32
+	Timestamp               pgtype.Timestamp
+	Inputs                  []byte
+	Outputs                 []byte
+	Mints                   []byte
+	Burns                   []byte
+	RuneEtched              bool
+	TxHash                  pgtype.Text
+	BlockHeight_2           pgtype.Int4
+	Etching                 pgtype.Bool
+	EtchingDivisibility     pgtype.Int2
+	EtchingPremine          pgtype.Numeric
+	EtchingRune             pgtype.Text
+	EtchingSpacers          pgtype.Int4
+	EtchingSymbol           pgtype.Int4
+	EtchingTerms            pgtype.Bool
+	EtchingTermsAmount      pgtype.Numeric
+	EtchingTermsCap         pgtype.Numeric
+	EtchingTermsHeightStart pgtype.Int4
+	EtchingTermsHeightEnd   pgtype.Int4
+	EtchingTermsOffsetStart pgtype.Int4
+	EtchingTermsOffsetEnd   pgtype.Int4
+	EtchingTurbo            pgtype.Bool
+	Edicts                  []byte
+	Mint                    pgtype.Text
+	Pointer                 pgtype.Int4
+	Cenotaph                pgtype.Bool
+	Flaws                   pgtype.Int4
+}
+
+func (q *Queries) GetRuneTransaction(ctx context.Context, hash string) (GetRuneTransactionRow, error) {
+	row := q.db.QueryRow(ctx, getRuneTransaction, hash)
+	var i GetRuneTransactionRow
+	err := row.Scan(
+		&i.Hash,
+		&i.BlockHeight,
+		&i.Index,
+		&i.Timestamp,
+		&i.Inputs,
+		&i.Outputs,
+		&i.Mints,
+		&i.Burns,
+		&i.RuneEtched,
+		&i.TxHash,
+		&i.BlockHeight_2,
+		&i.Etching,
+		&i.EtchingDivisibility,
+		&i.EtchingPremine,
+		&i.EtchingRune,
+		&i.EtchingSpacers,
+		&i.EtchingSymbol,
+		&i.EtchingTerms,
+		&i.EtchingTermsAmount,
+		&i.EtchingTermsCap,
+		&i.EtchingTermsHeightStart,
+		&i.EtchingTermsHeightEnd,
+		&i.EtchingTermsOffsetStart,
+		&i.EtchingTermsOffsetEnd,
+		&i.EtchingTurbo,
+		&i.Edicts,
+		&i.Mint,
+		&i.Pointer,
+		&i.Cenotaph,
+		&i.Flaws,
+	)
+	return i, err
+}
+
 const getRuneTransactions = `-- name: GetRuneTransactions :many
 SELECT hash, runes_transactions.block_height, index, timestamp, inputs, outputs, mints, burns, rune_etched, tx_hash, runes_runestones.block_height, etching, etching_divisibility, etching_premine, etching_rune, etching_spacers, etching_symbol, etching_terms, etching_terms_amount, etching_terms_cap, etching_terms_height_start, etching_terms_height_end, etching_terms_offset_start, etching_terms_offset_end, etching_turbo, edicts, mint, pointer, cenotaph, flaws FROM runes_transactions
 	LEFT JOIN runes_runestones ON runes_transactions.hash = runes_runestones.tx_hash
