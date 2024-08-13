@@ -234,3 +234,14 @@ func (repo *Repository) GetEventsByWallet(ctx context.Context, walletAddress str
 	}
 	return mapNodeSalesEvents(events), nil
 }
+
+func (repo *Repository) GetNodesByDeployment(ctx context.Context, saleBlock int64, saleTxIndex int32) ([]entity.Node, error) {
+	nodes, err := repo.queries.GetNodesByDeployment(ctx, gen.GetNodesByDeploymentParams{
+		SaleBlock:   saleBlock,
+		SaleTxIndex: saleTxIndex,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot get nodes by deploy")
+	}
+	return mapNodes(nodes), nil
+}

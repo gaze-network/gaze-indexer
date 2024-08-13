@@ -6,6 +6,7 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/common/errs"
 	"github.com/gaze-network/indexer-network/modules/nodesale/datagateway"
+	"github.com/gaze-network/indexer-network/modules/nodesale/internal/entity"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -43,15 +44,24 @@ func (h *handler) nodesHandler(ctx *fiber.Ctx) error {
 		return errs.NewPublicError("Invalid deploy ID")
 	}
 
-	nodes, err := h.nodeSaleDg.GetNodesByPubkey(ctx.UserContext(), datagateway.GetNodesByPubkeyParams{
-		SaleBlock:      blockHeight,
-		SaleTxIndex:    txIndex,
-		OwnerPublicKey: ownerPublicKey,
-		DelegatedTo:    delegateePublicKey,
-	})
-	if err != nil {
-		return errors.Wrap(err, "Can't get nodes from db")
+	var nodes []entity.Node
+	if ownerPublicKey == "" {
+		nodes, err = h.nodeSaleDg.GetNodesByDeployment(ctx.UserContext(), blockHeight, txIndex)
+		if err != nil {
+			return errors.Wrap(err, "Can't get nodes from db")
+		}
+	} else {
+		nodes, err = h.nodeSaleDg.GetNodesByPubkey(ctx.UserContext(), datagateway.GetNodesByPubkeyParams{
+			SaleBlock:      blockHeight,
+			SaleTxIndex:    txIndex,
+			OwnerPublicKey: ownerPublicKey,
+			DelegatedTo:    delegateePublicKey,
+		})
+		if err != nil {
+			return errors.Wrap(err, "Can't get nodes from db")
+		}
 	}
+
 	responses := make([]nodeResponse, len(nodes))
 	for i, node := range nodes {
 		responses[i].DeployId = request.DeployId
