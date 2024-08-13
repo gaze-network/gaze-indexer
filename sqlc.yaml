@@ -17,3 +17,11 @@ sql:
         sql_package: "pgx/v5"
         rename:
           id: "Id"
+  - schema: "./modules/nodesale/database/postgresql/migrations"
+    queries: "./modules/nodesale/database/postgresql/queries"
+    engine: "postgresql"
+    gen:
+      go:
+        package: "gen"
+        out: "./modules/nodesale/repository/postgres/gen"
+        sql_package: "pgx/v5"
