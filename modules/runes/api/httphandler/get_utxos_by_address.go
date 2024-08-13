@@ -56,6 +56,7 @@ type utxoExtend struct {
 type utxoItem struct {
 	TxHash      chainhash.Hash `json:"txHash"`
 	OutputIndex uint32         `json:"outputIndex"`
+	Sats        int64          `json:"sats"`
 	Extend      utxoExtend     `json:"extend"`
 }
 
@@ -99,7 +100,7 @@ func (h *HttpHandler) GetUTXOs(ctx *fiber.Ctx) (err error) {
 		blockHeight = uint64(blockHeader.Height)
 	}
 
-	var utxos []*entity.RunesUTXO
+	var utxos []*entity.RunesUTXOWithSats
 	if runeId, ok := h.resolveRuneId(ctx.UserContext(), req.Id); ok {
 		utxos, err = h.usecase.GetRunesUTXOsByRuneIdAndPkScript(ctx.UserContext(), runeId, pkScript, blockHeight, req.Limit, req.Offset)
 		if err != nil {
@@ -150,6 +151,7 @@ func (h *HttpHandler) GetUTXOs(ctx *fiber.Ctx) (err error) {
 		utxoRespList = append(utxoRespList, utxoItem{
 			TxHash:      utxo.OutPoint.Hash,
 			OutputIndex: utxo.OutPoint.Index,
+			Sats:        utxo.Sats,
 			Extend: utxoExtend{
 				Runes: runeBalances,
 			},
