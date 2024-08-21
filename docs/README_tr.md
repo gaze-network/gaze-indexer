@@ -135,26 +135,26 @@ cd gaze-indexer
 3. Ana ikili dosyayı oluşturun.
 
 ```bash
-# Get dependencies
-go mod download
+# Bağımlılıkları al
+go mod indir
 
-# Build the main binary
+# Ana ikili dosyayı oluşturun
 go build -o gaze main.go
 ```
 
-4. Run database migrations with the `migrate` command and module flags.
+4. Veritabanı geçişlerini `migrate` komutu ve modül bayrakları ile çalıştırın.
 
 ```bash
 ./gaze migrate up --runes --database postgres://postgres:password@localhost:5432/postgres
 ```
 
-5. Start the indexer with the `run` command and module flags.
+5. Dizinleyiciyi `run` komutu ve modül bayrakları ile başlatın.
 
 ```bash
 ./gaze run --modules runes
 ```
 
-If `config.yaml` is not located at `./app/config.yaml`, use the `--config` flag to specify the path to the `config.yaml` file.
+Eğer `config.yaml` dosyası `./app/config.yaml` adresinde bulunmuyorsa, `config.yaml` dosyasının yolunu belirtmek için `--config` bayrağını kullanın.
 
 ```bash
 ./gaze run --modules runes --config /path/to/config.yaml
