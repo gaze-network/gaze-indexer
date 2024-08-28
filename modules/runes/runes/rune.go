@@ -122,6 +122,10 @@ func FirstRuneHeight(network common.Network) uint64 {
 		return common.HalvingInterval * 4
 	case common.NetworkTestnet:
 		return common.HalvingInterval * 12
+	case common.NetworkFractalMainnet:
+		return 84000
+	case common.NetworkFractalTestnet:
+		return 84000
 	}
 	panic("invalid network")
 }

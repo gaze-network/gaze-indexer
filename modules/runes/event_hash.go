@@ -11,6 +11,7 @@ import (
 	"github.com/btcsuite/btcd/wire"
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/core/types"
+	"github.com/gaze-network/indexer-network/modules/runes/constants"
 	"github.com/gaze-network/indexer-network/modules/runes/internal/entity"
 	"github.com/gaze-network/indexer-network/modules/runes/runes"
 	"github.com/gaze-network/uint128"
@@ -28,7 +29,7 @@ func (p *Processor) calculateEventHash(header types.BlockHeader) (chainhash.Hash
 
 func (p *Processor) getHashPayload(header types.BlockHeader) ([]byte, error) {
 	var sb strings.Builder
-	sb.WriteString("payload:v" + strconv.Itoa(EventHashVersion) + ":")
+	sb.WriteString("payload:v" + strconv.Itoa(constants.EventHashVersion) + ":")
 	sb.WriteString("blockHash:")
 	sb.Write(header.Hash[:])
 
