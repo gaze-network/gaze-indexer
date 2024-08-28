@@ -1,6 +1,6 @@
 <!-- omit from toc -->
 
-[Türkçe](https://github.com/gaze-network/gaze-indexer/blob/main/docs/README.tr.md)
+[Türkçe](https://github.com/gaze-network/gaze-indexer/main/docs/README.tr.md)
 
 # Gaze Indexer
 
