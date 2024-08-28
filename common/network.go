@@ -5,18 +5,24 @@ import "github.com/btcsuite/btcd/chaincfg"
 type Network string
 
 const (
-	NetworkMainnet Network = "mainnet"
-	NetworkTestnet Network = "testnet"
+	NetworkMainnet        Network = "mainnet"
+	NetworkTestnet        Network = "testnet"
+	NetworkFractalMainnet Network = "fractal-mainnet"
+	NetworkFractalTestnet Network = "fractal-testnet"
 )
 
 var supportedNetworks = map[Network]struct{}{
-	NetworkMainnet: {},
-	NetworkTestnet: {},
+	NetworkMainnet:        {},
+	NetworkTestnet:        {},
+	NetworkFractalMainnet: {},
+	NetworkFractalTestnet: {},
 }
 
 var chainParams = map[Network]*chaincfg.Params{
-	NetworkMainnet: &chaincfg.MainNetParams,
-	NetworkTestnet: &chaincfg.TestNet3Params,
+	NetworkMainnet:        &chaincfg.MainNetParams,
+	NetworkTestnet:        &chaincfg.TestNet3Params,
+	NetworkFractalMainnet: &chaincfg.MainNetParams,
+	NetworkFractalTestnet: &chaincfg.MainNetParams,
 }
 
 func (n Network) IsSupported() bool {
