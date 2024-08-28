@@ -1,4 +1,4 @@
-package runes
+package constants
 
 import (
 	"github.com/Cleverse/go-utilities/utils"
@@ -13,7 +13,7 @@ const (
 	EventHashVersion = 1
 )
 
-var startingBlockHeader = map[common.Network]types.BlockHeader{
+var StartingBlockHeader = map[common.Network]types.BlockHeader{
 	common.NetworkMainnet: {
 		Height:    839999,
 		Hash:      *utils.Must(chainhash.NewHashFromStr("0000000000000000000172014ba58d66455762add0512355ad651207918494ab")),

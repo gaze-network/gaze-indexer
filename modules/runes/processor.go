@@ -11,6 +11,7 @@ import (
 	"github.com/gaze-network/indexer-network/common/errs"
 	"github.com/gaze-network/indexer-network/core/indexer"
 	"github.com/gaze-network/indexer-network/core/types"
+	"github.com/gaze-network/indexer-network/modules/runes/constants"
 	"github.com/gaze-network/indexer-network/modules/runes/datagateway"
 	"github.com/gaze-network/indexer-network/modules/runes/internal/entity"
 	"github.com/gaze-network/indexer-network/modules/runes/runes"
@@ -89,17 +90,17 @@ func (p *Processor) ensureValidState(ctx context.Context) error {
 	// if not found, set indexer state
 	if errors.Is(err, errs.NotFound) {
 		if err := p.indexerInfoDg.SetIndexerState(ctx, entity.IndexerState{
-			DBVersion:        DBVersion,
-			EventHashVersion: EventHashVersion,
+			DBVersion:        constants.DBVersion,
+			EventHashVersion: constants.EventHashVersion,
 		}); err != nil {
 			return errors.Wrap(err, "failed to set indexer state")
 		}
 	} else {
-		if indexerState.DBVersion != DBVersion {
-			return errors.Wrapf(errs.ConflictSetting, "db version mismatch: current version is %d. Please upgrade to version %d", indexerState.DBVersion, DBVersion)
+		if indexerState.DBVersion != constants.DBVersion {
+			return errors.Wrapf(errs.ConflictSetting, "db version mismatch: current version is %d. Please upgrade to version %d", indexerState.DBVersion, constants.DBVersion)
 		}
-		if indexerState.EventHashVersion != EventHashVersion {
-			return errors.Wrapf(errs.ConflictSetting, "event version mismatch: current version is %d. Please reset rune's db first.", indexerState.EventHashVersion, EventHashVersion)
+		if indexerState.EventHashVersion != constants.EventHashVersion {
+			return errors.Wrapf(errs.ConflictSetting, "event version mismatch: current version is %d. Please reset rune's db first.", indexerState.EventHashVersion, constants.EventHashVersion)
 		}
 	}
 
@@ -166,7 +167,7 @@ func (p *Processor) CurrentBlock(ctx context.Context) (types.BlockHeader, error)
 	blockHeader, err := p.runesDg.GetLatestBlock(ctx)
 	if err != nil {
 		if errors.Is(err, errs.NotFound) {
-			return startingBlockHeader[p.network], nil
+			return constants.StartingBlockHeader[p.network], nil
 		}
 		return types.BlockHeader{}, errors.Wrap(err, "failed to get latest block")
 	}

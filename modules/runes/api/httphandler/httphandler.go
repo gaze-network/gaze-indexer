@@ -41,6 +41,10 @@ func resolvePkScript(network common.Network, wallet string) ([]byte, bool) {
 			return &chaincfg.MainNetParams
 		case common.NetworkTestnet:
 			return &chaincfg.TestNet3Params
+		case common.NetworkFractalMainnet:
+			return &chaincfg.MainNetParams
+		case common.NetworkFractalTestnet:
+			return &chaincfg.MainNetParams
 		}
 		panic("invalid network")
 	}()
