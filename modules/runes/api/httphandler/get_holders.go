@@ -51,6 +51,7 @@ type getHoldersResult struct {
 	BlockHeight  uint64           `json:"blockHeight"`
 	TotalSupply  uint128.Uint128  `json:"totalSupply"`
 	MintedAmount uint128.Uint128  `json:"mintedAmount"`
+	Decimals     uint8            `json:"decimals"`
 	List         []holdingBalance `json:"list"`
 }
 
@@ -140,6 +141,7 @@ func (h *HttpHandler) GetHolders(ctx *fiber.Ctx) (err error) {
 			BlockHeight:  blockHeight,
 			TotalSupply:  totalSupply,
 			MintedAmount: mintedAmount,
+			Decimals:     runeEntry.Divisibility,
 			List:         list,
 		},
 	}
