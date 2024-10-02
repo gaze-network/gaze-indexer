@@ -64,14 +64,12 @@ var (
 	ErrEventHashVersionMismatch = errors.New("event hash version mismatch: please reset db and reindex")
 )
 
-var networksWithGenesisRune = []common.Network{common.NetworkMainnet, common.NetworkFractalMainnet, common.NetworkFractalTestnet}
-
 func (p *Processor) VerifyStates(ctx context.Context) error {
 	// TODO: ensure db is migrated
 	if err := p.ensureValidState(ctx); err != nil {
 		return errors.Wrap(err, "error during ensureValidState")
 	}
-	if lo.Contains(networksWithGenesisRune, p.network) {
+	if constants.NetworkHasGenesisRune(p.network) {
 		if err := p.ensureGenesisRune(ctx, p.network); err != nil {
 			return errors.Wrap(err, "error during ensureGenesisRune")
 		}

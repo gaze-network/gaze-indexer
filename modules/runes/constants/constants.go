@@ -1,6 +1,8 @@
 package constants
 
 import (
+	"fmt"
+
 	"github.com/Cleverse/go-utilities/utils"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/gaze-network/indexer-network/common"
@@ -30,4 +32,15 @@ var StartingBlockHeader = map[common.Network]types.BlockHeader{
 		Height: 83999,
 		Hash:   *utils.Must(chainhash.NewHashFromStr("00000000000000613ddfbdd1778b17cea3818febcbbf82762eafaa9461038343")),
 	},
+}
+
+func NetworkHasGenesisRune(network common.Network) bool {
+	switch network {
+	case common.NetworkMainnet, common.NetworkFractalMainnet, common.NetworkFractalTestnet:
+		return true
+	case common.NetworkTestnet:
+		return false
+	default:
+		panic(fmt.Sprintf("unsupported network: %s", network))
+	}
 }
