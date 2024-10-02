@@ -37,3 +37,14 @@ func (n Network) ChainParams() *chaincfg.Params {
 func (n Network) String() string {
 	return string(n)
 }
+
+func (n Network) HalvingInterval() uint64 {
+	switch n {
+	case NetworkMainnet, NetworkTestnet:
+		return 210_000
+	case NetworkFractalMainnet, NetworkFractalTestnet:
+		return 2_100_000
+	default:
+		panic("invalid network")
+	}
+}

@@ -119,24 +119,24 @@ func (r Rune) Cmp(other Rune) int {
 func FirstRuneHeight(network common.Network) uint64 {
 	switch network {
 	case common.NetworkMainnet:
-		return common.HalvingInterval * 4
+		return 840_000
 	case common.NetworkTestnet:
-		return common.HalvingInterval * 12
+		return 2_520_000
 	case common.NetworkFractalMainnet:
-		return 84000
+		return 84_000
 	case common.NetworkFractalTestnet:
-		return 84000
+		return 84_000
 	}
 	panic("invalid network")
 }
 
 func MinimumRuneAtHeight(network common.Network, height uint64) Rune {
 	offset := height + 1
-	interval := common.HalvingInterval / 12
+	interval := network.HalvingInterval() / 12
 
 	// runes are gradually unlocked from rune activation height until the next halving
 	start := FirstRuneHeight(network)
-	end := start + common.HalvingInterval
+	end := start + network.HalvingInterval()
 
 	if offset < start {
 		return (Rune)(unlockSteps[12])
