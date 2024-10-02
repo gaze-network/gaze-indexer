@@ -150,6 +150,18 @@ func (a Address) Equal(b Address) bool {
 	return a.encoded == b.encoded
 }
 
+// DustLimit returns the output dust limit (lowest possible satoshis in a UTXO) for the address type.
+func (a Address) DustLimit() int64 {
+	switch a.encodedType {
+	case AddressP2TR:
+		return 330
+	case AddressP2WPKH:
+		return 294
+	default:
+		return 546
+	}
+}
+
 // MarshalText implements the encoding.TextMarshaler interface.
 func (a Address) MarshalText() ([]byte, error) {
 	return []byte(a.encoded), nil
