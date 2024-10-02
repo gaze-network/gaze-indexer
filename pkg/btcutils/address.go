@@ -151,7 +151,7 @@ func (a Address) Equal(b Address) bool {
 }
 
 // DustLimit returns the output dust limit (lowest possible satoshis in a UTXO) for the address type.
-func (a Address) DustLimit() uint64 {
+func (a Address) DustLimit() int64 {
 	switch a.encodedType {
 	case AddressP2TR:
 		return 330
