@@ -447,3 +447,72 @@ func TestAddressPkScript(t *testing.T) {
 		})
 	}
 }
+
+func TestAddressDustLimit(t *testing.T) {
+	type Spec struct {
+		Address           string
+		DefaultNet        *chaincfg.Params
+		ExpectedDustLimit int64
+	}
+
+	specs := []Spec{
+		{
+			Address:           "bc1qfpgdxtpl7kz5qdus2pmexyjaza99c28q8uyczh",
+			DefaultNet:        &chaincfg.MainNetParams,
+			ExpectedDustLimit: 294,
+		},
+		{
+			Address:           "tb1qfpgdxtpl7kz5qdus2pmexyjaza99c28qd6ltey",
+			DefaultNet:        &chaincfg.MainNetParams,
+			ExpectedDustLimit: 294,
+		},
+		{
+			Address:           "bc1p7h87kqsmpzatddzhdhuy9gmxdpvn5kvar6hhqlgau8d2ffa0pa3qvz5d38",
+			DefaultNet:        &chaincfg.MainNetParams,
+			ExpectedDustLimit: 330,
+		},
+		{
+			Address:           "tb1p7h87kqsmpzatddzhdhuy9gmxdpvn5kvar6hhqlgau8d2ffa0pa3qm2zztg",
+			DefaultNet:        &chaincfg.MainNetParams,
+			ExpectedDustLimit: 330,
+		},
+		{
+			Address:           "3Ccte7SJz71tcssLPZy3TdWz5DTPeNRbPw",
+			DefaultNet:        &chaincfg.MainNetParams,
+			ExpectedDustLimit: 546,
+		},
+		{
+			Address:           "1KrRZSShVkdc8J71CtY4wdw46Rx3BRLKyH",
+			DefaultNet:        &chaincfg.MainNetParams,
+			ExpectedDustLimit: 546,
+		},
+		{
+			Address:           "bc1qeklep85ntjz4605drds6aww9u0qr46qzrv5xswd35uhjuj8ahfcqgf6hak",
+			DefaultNet:        &chaincfg.MainNetParams,
+			ExpectedDustLimit: 546,
+		},
+		{
+			Address:           "migbBPcDajPfffrhoLpYFTQNXQFbWbhpz3",
+			DefaultNet:        &chaincfg.TestNet3Params,
+			ExpectedDustLimit: 546,
+		},
+		{
+			Address:           "tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7",
+			DefaultNet:        &chaincfg.MainNetParams,
+			ExpectedDustLimit: 546,
+		},
+		{
+			Address:           "2NCxMvHPTduZcCuUeAiWUpuwHga7Y66y9XJ",
+			DefaultNet:        &chaincfg.TestNet3Params,
+			ExpectedDustLimit: 546,
+		},
+	}
+
+	for _, spec := range specs {
+		t.Run(spec.Address, func(t *testing.T) {
+			addr, err := btcutils.SafeNewAddress(spec.Address, spec.DefaultNet)
+			require.NoError(t, err)
+			assert.Equal(t, spec.ExpectedDustLimit, addr.DustLimit())
+		})
+	}
+}
