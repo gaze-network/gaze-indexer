@@ -49,5 +49,6 @@ func (n Network) HalvingInterval() uint64 {
 		return 2_100_000
 	default:
 		logger.Panic("invalid network")
+		return 0
 	}
 }
