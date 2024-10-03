@@ -69,8 +69,8 @@ func (p *Processor) VerifyStates(ctx context.Context) error {
 	if err := p.ensureValidState(ctx); err != nil {
 		return errors.Wrap(err, "error during ensureValidState")
 	}
-	if p.network == common.NetworkMainnet {
-		if err := p.ensureGenesisRune(ctx); err != nil {
+	if constants.NetworkHasGenesisRune(p.network) {
+		if err := p.ensureGenesisRune(ctx, p.network); err != nil {
 			return errors.Wrap(err, "error during ensureGenesisRune")
 		}
 	}
@@ -122,7 +122,7 @@ func (p *Processor) ensureValidState(ctx context.Context) error {
 
 var genesisRuneId = runes.RuneId{BlockHeight: 1, TxIndex: 0}
 
-func (p *Processor) ensureGenesisRune(ctx context.Context) error {
+func (p *Processor) ensureGenesisRune(ctx context.Context, network common.Network) error {
 	_, err := p.runesDg.GetRuneEntryByRuneId(ctx, genesisRuneId)
 	if err != nil && !errors.Is(err, errs.NotFound) {
 		return errors.Wrap(err, "failed to get genesis rune entry")
@@ -138,8 +138,8 @@ func (p *Processor) ensureGenesisRune(ctx context.Context) error {
 			Terms: &runes.Terms{
 				Amount:      lo.ToPtr(uint128.From64(1)),
 				Cap:         &uint128.Max,
-				HeightStart: lo.ToPtr(uint64(common.HalvingInterval * 4)),
-				HeightEnd:   lo.ToPtr(uint64(common.HalvingInterval * 5)),
+				HeightStart: lo.ToPtr(network.HalvingInterval() * 4),
+				HeightEnd:   lo.ToPtr(network.HalvingInterval() * 5),
 				OffsetStart: nil,
 				OffsetEnd:   nil,
 			},

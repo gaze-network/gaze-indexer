@@ -5,6 +5,7 @@ import (
 
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/common/errs"
+	"github.com/gaze-network/indexer-network/pkg/logger"
 	"github.com/gaze-network/uint128"
 )
 
@@ -102,6 +103,7 @@ func ParseTag(input interface{}) (Tag, error) {
 		}
 		return Tag(u128), nil
 	default:
-		panic("invalid tag input type")
+		logger.Panic("invalid tag input type")
+		return Tag{}, nil
 	}
 }

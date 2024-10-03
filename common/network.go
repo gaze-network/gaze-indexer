@@ -1,6 +1,9 @@
 package common
 
-import "github.com/btcsuite/btcd/chaincfg"
+import (
+	"github.com/btcsuite/btcd/chaincfg"
+	"github.com/gaze-network/indexer-network/pkg/logger"
+)
 
 type Network string
 
@@ -36,4 +39,16 @@ func (n Network) ChainParams() *chaincfg.Params {
 
 func (n Network) String() string {
 	return string(n)
+}
+
+func (n Network) HalvingInterval() uint64 {
+	switch n {
+	case NetworkMainnet, NetworkTestnet:
+		return 210_000
+	case NetworkFractalMainnet, NetworkFractalTestnet:
+		return 2_100_000
+	default:
+		logger.Panic("invalid network")
+		return 0
+	}
 }
