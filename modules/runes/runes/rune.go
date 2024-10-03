@@ -1,11 +1,13 @@
 package runes
 
 import (
+	"fmt"
 	"slices"
 
 	"github.com/Cleverse/go-utilities/utils"
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/common"
+	"github.com/gaze-network/indexer-network/pkg/logger"
 	"github.com/gaze-network/uint128"
 )
 
@@ -127,7 +129,8 @@ func FirstRuneHeight(network common.Network) uint64 {
 	case common.NetworkFractalTestnet:
 		return 84_000
 	}
-	panic("invalid network")
+	logger.Panic(fmt.Sprintf("invalid network: %s", network))
+	return 0
 }
 
 func MinimumRuneAtHeight(network common.Network, height uint64) Rune {

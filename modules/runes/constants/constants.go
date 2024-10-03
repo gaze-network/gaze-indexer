@@ -7,6 +7,7 @@ import (
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/gaze-network/indexer-network/common"
 	"github.com/gaze-network/indexer-network/core/types"
+	"github.com/gaze-network/indexer-network/pkg/logger"
 )
 
 const (
@@ -41,6 +42,7 @@ func NetworkHasGenesisRune(network common.Network) bool {
 	case common.NetworkTestnet:
 		return false
 	default:
-		panic(fmt.Sprintf("unsupported network: %s", network))
+		logger.Panic(fmt.Sprintf("unsupported network: %s", network))
+		return false
 	}
 }
