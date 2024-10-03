@@ -138,8 +138,8 @@ func (p *Processor) ensureGenesisRune(ctx context.Context, network common.Networ
 			Terms: &runes.Terms{
 				Amount:      lo.ToPtr(uint128.From64(1)),
 				Cap:         &uint128.Max,
-				HeightStart: lo.ToPtr(uint64(network.HalvingInterval() * 4)),
-				HeightEnd:   lo.ToPtr(uint64(network.HalvingInterval() * 5)),
+				HeightStart: lo.ToPtr(network.HalvingInterval() * 4),
+				HeightEnd:   lo.ToPtr(network.HalvingInterval() * 5),
 				OffsetStart: nil,
 				OffsetEnd:   nil,
 			},
