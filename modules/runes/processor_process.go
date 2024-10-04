@@ -691,7 +691,7 @@ func (p *Processor) flushBlock(ctx context.Context, blockHeader types.BlockHeade
 	if err != nil && errors.Is(err, errs.NotFound) && blockHeader.Height-1 == constants.StartingBlockHeader[p.network].Height {
 		prevIndexedBlock = &entity.IndexedBlock{
 			Height:              constants.StartingBlockHeader[p.network].Height,
-			Hash:                constants.StartingBlockHeader[p.network].Hash,
+			Hash:                chainhash.Hash{},
 			EventHash:           chainhash.Hash{},
 			CumulativeEventHash: chainhash.Hash{},
 		}
