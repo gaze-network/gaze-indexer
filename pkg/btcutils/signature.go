@@ -24,7 +24,11 @@ func VerifySignature(address string, message string, sigBase64 string, defaultNe
 	return nil
 }
 
-func SignTxInput(tx *wire.MsgTx, privateKey *btcec.PrivateKey, prevTxOut *wire.TxOut, inputIndex int) (*wire.MsgTx, error) {
+type SignTxInputOptions struct {
+	SigHashType txscript.SigHashType
+}
+
+func SignTxInput(tx *wire.MsgTx, privateKey *btcec.PrivateKey, prevTxOut *wire.TxOut, inputIndex int, options ...SignTxInputOptions) (*wire.MsgTx, error) {
 	if privateKey == nil {
 		return nil, errors.Wrap(errs.InvalidArgument, "PrivateKey is required")
 	}
@@ -34,6 +38,14 @@ func SignTxInput(tx *wire.MsgTx, privateKey *btcec.PrivateKey, prevTxOut *wire.T
 	if prevTxOut == nil {
 		return nil, errors.Wrap(errs.InvalidArgument, "PrevTxOut is required")
 	}
+
+	// defaults sigHashType to SigHashAll | SigHashAnyOneCanPay
+	if len(options) == 0 {
+		options = append(options, SignTxInputOptions{
+			SigHashType: txscript.SigHashAll | txscript.SigHashAnyOneCanPay,
+		})
+	}
+	sigHashType := options[0].SigHashType
 
 	prevOutFetcher := txscript.NewCannedPrevOutputFetcher(prevTxOut.PkScript, prevTxOut.Value)
 	sigHashes := txscript.NewTxSigHashes(tx, prevOutFetcher)
@@ -53,7 +65,7 @@ func SignTxInput(tx *wire.MsgTx, privateKey *btcec.PrivateKey, prevTxOut *wire.T
 			inputIndex,
 			prevTxOut.Value,
 			prevTxOut.PkScript,
-			txscript.SigHashAll|txscript.SigHashAnyOneCanPay,
+			sigHashType,
 			privateKey)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to sign")
@@ -66,7 +78,7 @@ func SignTxInput(tx *wire.MsgTx, privateKey *btcec.PrivateKey, prevTxOut *wire.T
 			inputIndex,
 			prevTxOut.Value,
 			prevTxOut.PkScript,
-			txscript.SigHashAll|txscript.SigHashAnyOneCanPay,
+			sigHashType,
 			privateKey,
 			true,
 		)
@@ -79,7 +91,7 @@ func SignTxInput(tx *wire.MsgTx, privateKey *btcec.PrivateKey, prevTxOut *wire.T
 			tx,
 			inputIndex,
 			prevTxOut.PkScript,
-			txscript.SigHashAll|txscript.SigHashAnyOneCanPay,
+			sigHashType,
 			privateKey,
 			true,
 		)
