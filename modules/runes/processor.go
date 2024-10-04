@@ -128,7 +128,7 @@ func (p *Processor) ensureGenesisRune(ctx context.Context, network common.Networ
 	if errors.Is(err, errs.NotFound) {
 		genesisRuneConfig, ok := constants.GenesisRuneConfigMap[network]
 		if !ok {
-			logger.Panic("genesis rune config not found", slogx.String("network", network.String()))
+			logger.Panic("genesis rune config not found", slogx.Stringer("network", network))
 		}
 		runeEntry := &runes.RuneEntry{
 			RuneId:            genesisRuneConfig.RuneId,
