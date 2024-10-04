@@ -163,6 +163,7 @@ func TestSignTxInput(t *testing.T) {
 			AddOp(txscript.OP_0).
 			AddData(pubKeyHash).
 			Script()
+		require.NoError(t, err)
 
 		tx, prevTxOut := generateTxAndPrevTxOutFromPkScript(pkScript)
 		signedTx, err := SignTxInput(
@@ -175,7 +176,9 @@ func TestSignTxInput(t *testing.T) {
 		pubKey := privKey.PubKey()
 		pubKeyHash := btcutil.Hash160(pubKey.SerializeCompressed())
 		address, err := btcutil.NewAddressPubKeyHash(pubKeyHash, &chaincfg.MainNetParams)
+		require.NoError(t, err)
 		pkScript, err := txscript.PayToAddrScript(address)
+		require.NoError(t, err)
 
 		tx, prevTxOut := generateTxAndPrevTxOutFromPkScript(pkScript)
 		signedTx, err := SignTxInput(
@@ -183,5 +186,62 @@ func TestSignTxInput(t *testing.T) {
 		)
 		require.NoError(t, err)
 		verifySignedTx(t, signedTx, prevTxOut)
+	})
+	t.Run("custom sighash type", func(t *testing.T) {
+		pubKey := privKey.PubKey()
+		pubKeyHash := btcutil.Hash160(pubKey.SerializeCompressed())
+
+		pkScript, err := txscript.NewScriptBuilder().
+			AddOp(txscript.OP_0).
+			AddData(pubKeyHash).
+			Script()
+		require.NoError(t, err)
+
+		tx, prevTxOut := generateTxAndPrevTxOutFromPkScript(pkScript)
+
+		sigHashTypes := []txscript.SigHashType{
+			txscript.SigHashAll,
+			txscript.SigHashNone,
+			txscript.SigHashSingle,
+			txscript.SigHashAll | txscript.SigHashAnyOneCanPay,
+			txscript.SigHashNone | txscript.SigHashAnyOneCanPay,
+			txscript.SigHashSingle | txscript.SigHashAnyOneCanPay,
+		}
+		for _, sigHashType := range sigHashTypes {
+			signedTx, err := SignTxInput(
+				tx, privKey, prevTxOut, 0, SignTxInputOptions{
+					SigHashType: sigHashType,
+				},
+			)
+			require.NoError(t, err)
+			verifySignedTx(t, signedTx, prevTxOut)
+
+			// check last byte of signature equals to sigHashType
+			signature := signedTx.TxIn[0].Witness[0]
+			assert.Equal(t, sigHashType, txscript.SigHashType(signature[len(signature)-1]))
+		}
+	})
+	t.Run("default sighash type", func(t *testing.T) {
+		pubKey := privKey.PubKey()
+		pubKeyHash := btcutil.Hash160(pubKey.SerializeCompressed())
+
+		pkScript, err := txscript.NewScriptBuilder().
+			AddOp(txscript.OP_0).
+			AddData(pubKeyHash).
+			Script()
+		require.NoError(t, err)
+
+		tx, prevTxOut := generateTxAndPrevTxOutFromPkScript(pkScript)
+
+		signedTx, err := SignTxInput(
+			tx, privKey, prevTxOut, 0,
+		)
+		require.NoError(t, err)
+		verifySignedTx(t, signedTx, prevTxOut)
+
+		// check last byte of signature equals to sigHashType
+		signature := signedTx.TxIn[0].Witness[0]
+		expected := txscript.SigHashAll | txscript.SigHashAnyOneCanPay
+		assert.Equal(t, expected, txscript.SigHashType(signature[len(signature)-1]))
 	})
 }
