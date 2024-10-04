@@ -49,7 +49,6 @@ type GenesisRuneConfig struct {
 	Symbol        rune
 	Terms         *runes.Terms
 	Turbo         bool
-	EtchingBlock  uint64
 	EtchingTxHash chainhash.Hash
 	EtchedAt      time.Time
 }
@@ -71,7 +70,6 @@ var GenesisRuneConfigMap = map[common.Network]GenesisRuneConfig{
 			OffsetEnd:   nil,
 		},
 		Turbo:         true,
-		EtchingBlock:  1,
 		EtchingTxHash: chainhash.Hash{},
 		EtchedAt:      time.Time{},
 	},
@@ -91,7 +89,6 @@ var GenesisRuneConfigMap = map[common.Network]GenesisRuneConfig{
 			OffsetEnd:   nil,
 		},
 		Turbo:         true,
-		EtchingBlock:  1,
 		EtchingTxHash: chainhash.Hash{},
 		EtchedAt:      time.Time{},
 	},
@@ -111,7 +108,6 @@ var GenesisRuneConfigMap = map[common.Network]GenesisRuneConfig{
 			OffsetEnd:   nil,
 		},
 		Turbo:         true,
-		EtchingBlock:  1,
 		EtchingTxHash: chainhash.Hash{},
 		EtchedAt:      time.Time{},
 	},

@@ -118,18 +118,16 @@ func (p *Processor) ensureValidState(ctx context.Context) error {
 	return nil
 }
 
-var genesisRuneId = runes.RuneId{BlockHeight: 1, TxIndex: 0}
-
 func (p *Processor) ensureGenesisRune(ctx context.Context, network common.Network) error {
-	_, err := p.runesDg.GetRuneEntryByRuneId(ctx, genesisRuneId)
+	genesisRuneConfig, ok := constants.GenesisRuneConfigMap[network]
+	if !ok {
+		logger.Panic("genesis rune config not found", slogx.Stringer("network", network))
+	}
+	_, err := p.runesDg.GetRuneEntryByRuneId(ctx, genesisRuneConfig.RuneId)
 	if err != nil && !errors.Is(err, errs.NotFound) {
 		return errors.Wrap(err, "failed to get genesis rune entry")
 	}
 	if errors.Is(err, errs.NotFound) {
-		genesisRuneConfig, ok := constants.GenesisRuneConfigMap[network]
-		if !ok {
-			logger.Panic("genesis rune config not found", slogx.Stringer("network", network))
-		}
 		runeEntry := &runes.RuneEntry{
 			RuneId:            genesisRuneConfig.RuneId,
 			Number:            genesisRuneConfig.Number,
@@ -143,11 +141,11 @@ func (p *Processor) ensureGenesisRune(ctx context.Context, network common.Networ
 			BurnedAmount:      uint128.Zero,
 			CompletedAt:       time.Time{},
 			CompletedAtHeight: nil,
-			EtchingBlock:      genesisRuneConfig.EtchingBlock,
+			EtchingBlock:      genesisRuneConfig.RuneId.BlockHeight,
 			EtchingTxHash:     genesisRuneConfig.EtchingTxHash,
 			EtchedAt:          genesisRuneConfig.EtchedAt,
 		}
-		if err := p.runesDg.CreateRuneEntry(ctx, runeEntry, genesisRuneId.BlockHeight); err != nil {
+		if err := p.runesDg.CreateRuneEntry(ctx, runeEntry, genesisRuneConfig.RuneId.BlockHeight); err != nil {
 			return errors.Wrap(err, "failed to create genesis rune entry")
 		}
 	}
