@@ -20,6 +20,7 @@ const (
 	EventHashVersion = 1
 )
 
+// starting block heights and hashes should be 1 block before activation block, as indexer will start from the block after this value
 var StartingBlockHeader = map[common.Network]types.BlockHeader{
 	common.NetworkMainnet: {
 		Height: 839999,
