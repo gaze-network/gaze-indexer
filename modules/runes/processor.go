@@ -4,7 +4,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/wire"
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/common"
@@ -20,7 +19,6 @@ import (
 	"github.com/gaze-network/indexer-network/pkg/logger/slogx"
 	"github.com/gaze-network/indexer-network/pkg/reportingclient"
 	"github.com/gaze-network/uint128"
-	"github.com/samber/lo"
 )
 
 // Make sure to implement the Bitcoin Processor interface
@@ -128,29 +126,26 @@ func (p *Processor) ensureGenesisRune(ctx context.Context, network common.Networ
 		return errors.Wrap(err, "failed to get genesis rune entry")
 	}
 	if errors.Is(err, errs.NotFound) {
+		genesisRuneConfig, ok := constants.GenesisRuneConfigMap[network]
+		if !ok {
+			logger.Panic("genesis rune config not found", slogx.String("network", network.String()))
+		}
 		runeEntry := &runes.RuneEntry{
-			RuneId:       genesisRuneId,
-			Number:       0,
-			Divisibility: 0,
-			Premine:      uint128.Zero,
-			SpacedRune:   runes.NewSpacedRune(runes.NewRune(2055900680524219742), 0b10000000),
-			Symbol:       '\u29c9',
-			Terms: &runes.Terms{
-				Amount:      lo.ToPtr(uint128.From64(1)),
-				Cap:         &uint128.Max,
-				HeightStart: lo.ToPtr(network.HalvingInterval() * 4),
-				HeightEnd:   lo.ToPtr(network.HalvingInterval() * 5),
-				OffsetStart: nil,
-				OffsetEnd:   nil,
-			},
-			Turbo:             true,
+			RuneId:            genesisRuneConfig.RuneId,
+			Number:            genesisRuneConfig.Number,
+			Divisibility:      genesisRuneConfig.Divisibility,
+			Premine:           genesisRuneConfig.Premine,
+			SpacedRune:        genesisRuneConfig.SpacedRune,
+			Symbol:            genesisRuneConfig.Symbol,
+			Terms:             genesisRuneConfig.Terms,
+			Turbo:             genesisRuneConfig.Turbo,
 			Mints:             uint128.Zero,
 			BurnedAmount:      uint128.Zero,
 			CompletedAt:       time.Time{},
 			CompletedAtHeight: nil,
-			EtchingBlock:      1,
-			EtchingTxHash:     chainhash.Hash{},
-			EtchedAt:          time.Time{},
+			EtchingBlock:      genesisRuneConfig.EtchingBlock,
+			EtchingTxHash:     genesisRuneConfig.EtchingTxHash,
+			EtchedAt:          genesisRuneConfig.EtchedAt,
 		}
 		if err := p.runesDg.CreateRuneEntry(ctx, runeEntry, genesisRuneId.BlockHeight); err != nil {
 			return errors.Wrap(err, "failed to create genesis rune entry")
