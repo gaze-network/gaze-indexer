@@ -45,7 +45,7 @@ func (req getTokenListRequest) Validate() error {
 		errList = append(errList, errors.Errorf("limit must be less than or equal to 1000"))
 	}
 	if req.Scope != "" && !req.Scope.IsValid() {
-		errList = append(errList, errors.Errorf("invalid scope"))
+		errList = append(errList, errors.Errorf("invalid scope: %s", req.Scope))
 	}
 	return errs.WithPublicMessage(errors.Join(errList...), "validation error")
 }

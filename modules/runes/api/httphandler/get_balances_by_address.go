@@ -11,11 +11,10 @@ import (
 )
 
 type getBalancesRequest struct {
+	paginationRequest
 	Wallet      string `params:"wallet"`
 	Id          string `query:"id"`
 	BlockHeight uint64 `query:"blockHeight"`
-	Limit       int32  `query:"limit"`
-	Offset      int32  `query:"offset"`
 }
 
 const (
@@ -66,8 +65,8 @@ func (h *HttpHandler) GetBalances(ctx *fiber.Ctx) (err error) {
 	if err := req.Validate(); err != nil {
 		return errors.WithStack(err)
 	}
-	if req.Limit == 0 {
-		req.Limit = getBalancesDefaultLimit
+	if err := req.ParseDefault(); err != nil {
+		return errors.WithStack(err)
 	}
 
 	pkScript, ok := resolvePkScript(h.network, req.Wallet)

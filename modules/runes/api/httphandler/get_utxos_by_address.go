@@ -12,16 +12,14 @@ import (
 )
 
 type getUTXOsRequest struct {
+	paginationRequest
 	Wallet      string `params:"wallet"`
 	Id          string `query:"id"`
 	BlockHeight uint64 `query:"blockHeight"`
-	Limit       int32  `query:"limit"`
-	Offset      int32  `query:"offset"`
 }
 
 const (
-	getUTXOsMaxLimit     = 3000
-	getUTXOsDefaultLimit = 100
+	getUTXOsMaxLimit = 3000
 )
 
 func (r getUTXOsRequest) Validate() error {
@@ -78,14 +76,13 @@ func (h *HttpHandler) GetUTXOs(ctx *fiber.Ctx) (err error) {
 	if err := req.Validate(); err != nil {
 		return errors.WithStack(err)
 	}
+	if err := req.ParseDefault(); err != nil {
+		return errors.WithStack(err)
+	}
 
 	pkScript, ok := resolvePkScript(h.network, req.Wallet)
 	if !ok {
 		return errs.NewPublicError("unable to resolve pkscript from \"wallet\"")
-	}
-
-	if req.Limit == 0 {
-		req.Limit = getUTXOsDefaultLimit
 	}
 
 	blockHeight := req.BlockHeight

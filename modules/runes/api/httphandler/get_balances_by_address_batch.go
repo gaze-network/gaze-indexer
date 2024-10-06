@@ -89,7 +89,7 @@ func (h *HttpHandler) GetBalancesBatch(ctx *fiber.Ctx) (err error) {
 		}
 
 		if query.Limit == 0 {
-			query.Limit = getBalancesMaxLimit
+			query.Limit = getBalancesDefaultLimit
 		}
 
 		balances, err := h.usecase.GetBalancesByPkScript(ctx, pkScript, blockHeight, query.Limit, query.Offset)
