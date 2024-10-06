@@ -3,6 +3,7 @@ package httphandler
 import (
 	"bytes"
 	"encoding/hex"
+	"net/url"
 	"slices"
 
 	"github.com/cockroachdb/errors"
@@ -15,21 +16,24 @@ import (
 )
 
 type getHoldersRequest struct {
+	paginationRequest
 	Id          string `params:"id"`
 	BlockHeight uint64 `query:"blockHeight"`
-	Limit       int32  `json:"limit"`
-	Offset      int32  `json:"offset"`
 }
 
 const (
-	getHoldersMaxLimit     = 1000
-	getHoldersDefaultLimit = 100
+	getHoldersMaxLimit = 1000
 )
 
-func (r getHoldersRequest) Validate() error {
+func (r *getHoldersRequest) Validate() error {
 	var errList []error
+	id, err := url.QueryUnescape(r.Id)
+	if err != nil {
+		return errors.WithStack(err)
+	}
+	r.Id = id
 	if !isRuneIdOrRuneName(r.Id) {
-		errList = append(errList, errors.New("'id' is not valid rune id or rune name"))
+		errList = append(errList, errors.Errorf("id '%s' is not valid rune id or rune name", r.Id))
 	}
 	if r.Limit < 0 {
 		errList = append(errList, errors.New("'limit' must be non-negative"))
@@ -51,6 +55,7 @@ type getHoldersResult struct {
 	BlockHeight  uint64           `json:"blockHeight"`
 	TotalSupply  uint128.Uint128  `json:"totalSupply"`
 	MintedAmount uint128.Uint128  `json:"mintedAmount"`
+	Decimals     uint8            `json:"decimals"`
 	List         []holdingBalance `json:"list"`
 }
 
@@ -67,6 +72,9 @@ func (h *HttpHandler) GetHolders(ctx *fiber.Ctx) (err error) {
 	if err := req.Validate(); err != nil {
 		return errors.WithStack(err)
 	}
+	if err := req.ParseDefault(); err != nil {
+		return errors.WithStack(err)
+	}
 
 	blockHeight := req.BlockHeight
 	if blockHeight == 0 {
@@ -75,10 +83,6 @@ func (h *HttpHandler) GetHolders(ctx *fiber.Ctx) (err error) {
 			return errors.Wrap(err, "error during GetLatestBlock")
 		}
 		blockHeight = uint64(blockHeader.Height)
-	}
-
-	if req.Limit == 0 {
-		req.Limit = getHoldersDefaultLimit
 	}
 
 	var runeId runes.RuneId
@@ -92,10 +96,16 @@ func (h *HttpHandler) GetHolders(ctx *fiber.Ctx) (err error) {
 
 	runeEntry, err := h.usecase.GetRuneEntryByRuneIdAndHeight(ctx.UserContext(), runeId, blockHeight)
 	if err != nil {
-		return errors.Wrap(err, "error during GetHoldersByHeight")
+		if errors.Is(err, errs.NotFound) {
+			return errs.NewPublicError("rune not found")
+		}
+		return errors.Wrap(err, "error during GetRuneEntryByRuneIdAndHeight")
 	}
 	holdingBalances, err := h.usecase.GetBalancesByRuneId(ctx.UserContext(), runeId, blockHeight, req.Limit, req.Offset)
 	if err != nil {
+		if errors.Is(err, errs.NotFound) {
+			return errs.NewPublicError("balances not found")
+		}
 		return errors.Wrap(err, "error during GetBalancesByRuneId")
 	}
 
@@ -134,6 +144,7 @@ func (h *HttpHandler) GetHolders(ctx *fiber.Ctx) (err error) {
 			BlockHeight:  blockHeight,
 			TotalSupply:  totalSupply,
 			MintedAmount: mintedAmount,
+			Decimals:     runeEntry.Divisibility,
 			List:         list,
 		},
 	}

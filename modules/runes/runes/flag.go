@@ -5,6 +5,7 @@ import (
 
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/common/errs"
+	"github.com/gaze-network/indexer-network/pkg/logger"
 	"github.com/gaze-network/uint128"
 )
 
@@ -58,7 +59,8 @@ func ParseFlags(input interface{}) (Flags, error) {
 		}
 		return Flags(u128), nil
 	default:
-		panic("invalid flags input type")
+		logger.Panic("invalid flags input type")
+		return Flags{}, nil
 	}
 }
 

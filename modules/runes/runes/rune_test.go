@@ -92,8 +92,8 @@ func TestMinimumRuneAtHeightMainnet(t *testing.T) {
 	}
 
 	start := FirstRuneHeight(common.NetworkMainnet)
-	end := start + common.HalvingInterval
-	interval := uint64(common.HalvingInterval / 12)
+	end := start + common.NetworkMainnet.HalvingInterval()
+	interval := uint64(common.NetworkMainnet.HalvingInterval() / 12)
 
 	test(0, "AAAAAAAAAAAAA")
 	test(start/2, "AAAAAAAAAAAAA")

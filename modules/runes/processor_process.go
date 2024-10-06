@@ -13,6 +13,7 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/common/errs"
 	"github.com/gaze-network/indexer-network/core/types"
+	"github.com/gaze-network/indexer-network/modules/runes/constants"
 	"github.com/gaze-network/indexer-network/modules/runes/datagateway"
 	"github.com/gaze-network/indexer-network/modules/runes/internal/entity"
 	"github.com/gaze-network/indexer-network/modules/runes/runes"
@@ -687,10 +688,10 @@ func (p *Processor) flushBlock(ctx context.Context, blockHeader types.BlockHeade
 		return errors.Wrap(err, "failed to calculate event hash")
 	}
 	prevIndexedBlock, err := runesDgTx.GetIndexedBlockByHeight(ctx, blockHeader.Height-1)
-	if err != nil && errors.Is(err, errs.NotFound) && blockHeader.Height-1 == startingBlockHeader[p.network].Height {
+	if err != nil && errors.Is(err, errs.NotFound) && blockHeader.Height-1 == constants.StartingBlockHeader[p.network].Height {
 		prevIndexedBlock = &entity.IndexedBlock{
-			Height:              startingBlockHeader[p.network].Height,
-			Hash:                startingBlockHeader[p.network].Hash,
+			Height:              constants.StartingBlockHeader[p.network].Height,
+			Hash:                chainhash.Hash{},
 			EventHash:           chainhash.Hash{},
 			CumulativeEventHash: chainhash.Hash{},
 		}
@@ -791,9 +792,9 @@ func (p *Processor) flushBlock(ctx context.Context, blockHeader types.BlockHeade
 	if p.reportingClient != nil {
 		if err := p.reportingClient.SubmitBlockReport(ctx, reportingclient.SubmitBlockReportPayload{
 			Type:                "runes",
-			ClientVersion:       Version,
-			DBVersion:           DBVersion,
-			EventHashVersion:    EventHashVersion,
+			ClientVersion:       constants.Version,
+			DBVersion:           constants.DBVersion,
+			EventHashVersion:    constants.EventHashVersion,
 			Network:             p.network,
 			BlockHeight:         uint64(blockHeader.Height),
 			BlockHash:           blockHeader.Hash,

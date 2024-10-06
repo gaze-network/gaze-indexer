@@ -7,7 +7,9 @@ import (
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/txscript"
+	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/common"
+	"github.com/gaze-network/indexer-network/common/errs"
 	"github.com/gaze-network/indexer-network/modules/runes/runes"
 	"github.com/gaze-network/indexer-network/modules/runes/usecase"
 	"github.com/gaze-network/indexer-network/pkg/logger"
@@ -31,6 +33,53 @@ type HttpResponse[T any] struct {
 	Result *T      `json:"result,omitempty"`
 }
 
+type paginationRequest struct {
+	Offset int32 `query:"offset"`
+	Limit  int32 `query:"limit"`
+
+	// OrderBy string `query:"orderBy"` // ASC or DESC
+	// SortBy  string `query:"sortBy"`  // column name
+}
+
+func (req paginationRequest) Validate() error {
+	var errList []error
+
+	// this just safeguard for limit,
+	// each path should have own validation.
+	if req.Limit > 10000 {
+		errList = append(errList, errors.Errorf("too large limit"))
+	}
+	if req.Limit < 0 {
+		errList = append(errList, errors.Errorf("limit must be greater than or equal to 0"))
+	}
+	if req.Offset < 0 {
+		errList = append(errList, errors.Errorf("offset must be greater than or equal to 0"))
+	}
+
+	// TODO:
+	// if req.OrderBy != "" && req.OrderBy != "ASC" && req.OrderBy != "DESC" {
+	// 	errList = append(errList, errors.Errorf("invalid orderBy value, must be `ASC` or `DESC`"))
+	// }
+
+	return errs.WithPublicMessage(errors.Join(errList...), "pagination validation error")
+}
+
+func (req *paginationRequest) ParseDefault() error {
+	if req == nil {
+		return nil
+	}
+
+	if req.Limit == 0 {
+		req.Limit = 100
+	}
+
+	// TODO:
+	// if req.OrderBy == "" {
+	// 	req.OrderBy = "ASC"
+	// }
+	return nil
+}
+
 func resolvePkScript(network common.Network, wallet string) ([]byte, bool) {
 	if wallet == "" {
 		return nil, false
@@ -41,6 +90,10 @@ func resolvePkScript(network common.Network, wallet string) ([]byte, bool) {
 			return &chaincfg.MainNetParams
 		case common.NetworkTestnet:
 			return &chaincfg.TestNet3Params
+		case common.NetworkFractalMainnet:
+			return &chaincfg.MainNetParams
+		case common.NetworkFractalTestnet:
+			return &chaincfg.MainNetParams
 		}
 		panic("invalid network")
 	}()

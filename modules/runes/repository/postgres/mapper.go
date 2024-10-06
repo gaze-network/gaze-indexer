@@ -63,7 +63,7 @@ func mapIndexerStateTypeToParams(src entity.IndexerState) gen.SetIndexerStatePar
 	}
 }
 
-func mapRuneEntryModelToType(src gen.GetRuneEntriesByRuneIdsRow) (runes.RuneEntry, error) {
+func mapRuneEntryModelToType(src gen.GetRuneEntriesRow) (runes.RuneEntry, error) {
 	runeId, err := runes.NewRuneIdFromString(src.RuneID)
 	if err != nil {
 		return runes.RuneEntry{}, errors.Wrap(err, "failed to parse rune id")
@@ -221,7 +221,7 @@ func mapRuneEntryTypeToParams(src runes.RuneEntry, blockHeight uint64) (gen.Crea
 			}
 		}
 	}
-	etchedAt := pgtype.Timestamp{Time: time.Time{}, Valid: true}
+	etchedAt := pgtype.Timestamp{Time: src.EtchedAt, Valid: true}
 
 	return gen.CreateRuneEntryParams{
 			RuneID:           runeId,

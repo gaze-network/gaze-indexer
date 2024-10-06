@@ -29,8 +29,7 @@ type RunesReaderDataGateway interface {
 	GetIndexedBlockByHeight(ctx context.Context, height int64) (*entity.IndexedBlock, error)
 	// GetRuneTransactions returns the runes transactions, filterable by pkScript, runeId and height. If pkScript, runeId or height is zero value, that filter is ignored.
 	GetRuneTransactions(ctx context.Context, pkScript []byte, runeId runes.RuneId, fromBlock, toBlock uint64, limit int32, offset int32) ([]*entity.RuneTransaction, error)
-	// GetRuneTransactionByHash returns the rune transaction for the given hash. Returns errs.NotFound if the rune transaction is not found.
-	GetRuneTransactionByHash(ctx context.Context, hash chainhash.Hash) (*entity.RuneTransaction, error)
+	GetRuneTransaction(ctx context.Context, txHash chainhash.Hash) (*entity.RuneTransaction, error)
 
 	GetRunesBalancesAtOutPoint(ctx context.Context, outPoint wire.OutPoint) (map[runes.RuneId]*entity.OutPointBalance, error)
 	GetRunesUTXOsByRuneIdAndPkScript(ctx context.Context, runeId runes.RuneId, pkScript []byte, blockHeight uint64, limit int32, offset int32) ([]*entity.RunesUTXO, error)
@@ -45,6 +44,10 @@ type RunesReaderDataGateway interface {
 	GetRuneEntryByRuneIdAndHeight(ctx context.Context, runeId runes.RuneId, blockHeight uint64) (*runes.RuneEntry, error)
 	// GetRuneEntryByRuneIdAndHeightBatch returns the RuneEntries for the given runeIds and block height.
 	GetRuneEntryByRuneIdAndHeightBatch(ctx context.Context, runeIds []runes.RuneId, blockHeight uint64) (map[runes.RuneId]*runes.RuneEntry, error)
+	// GetRuneEntries returns a list of rune entries, sorted by etching order. If search is not empty, it will filter the results by rune name (prefix).
+	GetRuneEntries(ctx context.Context, search string, blockHeight uint64, limit int32, offset int32) ([]*runes.RuneEntry, error)
+	// GetOngoingRuneEntries returns a list of ongoing rune entries (can still mint), sorted by mint progress percent. If search is not empty, it will filter the results by rune name (prefix).
+	GetOngoingRuneEntries(ctx context.Context, search string, blockHeight uint64, limit int32, offset int32) ([]*runes.RuneEntry, error)
 	// CountRuneEntries returns the number of existing rune entries.
 	CountRuneEntries(ctx context.Context) (uint64, error)
 
@@ -57,6 +60,8 @@ type RunesReaderDataGateway interface {
 	GetBalancesByRuneId(ctx context.Context, runeId runes.RuneId, blockHeight uint64, limit int32, offset int32) ([]*entity.Balance, error)
 	// GetBalancesByPkScriptAndRuneId returns the balance for the given pkScript and runeId at the given blockHeight.
 	GetBalanceByPkScriptAndRuneId(ctx context.Context, pkScript []byte, runeId runes.RuneId, blockHeight uint64) (*entity.Balance, error)
+	// GetTotalHoldersByRuneIds returns the total holders of each the given runeIds.
+	GetTotalHoldersByRuneIds(ctx context.Context, runeIds []runes.RuneId, blockHeight uint64) (map[runes.RuneId]int64, error)
 }
 
 type RunesWriterDataGateway interface {

@@ -4,13 +4,13 @@ import (
 	"context"
 	"time"
 
-	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/wire"
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/common"
 	"github.com/gaze-network/indexer-network/common/errs"
 	"github.com/gaze-network/indexer-network/core/indexer"
 	"github.com/gaze-network/indexer-network/core/types"
+	"github.com/gaze-network/indexer-network/modules/runes/constants"
 	"github.com/gaze-network/indexer-network/modules/runes/datagateway"
 	"github.com/gaze-network/indexer-network/modules/runes/internal/entity"
 	"github.com/gaze-network/indexer-network/modules/runes/runes"
@@ -19,7 +19,6 @@ import (
 	"github.com/gaze-network/indexer-network/pkg/logger/slogx"
 	"github.com/gaze-network/indexer-network/pkg/reportingclient"
 	"github.com/gaze-network/uint128"
-	"github.com/samber/lo"
 )
 
 // Make sure to implement the Bitcoin Processor interface
@@ -68,8 +67,8 @@ func (p *Processor) VerifyStates(ctx context.Context) error {
 	if err := p.ensureValidState(ctx); err != nil {
 		return errors.Wrap(err, "error during ensureValidState")
 	}
-	if p.network == common.NetworkMainnet {
-		if err := p.ensureGenesisRune(ctx); err != nil {
+	if constants.NetworkHasGenesisRune(p.network) {
+		if err := p.ensureGenesisRune(ctx, p.network); err != nil {
 			return errors.Wrap(err, "error during ensureGenesisRune")
 		}
 	}
@@ -89,17 +88,17 @@ func (p *Processor) ensureValidState(ctx context.Context) error {
 	// if not found, set indexer state
 	if errors.Is(err, errs.NotFound) {
 		if err := p.indexerInfoDg.SetIndexerState(ctx, entity.IndexerState{
-			DBVersion:        DBVersion,
-			EventHashVersion: EventHashVersion,
+			DBVersion:        constants.DBVersion,
+			EventHashVersion: constants.EventHashVersion,
 		}); err != nil {
 			return errors.Wrap(err, "failed to set indexer state")
 		}
 	} else {
-		if indexerState.DBVersion != DBVersion {
-			return errors.Wrapf(errs.ConflictSetting, "db version mismatch: current version is %d. Please upgrade to version %d", indexerState.DBVersion, DBVersion)
+		if indexerState.DBVersion != constants.DBVersion {
+			return errors.Wrapf(errs.ConflictSetting, "db version mismatch: current version is %d. Please upgrade to version %d", indexerState.DBVersion, constants.DBVersion)
 		}
-		if indexerState.EventHashVersion != EventHashVersion {
-			return errors.Wrapf(errs.ConflictSetting, "event version mismatch: current version is %d. Please reset rune's db first.", indexerState.EventHashVersion, EventHashVersion)
+		if indexerState.EventHashVersion != constants.EventHashVersion {
+			return errors.Wrapf(errs.ConflictSetting, "event version mismatch: current version is %d. Please reset rune's db first.", indexerState.EventHashVersion, constants.EventHashVersion)
 		}
 	}
 
@@ -119,39 +118,34 @@ func (p *Processor) ensureValidState(ctx context.Context) error {
 	return nil
 }
 
-var genesisRuneId = runes.RuneId{BlockHeight: 1, TxIndex: 0}
-
-func (p *Processor) ensureGenesisRune(ctx context.Context) error {
-	_, err := p.runesDg.GetRuneEntryByRuneId(ctx, genesisRuneId)
+func (p *Processor) ensureGenesisRune(ctx context.Context, network common.Network) error {
+	genesisRuneConfig, ok := constants.GenesisRuneConfigMap[network]
+	if !ok {
+		logger.Panic("genesis rune config not found", slogx.Stringer("network", network))
+	}
+	_, err := p.runesDg.GetRuneEntryByRuneId(ctx, genesisRuneConfig.RuneId)
 	if err != nil && !errors.Is(err, errs.NotFound) {
 		return errors.Wrap(err, "failed to get genesis rune entry")
 	}
 	if errors.Is(err, errs.NotFound) {
 		runeEntry := &runes.RuneEntry{
-			RuneId:       genesisRuneId,
-			Number:       0,
-			Divisibility: 0,
-			Premine:      uint128.Zero,
-			SpacedRune:   runes.NewSpacedRune(runes.NewRune(2055900680524219742), 0b10000000),
-			Symbol:       '\u29c9',
-			Terms: &runes.Terms{
-				Amount:      lo.ToPtr(uint128.From64(1)),
-				Cap:         &uint128.Max,
-				HeightStart: lo.ToPtr(uint64(common.HalvingInterval * 4)),
-				HeightEnd:   lo.ToPtr(uint64(common.HalvingInterval * 5)),
-				OffsetStart: nil,
-				OffsetEnd:   nil,
-			},
-			Turbo:             true,
+			RuneId:            genesisRuneConfig.RuneId,
+			Number:            genesisRuneConfig.Number,
+			Divisibility:      genesisRuneConfig.Divisibility,
+			Premine:           genesisRuneConfig.Premine,
+			SpacedRune:        genesisRuneConfig.SpacedRune,
+			Symbol:            genesisRuneConfig.Symbol,
+			Terms:             genesisRuneConfig.Terms,
+			Turbo:             genesisRuneConfig.Turbo,
 			Mints:             uint128.Zero,
 			BurnedAmount:      uint128.Zero,
 			CompletedAt:       time.Time{},
 			CompletedAtHeight: nil,
-			EtchingBlock:      1,
-			EtchingTxHash:     chainhash.Hash{},
-			EtchedAt:          time.Time{},
+			EtchingBlock:      genesisRuneConfig.RuneId.BlockHeight,
+			EtchingTxHash:     genesisRuneConfig.EtchingTxHash,
+			EtchedAt:          genesisRuneConfig.EtchedAt,
 		}
-		if err := p.runesDg.CreateRuneEntry(ctx, runeEntry, genesisRuneId.BlockHeight); err != nil {
+		if err := p.runesDg.CreateRuneEntry(ctx, runeEntry, genesisRuneConfig.RuneId.BlockHeight); err != nil {
 			return errors.Wrap(err, "failed to create genesis rune entry")
 		}
 	}
@@ -166,7 +160,7 @@ func (p *Processor) CurrentBlock(ctx context.Context) (types.BlockHeader, error)
 	blockHeader, err := p.runesDg.GetLatestBlock(ctx)
 	if err != nil {
 		if errors.Is(err, errs.NotFound) {
-			return startingBlockHeader[p.network], nil
+			return constants.StartingBlockHeader[p.network], nil
 		}
 		return types.BlockHeader{}, errors.Wrap(err, "failed to get latest block")
 	}

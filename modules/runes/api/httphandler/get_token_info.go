@@ -1,6 +1,7 @@
 package httphandler
 
 import (
+	"net/url"
 	"slices"
 
 	"github.com/cockroachdb/errors"
@@ -17,10 +18,15 @@ type getTokenInfoRequest struct {
 	BlockHeight uint64 `query:"blockHeight"`
 }
 
-func (r getTokenInfoRequest) Validate() error {
+func (r *getTokenInfoRequest) Validate() error {
 	var errList []error
+	id, err := url.QueryUnescape(r.Id)
+	if err != nil {
+		return errors.WithStack(err)
+	}
+	r.Id = id
 	if !isRuneIdOrRuneName(r.Id) {
-		errList = append(errList, errors.New("'id' is not valid rune id or rune name"))
+		errList = append(errList, errors.Errorf("id '%s' is not valid rune id or rune name", r.Id))
 	}
 	return errs.WithPublicMessage(errors.Join(errList...), "validation error")
 }
@@ -57,9 +63,9 @@ type getTokenInfoResult struct {
 	MintedAmount      uint128.Uint128  `json:"mintedAmount"`
 	BurnedAmount      uint128.Uint128  `json:"burnedAmount"`
 	Decimals          uint8            `json:"decimals"`
-	DeployedAt        uint64           `json:"deployedAt"` // unix timestamp
+	DeployedAt        int64            `json:"deployedAt"` // unix timestamp
 	DeployedAtHeight  uint64           `json:"deployedAtHeight"`
-	CompletedAt       *uint64          `json:"completedAt"` // unix timestamp
+	CompletedAt       *int64           `json:"completedAt"` // unix timestamp
 	CompletedAtHeight *uint64          `json:"completedAtHeight"`
 	HoldersCount      int              `json:"holdersCount"`
 	Extend            tokenInfoExtend  `json:"extend"`
@@ -83,6 +89,9 @@ func (h *HttpHandler) GetTokenInfo(ctx *fiber.Ctx) (err error) {
 	if blockHeight == 0 {
 		blockHeader, err := h.usecase.GetLatestBlock(ctx.UserContext())
 		if err != nil {
+			if errors.Is(err, errs.NotFound) {
+				return errs.NewPublicError("latest block not found")
+			}
 			return errors.Wrap(err, "error during GetLatestBlock")
 		}
 		blockHeight = uint64(blockHeader.Height)
@@ -99,10 +108,16 @@ func (h *HttpHandler) GetTokenInfo(ctx *fiber.Ctx) (err error) {
 
 	runeEntry, err := h.usecase.GetRuneEntryByRuneIdAndHeight(ctx.UserContext(), runeId, blockHeight)
 	if err != nil {
+		if errors.Is(err, errs.NotFound) {
+			return errs.NewPublicError("rune not found")
+		}
 		return errors.Wrap(err, "error during GetTokenInfoByHeight")
 	}
 	holdingBalances, err := h.usecase.GetBalancesByRuneId(ctx.UserContext(), runeId, blockHeight, -1, 0) // get all balances
 	if err != nil {
+		if errors.Is(err, errs.NotFound) {
+			return errs.NewPublicError("rune not found")
+		}
 		return errors.Wrap(err, "error during GetBalancesByRuneId")
 	}
 
@@ -135,9 +150,9 @@ func (h *HttpHandler) GetTokenInfo(ctx *fiber.Ctx) (err error) {
 			MintedAmount:      mintedAmount,
 			BurnedAmount:      runeEntry.BurnedAmount,
 			Decimals:          runeEntry.Divisibility,
-			DeployedAt:        uint64(runeEntry.EtchedAt.Unix()),
+			DeployedAt:        runeEntry.EtchedAt.Unix(),
 			DeployedAtHeight:  runeEntry.EtchingBlock,
-			CompletedAt:       lo.Ternary(runeEntry.CompletedAt.IsZero(), nil, lo.ToPtr(uint64(runeEntry.CompletedAt.Unix()))),
+			CompletedAt:       lo.Ternary(runeEntry.CompletedAt.IsZero(), nil, lo.ToPtr(runeEntry.CompletedAt.Unix())),
 			CompletedAtHeight: runeEntry.CompletedAtHeight,
 			HoldersCount:      len(holdingBalances),
 			Extend: tokenInfoExtend{

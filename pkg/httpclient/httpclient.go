@@ -64,13 +64,14 @@ func (r *HttpResponse) UnmarshalBody(out any) error {
 	if err != nil {
 		return errors.Wrapf(err, "can't uncompress body from %v", r.URL)
 	}
-	switch strings.ToLower(string(r.Header.ContentType())) {
-	case "application/json", "application/json; charset=utf-8":
+	contentType := strings.ToLower(string(r.Header.ContentType()))
+	switch {
+	case strings.Contains(contentType, "application/json"):
 		if err := json.Unmarshal(body, out); err != nil {
 			return errors.Wrapf(err, "can't unmarshal json body from %s, %q", r.URL, string(body))
 		}
 		return nil
-	case "text/plain", "text/plain; charset=utf-8":
+	case strings.Contains(contentType, "text/plain"):
 		return errors.Errorf("can't unmarshal plain text %q", string(body))
 	default:
 		return errors.Errorf("unsupported content type: %s, contents: %v", r.Header.ContentType(), string(r.Body()))
@@ -90,7 +91,15 @@ func (h *Client) request(ctx context.Context, reqOptions RequestOptions) (*HttpR
 
 	parsedUrl := h.BaseURL()
 	parsedUrl.Path = path.Join(parsedUrl.Path, reqOptions.path)
-	parsedUrl.RawQuery = reqOptions.Query.Encode() // TODO: merge query params if base url already have query params
+	// Because path.Join cleans the joined path. If path ends with /, append "/" to parsedUrl.Path
+	if strings.HasSuffix(reqOptions.path, "/") && !strings.HasSuffix(parsedUrl.Path, "/") {
+		parsedUrl.Path += "/"
+	}
+	baseQuery := parsedUrl.Query()
+	for k, v := range reqOptions.Query {
+		baseQuery[k] = v
+	}
+	parsedUrl.RawQuery = baseQuery.Encode()
 
 	// remove %20 from url (empty space)
 	url := strings.TrimSuffix(parsedUrl.String(), "%20")

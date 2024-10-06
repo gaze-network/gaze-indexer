@@ -1,5 +1,7 @@
 <!-- omit from toc -->
 
+- [Türkçe](https://github.com/Rumeyst/gaze-indexer/blob/turkish-translation/docs/README_tr.md)
+
 # Gaze Indexer
 
 Gaze Indexer is an open-source and modular indexing client for Bitcoin meta-protocols with **Unified Consistent APIs** across fungible token protocols.
