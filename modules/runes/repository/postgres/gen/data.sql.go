@@ -1172,16 +1172,24 @@ func (q *Queries) GetRunesUTXOsByRuneIdAndPkScript(ctx context.Context, arg GetR
 }
 
 const getTotalHoldersByRuneIds = `-- name: GetTotalHoldersByRuneIds :many
-SELECT rune_id, COUNT(DISTINCT pkscript) FROM runes_balances WHERE rune_id = ANY($1::TEXT[]) AND amount > 0 GROUP BY rune_id
+WITH balances AS (
+  SELECT DISTINCT ON (rune_id, pkscript) pkscript, block_height, rune_id, amount FROM runes_balances WHERE rune_id = ANY($1::TEXT[]) AND block_height <= $2 ORDER BY rune_id, pkscript, block_height DESC
+)
+SELECT rune_id, COUNT(DISTINCT pkscript) FROM balances WHERE amount > 0 GROUP BY rune_id
 `
+
+type GetTotalHoldersByRuneIdsParams struct {
+	RuneIds     []string
+	BlockHeight int32
+}
 
 type GetTotalHoldersByRuneIdsRow struct {
 	RuneID string
 	Count  int64
 }
 
-func (q *Queries) GetTotalHoldersByRuneIds(ctx context.Context, runeIds []string) ([]GetTotalHoldersByRuneIdsRow, error) {
-	rows, err := q.db.Query(ctx, getTotalHoldersByRuneIds, runeIds)
+func (q *Queries) GetTotalHoldersByRuneIds(ctx context.Context, arg GetTotalHoldersByRuneIdsParams) ([]GetTotalHoldersByRuneIdsRow, error) {
+	rows, err := q.db.Query(ctx, getTotalHoldersByRuneIds, arg.RuneIds, arg.BlockHeight)
 	if err != nil {
 		return nil, err
 	}

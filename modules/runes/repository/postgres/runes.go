@@ -456,8 +456,11 @@ func (r *Repository) GetBalanceByPkScriptAndRuneId(ctx context.Context, pkScript
 	return result, nil
 }
 
-func (r *Repository) GetTotalHoldersByRuneIds(ctx context.Context, runeIds []runes.RuneId) (map[runes.RuneId]int64, error) {
-	rows, err := r.queries.GetTotalHoldersByRuneIds(ctx, lo.Map(runeIds, func(runeId runes.RuneId, _ int) string { return runeId.String() }))
+func (r *Repository) GetTotalHoldersByRuneIds(ctx context.Context, runeIds []runes.RuneId, blockHeight uint64) (map[runes.RuneId]int64, error) {
+	rows, err := r.queries.GetTotalHoldersByRuneIds(ctx, gen.GetTotalHoldersByRuneIdsParams{
+		RuneIds:     lo.Map(runeIds, func(runeId runes.RuneId, _ int) string { return runeId.String() }),
+		BlockHeight: int32(blockHeight),
+	})
 	if err != nil {
 		return nil, errors.Wrap(err, "error during query")
 	}

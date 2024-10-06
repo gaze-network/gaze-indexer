@@ -61,7 +61,7 @@ type RunesReaderDataGateway interface {
 	// GetBalancesByPkScriptAndRuneId returns the balance for the given pkScript and runeId at the given blockHeight.
 	GetBalanceByPkScriptAndRuneId(ctx context.Context, pkScript []byte, runeId runes.RuneId, blockHeight uint64) (*entity.Balance, error)
 	// GetTotalHoldersByRuneIds returns the total holders of each the given runeIds.
-	GetTotalHoldersByRuneIds(ctx context.Context, runeIds []runes.RuneId) (map[runes.RuneId]int64, error)
+	GetTotalHoldersByRuneIds(ctx context.Context, runeIds []runes.RuneId, blockHeight uint64) (map[runes.RuneId]int64, error)
 }
 
 type RunesWriterDataGateway interface {

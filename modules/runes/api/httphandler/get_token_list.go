@@ -110,7 +110,7 @@ func (h *HttpHandler) GetTokens(ctx *fiber.Ctx) (err error) {
 	}
 
 	runeIds := lo.Map(entries, func(item *runes.RuneEntry, _ int) runes.RuneId { return item.RuneId })
-	totalHolders, err := h.usecase.GetTotalHoldersByRuneIds(ctx.UserContext(), runeIds)
+	totalHolders, err := h.usecase.GetTotalHoldersByRuneIds(ctx.UserContext(), runeIds, blockHeight)
 	if err != nil {
 		return errors.Wrap(err, "error during GetTotalHoldersByRuneIds")
 	}
