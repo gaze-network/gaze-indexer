@@ -18,12 +18,12 @@ type GetTokensScope string
 
 const (
 	GetTokensScopeAll     GetTokensScope = "all"
-	GetTokensScopeMinting GetTokensScope = "minting"
+	GetTokensScopeOngoing GetTokensScope = "ongoing"
 )
 
 func (s GetTokensScope) IsValid() bool {
 	switch s {
-	case GetTokensScopeAll, GetTokensScopeMinting:
+	case GetTokensScopeAll, GetTokensScopeOngoing:
 		return true
 	}
 	return false
@@ -100,8 +100,8 @@ func (h *HttpHandler) GetTokens(ctx *fiber.Ctx) (err error) {
 		if err != nil {
 			return errors.Wrap(err, "error during GetRuneEntryList")
 		}
-	case GetTokensScopeMinting:
-		entries, err = h.usecase.GetMintingRuneEntries(ctx.UserContext(), search, blockHeight, req.Limit, req.Offset)
+	case GetTokensScopeOngoing:
+		entries, err = h.usecase.GetOngoingRuneEntries(ctx.UserContext(), search, blockHeight, req.Limit, req.Offset)
 		if err != nil {
 			return errors.Wrap(err, "error during GetRuneEntryList")
 		}

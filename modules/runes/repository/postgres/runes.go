@@ -344,8 +344,8 @@ func (r *Repository) GetRuneEntries(ctx context.Context, search string, blockHei
 	return runeEntries, nil
 }
 
-func (r *Repository) GetMintingRuneEntries(ctx context.Context, search string, blockHeight uint64, limit int32, offset int32) ([]*runes.RuneEntry, error) {
-	rows, err := r.queries.GetMintingRuneEntries(ctx, gen.GetMintingRuneEntriesParams{
+func (r *Repository) GetOngoingRuneEntries(ctx context.Context, search string, blockHeight uint64, limit int32, offset int32) ([]*runes.RuneEntry, error) {
+	rows, err := r.queries.GetOngoingRuneEntries(ctx, gen.GetOngoingRuneEntriesParams{
 		Search: search,
 		Height: int32(blockHeight),
 		Limit:  limit,

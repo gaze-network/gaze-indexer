@@ -428,7 +428,7 @@ func (q *Queries) GetLatestIndexedBlock(ctx context.Context) (RunesIndexedBlock,
 	return i, err
 }
 
-const getMintingRuneEntries = `-- name: GetMintingRuneEntries :many
+const getOngoingRuneEntries = `-- name: GetOngoingRuneEntries :many
 WITH states AS (
   -- select latest state
   SELECT DISTINCT ON (rune_id) rune_id, block_height, mints, burned_amount, completed_at, completed_at_height FROM runes_entry_states WHERE block_height <= $4 ORDER BY rune_id, block_height DESC
@@ -445,14 +445,14 @@ SELECT runes_entries.rune_id, number, rune, spacers, premine, symbol, divisibili
   LIMIT $3 OFFSET $2
 `
 
-type GetMintingRuneEntriesParams struct {
+type GetOngoingRuneEntriesParams struct {
 	Search interface{}
 	Offset int32
 	Limit  int32
 	Height int32
 }
 
-type GetMintingRuneEntriesRow struct {
+type GetOngoingRuneEntriesRow struct {
 	RuneID            string
 	Number            int64
 	Rune              string
@@ -479,8 +479,8 @@ type GetMintingRuneEntriesRow struct {
 	CompletedAtHeight pgtype.Int4
 }
 
-func (q *Queries) GetMintingRuneEntries(ctx context.Context, arg GetMintingRuneEntriesParams) ([]GetMintingRuneEntriesRow, error) {
-	rows, err := q.db.Query(ctx, getMintingRuneEntries,
+func (q *Queries) GetOngoingRuneEntries(ctx context.Context, arg GetOngoingRuneEntriesParams) ([]GetOngoingRuneEntriesRow, error) {
+	rows, err := q.db.Query(ctx, getOngoingRuneEntries,
 		arg.Search,
 		arg.Offset,
 		arg.Limit,
@@ -490,9 +490,9 @@ func (q *Queries) GetMintingRuneEntries(ctx context.Context, arg GetMintingRuneE
 		return nil, err
 	}
 	defer rows.Close()
-	var items []GetMintingRuneEntriesRow
+	var items []GetOngoingRuneEntriesRow
 	for rows.Next() {
-		var i GetMintingRuneEntriesRow
+		var i GetOngoingRuneEntriesRow
 		if err := rows.Scan(
 			&i.RuneID,
 			&i.Number,

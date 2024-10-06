@@ -46,8 +46,8 @@ type RunesReaderDataGateway interface {
 	GetRuneEntryByRuneIdAndHeightBatch(ctx context.Context, runeIds []runes.RuneId, blockHeight uint64) (map[runes.RuneId]*runes.RuneEntry, error)
 	// GetRuneEntries returns a list of rune entries, sorted by etching order. If search is not empty, it will filter the results by rune name (prefix).
 	GetRuneEntries(ctx context.Context, search string, blockHeight uint64, limit int32, offset int32) ([]*runes.RuneEntry, error)
-	// GetMintingRuneEntries returns a list of minting rune entries, sorted by mint progress percent. If search is not empty, it will filter the results by rune name (prefix).
-	GetMintingRuneEntries(ctx context.Context, search string, blockHeight uint64, limit int32, offset int32) ([]*runes.RuneEntry, error)
+	// GetOngoingRuneEntries returns a list of ongoing rune entries (can still mint), sorted by mint progress percent. If search is not empty, it will filter the results by rune name (prefix).
+	GetOngoingRuneEntries(ctx context.Context, search string, blockHeight uint64, limit int32, offset int32) ([]*runes.RuneEntry, error)
 	// CountRuneEntries returns the number of existing rune entries.
 	CountRuneEntries(ctx context.Context) (uint64, error)
 

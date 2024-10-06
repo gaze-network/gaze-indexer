@@ -77,7 +77,7 @@ SELECT * FROM runes_entries
   ORDER BY runes_entries.number 
   LIMIT @_limit OFFSET @_offset;
 
--- name: GetMintingRuneEntries :many
+-- name: GetOngoingRuneEntries :many
 WITH states AS (
   -- select latest state
   SELECT DISTINCT ON (rune_id) * FROM runes_entry_states WHERE block_height <= @height ORDER BY rune_id, block_height DESC
