@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/common/errs"
 	"github.com/gaze-network/indexer-network/core/datasources"
@@ -142,7 +143,7 @@ func (i *Indexer[T]) process(ctx context.Context) (err error) {
 			// validate reorg from first input
 			{
 				remoteBlockHeader := firstInputHeader
-				if !remoteBlockHeader.PrevBlock.IsEqual(&i.currentBlock.Hash) {
+				if i.currentBlock.Hash != (chainhash.Hash{}) && !remoteBlockHeader.PrevBlock.IsEqual(&i.currentBlock.Hash) {
 					logger.WarnContext(ctx, "Detected chain reorganization. Searching for fork point...",
 						slogx.String("event", "reorg_detected"),
 						slogx.Stringer("current_hash", i.currentBlock.Hash),
@@ -215,7 +216,7 @@ func (i *Indexer[T]) process(ctx context.Context) (err error) {
 					return errors.Wrapf(errs.InternalError, "input is not continuous, input[%d] height: %d, input[%d] height: %d", i-1, prevHeader.Height, i, header.Height)
 				}
 
-				if !header.PrevBlock.IsEqual(&prevHeader.Hash) {
+				if prevHeader.Hash != (chainhash.Hash{}) && !header.PrevBlock.IsEqual(&prevHeader.Hash) {
 					logger.WarnContext(ctx, "Chain Reorganization occurred in the middle of batch fetching inputs, need to try to fetch again")
 
 					// end current round

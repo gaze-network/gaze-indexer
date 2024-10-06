@@ -51,6 +51,7 @@ type getHoldersResult struct {
 	BlockHeight  uint64           `json:"blockHeight"`
 	TotalSupply  uint128.Uint128  `json:"totalSupply"`
 	MintedAmount uint128.Uint128  `json:"mintedAmount"`
+	Decimals     uint8            `json:"decimals"`
 	List         []holdingBalance `json:"list"`
 }
 
@@ -92,10 +93,16 @@ func (h *HttpHandler) GetHolders(ctx *fiber.Ctx) (err error) {
 
 	runeEntry, err := h.usecase.GetRuneEntryByRuneIdAndHeight(ctx.UserContext(), runeId, blockHeight)
 	if err != nil {
-		return errors.Wrap(err, "error during GetHoldersByHeight")
+		if errors.Is(err, errs.NotFound) {
+			return errs.NewPublicError("rune not found")
+		}
+		return errors.Wrap(err, "error during GetRuneEntryByRuneIdAndHeight")
 	}
 	holdingBalances, err := h.usecase.GetBalancesByRuneId(ctx.UserContext(), runeId, blockHeight, req.Limit, req.Offset)
 	if err != nil {
+		if errors.Is(err, errs.NotFound) {
+			return errs.NewPublicError("balances not found")
+		}
 		return errors.Wrap(err, "error during GetBalancesByRuneId")
 	}
 
@@ -134,6 +141,7 @@ func (h *HttpHandler) GetHolders(ctx *fiber.Ctx) (err error) {
 			BlockHeight:  blockHeight,
 			TotalSupply:  totalSupply,
 			MintedAmount: mintedAmount,
+			Decimals:     runeEntry.Divisibility,
 			List:         list,
 		},
 	}

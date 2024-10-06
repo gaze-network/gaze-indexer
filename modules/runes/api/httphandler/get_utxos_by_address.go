@@ -56,6 +56,7 @@ type utxoExtend struct {
 type utxoItem struct {
 	TxHash      chainhash.Hash `json:"txHash"`
 	OutputIndex uint32         `json:"outputIndex"`
+	Sats        int64          `json:"sats"`
 	Extend      utxoExtend     `json:"extend"`
 }
 
@@ -91,20 +92,29 @@ func (h *HttpHandler) GetUTXOs(ctx *fiber.Ctx) (err error) {
 	if blockHeight == 0 {
 		blockHeader, err := h.usecase.GetLatestBlock(ctx.UserContext())
 		if err != nil {
+			if errors.Is(err, errs.NotFound) {
+				return errs.NewPublicError("latest block not found")
+			}
 			return errors.Wrap(err, "error during GetLatestBlock")
 		}
 		blockHeight = uint64(blockHeader.Height)
 	}
 
-	var utxos []*entity.RunesUTXO
+	var utxos []*entity.RunesUTXOWithSats
 	if runeId, ok := h.resolveRuneId(ctx.UserContext(), req.Id); ok {
 		utxos, err = h.usecase.GetRunesUTXOsByRuneIdAndPkScript(ctx.UserContext(), runeId, pkScript, blockHeight, req.Limit, req.Offset)
 		if err != nil {
+			if errors.Is(err, errs.NotFound) {
+				return errs.NewPublicError("utxos not found")
+			}
 			return errors.Wrap(err, "error during GetBalancesByPkScript")
 		}
 	} else {
 		utxos, err = h.usecase.GetRunesUTXOsByPkScript(ctx.UserContext(), pkScript, blockHeight, req.Limit, req.Offset)
 		if err != nil {
+			if errors.Is(err, errs.NotFound) {
+				return errs.NewPublicError("utxos not found")
+			}
 			return errors.Wrap(err, "error during GetBalancesByPkScript")
 		}
 	}
@@ -118,6 +128,9 @@ func (h *HttpHandler) GetUTXOs(ctx *fiber.Ctx) (err error) {
 	runeIdsList := lo.Keys(runeIds)
 	runeEntries, err := h.usecase.GetRuneEntryByRuneIdBatch(ctx.UserContext(), runeIdsList)
 	if err != nil {
+		if errors.Is(err, errs.NotFound) {
+			return errs.NewPublicError("rune entries not found")
+		}
 		return errors.Wrap(err, "error during GetRuneEntryByRuneIdBatch")
 	}
 
@@ -138,6 +151,7 @@ func (h *HttpHandler) GetUTXOs(ctx *fiber.Ctx) (err error) {
 		utxoRespList = append(utxoRespList, utxoItem{
 			TxHash:      utxo.OutPoint.Hash,
 			OutputIndex: utxo.OutPoint.Index,
+			Sats:        utxo.Sats,
 			Extend: utxoExtend{
 				Runes: runeBalances,
 			},

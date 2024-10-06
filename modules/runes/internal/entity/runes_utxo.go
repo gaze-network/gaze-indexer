@@ -16,3 +16,8 @@ type RunesUTXO struct {
 	OutPoint     wire.OutPoint
 	RuneBalances []RunesUTXOBalance
 }
+
+type RunesUTXOWithSats struct {
+	RunesUTXO
+	Sats int64
+}

@@ -1,6 +1,7 @@
 package httphandler
 
 import (
+	"cmp"
 	"encoding/hex"
 	"fmt"
 	"slices"
@@ -158,6 +159,9 @@ func (h *HttpHandler) GetTransactions(ctx *fiber.Ctx) (err error) {
 	if req.FromBlock == -1 || req.ToBlock == -1 {
 		blockHeader, err := h.usecase.GetLatestBlock(ctx.UserContext())
 		if err != nil {
+			if errors.Is(err, errs.NotFound) {
+				return errs.NewPublicError("latest block not found")
+			}
 			return errors.Wrap(err, "error during GetLatestBlock")
 		}
 		if req.FromBlock == -1 {
@@ -175,6 +179,9 @@ func (h *HttpHandler) GetTransactions(ctx *fiber.Ctx) (err error) {
 
 	txs, err := h.usecase.GetRuneTransactions(ctx.UserContext(), pkScript, runeId, uint64(req.FromBlock), uint64(req.ToBlock), req.Limit, req.Offset)
 	if err != nil {
+		if errors.Is(err, errs.NotFound) {
+			return errs.NewPublicError("transactions not found")
+		}
 		return errors.Wrap(err, "error during GetRuneTransactions")
 	}
 
@@ -196,6 +203,9 @@ func (h *HttpHandler) GetTransactions(ctx *fiber.Ctx) (err error) {
 	allRuneIds = lo.Uniq(allRuneIds)
 	runeEntries, err := h.usecase.GetRuneEntryByRuneIdBatch(ctx.UserContext(), allRuneIds)
 	if err != nil {
+		if errors.Is(err, errs.NotFound) {
+			return errs.NewPublicError("rune entries not found")
+		}
 		return errors.Wrap(err, "error during GetRuneEntryByRuneIdBatch")
 	}
 
@@ -297,9 +307,9 @@ func (h *HttpHandler) GetTransactions(ctx *fiber.Ctx) (err error) {
 	// sort by block height DESC, then index DESC
 	slices.SortFunc(txList, func(t1, t2 transaction) int {
 		if t1.BlockHeight != t2.BlockHeight {
-			return int(t2.BlockHeight - t1.BlockHeight)
+			return cmp.Compare(t2.BlockHeight, t1.BlockHeight)
 		}
-		return int(t2.Index - t1.Index)
+		return cmp.Compare(t2.Index, t1.Index)
 	})
 
 	resp := getTransactionsResponse{

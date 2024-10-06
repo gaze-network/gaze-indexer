@@ -17,6 +17,7 @@ import (
 	"github.com/gaze-network/indexer-network/common/errs"
 	"github.com/gaze-network/indexer-network/core/indexer"
 	"github.com/gaze-network/indexer-network/internal/config"
+	"github.com/gaze-network/indexer-network/modules/nodesale"
 	"github.com/gaze-network/indexer-network/modules/runes"
 	"github.com/gaze-network/indexer-network/pkg/automaxprocs"
 	"github.com/gaze-network/indexer-network/pkg/logger"
@@ -39,6 +40,7 @@ import (
 // Register Modules
 var Modules = do.Package(
 	do.LazyNamed("runes", runes.New),
+	do.LazyNamed("nodesale", nodesale.New),
 )
 
 func NewRunCommand() *cobra.Command {

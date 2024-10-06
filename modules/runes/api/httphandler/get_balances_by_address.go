@@ -79,6 +79,9 @@ func (h *HttpHandler) GetBalances(ctx *fiber.Ctx) (err error) {
 	if blockHeight == 0 {
 		blockHeader, err := h.usecase.GetLatestBlock(ctx.UserContext())
 		if err != nil {
+			if errors.Is(err, errs.NotFound) {
+				return errs.NewPublicError("latest block not found")
+			}
 			return errors.Wrap(err, "error during GetLatestBlock")
 		}
 		blockHeight = uint64(blockHeader.Height)
@@ -86,6 +89,9 @@ func (h *HttpHandler) GetBalances(ctx *fiber.Ctx) (err error) {
 
 	balances, err := h.usecase.GetBalancesByPkScript(ctx.UserContext(), pkScript, blockHeight, req.Limit, req.Offset)
 	if err != nil {
+		if errors.Is(err, errs.NotFound) {
+			return errs.NewPublicError("balances not found")
+		}
 		return errors.Wrap(err, "error during GetBalancesByPkScript")
 	}
 
