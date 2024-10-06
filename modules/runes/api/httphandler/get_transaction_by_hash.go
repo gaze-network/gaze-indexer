@@ -54,21 +54,21 @@ func (h *HttpHandler) GetTransactionByHash(ctx *fiber.Ctx) (err error) {
 		return errors.Wrap(err, "error during GetRuneTransaction")
 	}
 
-	allRuneIds := make([]runes.RuneId, 0, len(tx.Mints)+len(tx.Burns)+len(tx.Inputs)+len(tx.Outputs))
+	allRuneIds := make(map[runes.RuneId]struct{})
 	for id := range tx.Mints {
-		allRuneIds = append(allRuneIds, id)
+		allRuneIds[id] = struct{}{}
 	}
 	for id := range tx.Burns {
-		allRuneIds = append(allRuneIds, id)
+		allRuneIds[id] = struct{}{}
 	}
 	for _, input := range tx.Inputs {
-		allRuneIds = append(allRuneIds, input.RuneId)
+		allRuneIds[input.RuneId] = struct{}{}
 	}
 	for _, output := range tx.Outputs {
-		allRuneIds = append(allRuneIds, output.RuneId)
+		allRuneIds[output.RuneId] = struct{}{}
 	}
 
-	runeEntries, err := h.usecase.GetRuneEntryByRuneIdBatch(ctx.UserContext(), lo.Uniq(allRuneIds))
+	runeEntries, err := h.usecase.GetRuneEntryByRuneIdBatch(ctx.UserContext(), lo.Keys(allRuneIds))
 	if err != nil {
 		return errors.Wrap(err, "error during GetRuneEntryByRuneIdBatch")
 	}
