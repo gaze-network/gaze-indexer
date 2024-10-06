@@ -191,23 +191,22 @@ func (h *HttpHandler) GetTransactions(ctx *fiber.Ctx) (err error) {
 		return errors.Wrap(err, "error during GetRuneTransactions")
 	}
 
-	var allRuneIds []runes.RuneId
+	allRuneIds := make(map[runes.RuneId]struct{})
 	for _, tx := range txs {
 		for id := range tx.Mints {
-			allRuneIds = append(allRuneIds, id)
+			allRuneIds[id] = struct{}{}
 		}
 		for id := range tx.Burns {
-			allRuneIds = append(allRuneIds, id)
+			allRuneIds[id] = struct{}{}
 		}
 		for _, input := range tx.Inputs {
-			allRuneIds = append(allRuneIds, input.RuneId)
+			allRuneIds[input.RuneId] = struct{}{}
 		}
 		for _, output := range tx.Outputs {
-			allRuneIds = append(allRuneIds, output.RuneId)
+			allRuneIds[output.RuneId] = struct{}{}
 		}
 	}
-	allRuneIds = lo.Uniq(allRuneIds)
-	runeEntries, err := h.usecase.GetRuneEntryByRuneIdBatch(ctx.UserContext(), allRuneIds)
+	runeEntries, err := h.usecase.GetRuneEntryByRuneIdBatch(ctx.UserContext(), lo.Keys(allRuneIds))
 	if err != nil {
 		if errors.Is(err, errs.NotFound) {
 			return errs.NewPublicError("rune entries not found")
