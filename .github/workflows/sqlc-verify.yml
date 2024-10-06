@@ -22,7 +22,7 @@ jobs:
       - name: Setup Sqlc
         uses: sqlc-dev/setup-sqlc@v4
         with:
-          sqlc-version: "1.26.0"
+          sqlc-version: "1.27.0"
 
       - name: Check Diff
         run: sqlc diff
