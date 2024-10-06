@@ -46,12 +46,12 @@ func (h *HttpHandler) GetTransactionByHash(ctx *fiber.Ctx) (err error) {
 		return errs.NewPublicError("invalid transaction hash")
 	}
 
-	tx, err := h.usecase.GetRuneTransactionByHash(ctx.UserContext(), *hash)
+	tx, err := h.usecase.GetRuneTransaction(ctx.UserContext(), *hash)
 	if err != nil {
 		if errors.Is(err, errs.NotFound) {
 			return fiber.NewError(fiber.StatusNotFound, "transaction not found")
 		}
-		return errors.Wrap(err, "error during GetRuneTransactionByHash")
+		return errors.Wrap(err, "error during GetRuneTransaction")
 	}
 
 	allRuneIds := make([]runes.RuneId, 0, len(tx.Mints)+len(tx.Burns)+len(tx.Inputs)+len(tx.Outputs))

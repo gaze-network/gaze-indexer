@@ -18,10 +18,10 @@ func (u *Usecase) GetRuneTransactions(ctx context.Context, pkScript []byte, rune
 	return txs, nil
 }
 
-func (u *Usecase) GetRuneTransactionByHash(ctx context.Context, hash chainhash.Hash) (*entity.RuneTransaction, error) {
-	tx, err := u.runesDg.GetRuneTransactionByHash(ctx, hash)
+func (u *Usecase) GetRuneTransaction(ctx context.Context, hash chainhash.Hash) (*entity.RuneTransaction, error) {
+	tx, err := u.runesDg.GetRuneTransaction(ctx, hash)
 	if err != nil {
-		return nil, errors.Wrap(err, "error during GetRuneTransactionByHash")
+		return nil, errors.Wrap(err, "error during GetRuneTransaction")
 	}
 	return tx, nil
 }
