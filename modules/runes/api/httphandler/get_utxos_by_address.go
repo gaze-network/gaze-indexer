@@ -1,6 +1,8 @@
 package httphandler
 
 import (
+	"net/url"
+
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/common/errs"
@@ -12,25 +14,30 @@ import (
 )
 
 type getUTXOsRequest struct {
+	paginationRequest
 	Wallet      string `params:"wallet"`
 	Id          string `query:"id"`
 	BlockHeight uint64 `query:"blockHeight"`
-	Limit       int32  `query:"limit"`
-	Offset      int32  `query:"offset"`
 }
 
 const (
-	getUTXOsMaxLimit     = 3000
-	getUTXOsDefaultLimit = 100
+	getUTXOsMaxLimit = 3000
 )
 
-func (r getUTXOsRequest) Validate() error {
+func (r *getUTXOsRequest) Validate() error {
 	var errList []error
 	if r.Wallet == "" {
 		errList = append(errList, errors.New("'wallet' is required"))
 	}
-	if r.Id != "" && !isRuneIdOrRuneName(r.Id) {
-		errList = append(errList, errors.New("'id' is not valid rune id or rune name"))
+	if r.Id != "" {
+		id, err := url.QueryUnescape(r.Id)
+		if err != nil {
+			return errors.WithStack(err)
+		}
+		r.Id = id
+		if !isRuneIdOrRuneName(r.Id) {
+			errList = append(errList, errors.Errorf("id '%s' is not valid rune id or rune name", r.Id))
+		}
 	}
 	if r.Limit < 0 {
 		errList = append(errList, errors.New("'limit' must be non-negative"))
@@ -78,14 +85,13 @@ func (h *HttpHandler) GetUTXOs(ctx *fiber.Ctx) (err error) {
 	if err := req.Validate(); err != nil {
 		return errors.WithStack(err)
 	}
+	if err := req.ParseDefault(); err != nil {
+		return errors.WithStack(err)
+	}
 
 	pkScript, ok := resolvePkScript(h.network, req.Wallet)
 	if !ok {
 		return errs.NewPublicError("unable to resolve pkscript from \"wallet\"")
-	}
-
-	if req.Limit == 0 {
-		req.Limit = getUTXOsDefaultLimit
 	}
 
 	blockHeight := req.BlockHeight

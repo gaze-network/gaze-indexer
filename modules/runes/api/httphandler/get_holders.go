@@ -3,6 +3,7 @@ package httphandler
 import (
 	"bytes"
 	"encoding/hex"
+	"net/url"
 	"slices"
 
 	"github.com/cockroachdb/errors"
@@ -15,21 +16,24 @@ import (
 )
 
 type getHoldersRequest struct {
+	paginationRequest
 	Id          string `params:"id"`
 	BlockHeight uint64 `query:"blockHeight"`
-	Limit       int32  `json:"limit"`
-	Offset      int32  `json:"offset"`
 }
 
 const (
-	getHoldersMaxLimit     = 1000
-	getHoldersDefaultLimit = 100
+	getHoldersMaxLimit = 1000
 )
 
-func (r getHoldersRequest) Validate() error {
+func (r *getHoldersRequest) Validate() error {
 	var errList []error
+	id, err := url.QueryUnescape(r.Id)
+	if err != nil {
+		return errors.WithStack(err)
+	}
+	r.Id = id
 	if !isRuneIdOrRuneName(r.Id) {
-		errList = append(errList, errors.New("'id' is not valid rune id or rune name"))
+		errList = append(errList, errors.Errorf("id '%s' is not valid rune id or rune name", r.Id))
 	}
 	if r.Limit < 0 {
 		errList = append(errList, errors.New("'limit' must be non-negative"))
@@ -68,6 +72,9 @@ func (h *HttpHandler) GetHolders(ctx *fiber.Ctx) (err error) {
 	if err := req.Validate(); err != nil {
 		return errors.WithStack(err)
 	}
+	if err := req.ParseDefault(); err != nil {
+		return errors.WithStack(err)
+	}
 
 	blockHeight := req.BlockHeight
 	if blockHeight == 0 {
@@ -76,10 +83,6 @@ func (h *HttpHandler) GetHolders(ctx *fiber.Ctx) (err error) {
 			return errors.Wrap(err, "error during GetLatestBlock")
 		}
 		blockHeight = uint64(blockHeader.Height)
-	}
-
-	if req.Limit == 0 {
-		req.Limit = getHoldersDefaultLimit
 	}
 
 	var runeId runes.RuneId

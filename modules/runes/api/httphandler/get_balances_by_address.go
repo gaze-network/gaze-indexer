@@ -1,6 +1,8 @@
 package httphandler
 
 import (
+	"net/url"
+
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/common/errs"
 	"github.com/gaze-network/indexer-network/modules/runes/internal/entity"
@@ -11,11 +13,10 @@ import (
 )
 
 type getBalancesRequest struct {
+	paginationRequest
 	Wallet      string `params:"wallet"`
 	Id          string `query:"id"`
 	BlockHeight uint64 `query:"blockHeight"`
-	Limit       int32  `query:"limit"`
-	Offset      int32  `query:"offset"`
 }
 
 const (
@@ -23,13 +24,20 @@ const (
 	getBalancesDefaultLimit = 100
 )
 
-func (r getBalancesRequest) Validate() error {
+func (r *getBalancesRequest) Validate() error {
 	var errList []error
 	if r.Wallet == "" {
 		errList = append(errList, errors.New("'wallet' is required"))
 	}
-	if r.Id != "" && !isRuneIdOrRuneName(r.Id) {
-		errList = append(errList, errors.New("'id' is not valid rune id or rune name"))
+	if r.Id != "" {
+		id, err := url.QueryUnescape(r.Id)
+		if err != nil {
+			return errors.WithStack(err)
+		}
+		r.Id = id
+		if !isRuneIdOrRuneName(r.Id) {
+			errList = append(errList, errors.Errorf("id '%s' is not valid rune id or rune name", r.Id))
+		}
 	}
 	if r.Limit < 0 {
 		errList = append(errList, errors.New("'limit' must be non-negative"))
@@ -66,8 +74,8 @@ func (h *HttpHandler) GetBalances(ctx *fiber.Ctx) (err error) {
 	if err := req.Validate(); err != nil {
 		return errors.WithStack(err)
 	}
-	if req.Limit == 0 {
-		req.Limit = getBalancesDefaultLimit
+	if err := req.ParseDefault(); err != nil {
+		return errors.WithStack(err)
 	}
 
 	pkScript, ok := resolvePkScript(h.network, req.Wallet)

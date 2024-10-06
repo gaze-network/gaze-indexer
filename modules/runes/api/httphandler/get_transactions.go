@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"encoding/hex"
 	"fmt"
+	"net/url"
 	"slices"
 
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
@@ -16,23 +17,28 @@ import (
 )
 
 type getTransactionsRequest struct {
+	paginationRequest
 	Wallet    string `query:"wallet"`
 	Id        string `query:"id"`
 	FromBlock int64  `query:"fromBlock"`
 	ToBlock   int64  `query:"toBlock"`
-	Limit     int32  `query:"limit"`
-	Offset    int32  `query:"offset"`
 }
 
 const (
-	getTransactionsMaxLimit     = 3000
-	getTransactionsDefaultLimit = 100
+	getTransactionsMaxLimit = 3000
 )
 
-func (r getTransactionsRequest) Validate() error {
+func (r *getTransactionsRequest) Validate() error {
 	var errList []error
-	if r.Id != "" && !isRuneIdOrRuneName(r.Id) {
-		errList = append(errList, errors.New("'id' is not valid rune id or rune name"))
+	if r.Id != "" {
+		id, err := url.QueryUnescape(r.Id)
+		if err != nil {
+			return errors.WithStack(err)
+		}
+		r.Id = id
+		if !isRuneIdOrRuneName(r.Id) {
+			errList = append(errList, errors.Errorf("id '%s' is not valid rune id or rune name", r.Id))
+		}
 	}
 	if r.FromBlock < -1 {
 		errList = append(errList, errors.Errorf("invalid fromBlock range"))
@@ -128,6 +134,9 @@ func (h *HttpHandler) GetTransactions(ctx *fiber.Ctx) (err error) {
 	if err := req.Validate(); err != nil {
 		return errors.WithStack(err)
 	}
+	if err := req.ParseDefault(); err != nil {
+		return errors.WithStack(err)
+	}
 
 	var pkScript []byte
 	if req.Wallet != "" {
@@ -145,9 +154,6 @@ func (h *HttpHandler) GetTransactions(ctx *fiber.Ctx) (err error) {
 		if !ok {
 			return errs.NewPublicError("unable to resolve rune id from \"id\"")
 		}
-	}
-	if req.Limit == 0 {
-		req.Limit = getTransactionsDefaultLimit
 	}
 
 	// default to latest block

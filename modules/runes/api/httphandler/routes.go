@@ -16,5 +16,6 @@ func (h *HttpHandler) Mount(router fiber.Router) error {
 	r.Post("/utxos/output/batch", h.GetUTXOsOutputByLocationBatch)
 	r.Get("/utxos/output/:txHash", h.GetUTXOsOutputByLocation)
 	r.Get("/block", h.GetCurrentBlock)
+	r.Get("/tokens", h.GetTokens)
 	return nil
 }
