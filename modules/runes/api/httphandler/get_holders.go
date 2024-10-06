@@ -3,6 +3,7 @@ package httphandler
 import (
 	"bytes"
 	"encoding/hex"
+	"net/url"
 	"slices"
 
 	"github.com/cockroachdb/errors"
@@ -24,10 +25,15 @@ const (
 	getHoldersMaxLimit = 1000
 )
 
-func (r getHoldersRequest) Validate() error {
+func (r *getHoldersRequest) Validate() error {
 	var errList []error
+	id, err := url.QueryUnescape(r.Id)
+	if err != nil {
+		return errors.WithStack(err)
+	}
+	r.Id = id
 	if !isRuneIdOrRuneName(r.Id) {
-		errList = append(errList, errors.New("'id' is not valid rune id or rune name"))
+		errList = append(errList, errors.Errorf("id '%s' is not valid rune id or rune name", r.Id))
 	}
 	if r.Limit < 0 {
 		errList = append(errList, errors.New("'limit' must be non-negative"))

@@ -40,7 +40,7 @@ func (r getBalancesBatchRequest) Validate() error {
 			errList = append(errList, errors.Errorf("queries[%d]: 'wallet' is required", i))
 		}
 		if query.Id != "" && !isRuneIdOrRuneName(query.Id) {
-			errList = append(errList, errors.Errorf("queries[%d]: 'id' is not valid rune id or rune name", i))
+			errList = append(errList, errors.Errorf("queries[%d]: id '%s' is not valid rune id or rune name", i, query.Id))
 		}
 		if query.Limit < 0 {
 			errList = append(errList, errors.Errorf("queries[%d]: 'limit' must be non-negative", i))
