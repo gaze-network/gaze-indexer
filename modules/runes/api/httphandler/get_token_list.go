@@ -11,37 +11,37 @@ import (
 )
 
 const (
-	getTokenListMaxLimit = 1000
+	getTokensMaxLimit = 1000
 )
 
-type GetTokenListScope string
+type GetTokensScope string
 
 const (
-	GetTokenListScopeAll     GetTokenListScope = "all"
-	GetTokenListScopeMinting GetTokenListScope = "minting"
+	GetTokensScopeAll     GetTokensScope = "all"
+	GetTokensScopeMinting GetTokensScope = "minting"
 )
 
-func (s GetTokenListScope) IsValid() bool {
+func (s GetTokensScope) IsValid() bool {
 	switch s {
-	case GetTokenListScopeAll, GetTokenListScopeMinting:
+	case GetTokensScopeAll, GetTokensScopeMinting:
 		return true
 	}
 	return false
 }
 
-type getTokenListRequest struct {
+type getTokensRequest struct {
 	paginationRequest
-	Search      string            `query:"search"`
-	BlockHeight uint64            `query:"blockHeight"`
-	Scope       GetTokenListScope `query:"scope"`
+	Search      string         `query:"search"`
+	BlockHeight uint64         `query:"blockHeight"`
+	Scope       GetTokensScope `query:"scope"`
 }
 
-func (req getTokenListRequest) Validate() error {
+func (req getTokensRequest) Validate() error {
 	var errList []error
 	if err := req.paginationRequest.Validate(); err != nil {
 		errList = append(errList, err)
 	}
-	if req.Limit > getTokenListMaxLimit {
+	if req.Limit > getTokensMaxLimit {
 		errList = append(errList, errors.Errorf("limit must be less than or equal to 1000"))
 	}
 	if req.Scope != "" && !req.Scope.IsValid() {
@@ -50,24 +50,24 @@ func (req getTokenListRequest) Validate() error {
 	return errs.WithPublicMessage(errors.Join(errList...), "validation error")
 }
 
-func (req *getTokenListRequest) ParseDefault() error {
+func (req *getTokensRequest) ParseDefault() error {
 	if err := req.paginationRequest.ParseDefault(); err != nil {
 		return errors.WithStack(err)
 	}
 	if req.Scope == "" {
-		req.Scope = GetTokenListScopeAll
+		req.Scope = GetTokensScopeAll
 	}
 	return nil
 }
 
-type getTokenListResult struct {
+type getTokensResult struct {
 	List []getTokenInfoResult `json:"list"`
 }
 
-type getTokenListResponse = HttpResponse[getTokenListResult]
+type getTokensResponse = HttpResponse[getTokensResult]
 
-func (h *HttpHandler) GetTokenList(ctx *fiber.Ctx) (err error) {
-	var req getTokenListRequest
+func (h *HttpHandler) GetTokens(ctx *fiber.Ctx) (err error) {
+	var req getTokensRequest
 	if err := ctx.QueryParser(&req); err != nil {
 		return errors.WithStack(err)
 	}
@@ -95,12 +95,12 @@ func (h *HttpHandler) GetTokenList(ctx *fiber.Ctx) (err error) {
 
 	var entries []*runes.RuneEntry
 	switch req.Scope {
-	case GetTokenListScopeAll:
+	case GetTokensScopeAll:
 		entries, err = h.usecase.GetRuneEntries(ctx.UserContext(), search, blockHeight, req.Limit, req.Offset)
 		if err != nil {
 			return errors.Wrap(err, "error during GetRuneEntryList")
 		}
-	case GetTokenListScopeMinting:
+	case GetTokensScopeMinting:
 		entries, err = h.usecase.GetMintingRuneEntries(ctx.UserContext(), search, blockHeight, req.Limit, req.Offset)
 		if err != nil {
 			return errors.Wrap(err, "error during GetRuneEntryList")
@@ -163,8 +163,8 @@ func (h *HttpHandler) GetTokenList(ctx *fiber.Ctx) (err error) {
 		})
 	}
 
-	return errors.WithStack(ctx.JSON(getTokenListResponse{
-		Result: &getTokenListResult{
+	return errors.WithStack(ctx.JSON(getTokensResponse{
+		Result: &getTokensResult{
 			List: result,
 		},
 	}))
