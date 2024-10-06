@@ -67,7 +67,7 @@ var GenesisRuneConfigMap = map[common.Network]GenesisRuneConfig{
 		},
 		Turbo:         true,
 		EtchingTxHash: chainhash.Hash{},
-		EtchedAt:      time.Time{},
+		EtchedAt:      time.Unix(0, 0),
 	},
 	common.NetworkFractalMainnet: {
 		RuneId:       runes.RuneId{BlockHeight: 1, TxIndex: 0},
@@ -86,7 +86,7 @@ var GenesisRuneConfigMap = map[common.Network]GenesisRuneConfig{
 		},
 		Turbo:         true,
 		EtchingTxHash: chainhash.Hash{},
-		EtchedAt:      time.Time{},
+		EtchedAt:      time.Unix(0, 0),
 	},
 	common.NetworkFractalTestnet: {
 		RuneId:       runes.RuneId{BlockHeight: 1, TxIndex: 0},
@@ -105,7 +105,7 @@ var GenesisRuneConfigMap = map[common.Network]GenesisRuneConfig{
 		},
 		Turbo:         true,
 		EtchingTxHash: chainhash.Hash{},
-		EtchedAt:      time.Time{},
+		EtchedAt:      time.Unix(0, 0),
 	},
 }
 
