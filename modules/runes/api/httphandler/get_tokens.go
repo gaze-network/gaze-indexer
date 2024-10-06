@@ -1,6 +1,7 @@
 package httphandler
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/cockroachdb/errors"
@@ -106,7 +107,7 @@ func (h *HttpHandler) GetTokens(ctx *fiber.Ctx) (err error) {
 			return errors.Wrap(err, "error during GetRuneEntryList")
 		}
 	default:
-		panic("invalid scope")
+		return errs.NewPublicError(fmt.Sprintf("invalid scope: %s", req.Scope))
 	}
 
 	runeIds := lo.Map(entries, func(item *runes.RuneEntry, _ int) runes.RuneId { return item.RuneId })
@@ -137,9 +138,9 @@ func (h *HttpHandler) GetTokens(ctx *fiber.Ctx) (err error) {
 			MintedAmount:      mintedAmount,
 			BurnedAmount:      ent.BurnedAmount,
 			Decimals:          ent.Divisibility,
-			DeployedAt:        uint64(ent.EtchedAt.Unix()),
+			DeployedAt:        ent.EtchedAt.Unix(),
 			DeployedAtHeight:  ent.EtchingBlock,
-			CompletedAt:       lo.Ternary(ent.CompletedAt.IsZero(), nil, lo.ToPtr(uint64(ent.CompletedAt.Unix()))),
+			CompletedAt:       lo.Ternary(ent.CompletedAt.IsZero(), nil, lo.ToPtr(ent.CompletedAt.Unix())),
 			CompletedAtHeight: ent.CompletedAtHeight,
 			HoldersCount:      int(totalHolders[ent.RuneId]),
 			Extend: tokenInfoExtend{
