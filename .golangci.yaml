@@ -101,3 +101,6 @@ linters-settings:
     attr-only: true
     key-naming-case: snake
     args-on-sep-lines: true
+  gosec:
+    excludes:
+      - G115
