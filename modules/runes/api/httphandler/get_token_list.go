@@ -1,6 +1,8 @@
 package httphandler
 
 import (
+	"strings"
+
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/common/errs"
 	"github.com/gaze-network/indexer-network/modules/runes/runes"
@@ -29,7 +31,7 @@ func (s GetTokenListScope) IsValid() bool {
 
 type getTokenListRequest struct {
 	paginationRequest
-	// TODO: Search      string            `query:"search"`
+	Search      string            `query:"search"`
 	BlockHeight uint64            `query:"blockHeight"`
 	Scope       GetTokenListScope `query:"scope"`
 }
@@ -88,15 +90,18 @@ func (h *HttpHandler) GetTokenList(ctx *fiber.Ctx) (err error) {
 		blockHeight = uint64(blockHeader.Height)
 	}
 
+	// remove spacers
+	search := strings.Replace(strings.Replace(req.Search, "•", "", -1), ".", "", -1)
+
 	var entries []*runes.RuneEntry
 	switch req.Scope {
 	case GetTokenListScopeAll:
-		entries, err = h.usecase.GetRuneEntries(ctx.UserContext(), blockHeight, req.Limit, req.Offset)
+		entries, err = h.usecase.GetRuneEntries(ctx.UserContext(), search, blockHeight, req.Limit, req.Offset)
 		if err != nil {
 			return errors.Wrap(err, "error during GetRuneEntryList")
 		}
 	case GetTokenListScopeMinting:
-		entries, err = h.usecase.GetMintingRuneEntries(ctx.UserContext(), blockHeight, req.Limit, req.Offset)
+		entries, err = h.usecase.GetMintingRuneEntries(ctx.UserContext(), search, blockHeight, req.Limit, req.Offset)
 		if err != nil {
 			return errors.Wrap(err, "error during GetRuneEntryList")
 		}

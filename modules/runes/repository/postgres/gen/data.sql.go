@@ -431,16 +431,22 @@ func (q *Queries) GetLatestIndexedBlock(ctx context.Context) (RunesIndexedBlock,
 const getMintingRuneEntries = `-- name: GetMintingRuneEntries :many
 WITH states AS (
   -- select latest state
-  SELECT DISTINCT ON (rune_id) rune_id, block_height, mints, burned_amount, completed_at, completed_at_height FROM runes_entry_states WHERE block_height <= $3 ORDER BY rune_id, block_height DESC
+  SELECT DISTINCT ON (rune_id) rune_id, block_height, mints, burned_amount, completed_at, completed_at_height FROM runes_entry_states WHERE block_height <= $4 ORDER BY rune_id, block_height DESC
 )
 SELECT runes_entries.rune_id, number, rune, spacers, premine, symbol, divisibility, terms, terms_amount, terms_cap, terms_height_start, terms_height_end, terms_offset_start, terms_offset_end, turbo, etching_block, etching_tx_hash, etched_at, states.rune_id, block_height, mints, burned_amount, completed_at, completed_at_height FROM runes_entries 
   LEFT JOIN states ON runes_entries.rune_id = states.rune_id
-  WHERE states.mints < runes_entries.terms_cap
+  WHERE (
+    states.mints < runes_entries.terms_cap
+  ) AND (
+    $1 = '' OR
+    runes_entries.rune ILIKE $1 || '%'
+  )
   ORDER BY (states.mints / runes_entries.terms_cap::float) DESC
-  LIMIT $2 OFFSET $1
+  LIMIT $3 OFFSET $2
 `
 
 type GetMintingRuneEntriesParams struct {
+	Search interface{}
 	Offset int32
 	Limit  int32
 	Height int32
@@ -474,7 +480,12 @@ type GetMintingRuneEntriesRow struct {
 }
 
 func (q *Queries) GetMintingRuneEntries(ctx context.Context, arg GetMintingRuneEntriesParams) ([]GetMintingRuneEntriesRow, error) {
-	rows, err := q.db.Query(ctx, getMintingRuneEntries, arg.Offset, arg.Limit, arg.Height)
+	rows, err := q.db.Query(ctx, getMintingRuneEntries,
+		arg.Search,
+		arg.Offset,
+		arg.Limit,
+		arg.Height,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -558,15 +569,20 @@ func (q *Queries) GetOutPointBalancesAtOutPoint(ctx context.Context, arg GetOutP
 const getRuneEntries = `-- name: GetRuneEntries :many
 WITH states AS (
   -- select latest state
-  SELECT DISTINCT ON (rune_id) rune_id, block_height, mints, burned_amount, completed_at, completed_at_height FROM runes_entry_states WHERE block_height <= $3 ORDER BY rune_id, block_height DESC
+  SELECT DISTINCT ON (rune_id) rune_id, block_height, mints, burned_amount, completed_at, completed_at_height FROM runes_entry_states WHERE block_height <= $4 ORDER BY rune_id, block_height DESC
 )
 SELECT runes_entries.rune_id, number, rune, spacers, premine, symbol, divisibility, terms, terms_amount, terms_cap, terms_height_start, terms_height_end, terms_offset_start, terms_offset_end, turbo, etching_block, etching_tx_hash, etched_at, states.rune_id, block_height, mints, burned_amount, completed_at, completed_at_height FROM runes_entries 
   LEFT JOIN states ON runes_entries.rune_id = states.rune_id
+  WHERE (
+    $1 = '' OR
+    runes_entries.rune ILIKE $1 || '%'
+  )
   ORDER BY runes_entries.number 
-  LIMIT $2 OFFSET $1
+  LIMIT $3 OFFSET $2
 `
 
 type GetRuneEntriesParams struct {
+	Search interface{}
 	Offset int32
 	Limit  int32
 	Height int32
@@ -600,7 +616,12 @@ type GetRuneEntriesRow struct {
 }
 
 func (q *Queries) GetRuneEntries(ctx context.Context, arg GetRuneEntriesParams) ([]GetRuneEntriesRow, error) {
-	rows, err := q.db.Query(ctx, getRuneEntries, arg.Offset, arg.Limit, arg.Height)
+	rows, err := q.db.Query(ctx, getRuneEntries,
+		arg.Search,
+		arg.Offset,
+		arg.Limit,
+		arg.Height,
+	)
 	if err != nil {
 		return nil, err
 	}

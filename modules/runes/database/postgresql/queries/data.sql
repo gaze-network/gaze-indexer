@@ -67,6 +67,10 @@ WITH states AS (
 )
 SELECT * FROM runes_entries 
   LEFT JOIN states ON runes_entries.rune_id = states.rune_id
+  WHERE (
+    @search = '' OR
+    runes_entries.rune ILIKE @search || '%'
+  )
   ORDER BY runes_entries.number 
   LIMIT @_limit OFFSET @_offset;
 
@@ -77,7 +81,12 @@ WITH states AS (
 )
 SELECT * FROM runes_entries 
   LEFT JOIN states ON runes_entries.rune_id = states.rune_id
-  WHERE states.mints < runes_entries.terms_cap
+  WHERE (
+    states.mints < runes_entries.terms_cap
+  ) AND (
+    @search = '' OR
+    runes_entries.rune ILIKE @search || '%'
+  )
   ORDER BY (states.mints / runes_entries.terms_cap::float) DESC
   LIMIT @_limit OFFSET @_offset;
 

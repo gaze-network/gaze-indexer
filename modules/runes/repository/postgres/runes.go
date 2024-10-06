@@ -316,8 +316,9 @@ func (r *Repository) GetRuneEntryByRuneIdAndHeightBatch(ctx context.Context, run
 	return runeEntries, nil
 }
 
-func (r *Repository) GetRuneEntries(ctx context.Context, blockHeight uint64, limit int32, offset int32) ([]*runes.RuneEntry, error) {
+func (r *Repository) GetRuneEntries(ctx context.Context, search string, blockHeight uint64, limit int32, offset int32) ([]*runes.RuneEntry, error) {
 	rows, err := r.queries.GetRuneEntries(ctx, gen.GetRuneEntriesParams{
+		Search: search,
 		Height: int32(blockHeight),
 		Limit:  limit,
 		Offset: offset,
@@ -343,8 +344,9 @@ func (r *Repository) GetRuneEntries(ctx context.Context, blockHeight uint64, lim
 	return runeEntries, nil
 }
 
-func (r *Repository) GetMintingRuneEntries(ctx context.Context, blockHeight uint64, limit int32, offset int32) ([]*runes.RuneEntry, error) {
+func (r *Repository) GetMintingRuneEntries(ctx context.Context, search string, blockHeight uint64, limit int32, offset int32) ([]*runes.RuneEntry, error) {
 	rows, err := r.queries.GetMintingRuneEntries(ctx, gen.GetMintingRuneEntriesParams{
+		Search: search,
 		Height: int32(blockHeight),
 		Limit:  limit,
 		Offset: offset,
