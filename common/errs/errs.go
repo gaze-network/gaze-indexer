@@ -24,6 +24,9 @@ var (
 	// Skippable is returned when got an error but it can be skipped or ignored and continue
 	Skippable = errors.NewWithDepth(depth, "skippable")
 
+	// Retryable is returned when got an error but it can be retried
+	Retryable = errors.NewWithDepth(depth, "retryable")
+
 	// Unsupported is returned when a feature or result is not supported
 	Unsupported = errors.NewWithDepth(depth, "unsupported")
 
