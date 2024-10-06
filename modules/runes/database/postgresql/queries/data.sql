@@ -80,15 +80,26 @@ SELECT * FROM runes_entries
 -- name: GetOngoingRuneEntries :many
 WITH states AS (
   -- select latest state
-  SELECT DISTINCT ON (rune_id) * FROM runes_entry_states WHERE block_height <= @height ORDER BY rune_id, block_height DESC
+  SELECT DISTINCT ON (rune_id) * FROM runes_entry_states WHERE block_height <= @height::integer ORDER BY rune_id, block_height DESC
 )
 SELECT * FROM runes_entries 
   LEFT JOIN states ON runes_entries.rune_id = states.rune_id
   WHERE (
-    states.mints < runes_entries.terms_cap
+    runes_entries.terms = TRUE AND
+    states.mints < runes_entries.terms_cap AND
+    (
+      runes_entries.terms_height_start IS NULL OR runes_entries.terms_height_start <= @height::integer
+    ) AND (
+      runes_entries.terms_height_end IS NULL OR @height::integer <= runes_entries.terms_height_end
+    ) AND (
+      runes_entries.terms_offset_start IS NULL OR runes_entries.terms_offset_start + runes_entries.etching_block <= @height::integer
+    ) AND (
+      runes_entries.terms_offset_end IS NULL OR @height::integer <= runes_entries.terms_offset_start + runes_entries.etching_block
+    )
+
   ) AND (
-    @search = '' OR
-    runes_entries.rune ILIKE @search || '%'
+    @search::text = '' OR
+    runes_entries.rune ILIKE @search::text || '%'
   )
   ORDER BY (states.mints / runes_entries.terms_cap::float) DESC
   LIMIT @_limit OFFSET @_offset;

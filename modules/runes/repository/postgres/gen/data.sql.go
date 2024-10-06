@@ -431,25 +431,36 @@ func (q *Queries) GetLatestIndexedBlock(ctx context.Context) (RunesIndexedBlock,
 const getOngoingRuneEntries = `-- name: GetOngoingRuneEntries :many
 WITH states AS (
   -- select latest state
-  SELECT DISTINCT ON (rune_id) rune_id, block_height, mints, burned_amount, completed_at, completed_at_height FROM runes_entry_states WHERE block_height <= $4 ORDER BY rune_id, block_height DESC
+  SELECT DISTINCT ON (rune_id) rune_id, block_height, mints, burned_amount, completed_at, completed_at_height FROM runes_entry_states WHERE block_height <= $1::integer ORDER BY rune_id, block_height DESC
 )
 SELECT runes_entries.rune_id, number, rune, spacers, premine, symbol, divisibility, terms, terms_amount, terms_cap, terms_height_start, terms_height_end, terms_offset_start, terms_offset_end, turbo, etching_block, etching_tx_hash, etched_at, states.rune_id, block_height, mints, burned_amount, completed_at, completed_at_height FROM runes_entries 
   LEFT JOIN states ON runes_entries.rune_id = states.rune_id
   WHERE (
-    states.mints < runes_entries.terms_cap
+    runes_entries.terms = TRUE AND
+    states.mints < runes_entries.terms_cap AND
+    (
+      runes_entries.terms_height_start IS NULL OR runes_entries.terms_height_start <= $1::integer
+    ) AND (
+      runes_entries.terms_height_end IS NULL OR $1::integer <= runes_entries.terms_height_end
+    ) AND (
+      runes_entries.terms_offset_start IS NULL OR runes_entries.terms_offset_start + runes_entries.etching_block <= $1::integer
+    ) AND (
+      runes_entries.terms_offset_end IS NULL OR $1::integer <= runes_entries.terms_offset_start + runes_entries.etching_block
+    )
+
   ) AND (
-    $1 = '' OR
-    runes_entries.rune ILIKE $1 || '%'
+    $2::text = '' OR
+    runes_entries.rune ILIKE $2::text || '%'
   )
   ORDER BY (states.mints / runes_entries.terms_cap::float) DESC
-  LIMIT $3 OFFSET $2
+  LIMIT $4 OFFSET $3
 `
 
 type GetOngoingRuneEntriesParams struct {
-	Search interface{}
+	Height int32
+	Search string
 	Offset int32
 	Limit  int32
-	Height int32
 }
 
 type GetOngoingRuneEntriesRow struct {
@@ -481,10 +492,10 @@ type GetOngoingRuneEntriesRow struct {
 
 func (q *Queries) GetOngoingRuneEntries(ctx context.Context, arg GetOngoingRuneEntriesParams) ([]GetOngoingRuneEntriesRow, error) {
 	rows, err := q.db.Query(ctx, getOngoingRuneEntries,
+		arg.Height,
 		arg.Search,
 		arg.Offset,
 		arg.Limit,
-		arg.Height,
 	)
 	if err != nil {
 		return nil, err
