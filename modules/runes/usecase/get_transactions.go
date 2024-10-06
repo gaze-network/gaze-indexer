@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 
+	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/modules/runes/internal/entity"
 	"github.com/gaze-network/indexer-network/modules/runes/runes"
@@ -15,4 +16,12 @@ func (u *Usecase) GetRuneTransactions(ctx context.Context, pkScript []byte, rune
 		return nil, errors.Wrap(err, "error during GetTransactionsByHeight")
 	}
 	return txs, nil
+}
+
+func (u *Usecase) GetRuneTransaction(ctx context.Context, hash chainhash.Hash) (*entity.RuneTransaction, error) {
+	tx, err := u.runesDg.GetRuneTransaction(ctx, hash)
+	if err != nil {
+		return nil, errors.Wrap(err, "error during GetRuneTransaction")
+	}
+	return tx, nil
 }

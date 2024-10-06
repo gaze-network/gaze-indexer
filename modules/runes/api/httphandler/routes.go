@@ -10,6 +10,7 @@ func (h *HttpHandler) Mount(router fiber.Router) error {
 	r.Post("/balances/wallet/batch", h.GetBalancesBatch)
 	r.Get("/balances/wallet/:wallet", h.GetBalances)
 	r.Get("/transactions", h.GetTransactions)
+	r.Get("/transactions/hash/:hash", h.GetTransactionByHash)
 	r.Get("/holders/:id", h.GetHolders)
 	r.Get("/info/:id", h.GetTokenInfo)
 	r.Get("/utxos/wallet/:wallet", h.GetUTXOs)
