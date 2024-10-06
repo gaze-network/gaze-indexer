@@ -262,7 +262,7 @@ func (r *Repository) GetRuneEntryByRuneIdBatch(ctx context.Context, runeIds []ru
 	runeEntries := make(map[runes.RuneId]*runes.RuneEntry, len(rows))
 	var errs []error
 	for i, runeEntryModel := range rows {
-		runeEntry, err := mapRuneEntryModelToType(runeEntryModel)
+		runeEntry, err := mapRuneEntryModelToType(gen.GetRuneEntriesRow(runeEntryModel))
 		if err != nil {
 			errs = append(errs, errors.Wrapf(err, "failed to parse rune entry model index %d", i))
 			continue
@@ -302,7 +302,7 @@ func (r *Repository) GetRuneEntryByRuneIdAndHeightBatch(ctx context.Context, run
 	runeEntries := make(map[runes.RuneId]*runes.RuneEntry, len(rows))
 	var errs []error
 	for i, runeEntryModel := range rows {
-		runeEntry, err := mapRuneEntryModelToType(gen.GetRuneEntriesByRuneIdsRow(runeEntryModel))
+		runeEntry, err := mapRuneEntryModelToType(gen.GetRuneEntriesRow(runeEntryModel))
 		if err != nil {
 			errs = append(errs, errors.Wrapf(err, "failed to parse rune entry model index %d", i))
 			continue
@@ -316,8 +316,9 @@ func (r *Repository) GetRuneEntryByRuneIdAndHeightBatch(ctx context.Context, run
 	return runeEntries, nil
 }
 
-func (r *Repository) GetRuneEntryList(ctx context.Context, limit int32, offset int32) ([]*runes.RuneEntry, error) {
-	rows, err := r.queries.GetRuneEntryList(ctx, gen.GetRuneEntryListParams{
+func (r *Repository) GetRuneEntries(ctx context.Context, blockHeight uint64, limit int32, offset int32) ([]*runes.RuneEntry, error) {
+	rows, err := r.queries.GetRuneEntries(ctx, gen.GetRuneEntriesParams{
+		Height: int32(blockHeight),
 		Limit:  limit,
 		Offset: offset,
 	})
@@ -328,7 +329,34 @@ func (r *Repository) GetRuneEntryList(ctx context.Context, limit int32, offset i
 	runeEntries := make([]*runes.RuneEntry, 0, len(rows))
 	var errs []error
 	for i, model := range rows {
-		runeEntry, err := mapRuneEntryModelToType(gen.GetRuneEntriesByRuneIdsRow(model))
+		runeEntry, err := mapRuneEntryModelToType(model)
+		if err != nil {
+			errs = append(errs, errors.Wrapf(err, "failed to parse rune entry model index %d", i))
+			continue
+		}
+		runeEntries = append(runeEntries, &runeEntry)
+	}
+	if len(errs) > 0 {
+		return nil, errors.Join(errs...)
+	}
+
+	return runeEntries, nil
+}
+
+func (r *Repository) GetMintingRuneEntries(ctx context.Context, blockHeight uint64, limit int32, offset int32) ([]*runes.RuneEntry, error) {
+	rows, err := r.queries.GetMintingRuneEntries(ctx, gen.GetMintingRuneEntriesParams{
+		Height: int32(blockHeight),
+		Limit:  limit,
+		Offset: offset,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "error during query")
+	}
+
+	runeEntries := make([]*runes.RuneEntry, 0, len(rows))
+	var errs []error
+	for i, model := range rows {
+		runeEntry, err := mapRuneEntryModelToType(gen.GetRuneEntriesRow(model))
 		if err != nil {
 			errs = append(errs, errors.Wrapf(err, "failed to parse rune entry model index %d", i))
 			continue

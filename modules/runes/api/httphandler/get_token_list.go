@@ -12,8 +12,26 @@ const (
 	getTokenListMaxLimit = 1000
 )
 
+type GetTokenListScope string
+
+const (
+	GetTokenListScopeAll     GetTokenListScope = "all"
+	GetTokenListScopeMinting GetTokenListScope = "minting"
+)
+
+func (s GetTokenListScope) IsValid() bool {
+	switch s {
+	case GetTokenListScopeAll, GetTokenListScopeMinting:
+		return true
+	}
+	return false
+}
+
 type getTokenListRequest struct {
 	paginationRequest
+	// TODO: Search      string            `query:"search"`
+	BlockHeight uint64            `query:"blockHeight"`
+	Scope       GetTokenListScope `query:"scope"`
 }
 
 func (req getTokenListRequest) Validate() error {
@@ -24,7 +42,20 @@ func (req getTokenListRequest) Validate() error {
 	if req.Limit > getTokenListMaxLimit {
 		errList = append(errList, errors.Errorf("limit must be less than or equal to 1000"))
 	}
+	if req.Scope != "" && !req.Scope.IsValid() {
+		errList = append(errList, errors.Errorf("invalid scope"))
+	}
 	return errs.WithPublicMessage(errors.Join(errList...), "validation error")
+}
+
+func (req *getTokenListRequest) ParseDefault() error {
+	if err := req.paginationRequest.ParseDefault(); err != nil {
+		return errors.WithStack(err)
+	}
+	if req.Scope == "" {
+		req.Scope = GetTokenListScopeAll
+	}
+	return nil
 }
 
 type getTokenListResult struct {
@@ -35,9 +66,6 @@ type getTokenListResponse = HttpResponse[getTokenListResult]
 
 func (h *HttpHandler) GetTokenList(ctx *fiber.Ctx) (err error) {
 	var req getTokenListRequest
-	if err := ctx.ParamsParser(&req); err != nil {
-		return errors.WithStack(err)
-	}
 	if err := ctx.QueryParser(&req); err != nil {
 		return errors.WithStack(err)
 	}
@@ -48,9 +76,32 @@ func (h *HttpHandler) GetTokenList(ctx *fiber.Ctx) (err error) {
 		return errors.WithStack(err)
 	}
 
-	entries, err := h.usecase.GetRuneEntryList(ctx.UserContext(), req.Limit, req.Offset)
-	if err != nil {
-		return errors.Wrap(err, "error during GetRuneEntryList")
+	blockHeight := req.BlockHeight
+	if blockHeight == 0 {
+		blockHeader, err := h.usecase.GetLatestBlock(ctx.UserContext())
+		if err != nil {
+			if errors.Is(err, errs.NotFound) {
+				return errs.NewPublicError("latest block not found")
+			}
+			return errors.Wrap(err, "error during GetLatestBlock")
+		}
+		blockHeight = uint64(blockHeader.Height)
+	}
+
+	var entries []*runes.RuneEntry
+	switch req.Scope {
+	case GetTokenListScopeAll:
+		entries, err = h.usecase.GetRuneEntries(ctx.UserContext(), blockHeight, req.Limit, req.Offset)
+		if err != nil {
+			return errors.Wrap(err, "error during GetRuneEntryList")
+		}
+	case GetTokenListScopeMinting:
+		entries, err = h.usecase.GetMintingRuneEntries(ctx.UserContext(), blockHeight, req.Limit, req.Offset)
+		if err != nil {
+			return errors.Wrap(err, "error during GetRuneEntryList")
+		}
+	default:
+		panic("invalid scope")
 	}
 
 	runeIds := lo.Map(entries, func(item *runes.RuneEntry, _ int) runes.RuneId { return item.RuneId })

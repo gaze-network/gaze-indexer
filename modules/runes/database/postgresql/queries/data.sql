@@ -60,10 +60,26 @@ SELECT * FROM runes_entries
   LEFT JOIN states ON runes_entries.rune_id = states.rune_id
   WHERE runes_entries.rune_id = ANY(@rune_ids::text[]) AND etching_block <= @height;
 
--- name: GetRuneEntryList :many
-SELECT DISTINCT ON (number) * FROM runes_entries 
-LEFT JOIN runes_entry_states states ON runes_entries.rune_id = states.rune_id
-ORDER BY number LIMIT @_limit OFFSET @_offset;
+-- name: GetRuneEntries :many
+WITH states AS (
+  -- select latest state
+  SELECT DISTINCT ON (rune_id) * FROM runes_entry_states WHERE block_height <= @height ORDER BY rune_id, block_height DESC
+)
+SELECT * FROM runes_entries 
+  LEFT JOIN states ON runes_entries.rune_id = states.rune_id
+  ORDER BY runes_entries.number 
+  LIMIT @_limit OFFSET @_offset;
+
+-- name: GetMintingRuneEntries :many
+WITH states AS (
+  -- select latest state
+  SELECT DISTINCT ON (rune_id) * FROM runes_entry_states WHERE block_height <= @height ORDER BY rune_id, block_height DESC
+)
+SELECT * FROM runes_entries 
+  LEFT JOIN states ON runes_entries.rune_id = states.rune_id
+  WHERE states.mints < runes_entries.terms_cap
+  ORDER BY (states.mints / runes_entries.terms_cap::float) DESC
+  LIMIT @_limit OFFSET @_offset;
 
 -- name: GetRuneIdFromRune :one
 SELECT rune_id FROM runes_entries WHERE rune = $1;

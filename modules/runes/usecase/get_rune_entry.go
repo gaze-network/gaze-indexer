@@ -47,8 +47,16 @@ func (u *Usecase) GetRuneEntryByRuneIdAndHeightBatch(ctx context.Context, runeId
 	return runeEntry, nil
 }
 
-func (u *Usecase) GetRuneEntryList(ctx context.Context, limit, offset int32) ([]*runes.RuneEntry, error) {
-	entries, err := u.runesDg.GetRuneEntryList(ctx, limit, offset)
+func (u *Usecase) GetRuneEntries(ctx context.Context, blockHeight uint64, limit, offset int32) ([]*runes.RuneEntry, error) {
+	entries, err := u.runesDg.GetRuneEntries(ctx, blockHeight, limit, offset)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to listing rune entries")
+	}
+	return entries, nil
+}
+
+func (u *Usecase) GetMintingRuneEntries(ctx context.Context, blockHeight uint64, limit, offset int32) ([]*runes.RuneEntry, error) {
+	entries, err := u.runesDg.GetMintingRuneEntries(ctx, blockHeight, limit, offset)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to listing rune entries")
 	}

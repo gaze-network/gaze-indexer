@@ -44,8 +44,9 @@ type RunesReaderDataGateway interface {
 	GetRuneEntryByRuneIdAndHeight(ctx context.Context, runeId runes.RuneId, blockHeight uint64) (*runes.RuneEntry, error)
 	// GetRuneEntryByRuneIdAndHeightBatch returns the RuneEntries for the given runeIds and block height.
 	GetRuneEntryByRuneIdAndHeightBatch(ctx context.Context, runeIds []runes.RuneId, blockHeight uint64) (map[runes.RuneId]*runes.RuneEntry, error)
-	// GetRuneEntryList returns a list of rune entries.
-	GetRuneEntryList(ctx context.Context, limit int32, offset int32) ([]*runes.RuneEntry, error)
+	// GetRuneEntries returns a list of rune entries.
+	GetRuneEntries(ctx context.Context, blockHeight uint64, limit int32, offset int32) ([]*runes.RuneEntry, error)
+	GetMintingRuneEntries(ctx context.Context, blockHeight uint64, limit int32, offset int32) ([]*runes.RuneEntry, error)
 	// CountRuneEntries returns the number of existing rune entries.
 	CountRuneEntries(ctx context.Context) (uint64, error)
 
