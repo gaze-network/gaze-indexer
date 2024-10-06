@@ -15,15 +15,13 @@ import (
 )
 
 type getHoldersRequest struct {
+	paginationRequest
 	Id          string `params:"id"`
 	BlockHeight uint64 `query:"blockHeight"`
-	Limit       int32  `json:"limit"`
-	Offset      int32  `json:"offset"`
 }
 
 const (
-	getHoldersMaxLimit     = 1000
-	getHoldersDefaultLimit = 100
+	getHoldersMaxLimit = 1000
 )
 
 func (r getHoldersRequest) Validate() error {
@@ -68,6 +66,9 @@ func (h *HttpHandler) GetHolders(ctx *fiber.Ctx) (err error) {
 	if err := req.Validate(); err != nil {
 		return errors.WithStack(err)
 	}
+	if err := req.ParseDefault(); err != nil {
+		return errors.WithStack(err)
+	}
 
 	blockHeight := req.BlockHeight
 	if blockHeight == 0 {
@@ -76,10 +77,6 @@ func (h *HttpHandler) GetHolders(ctx *fiber.Ctx) (err error) {
 			return errors.Wrap(err, "error during GetLatestBlock")
 		}
 		blockHeight = uint64(blockHeader.Height)
-	}
-
-	if req.Limit == 0 {
-		req.Limit = getHoldersDefaultLimit
 	}
 
 	var runeId runes.RuneId

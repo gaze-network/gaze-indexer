@@ -16,17 +16,15 @@ import (
 )
 
 type getTransactionsRequest struct {
+	paginationRequest
 	Wallet    string `query:"wallet"`
 	Id        string `query:"id"`
 	FromBlock int64  `query:"fromBlock"`
 	ToBlock   int64  `query:"toBlock"`
-	Limit     int32  `query:"limit"`
-	Offset    int32  `query:"offset"`
 }
 
 const (
-	getTransactionsMaxLimit     = 3000
-	getTransactionsDefaultLimit = 100
+	getTransactionsMaxLimit = 3000
 )
 
 func (r getTransactionsRequest) Validate() error {
@@ -128,6 +126,9 @@ func (h *HttpHandler) GetTransactions(ctx *fiber.Ctx) (err error) {
 	if err := req.Validate(); err != nil {
 		return errors.WithStack(err)
 	}
+	if err := req.ParseDefault(); err != nil {
+		return errors.WithStack(err)
+	}
 
 	var pkScript []byte
 	if req.Wallet != "" {
@@ -145,9 +146,6 @@ func (h *HttpHandler) GetTransactions(ctx *fiber.Ctx) (err error) {
 		if !ok {
 			return errs.NewPublicError("unable to resolve rune id from \"id\"")
 		}
-	}
-	if req.Limit == 0 {
-		req.Limit = getTransactionsDefaultLimit
 	}
 
 	// default to latest block

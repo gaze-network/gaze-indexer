@@ -57,9 +57,9 @@ type getTokenInfoResult struct {
 	MintedAmount      uint128.Uint128  `json:"mintedAmount"`
 	BurnedAmount      uint128.Uint128  `json:"burnedAmount"`
 	Decimals          uint8            `json:"decimals"`
-	DeployedAt        uint64           `json:"deployedAt"` // unix timestamp
+	DeployedAt        int64            `json:"deployedAt"` // unix timestamp
 	DeployedAtHeight  uint64           `json:"deployedAtHeight"`
-	CompletedAt       *uint64          `json:"completedAt"` // unix timestamp
+	CompletedAt       *int64           `json:"completedAt"` // unix timestamp
 	CompletedAtHeight *uint64          `json:"completedAtHeight"`
 	HoldersCount      int              `json:"holdersCount"`
 	Extend            tokenInfoExtend  `json:"extend"`
@@ -144,9 +144,9 @@ func (h *HttpHandler) GetTokenInfo(ctx *fiber.Ctx) (err error) {
 			MintedAmount:      mintedAmount,
 			BurnedAmount:      runeEntry.BurnedAmount,
 			Decimals:          runeEntry.Divisibility,
-			DeployedAt:        uint64(runeEntry.EtchedAt.Unix()),
+			DeployedAt:        runeEntry.EtchedAt.Unix(),
 			DeployedAtHeight:  runeEntry.EtchingBlock,
-			CompletedAt:       lo.Ternary(runeEntry.CompletedAt.IsZero(), nil, lo.ToPtr(uint64(runeEntry.CompletedAt.Unix()))),
+			CompletedAt:       lo.Ternary(runeEntry.CompletedAt.IsZero(), nil, lo.ToPtr(runeEntry.CompletedAt.Unix())),
 			CompletedAtHeight: runeEntry.CompletedAtHeight,
 			HoldersCount:      len(holdingBalances),
 			Extend: tokenInfoExtend{

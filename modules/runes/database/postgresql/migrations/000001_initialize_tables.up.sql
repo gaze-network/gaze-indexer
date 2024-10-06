@@ -1,5 +1,6 @@
 BEGIN;
 
+CREATE EXTENSION pg_trgm;
 -- Indexer Client Information
 
 CREATE TABLE IF NOT EXISTS "runes_indexer_stats" (
@@ -48,6 +49,7 @@ CREATE TABLE IF NOT EXISTS "runes_entries" (
 	"etched_at" TIMESTAMP NOT NULL
 );
 CREATE UNIQUE INDEX IF NOT EXISTS runes_entries_rune_idx ON "runes_entries" USING BTREE ("rune");
+CREATE UNIQUE INDEX IF NOT EXISTS runes_entries_rune_gin_idx ON "runes_entries" USING GIN ("rune" gin_trgm_ops); -- to speed up queries with LIKE operator
 CREATE UNIQUE INDEX IF NOT EXISTS runes_entries_number_idx ON "runes_entries" USING BTREE ("number");
 
 CREATE TABLE IF NOT EXISTS "runes_entry_states" (
