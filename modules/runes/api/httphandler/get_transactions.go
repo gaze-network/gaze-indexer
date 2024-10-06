@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"encoding/hex"
 	"fmt"
+	"net/url"
 	"slices"
 
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
@@ -27,10 +28,17 @@ const (
 	getTransactionsMaxLimit = 3000
 )
 
-func (r getTransactionsRequest) Validate() error {
+func (r *getTransactionsRequest) Validate() error {
 	var errList []error
-	if r.Id != "" && !isRuneIdOrRuneName(r.Id) {
-		errList = append(errList, errors.New("'id' is not valid rune id or rune name"))
+	if r.Id != "" {
+		id, err := url.QueryUnescape(r.Id)
+		if err != nil {
+			return errors.WithStack(err)
+		}
+		r.Id = id
+		if !isRuneIdOrRuneName(r.Id) {
+			errList = append(errList, errors.Errorf("id '%s' is not valid rune id or rune name", r.Id))
+		}
 	}
 	if r.FromBlock < -1 {
 		errList = append(errList, errors.Errorf("invalid fromBlock range"))

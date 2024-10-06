@@ -1,6 +1,7 @@
 package httphandler
 
 import (
+	"net/url"
 	"slices"
 
 	"github.com/cockroachdb/errors"
@@ -17,10 +18,15 @@ type getTokenInfoRequest struct {
 	BlockHeight uint64 `query:"blockHeight"`
 }
 
-func (r getTokenInfoRequest) Validate() error {
+func (r *getTokenInfoRequest) Validate() error {
 	var errList []error
+	id, err := url.QueryUnescape(r.Id)
+	if err != nil {
+		return errors.WithStack(err)
+	}
+	r.Id = id
 	if !isRuneIdOrRuneName(r.Id) {
-		errList = append(errList, errors.New("'id' is not valid rune id or rune name"))
+		errList = append(errList, errors.Errorf("id '%s' is not valid rune id or rune name", r.Id))
 	}
 	return errs.WithPublicMessage(errors.Join(errList...), "validation error")
 }
