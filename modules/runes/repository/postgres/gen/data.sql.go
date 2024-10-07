@@ -437,6 +437,8 @@ SELECT runes_entries.rune_id, number, rune, spacers, premine, symbol, divisibili
   LEFT JOIN states ON runes_entries.rune_id = states.rune_id
   WHERE (
     runes_entries.terms = TRUE AND
+    COALESCE(runes_entries.terms_amount, 0) != 0 AND
+    COALESCE(runes_entries.terms_cap, 0) != 0 AND
     states.mints < runes_entries.terms_cap AND
     (
       runes_entries.terms_height_start IS NULL OR runes_entries.terms_height_start <= $1::integer
@@ -450,9 +452,10 @@ SELECT runes_entries.rune_id, number, rune, spacers, premine, symbol, divisibili
 
   ) AND (
     $2::text = '' OR
-    runes_entries.rune ILIKE $2::text || '%'
+    runes_entries.rune ILIKE '%' || $2::text || '%'
   )
-  ORDER BY (states.mints / runes_entries.terms_cap::float) DESC
+  ORDER BY (COALESCE(runes_entries.premine, 0) + COALESCE(runes_entries.terms_amount, 0) * COALESCE(states.mints, 0)) / 
+          (COALESCE(runes_entries.premine, 0) + COALESCE(runes_entries.terms_amount, 0) * COALESCE(runes_entries.terms_cap, 0))::float DESC
   LIMIT $4 OFFSET $3
 `
 
