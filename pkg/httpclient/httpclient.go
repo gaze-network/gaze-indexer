@@ -15,10 +15,9 @@ import (
 )
 
 var DefaultClient = fasthttp.Client{
-	MaxConnsPerHost:    10240,           // default is 512
-	MaxConnWaitTimeout: 5 * time.Second, // default is no wating
-	ReadBufferSize:     4 * 1024,
-	WriteBufferSize:    4 * 1024,
+	MaxConnsPerHost: 10240, // default is 512
+	ReadBufferSize:  4 * 1024,
+	WriteBufferSize: 4 * 1024,
 }
 
 type Config struct {
