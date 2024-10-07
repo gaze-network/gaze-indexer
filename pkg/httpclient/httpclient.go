@@ -14,7 +14,7 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-var defaultClient = fasthttp.Client{
+var DefaultClient = fasthttp.Client{
 	MaxConnsPerHost:    10240,           // default is 512
 	MaxConnWaitTimeout: 5 * time.Second, // default is no wating
 	ReadBufferSize:     4 * 1024,
@@ -150,7 +150,7 @@ func (h *Client) request(ctx context.Context, reqOptions RequestOptions) (*HttpR
 		fasthttp.ReleaseRequest(req)
 	}()
 
-	if err := defaultClient.Do(req, resp); err != nil {
+	if err := DefaultClient.Do(req, resp); err != nil {
 		return nil, errors.Wrapf(err, "url: %s", url)
 	}
 
