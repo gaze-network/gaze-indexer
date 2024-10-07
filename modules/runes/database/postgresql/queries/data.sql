@@ -86,6 +86,8 @@ SELECT * FROM runes_entries
   LEFT JOIN states ON runes_entries.rune_id = states.rune_id
   WHERE (
     runes_entries.terms = TRUE AND
+    COALESCE(runes_entries.terms_amount, 0) != 0 AND
+    COALESCE(runes_entries.terms_cap, 0) != 0 AND
     states.mints < runes_entries.terms_cap AND
     (
       runes_entries.terms_height_start IS NULL OR runes_entries.terms_height_start <= @height::integer
@@ -99,9 +101,10 @@ SELECT * FROM runes_entries
 
   ) AND (
     @search::text = '' OR
-    runes_entries.rune ILIKE @search::text || '%'
+    runes_entries.rune ILIKE '%' || @search::text || '%'
   )
-  ORDER BY (states.mints / runes_entries.terms_cap::float) DESC
+  ORDER BY (COALESCE(runes_entries.premine, 0) + COALESCE(runes_entries.terms_amount, 0) * COALESCE(states.mints, 0)) / 
+          (COALESCE(runes_entries.premine, 0) + COALESCE(runes_entries.terms_amount, 0) * COALESCE(runes_entries.terms_cap, 0))::float DESC
   LIMIT @_limit OFFSET @_offset;
 
 -- name: GetRuneIdFromRune :one
