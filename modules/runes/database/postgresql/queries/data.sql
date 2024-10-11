@@ -103,8 +103,7 @@ SELECT * FROM runes_entries
     @search::text = '' OR
     runes_entries.rune ILIKE '%' || @search::text || '%'
   )
-  ORDER BY (COALESCE(runes_entries.premine, 0) + COALESCE(runes_entries.terms_amount, 0) * COALESCE(states.mints, 0)) / 
-          (COALESCE(runes_entries.premine, 0) + COALESCE(runes_entries.terms_amount, 0) * COALESCE(runes_entries.terms_cap, 0))::float DESC
+  ORDER BY states.mints DESC
   LIMIT @_limit OFFSET @_offset;
 
 -- name: GetRuneIdFromRune :one
@@ -137,24 +136,24 @@ SELECT * FROM runes_transactions
 -- name: CountRuneEntries :one
 SELECT COUNT(*) FROM runes_entries;
 
--- name: CreateRuneEntry :exec
+-- name: CreateRuneEntries :batchexec
 INSERT INTO runes_entries (rune_id, rune, number, spacers, premine, symbol, divisibility, terms, terms_amount, terms_cap, terms_height_start, terms_height_end, terms_offset_start, terms_offset_end, turbo, etching_block, etching_tx_hash, etched_at)
   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18);
 
--- name: CreateRuneEntryState :exec
+-- name: CreateRuneEntryStates :batchexec
 INSERT INTO runes_entry_states (rune_id, block_height, mints, burned_amount, completed_at, completed_at_height) VALUES ($1, $2, $3, $4, $5, $6);
 
--- name: CreateRuneTransaction :exec
+-- name: CreateRuneTransactions :batchexec
 INSERT INTO runes_transactions (hash, block_height, index, timestamp, inputs, outputs, mints, burns, rune_etched) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9);
 
--- name: CreateRunestone :exec
+-- name: CreateRunestones :batchexec
 INSERT INTO runes_runestones (tx_hash, block_height, etching, etching_divisibility, etching_premine, etching_rune, etching_spacers, etching_symbol, etching_terms, etching_terms_amount, etching_terms_cap, etching_terms_height_start, etching_terms_height_end, etching_terms_offset_start, etching_terms_offset_end, etching_turbo, edicts, mint, pointer, cenotaph, flaws) 
   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21);
 
 -- name: CreateOutPointBalances :batchexec
 INSERT INTO runes_outpoint_balances (rune_id, pkscript, tx_hash, tx_idx, amount, block_height, spent_height) VALUES ($1, $2, $3, $4, $5, $6, $7);
 
--- name: SpendOutPointBalances :exec
+-- name: SpendOutPointBalancesBatch :batchexec
 UPDATE runes_outpoint_balances SET spent_height = $1 WHERE tx_hash = $2 AND tx_idx = $3;
 
 -- name: CreateRuneBalanceAtBlock :batchexec
