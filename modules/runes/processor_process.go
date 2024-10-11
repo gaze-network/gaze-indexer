@@ -669,6 +669,7 @@ func (p *Processor) getRunesBalancesAtOutPoint(ctx context.Context, outPoint wir
 }
 
 func (p *Processor) flushBlock(ctx context.Context, blockHeader types.BlockHeader) error {
+	start := time.Now()
 	runesDgTx, err := p.runesDg.BeginRunesTx(ctx)
 	if err != nil {
 		return errors.Wrap(err, "failed to begin runes tx")
@@ -776,6 +777,7 @@ func (p *Processor) flushBlock(ctx context.Context, blockHeader types.BlockHeade
 	if err := runesDgTx.Commit(ctx); err != nil {
 		return errors.Wrap(err, "failed to commit runes tx")
 	}
+	timeTaken := time.Since(start)
 	logger.InfoContext(ctx, "Flushed block",
 		slog.Int64("height", blockHeader.Height),
 		slog.String("hash", blockHeader.Hash.String()),
@@ -787,6 +789,7 @@ func (p *Processor) flushBlock(ctx context.Context, blockHeader types.BlockHeade
 		slog.Int("new_spend_outpoints", len(newSpendOutPoints)),
 		slog.Int("new_balances", len(params)),
 		slog.Int("new_rune_txs", len(newRuneTxs)),
+		slogx.Duration("time_taken", timeTaken),
 	)
 
 	// submit event to reporting system
