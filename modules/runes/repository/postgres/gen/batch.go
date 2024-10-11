@@ -128,3 +128,344 @@ func (b *CreateRuneBalanceAtBlockBatchResults) Close() error {
 	b.closed = true
 	return b.br.Close()
 }
+
+const createRuneEntries = `-- name: CreateRuneEntries :batchexec
+INSERT INTO runes_entries (rune_id, rune, number, spacers, premine, symbol, divisibility, terms, terms_amount, terms_cap, terms_height_start, terms_height_end, terms_offset_start, terms_offset_end, turbo, etching_block, etching_tx_hash, etched_at)
+  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+`
+
+type CreateRuneEntriesBatchResults struct {
+	br     pgx.BatchResults
+	tot    int
+	closed bool
+}
+
+type CreateRuneEntriesParams struct {
+	RuneID           string
+	Rune             string
+	Number           int64
+	Spacers          int32
+	Premine          pgtype.Numeric
+	Symbol           int32
+	Divisibility     int16
+	Terms            bool
+	TermsAmount      pgtype.Numeric
+	TermsCap         pgtype.Numeric
+	TermsHeightStart pgtype.Int4
+	TermsHeightEnd   pgtype.Int4
+	TermsOffsetStart pgtype.Int4
+	TermsOffsetEnd   pgtype.Int4
+	Turbo            bool
+	EtchingBlock     int32
+	EtchingTxHash    string
+	EtchedAt         pgtype.Timestamp
+}
+
+func (q *Queries) CreateRuneEntries(ctx context.Context, arg []CreateRuneEntriesParams) *CreateRuneEntriesBatchResults {
+	batch := &pgx.Batch{}
+	for _, a := range arg {
+		vals := []interface{}{
+			a.RuneID,
+			a.Rune,
+			a.Number,
+			a.Spacers,
+			a.Premine,
+			a.Symbol,
+			a.Divisibility,
+			a.Terms,
+			a.TermsAmount,
+			a.TermsCap,
+			a.TermsHeightStart,
+			a.TermsHeightEnd,
+			a.TermsOffsetStart,
+			a.TermsOffsetEnd,
+			a.Turbo,
+			a.EtchingBlock,
+			a.EtchingTxHash,
+			a.EtchedAt,
+		}
+		batch.Queue(createRuneEntries, vals...)
+	}
+	br := q.db.SendBatch(ctx, batch)
+	return &CreateRuneEntriesBatchResults{br, len(arg), false}
+}
+
+func (b *CreateRuneEntriesBatchResults) Exec(f func(int, error)) {
+	defer b.br.Close()
+	for t := 0; t < b.tot; t++ {
+		if b.closed {
+			if f != nil {
+				f(t, ErrBatchAlreadyClosed)
+			}
+			continue
+		}
+		_, err := b.br.Exec()
+		if f != nil {
+			f(t, err)
+		}
+	}
+}
+
+func (b *CreateRuneEntriesBatchResults) Close() error {
+	b.closed = true
+	return b.br.Close()
+}
+
+const createRuneEntryStates = `-- name: CreateRuneEntryStates :batchexec
+INSERT INTO runes_entry_states (rune_id, block_height, mints, burned_amount, completed_at, completed_at_height) VALUES ($1, $2, $3, $4, $5, $6)
+`
+
+type CreateRuneEntryStatesBatchResults struct {
+	br     pgx.BatchResults
+	tot    int
+	closed bool
+}
+
+type CreateRuneEntryStatesParams struct {
+	RuneID            string
+	BlockHeight       int32
+	Mints             pgtype.Numeric
+	BurnedAmount      pgtype.Numeric
+	CompletedAt       pgtype.Timestamp
+	CompletedAtHeight pgtype.Int4
+}
+
+func (q *Queries) CreateRuneEntryStates(ctx context.Context, arg []CreateRuneEntryStatesParams) *CreateRuneEntryStatesBatchResults {
+	batch := &pgx.Batch{}
+	for _, a := range arg {
+		vals := []interface{}{
+			a.RuneID,
+			a.BlockHeight,
+			a.Mints,
+			a.BurnedAmount,
+			a.CompletedAt,
+			a.CompletedAtHeight,
+		}
+		batch.Queue(createRuneEntryStates, vals...)
+	}
+	br := q.db.SendBatch(ctx, batch)
+	return &CreateRuneEntryStatesBatchResults{br, len(arg), false}
+}
+
+func (b *CreateRuneEntryStatesBatchResults) Exec(f func(int, error)) {
+	defer b.br.Close()
+	for t := 0; t < b.tot; t++ {
+		if b.closed {
+			if f != nil {
+				f(t, ErrBatchAlreadyClosed)
+			}
+			continue
+		}
+		_, err := b.br.Exec()
+		if f != nil {
+			f(t, err)
+		}
+	}
+}
+
+func (b *CreateRuneEntryStatesBatchResults) Close() error {
+	b.closed = true
+	return b.br.Close()
+}
+
+const createRuneTransactions = `-- name: CreateRuneTransactions :batchexec
+INSERT INTO runes_transactions (hash, block_height, index, timestamp, inputs, outputs, mints, burns, rune_etched) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+`
+
+type CreateRuneTransactionsBatchResults struct {
+	br     pgx.BatchResults
+	tot    int
+	closed bool
+}
+
+type CreateRuneTransactionsParams struct {
+	Hash        string
+	BlockHeight int32
+	Index       int32
+	Timestamp   pgtype.Timestamp
+	Inputs      []byte
+	Outputs     []byte
+	Mints       []byte
+	Burns       []byte
+	RuneEtched  bool
+}
+
+func (q *Queries) CreateRuneTransactions(ctx context.Context, arg []CreateRuneTransactionsParams) *CreateRuneTransactionsBatchResults {
+	batch := &pgx.Batch{}
+	for _, a := range arg {
+		vals := []interface{}{
+			a.Hash,
+			a.BlockHeight,
+			a.Index,
+			a.Timestamp,
+			a.Inputs,
+			a.Outputs,
+			a.Mints,
+			a.Burns,
+			a.RuneEtched,
+		}
+		batch.Queue(createRuneTransactions, vals...)
+	}
+	br := q.db.SendBatch(ctx, batch)
+	return &CreateRuneTransactionsBatchResults{br, len(arg), false}
+}
+
+func (b *CreateRuneTransactionsBatchResults) Exec(f func(int, error)) {
+	defer b.br.Close()
+	for t := 0; t < b.tot; t++ {
+		if b.closed {
+			if f != nil {
+				f(t, ErrBatchAlreadyClosed)
+			}
+			continue
+		}
+		_, err := b.br.Exec()
+		if f != nil {
+			f(t, err)
+		}
+	}
+}
+
+func (b *CreateRuneTransactionsBatchResults) Close() error {
+	b.closed = true
+	return b.br.Close()
+}
+
+const createRunestones = `-- name: CreateRunestones :batchexec
+INSERT INTO runes_runestones (tx_hash, block_height, etching, etching_divisibility, etching_premine, etching_rune, etching_spacers, etching_symbol, etching_terms, etching_terms_amount, etching_terms_cap, etching_terms_height_start, etching_terms_height_end, etching_terms_offset_start, etching_terms_offset_end, etching_turbo, edicts, mint, pointer, cenotaph, flaws) 
+  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+`
+
+type CreateRunestonesBatchResults struct {
+	br     pgx.BatchResults
+	tot    int
+	closed bool
+}
+
+type CreateRunestonesParams struct {
+	TxHash                  string
+	BlockHeight             int32
+	Etching                 bool
+	EtchingDivisibility     pgtype.Int2
+	EtchingPremine          pgtype.Numeric
+	EtchingRune             pgtype.Text
+	EtchingSpacers          pgtype.Int4
+	EtchingSymbol           pgtype.Int4
+	EtchingTerms            pgtype.Bool
+	EtchingTermsAmount      pgtype.Numeric
+	EtchingTermsCap         pgtype.Numeric
+	EtchingTermsHeightStart pgtype.Int4
+	EtchingTermsHeightEnd   pgtype.Int4
+	EtchingTermsOffsetStart pgtype.Int4
+	EtchingTermsOffsetEnd   pgtype.Int4
+	EtchingTurbo            pgtype.Bool
+	Edicts                  []byte
+	Mint                    pgtype.Text
+	Pointer                 pgtype.Int4
+	Cenotaph                bool
+	Flaws                   int32
+}
+
+func (q *Queries) CreateRunestones(ctx context.Context, arg []CreateRunestonesParams) *CreateRunestonesBatchResults {
+	batch := &pgx.Batch{}
+	for _, a := range arg {
+		vals := []interface{}{
+			a.TxHash,
+			a.BlockHeight,
+			a.Etching,
+			a.EtchingDivisibility,
+			a.EtchingPremine,
+			a.EtchingRune,
+			a.EtchingSpacers,
+			a.EtchingSymbol,
+			a.EtchingTerms,
+			a.EtchingTermsAmount,
+			a.EtchingTermsCap,
+			a.EtchingTermsHeightStart,
+			a.EtchingTermsHeightEnd,
+			a.EtchingTermsOffsetStart,
+			a.EtchingTermsOffsetEnd,
+			a.EtchingTurbo,
+			a.Edicts,
+			a.Mint,
+			a.Pointer,
+			a.Cenotaph,
+			a.Flaws,
+		}
+		batch.Queue(createRunestones, vals...)
+	}
+	br := q.db.SendBatch(ctx, batch)
+	return &CreateRunestonesBatchResults{br, len(arg), false}
+}
+
+func (b *CreateRunestonesBatchResults) Exec(f func(int, error)) {
+	defer b.br.Close()
+	for t := 0; t < b.tot; t++ {
+		if b.closed {
+			if f != nil {
+				f(t, ErrBatchAlreadyClosed)
+			}
+			continue
+		}
+		_, err := b.br.Exec()
+		if f != nil {
+			f(t, err)
+		}
+	}
+}
+
+func (b *CreateRunestonesBatchResults) Close() error {
+	b.closed = true
+	return b.br.Close()
+}
+
+const spendOutPointBalancesBatch = `-- name: SpendOutPointBalancesBatch :batchexec
+UPDATE runes_outpoint_balances SET spent_height = $1 WHERE tx_hash = $2 AND tx_idx = $3
+`
+
+type SpendOutPointBalancesBatchBatchResults struct {
+	br     pgx.BatchResults
+	tot    int
+	closed bool
+}
+
+type SpendOutPointBalancesBatchParams struct {
+	SpentHeight pgtype.Int4
+	TxHash      string
+	TxIdx       int32
+}
+
+func (q *Queries) SpendOutPointBalancesBatch(ctx context.Context, arg []SpendOutPointBalancesBatchParams) *SpendOutPointBalancesBatchBatchResults {
+	batch := &pgx.Batch{}
+	for _, a := range arg {
+		vals := []interface{}{
+			a.SpentHeight,
+			a.TxHash,
+			a.TxIdx,
+		}
+		batch.Queue(spendOutPointBalancesBatch, vals...)
+	}
+	br := q.db.SendBatch(ctx, batch)
+	return &SpendOutPointBalancesBatchBatchResults{br, len(arg), false}
+}
+
+func (b *SpendOutPointBalancesBatchBatchResults) Exec(f func(int, error)) {
+	defer b.br.Close()
+	for t := 0; t < b.tot; t++ {
+		if b.closed {
+			if f != nil {
+				f(t, ErrBatchAlreadyClosed)
+			}
+			continue
+		}
+		_, err := b.br.Exec()
+		if f != nil {
+			f(t, err)
+		}
+	}
+}
+
+func (b *SpendOutPointBalancesBatchBatchResults) Close() error {
+	b.closed = true
+	return b.br.Close()
+}

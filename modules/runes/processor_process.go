@@ -27,7 +27,7 @@ import (
 func (p *Processor) Process(ctx context.Context, blocks []*types.Block) error {
 	for _, block := range blocks {
 		ctx := logger.WithContext(ctx, slog.Int64("height", block.Header.Height))
-		logger.DebugContext(ctx, "Processing new block", slog.Int("txs", len(block.Transactions)))
+		logger.InfoContext(ctx, "Processing new block", slog.Int("txs", len(block.Transactions)))
 
 		for _, tx := range block.Transactions {
 			if err := p.processTx(ctx, tx, block.Header); err != nil {
@@ -715,78 +715,79 @@ func (p *Processor) flushBlock(ctx context.Context, blockHeader types.BlockHeade
 		return errors.Wrap(err, "failed to create indexed block")
 	}
 	// flush new rune entries
-	{
-		for _, runeEntry := range p.newRuneEntries {
-			if err := runesDgTx.CreateRuneEntry(ctx, runeEntry, uint64(blockHeader.Height)); err != nil {
-				return errors.Wrap(err, "failed to create rune entry")
-			}
-		}
-		p.newRuneEntries = make(map[runes.RuneId]*runes.RuneEntry)
+	newRuneEntries := lo.Values(p.newRuneEntries)
+	if err := runesDgTx.CreateRuneEntries(ctx, newRuneEntries, uint64(blockHeader.Height)); err != nil {
+		return errors.Wrap(err, "failed to create rune entry")
 	}
+	p.newRuneEntries = make(map[runes.RuneId]*runes.RuneEntry)
+
 	// flush new rune entry states
-	{
-		for _, runeEntry := range p.newRuneEntryStates {
-			if err := runesDgTx.CreateRuneEntryState(ctx, runeEntry, uint64(blockHeader.Height)); err != nil {
-				return errors.Wrap(err, "failed to create rune entry state")
-			}
-		}
-		p.newRuneEntryStates = make(map[runes.RuneId]*runes.RuneEntry)
+	newRuneEntryStates := lo.Values(p.newRuneEntryStates)
+	if err := runesDgTx.CreateRuneEntryStates(ctx, newRuneEntryStates, uint64(blockHeader.Height)); err != nil {
+		return errors.Wrap(err, "failed to create rune entry state")
 	}
+	p.newRuneEntryStates = make(map[runes.RuneId]*runes.RuneEntry)
+
 	// flush new outpoint balances
-	{
-		newBalances := make([]*entity.OutPointBalance, 0)
-		for _, balances := range p.newOutPointBalances {
-			newBalances = append(newBalances, balances...)
-		}
-		if err := runesDgTx.CreateOutPointBalances(ctx, newBalances); err != nil {
-			return errors.Wrap(err, "failed to create outpoint balances")
-		}
-		p.newOutPointBalances = make(map[wire.OutPoint][]*entity.OutPointBalance)
+	newBalances := make([]*entity.OutPointBalance, 0)
+	for _, balances := range p.newOutPointBalances {
+		newBalances = append(newBalances, balances...)
 	}
+	if err := runesDgTx.CreateOutPointBalances(ctx, newBalances); err != nil {
+		return errors.Wrap(err, "failed to create outpoint balances")
+	}
+	p.newOutPointBalances = make(map[wire.OutPoint][]*entity.OutPointBalance)
+
 	// flush new spend outpoints
-	{
-		for _, outPoint := range p.newSpendOutPoints {
-			if err := runesDgTx.SpendOutPointBalances(ctx, outPoint, uint64(blockHeader.Height)); err != nil {
-				return errors.Wrap(err, "failed to create spend outpoint")
-			}
-		}
-		p.newSpendOutPoints = make([]wire.OutPoint, 0)
+	newSpendOutPoints := p.newSpendOutPoints
+	if err := runesDgTx.SpendOutPointBalancesBatch(ctx, newSpendOutPoints, uint64(blockHeader.Height)); err != nil {
+		return errors.Wrap(err, "failed to create spend outpoint")
 	}
+	p.newSpendOutPoints = make([]wire.OutPoint, 0)
+
 	// flush new balances
-	{
-		params := make([]datagateway.CreateRuneBalancesParams, 0)
-		for pkScriptStr, balances := range p.newBalances {
-			pkScript, err := hex.DecodeString(pkScriptStr)
-			if err != nil {
-				return errors.Wrap(err, "failed to decode pk script")
-			}
-			for runeId, balance := range balances {
-				params = append(params, datagateway.CreateRuneBalancesParams{
-					PkScript:    pkScript,
-					RuneId:      runeId,
-					Balance:     balance,
-					BlockHeight: uint64(blockHeader.Height),
-				})
-			}
+	params := make([]datagateway.CreateRuneBalancesParams, 0)
+	for pkScriptStr, balances := range p.newBalances {
+		pkScript, err := hex.DecodeString(pkScriptStr)
+		if err != nil {
+			return errors.Wrap(err, "failed to decode pk script")
 		}
-		if err := runesDgTx.CreateRuneBalances(ctx, params); err != nil {
-			return errors.Wrap(err, "failed to create balances at block")
+		for runeId, balance := range balances {
+			params = append(params, datagateway.CreateRuneBalancesParams{
+				PkScript:    pkScript,
+				RuneId:      runeId,
+				Balance:     balance,
+				BlockHeight: uint64(blockHeader.Height),
+			})
 		}
-		p.newBalances = make(map[string]map[runes.RuneId]uint128.Uint128)
 	}
+	if err := runesDgTx.CreateRuneBalances(ctx, params); err != nil {
+		return errors.Wrap(err, "failed to create balances at block")
+	}
+	p.newBalances = make(map[string]map[runes.RuneId]uint128.Uint128)
+
 	// flush new rune transactions
-	{
-		for _, runeTx := range p.newRuneTxs {
-			if err := runesDgTx.CreateRuneTransaction(ctx, runeTx); err != nil {
-				return errors.Wrap(err, "failed to create rune transaction")
-			}
-		}
-		p.newRuneTxs = make([]*entity.RuneTransaction, 0)
+	newRuneTxs := p.newRuneTxs
+	if err := runesDgTx.CreateRuneTransactions(ctx, newRuneTxs); err != nil {
+		return errors.Wrap(err, "failed to create rune transaction")
 	}
+	p.newRuneTxs = make([]*entity.RuneTransaction, 0)
 
 	if err := runesDgTx.Commit(ctx); err != nil {
 		return errors.Wrap(err, "failed to commit runes tx")
 	}
+	logger.InfoContext(ctx, "Flushed block",
+		slog.Int64("height", blockHeader.Height),
+		slog.String("hash", blockHeader.Hash.String()),
+		slog.String("event_hash", hex.EncodeToString(eventHash[:])),
+		slog.String("cumulative_event_hash", hex.EncodeToString(cumulativeEventHash[:])),
+		slog.Int("new_rune_entries", len(newRuneEntries)),
+		slog.Int("new_rune_entry_states", len(newRuneEntryStates)),
+		slog.Int("new_outpoint_balances", len(newBalances)),
+		slog.Int("new_spend_outpoints", len(newSpendOutPoints)),
+		slog.Int("new_balances", len(params)),
+		slog.Int("new_rune_txs", len(newRuneTxs)),
+	)
 
 	// submit event to reporting system
 	if p.reportingClient != nil {

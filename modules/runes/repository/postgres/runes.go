@@ -478,49 +478,94 @@ func (r *Repository) GetTotalHoldersByRuneIds(ctx context.Context, runeIds []run
 	return holders, nil
 }
 
-func (r *Repository) CreateRuneTransaction(ctx context.Context, tx *entity.RuneTransaction) error {
-	if tx == nil {
+func (r *Repository) CreateRuneTransactions(ctx context.Context, txs []*entity.RuneTransaction) error {
+	if len(txs) == 0 {
 		return nil
 	}
-	txParams, runestoneParams, err := mapRuneTransactionTypeToParams(*tx)
-	if err != nil {
-		return errors.Wrap(err, "failed to map rune transaction to params")
-	}
-	if err = r.queries.CreateRuneTransaction(ctx, txParams); err != nil {
-		return errors.Wrap(err, "error during exec CreateRuneTransaction")
-	}
-	if runestoneParams != nil {
-		if err = r.queries.CreateRunestone(ctx, *runestoneParams); err != nil {
-			return errors.Wrap(err, "error during exec CreateRunestone")
+	txParams := make([]gen.CreateRuneTransactionsParams, 0, len(txs))
+	runestoneParams := make([]gen.CreateRunestonesParams, 0, len(txs))
+	for _, tx := range txs {
+		txParam, runestoneParam, err := mapRuneTransactionTypeToParams(*tx)
+		if err != nil {
+			return errors.Wrap(err, "failed to map rune transaction to params")
+		}
+		txParams = append(txParams, txParam)
+		if runestoneParam != nil {
+			runestoneParams = append(runestoneParams, *runestoneParam)
 		}
 	}
+	createTxResults := r.queries.CreateRuneTransactions(ctx, txParams)
+	var execErrors []error
+	createTxResults.Exec(func(i int, err error) {
+		if err != nil {
+			execErrors = append(execErrors, err)
+		}
+	})
+	if len(execErrors) > 0 {
+		return errors.Wrap(errors.Join(execErrors...), "error during exec CreateRuneTransactions")
+	}
+
+	createRunestoneResults := r.queries.CreateRunestones(ctx, runestoneParams)
+	execErrors = make([]error, 0)
+	createRunestoneResults.Exec(func(i int, err error) {
+		if err != nil {
+			execErrors = append(execErrors, err)
+		}
+	})
+	if len(execErrors) > 0 {
+		return errors.Wrap(errors.Join(execErrors...), "error during exec CreateRunestones")
+	}
 	return nil
 }
 
-func (r *Repository) CreateRuneEntry(ctx context.Context, entry *runes.RuneEntry, blockHeight uint64) error {
-	if entry == nil {
+func (r *Repository) CreateRuneEntries(ctx context.Context, entries []*runes.RuneEntry, blockHeight uint64) error {
+	if len(entries) == 0 {
 		return nil
 	}
-	createParams, _, err := mapRuneEntryTypeToParams(*entry, blockHeight)
-	if err != nil {
-		return errors.Wrap(err, "failed to map rune entry to params")
+	createParams := make([]gen.CreateRuneEntriesParams, 0, len(entries))
+	for _, entry := range entries {
+		param, _, err := mapRuneEntryTypeToParams(*entry, blockHeight)
+		if err != nil {
+			return errors.Wrap(err, "failed to map rune entry to params")
+		}
+		createParams = append(createParams, param)
 	}
-	if err = r.queries.CreateRuneEntry(ctx, createParams); err != nil {
-		return errors.Wrap(err, "error during exec CreateRuneEntry")
+
+	results := r.queries.CreateRuneEntries(ctx, createParams)
+	var execErrors []error
+	results.Exec(func(i int, err error) {
+		if err != nil {
+			execErrors = append(execErrors, err)
+		}
+	})
+	if len(execErrors) > 0 {
+		return errors.Wrap(errors.Join(execErrors...), "error during exec CreateRuneEntries")
 	}
 	return nil
 }
 
-func (r *Repository) CreateRuneEntryState(ctx context.Context, entry *runes.RuneEntry, blockHeight uint64) error {
-	if entry == nil {
+func (r *Repository) CreateRuneEntryStates(ctx context.Context, entries []*runes.RuneEntry, blockHeight uint64) error {
+	if len(entries) == 0 {
 		return nil
 	}
-	_, createStateParams, err := mapRuneEntryTypeToParams(*entry, blockHeight)
-	if err != nil {
-		return errors.Wrap(err, "failed to map rune entry to params")
+	createParams := make([]gen.CreateRuneEntryStatesParams, 0, len(entries))
+	for _, entry := range entries {
+		_, param, err := mapRuneEntryTypeToParams(*entry, blockHeight)
+		if err != nil {
+			return errors.Wrap(err, "failed to map rune entry to params")
+		}
+		createParams = append(createParams, param)
 	}
-	if err = r.queries.CreateRuneEntryState(ctx, createStateParams); err != nil {
-		return errors.Wrap(err, "error during exec CreateRuneEntryState")
+
+	results := r.queries.CreateRuneEntryStates(ctx, createParams)
+	var execErrors []error
+	results.Exec(func(i int, err error) {
+		if err != nil {
+			execErrors = append(execErrors, err)
+		}
+	})
+	if len(execErrors) > 0 {
+		return errors.Wrap(errors.Join(execErrors...), "error during exec CreateRuneEntryStates")
 	}
 	return nil
 }
@@ -547,13 +592,25 @@ func (r *Repository) CreateOutPointBalances(ctx context.Context, outPointBalance
 	return nil
 }
 
-func (r *Repository) SpendOutPointBalances(ctx context.Context, outPoint wire.OutPoint, blockHeight uint64) error {
-	if err := r.queries.SpendOutPointBalances(ctx, gen.SpendOutPointBalancesParams{
-		TxHash:      outPoint.Hash.String(),
-		TxIdx:       int32(outPoint.Index),
-		SpentHeight: pgtype.Int4{Int32: int32(blockHeight), Valid: true},
-	}); err != nil {
-		return errors.Wrap(err, "error during exec")
+func (r *Repository) SpendOutPointBalancesBatch(ctx context.Context, outPoints []wire.OutPoint, blockHeight uint64) error {
+	params := make([]gen.SpendOutPointBalancesBatchParams, 0, len(outPoints))
+	for _, outPoint := range outPoints {
+		params = append(params, gen.SpendOutPointBalancesBatchParams{
+			TxHash:      outPoint.Hash.String(),
+			TxIdx:       int32(outPoint.Index),
+			SpentHeight: pgtype.Int4{Int32: int32(blockHeight), Valid: true},
+		})
+	}
+
+	results := r.queries.SpendOutPointBalancesBatch(ctx, params)
+	var execErrors []error
+	results.Exec(func(i int, err error) {
+		if err != nil {
+			execErrors = append(execErrors, err)
+		}
+	})
+	if len(execErrors) > 0 {
+		return errors.Wrap(errors.Join(execErrors...), "error during exec")
 	}
 	return nil
 }

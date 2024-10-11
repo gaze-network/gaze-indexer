@@ -145,7 +145,10 @@ func (p *Processor) ensureGenesisRune(ctx context.Context, network common.Networ
 			EtchingTxHash:     genesisRuneConfig.EtchingTxHash,
 			EtchedAt:          genesisRuneConfig.EtchedAt,
 		}
-		if err := p.runesDg.CreateRuneEntry(ctx, runeEntry, genesisRuneConfig.RuneId.BlockHeight); err != nil {
+		if err := p.runesDg.CreateRuneEntries(ctx, []*runes.RuneEntry{runeEntry}, genesisRuneConfig.RuneId.BlockHeight); err != nil {
+			return errors.Wrap(err, "failed to create genesis rune entry")
+		}
+		if err := p.runesDg.CreateRuneEntryStates(ctx, []*runes.RuneEntry{runeEntry}, genesisRuneConfig.RuneId.BlockHeight); err != nil {
 			return errors.Wrap(err, "failed to create genesis rune entry")
 		}
 	}
