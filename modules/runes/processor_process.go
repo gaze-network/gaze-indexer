@@ -27,7 +27,10 @@ import (
 func (p *Processor) Process(ctx context.Context, blocks []*types.Block) error {
 	for _, block := range blocks {
 		ctx := logger.WithContext(ctx, slog.Int64("height", block.Header.Height))
-		logger.InfoContext(ctx, "Processing new block", slog.Int("txs", len(block.Transactions)))
+		logger.InfoContext(ctx, "Processing new block",
+			slogx.String("event", "runes_processor_processing_block"),
+			slog.Int("txs", len(block.Transactions)),
+		)
 
 		start := time.Now()
 		for _, tx := range block.Transactions {
@@ -36,7 +39,10 @@ func (p *Processor) Process(ctx context.Context, blocks []*types.Block) error {
 			}
 		}
 		timeTakenToProcess := time.Since(start)
-		logger.InfoContext(ctx, "Processed block", slog.Duration("time_taken", timeTakenToProcess))
+		logger.InfoContext(ctx, "Processed block",
+			slogx.String("event", "runes_processor_processed_block"),
+			slog.Duration("time_taken", timeTakenToProcess),
+		)
 
 		if err := p.flushBlock(ctx, block.Header); err != nil {
 			return errors.Wrap(err, "failed to flush block")
@@ -780,6 +786,7 @@ func (p *Processor) flushBlock(ctx context.Context, blockHeader types.BlockHeade
 	}
 	timeTaken := time.Since(start)
 	logger.InfoContext(ctx, "Flushed block",
+		slogx.String("event", "runes_processor_flushed_block"),
 		slog.Int64("height", blockHeader.Height),
 		slog.String("hash", blockHeader.Hash.String()),
 		slog.String("event_hash", hex.EncodeToString(eventHash[:])),
