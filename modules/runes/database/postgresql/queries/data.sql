@@ -103,8 +103,7 @@ SELECT * FROM runes_entries
     @search::text = '' OR
     runes_entries.rune ILIKE '%' || @search::text || '%'
   )
-  ORDER BY (COALESCE(runes_entries.premine, 0) + COALESCE(runes_entries.terms_amount, 0) * COALESCE(states.mints, 0)) / 
-          (COALESCE(runes_entries.premine, 0) + COALESCE(runes_entries.terms_amount, 0) * COALESCE(runes_entries.terms_cap, 0))::float DESC
+  ORDER BY states.mints DESC
   LIMIT @_limit OFFSET @_offset;
 
 -- name: GetRuneIdFromRune :one

@@ -454,8 +454,7 @@ SELECT runes_entries.rune_id, number, rune, spacers, premine, symbol, divisibili
     $2::text = '' OR
     runes_entries.rune ILIKE '%' || $2::text || '%'
   )
-  ORDER BY (COALESCE(runes_entries.premine, 0) + COALESCE(runes_entries.terms_amount, 0) * COALESCE(states.mints, 0)) / 
-          (COALESCE(runes_entries.premine, 0) + COALESCE(runes_entries.terms_amount, 0) * COALESCE(runes_entries.terms_cap, 0))::float DESC
+  ORDER BY states.mints DESC
   LIMIT $4 OFFSET $3
 `
 
