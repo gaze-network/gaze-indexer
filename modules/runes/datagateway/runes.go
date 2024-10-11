@@ -65,12 +65,12 @@ type RunesReaderDataGateway interface {
 }
 
 type RunesWriterDataGateway interface {
-	CreateRuneEntry(ctx context.Context, entry *runes.RuneEntry, blockHeight uint64) error
-	CreateRuneEntryState(ctx context.Context, entry *runes.RuneEntry, blockHeight uint64) error
+	CreateRuneEntries(ctx context.Context, entries []*runes.RuneEntry, blockHeight uint64) error
+	CreateRuneEntryStates(ctx context.Context, entries []*runes.RuneEntry, blockHeight uint64) error
 	CreateOutPointBalances(ctx context.Context, outPointBalances []*entity.OutPointBalance) error
-	SpendOutPointBalances(ctx context.Context, outPoint wire.OutPoint, blockHeight uint64) error
+	SpendOutPointBalancesBatch(ctx context.Context, outPoints []wire.OutPoint, blockHeight uint64) error
 	CreateRuneBalances(ctx context.Context, params []CreateRuneBalancesParams) error
-	CreateRuneTransaction(ctx context.Context, tx *entity.RuneTransaction) error
+	CreateRuneTransactions(ctx context.Context, txs []*entity.RuneTransaction) error
 	CreateIndexedBlock(ctx context.Context, block *entity.IndexedBlock) error
 
 	// TODO: collapse these into a single function (ResetStateToHeight)?
