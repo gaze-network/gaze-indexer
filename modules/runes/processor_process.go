@@ -29,17 +29,18 @@ func (p *Processor) Process(ctx context.Context, blocks []*types.Block) error {
 		ctx := logger.WithContext(ctx, slog.Int64("height", block.Header.Height))
 		logger.InfoContext(ctx, "Processing new block", slog.Int("txs", len(block.Transactions)))
 
+		start := time.Now()
 		for _, tx := range block.Transactions {
 			if err := p.processTx(ctx, tx, block.Header); err != nil {
 				return errors.Wrap(err, "failed to process tx")
 			}
 		}
+		timeTakenToProcess := time.Since(start)
+		logger.InfoContext(ctx, "Processed block", slog.Duration("time_taken", timeTakenToProcess))
 
 		if err := p.flushBlock(ctx, block.Header); err != nil {
 			return errors.Wrap(err, "failed to flush block")
 		}
-
-		logger.DebugContext(ctx, "Inserted new block")
 	}
 	return nil
 }
