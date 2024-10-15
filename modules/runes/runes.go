@@ -67,10 +67,11 @@ func New(injector do.Injector) (indexer.IndexerWorker, error) {
 	}
 
 	processor := NewProcessor(runesDg, indexerInfoDg, bitcoinClient, conf.Network, reportingClient, cleanupFuncs)
-	if err := processor.VerifyStates(ctx); err != nil {
-		return nil, errors.WithStack(err)
+	if !conf.APIOnly {
+		if err := processor.VerifyStates(ctx); err != nil {
+			return nil, errors.WithStack(err)
+		}
 	}
-
 	// Mount API
 	apiHandlers := lo.Uniq(conf.Modules.Runes.APIHandlers)
 	for _, handler := range apiHandlers {
