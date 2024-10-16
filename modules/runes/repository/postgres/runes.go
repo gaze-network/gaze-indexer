@@ -495,7 +495,7 @@ func (r *Repository) CreateRuneTransactions(ctx context.Context, txs []*entity.R
 	if err != nil {
 		return errors.Wrap(err, "failed to map runestones to params")
 	}
-	if err := r.queries.BatchCreateRunestones(ctx, runestoneParams); err != nil {
+	if err := r.queries.BatchCreateRunestonesPatched(ctx, runestoneParams); err != nil {
 		return errors.Wrap(err, "error during exec BatchCreateRunestones")
 	}
 
@@ -512,7 +512,7 @@ func (r *Repository) CreateRuneEntries(ctx context.Context, entries []*runes.Run
 		return errors.Wrap(err, "failed to map rune entries to params")
 	}
 
-	if err := r.queries.BatchCreateRuneEntries(ctx, params); err != nil {
+	if err := r.queries.BatchCreateRuneEntriesPatched(ctx, params); err != nil {
 		return errors.Wrap(err, "error during exec")
 	}
 
@@ -529,7 +529,7 @@ func (r *Repository) CreateRuneEntryStates(ctx context.Context, entries []*runes
 		return errors.Wrap(err, "failed to map rune entry states to params")
 	}
 
-	if err := r.queries.BatchCreateRuneEntryStates(ctx, params); err != nil {
+	if err := r.queries.BatchCreateRuneEntryStatesPatched(ctx, params); err != nil {
 		return errors.Wrap(err, "error during exec")
 	}
 
@@ -546,7 +546,7 @@ func (r *Repository) CreateOutPointBalances(ctx context.Context, outPointBalance
 		return errors.Wrap(err, "failed to map outpoint balances to params")
 	}
 
-	if err := r.queries.BatchCreateRunesOutpointBalances(ctx, params); err != nil {
+	if err := r.queries.BatchCreateRunesOutpointBalancesPatched(ctx, params); err != nil {
 		return errors.Wrap(err, "error during exec")
 	}
 

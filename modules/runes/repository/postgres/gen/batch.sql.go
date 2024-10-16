@@ -22,12 +22,12 @@ VALUES(
   unnest($6::INT[]),
   unnest($7::SMALLINT[]),
   unnest($8::BOOLEAN[]),
-  unnest($9), -- (DECIMAL[]) don't cast to allow null values
-  unnest($10), -- (DECIMAL[]) don't cast to allow null values
-  unnest($11), -- (INT[]) don't cast to allow null values
-  unnest($12), -- (INT[]) don't cast to allow null values
-  unnest($13), -- (INT[]) don't cast to allow null values
-  unnest($14), -- (INT[]) don't cast to allow null values
+  unnest($9::DECIMAL[]),
+  unnest($10::DECIMAL[]),
+  unnest($11::INT[]), -- nullable (need patch)
+  unnest($12::INT[]), -- nullable (need patch)
+  unnest($13::INT[]), -- nullable (need patch)
+  unnest($14::INT[]), -- nullable (need patch)
   unnest($15::BOOLEAN[]),
   unnest($16::INT[]),
   unnest($17::TEXT[]),
@@ -44,12 +44,12 @@ type BatchCreateRuneEntriesParams struct {
 	SymbolArr           []int32
 	DivisibilityArr     []int16
 	TermsArr            []bool
-	TermsAmountArr      interface{}
-	TermsCapArr         interface{}
-	TermsHeightStartArr interface{}
-	TermsHeightEndArr   interface{}
-	TermsOffsetStartArr interface{}
-	TermsOffsetEndArr   interface{}
+	TermsAmountArr      []pgtype.Numeric
+	TermsCapArr         []pgtype.Numeric
+	TermsHeightStartArr []int32
+	TermsHeightEndArr   []int32
+	TermsOffsetStartArr []int32
+	TermsOffsetEndArr   []int32
 	TurboArr            []bool
 	EtchingBlockArr     []int32
 	EtchingTxHashArr    []string
@@ -88,7 +88,7 @@ VALUES(
   unnest($3::DECIMAL[]),
   unnest($4::DECIMAL[]),
   unnest($5::TIMESTAMP[]),
-  unnest($6) -- (INT[]) don't cast to allow null values
+  unnest($6::INT[]) -- nullable (need patch)
 )
 `
 
@@ -98,7 +98,7 @@ type BatchCreateRuneEntryStatesParams struct {
 	MintsArr             []pgtype.Numeric
 	BurnedAmountArr      []pgtype.Numeric
 	CompletedAtArr       []pgtype.Timestamp
-	CompletedAtHeightArr interface{}
+	CompletedAtHeightArr []int32
 }
 
 func (q *Queries) BatchCreateRuneEntryStates(ctx context.Context, arg BatchCreateRuneEntryStatesParams) error {
@@ -191,7 +191,7 @@ VALUES(
   unnest($4::INT[]),
   unnest($5::DECIMAL[]),
   unnest($6::INT[]),
-  unnest($7) -- (INT[]) don't cast to allow null values
+  unnest($7::INT[]) -- nullable (need patch)
 )
 `
 
@@ -202,7 +202,7 @@ type BatchCreateRunesOutpointBalancesParams struct {
 	TxIdxArr       []int32
 	AmountArr      []pgtype.Numeric
 	BlockHeightArr []int32
-	SpentHeightArr interface{}
+	SpentHeightArr []int32
 }
 
 func (q *Queries) BatchCreateRunesOutpointBalances(ctx context.Context, arg BatchCreateRunesOutpointBalancesParams) error {
@@ -224,22 +224,22 @@ VALUES(
   unnest($1::TEXT[]),
   unnest($2::INT[]),
   unnest($3::BOOLEAN[]),
-  unnest($4), -- (SMALLINT[]) don't cast to allow null values
-  unnest($5), -- (DECIMAL[]) don't cast to allow null values
-  unnest($6), -- (TEXT[]) don't cast to allow null values
-  unnest($7), -- (INT[]) don't cast to allow null values
-  unnest($8), -- (INT[]) don't cast to allow null values
-  unnest($9), -- (BOOLEAN[]) don't cast to allow null values
-  unnest($10), -- (DECIMAL[]) don't cast to allow null values
-  unnest($11), -- (DECIMAL[]) don't cast to allow null values
-  unnest($12), -- (INT[]) don't cast to allow null values
-  unnest($13), -- (INT[]) don't cast to allow null values
-  unnest($14), -- (INT[]) don't cast to allow null values
-  unnest($15), -- (INT[]) don't cast to allow null values
-  unnest($16), -- (BOOLEAN[]) don't cast to allow null values
+  unnest($4::SMALLINT[]), -- nullable (need patch)
+  unnest($5::DECIMAL[]),
+  unnest($6::TEXT[]), -- nullable (need patch)
+  unnest($7::INT[]), -- nullable (need patch)
+  unnest($8::INT[]), -- nullable (need patch)
+  unnest($9::BOOLEAN[]), -- nullable (need patch)
+  unnest($10::DECIMAL[]),
+  unnest($11::DECIMAL[]),
+  unnest($12::INT[]), -- nullable (need patch)
+  unnest($13::INT[]), -- nullable (need patch)
+  unnest($14::INT[]), -- nullable (need patch)
+  unnest($15::INT[]), -- nullable (need patch)
+  unnest($16::BOOLEAN[]), -- nullable (need patch)
   unnest($17::JSONB[]),
-  unnest($18), -- (TEXT[]) don't cast to allow null values
-  unnest($19), -- (INT[]) don't cast to allow null values
+  unnest($18::TEXT[]), -- nullable (need patch)
+  unnest($19::INT[]), -- nullable (need patch)
   unnest($20::BOOLEAN[]),
   unnest($21::INT[])
 )
@@ -249,22 +249,22 @@ type BatchCreateRunestonesParams struct {
 	TxHashArr                  []string
 	BlockHeightArr             []int32
 	EtchingArr                 []bool
-	EtchingDivisibilityArr     interface{}
-	EtchingPremineArr          interface{}
-	EtchingRuneArr             interface{}
-	EtchingSpacersArr          interface{}
-	EtchingSymbolArr           interface{}
-	EtchingTermsArr            interface{}
-	EtchingTermsAmountArr      interface{}
-	EtchingTermsCapArr         interface{}
-	EtchingTermsHeightStartArr interface{}
-	EtchingTermsHeightEndArr   interface{}
-	EtchingTermsOffsetStartArr interface{}
-	EtchingTermsOffsetEndArr   interface{}
-	EtchingTurboArr            interface{}
+	EtchingDivisibilityArr     []int16
+	EtchingPremineArr          []pgtype.Numeric
+	EtchingRuneArr             []string
+	EtchingSpacersArr          []int32
+	EtchingSymbolArr           []int32
+	EtchingTermsArr            []bool
+	EtchingTermsAmountArr      []pgtype.Numeric
+	EtchingTermsCapArr         []pgtype.Numeric
+	EtchingTermsHeightStartArr []int32
+	EtchingTermsHeightEndArr   []int32
+	EtchingTermsOffsetStartArr []int32
+	EtchingTermsOffsetEndArr   []int32
+	EtchingTurboArr            []bool
 	EdictsArr                  [][]byte
-	MintArr                    interface{}
-	PointerArr                 interface{}
+	MintArr                    []string
+	PointerArr                 []int32
 	CenotaphArr                []bool
 	FlawsArr                   []int32
 }

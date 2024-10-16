@@ -18,12 +18,12 @@ VALUES(
   unnest(@symbol_arr::INT[]),
   unnest(@divisibility_arr::SMALLINT[]),
   unnest(@terms_arr::BOOLEAN[]),
-  unnest(@terms_amount_arr), -- (DECIMAL[]) don't cast to allow null values
-  unnest(@terms_cap_arr), -- (DECIMAL[]) don't cast to allow null values
-  unnest(@terms_height_start_arr), -- (INT[]) don't cast to allow null values
-  unnest(@terms_height_end_arr), -- (INT[]) don't cast to allow null values
-  unnest(@terms_offset_start_arr), -- (INT[]) don't cast to allow null values
-  unnest(@terms_offset_end_arr), -- (INT[]) don't cast to allow null values
+  unnest(@terms_amount_arr::DECIMAL[]),
+  unnest(@terms_cap_arr::DECIMAL[]),
+  unnest(@terms_height_start_arr::INT[]), -- nullable (need patch)
+  unnest(@terms_height_end_arr::INT[]), -- nullable (need patch)
+  unnest(@terms_offset_start_arr::INT[]), -- nullable (need patch)
+  unnest(@terms_offset_end_arr::INT[]), -- nullable (need patch)
   unnest(@turbo_arr::BOOLEAN[]),
   unnest(@etching_block_arr::INT[]),
   unnest(@etching_tx_hash_arr::TEXT[]),
@@ -38,7 +38,7 @@ VALUES(
   unnest(@mints_arr::DECIMAL[]),
   unnest(@burned_amount_arr::DECIMAL[]),
   unnest(@completed_at_arr::TIMESTAMP[]),
-  unnest(@completed_at_height_arr) -- (INT[]) don't cast to allow null values
+  unnest(@completed_at_height_arr::INT[]) -- nullable (need patch)
 );
 
 -- name: BatchCreateRunesOutpointBalances :exec
@@ -50,7 +50,7 @@ VALUES(
   unnest(@tx_idx_arr::INT[]),
   unnest(@amount_arr::DECIMAL[]),
   unnest(@block_height_arr::INT[]),
-  unnest(@spent_height_arr) -- (INT[]) don't cast to allow null values
+  unnest(@spent_height_arr::INT[]) -- nullable (need patch)
 );
 
 -- name: BatchSpendOutpointBalances :exec
@@ -69,22 +69,22 @@ VALUES(
   unnest(@tx_hash_arr::TEXT[]),
   unnest(@block_height_arr::INT[]),
   unnest(@etching_arr::BOOLEAN[]),
-  unnest(@etching_divisibility_arr), -- (SMALLINT[]) don't cast to allow null values
-  unnest(@etching_premine_arr), -- (DECIMAL[]) don't cast to allow null values
-  unnest(@etching_rune_arr), -- (TEXT[]) don't cast to allow null values
-  unnest(@etching_spacers_arr), -- (INT[]) don't cast to allow null values
-  unnest(@etching_symbol_arr), -- (INT[]) don't cast to allow null values
-  unnest(@etching_terms_arr), -- (BOOLEAN[]) don't cast to allow null values
-  unnest(@etching_terms_amount_arr), -- (DECIMAL[]) don't cast to allow null values
-  unnest(@etching_terms_cap_arr), -- (DECIMAL[]) don't cast to allow null values
-  unnest(@etching_terms_height_start_arr), -- (INT[]) don't cast to allow null values
-  unnest(@etching_terms_height_end_arr), -- (INT[]) don't cast to allow null values
-  unnest(@etching_terms_offset_start_arr), -- (INT[]) don't cast to allow null values
-  unnest(@etching_terms_offset_end_arr), -- (INT[]) don't cast to allow null values
-  unnest(@etching_turbo_arr), -- (BOOLEAN[]) don't cast to allow null values
+  unnest(@etching_divisibility_arr::SMALLINT[]), -- nullable (need patch)
+  unnest(@etching_premine_arr::DECIMAL[]),
+  unnest(@etching_rune_arr::TEXT[]), -- nullable (need patch)
+  unnest(@etching_spacers_arr::INT[]), -- nullable (need patch)
+  unnest(@etching_symbol_arr::INT[]), -- nullable (need patch)
+  unnest(@etching_terms_arr::BOOLEAN[]), -- nullable (need patch)
+  unnest(@etching_terms_amount_arr::DECIMAL[]),
+  unnest(@etching_terms_cap_arr::DECIMAL[]),
+  unnest(@etching_terms_height_start_arr::INT[]), -- nullable (need patch)
+  unnest(@etching_terms_height_end_arr::INT[]), -- nullable (need patch)
+  unnest(@etching_terms_offset_start_arr::INT[]), -- nullable (need patch)
+  unnest(@etching_terms_offset_end_arr::INT[]), -- nullable (need patch)
+  unnest(@etching_turbo_arr::BOOLEAN[]), -- nullable (need patch)
   unnest(@edicts_arr::JSONB[]),
-  unnest(@mint_arr), -- (TEXT[]) don't cast to allow null values
-  unnest(@pointer_arr), -- (INT[]) don't cast to allow null values
+  unnest(@mint_arr::TEXT[]), -- nullable (need patch)
+  unnest(@pointer_arr::INT[]), -- nullable (need patch)
   unnest(@cenotaph_arr::BOOLEAN[]),
   unnest(@flaws_arr::INT[])
 );
