@@ -11,8 +11,7 @@ import (
 	"github.com/gaze-network/indexer-network/modules/runes/internal/entity"
 	"github.com/gaze-network/indexer-network/modules/runes/repository/postgres/gen"
 	"github.com/gaze-network/indexer-network/modules/runes/runes"
-	"github.com/gaze-network/indexer-network/pkg/logger"
-	"github.com/gaze-network/indexer-network/pkg/logger/slogx"
+
 	"github.com/gaze-network/uint128"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/samber/lo"
