@@ -11,6 +11,8 @@ import (
 	"github.com/gaze-network/indexer-network/modules/runes/internal/entity"
 	"github.com/gaze-network/indexer-network/modules/runes/repository/postgres/gen"
 	"github.com/gaze-network/indexer-network/modules/runes/runes"
+	"github.com/gaze-network/indexer-network/pkg/logger"
+	"github.com/gaze-network/indexer-network/pkg/logger/slogx"
 	"github.com/gaze-network/uint128"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/samber/lo"
@@ -47,7 +49,7 @@ func numericFromUint128(src *uint128.Uint128) (pgtype.Numeric, error) {
 func mapIndexerStateModelToType(src gen.RunesIndexerState) entity.IndexerState {
 	var createdAt time.Time
 	if src.CreatedAt.Valid {
-		createdAt = src.CreatedAt.Time
+		createdAt = src.CreatedAt.Time.UTC()
 	}
 	return entity.IndexerState{
 		DBVersion:        src.DbVersion,
@@ -86,7 +88,7 @@ func mapRuneEntryModelToType(src gen.GetRuneEntriesRow) (runes.RuneEntry, error)
 	}
 	var completedAt time.Time
 	if src.CompletedAt.Valid {
-		completedAt = src.CompletedAt.Time
+		completedAt = src.CompletedAt.Time.UTC()
 	}
 	var completedAtHeight *uint64
 	if src.CompletedAtHeight.Valid {
@@ -132,7 +134,7 @@ func mapRuneEntryModelToType(src gen.GetRuneEntriesRow) (runes.RuneEntry, error)
 	}
 	var etchedAt time.Time
 	if src.EtchedAt.Valid {
-		etchedAt = src.EtchedAt.Time
+		etchedAt = src.EtchedAt.Time.UTC()
 	}
 	return runes.RuneEntry{
 		RuneId:            runeId,
@@ -203,7 +205,7 @@ func mapRuneEntryTypeToParams(src runes.RuneEntry) (gen.CreateRuneEntryParams, e
 			}
 		}
 	}
-	etchedAt := pgtype.Timestamp{Time: src.EtchedAt, Valid: true}
+	etchedAt := pgtype.Timestamp{Time: src.EtchedAt.UTC(), Valid: true}
 
 	return gen.CreateRuneEntryParams{
 		RuneID:           runeId,
@@ -239,7 +241,7 @@ func mapRuneEntryStatesTypeToParams(src runes.RuneEntry, blockHeight uint64) (ge
 	}
 	var completedAt pgtype.Timestamp
 	if !src.CompletedAt.IsZero() {
-		completedAt.Time = src.CompletedAt
+		completedAt.Time = src.CompletedAt.UTC()
 		completedAt.Valid = true
 	}
 	var completedAtHeight pgtype.Int4
@@ -337,7 +339,7 @@ func mapRuneEntryStatesTypeToParamsBatch(srcs []*runes.RuneEntry, blockHeight ui
 func mapRuneTransactionTypeToParams(src entity.RuneTransaction) (gen.CreateRuneTransactionParams, error) {
 	var timestamp pgtype.Timestamp
 	if !src.Timestamp.IsZero() {
-		timestamp.Time = src.Timestamp
+		timestamp.Time = src.Timestamp.UTC()
 		timestamp.Valid = true
 	}
 	inputsBytes, err := json.Marshal(src.Inputs)
