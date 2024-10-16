@@ -136,27 +136,27 @@ SELECT * FROM runes_transactions
 -- name: CountRuneEntries :one
 SELECT COUNT(*) FROM runes_entries;
 
--- name: CreateRuneEntries :batchexec
+-- name: CreateRuneEntry :exec
 INSERT INTO runes_entries (rune_id, rune, number, spacers, premine, symbol, divisibility, terms, terms_amount, terms_cap, terms_height_start, terms_height_end, terms_offset_start, terms_offset_end, turbo, etching_block, etching_tx_hash, etched_at)
   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18);
 
--- name: CreateRuneEntryStates :batchexec
+-- name: CreateRuneEntryState :exec
 INSERT INTO runes_entry_states (rune_id, block_height, mints, burned_amount, completed_at, completed_at_height) VALUES ($1, $2, $3, $4, $5, $6);
 
--- name: CreateRuneTransactions :batchexec
+-- name: CreateRuneTransaction :exec
 INSERT INTO runes_transactions (hash, block_height, index, timestamp, inputs, outputs, mints, burns, rune_etched) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9);
 
--- name: CreateRunestones :batchexec
+-- name: CreateRunestone :exec
 INSERT INTO runes_runestones (tx_hash, block_height, etching, etching_divisibility, etching_premine, etching_rune, etching_spacers, etching_symbol, etching_terms, etching_terms_amount, etching_terms_cap, etching_terms_height_start, etching_terms_height_end, etching_terms_offset_start, etching_terms_offset_end, etching_turbo, edicts, mint, pointer, cenotaph, flaws) 
   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21);
 
--- name: CreateOutPointBalances :batchexec
+-- name: CreateOutPointBalance :exec
 INSERT INTO runes_outpoint_balances (rune_id, pkscript, tx_hash, tx_idx, amount, block_height, spent_height) VALUES ($1, $2, $3, $4, $5, $6, $7);
 
--- name: SpendOutPointBalancesBatch :batchexec
+-- name: SpendOutPointBalance :exec
 UPDATE runes_outpoint_balances SET spent_height = $1 WHERE tx_hash = $2 AND tx_idx = $3;
 
--- name: CreateRuneBalanceAtBlock :batchexec
+-- name: CreateRuneBalance :exec
 INSERT INTO runes_balances (pkscript, block_height, rune_id, amount) VALUES ($1, $2, $3, $4);
 
 -- name: GetLatestIndexedBlock :one

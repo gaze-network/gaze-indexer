@@ -153,31 +153,13 @@ func mapRuneEntryModelToType(src gen.GetRuneEntriesRow) (runes.RuneEntry, error)
 	}, nil
 }
 
-func mapRuneEntryTypeToParams(src runes.RuneEntry, blockHeight uint64) (gen.CreateRuneEntriesParams, gen.CreateRuneEntryStatesParams, error) {
+func mapRuneEntryTypeToParams(src runes.RuneEntry) (gen.CreateRuneEntryParams, error) {
 	runeId := src.RuneId.String()
 	rune := src.SpacedRune.Rune.String()
 	spacers := int32(src.SpacedRune.Spacers)
-	mints, err := numericFromUint128(&src.Mints)
-	if err != nil {
-		return gen.CreateRuneEntriesParams{}, gen.CreateRuneEntryStatesParams{}, errors.Wrap(err, "failed to parse mints")
-	}
-	burnedAmount, err := numericFromUint128(&src.BurnedAmount)
-	if err != nil {
-		return gen.CreateRuneEntriesParams{}, gen.CreateRuneEntryStatesParams{}, errors.Wrap(err, "failed to parse burned amount")
-	}
 	premine, err := numericFromUint128(&src.Premine)
 	if err != nil {
-		return gen.CreateRuneEntriesParams{}, gen.CreateRuneEntryStatesParams{}, errors.Wrap(err, "failed to parse premine")
-	}
-	var completedAt pgtype.Timestamp
-	if !src.CompletedAt.IsZero() {
-		completedAt.Time = src.CompletedAt
-		completedAt.Valid = true
-	}
-	var completedAtHeight pgtype.Int4
-	if src.CompletedAtHeight != nil {
-		completedAtHeight.Int32 = int32(*src.CompletedAtHeight)
-		completedAtHeight.Valid = true
+		return gen.CreateRuneEntryParams{}, errors.Wrap(err, "failed to parse premine")
 	}
 	var terms bool
 	var termsAmount, termsCap pgtype.Numeric
@@ -187,13 +169,13 @@ func mapRuneEntryTypeToParams(src runes.RuneEntry, blockHeight uint64) (gen.Crea
 		if src.Terms.Amount != nil {
 			termsAmount, err = numericFromUint128(src.Terms.Amount)
 			if err != nil {
-				return gen.CreateRuneEntriesParams{}, gen.CreateRuneEntryStatesParams{}, errors.Wrap(err, "failed to parse terms amount")
+				return gen.CreateRuneEntryParams{}, errors.Wrap(err, "failed to parse terms amount")
 			}
 		}
 		if src.Terms.Cap != nil {
 			termsCap, err = numericFromUint128(src.Terms.Cap)
 			if err != nil {
-				return gen.CreateRuneEntriesParams{}, gen.CreateRuneEntryStatesParams{}, errors.Wrap(err, "failed to parse terms cap")
+				return gen.CreateRuneEntryParams{}, errors.Wrap(err, "failed to parse terms cap")
 			}
 		}
 		if src.Terms.HeightStart != nil {
@@ -223,37 +205,149 @@ func mapRuneEntryTypeToParams(src runes.RuneEntry, blockHeight uint64) (gen.Crea
 	}
 	etchedAt := pgtype.Timestamp{Time: src.EtchedAt, Valid: true}
 
-	return gen.CreateRuneEntriesParams{
-			RuneID:           runeId,
-			Rune:             rune,
-			Number:           int64(src.Number),
-			Spacers:          spacers,
-			Premine:          premine,
-			Symbol:           src.Symbol,
-			Divisibility:     int16(src.Divisibility),
-			Terms:            terms,
-			TermsAmount:      termsAmount,
-			TermsCap:         termsCap,
-			TermsHeightStart: termsHeightStart,
-			TermsHeightEnd:   termsHeightEnd,
-			TermsOffsetStart: termsOffsetStart,
-			TermsOffsetEnd:   termsOffsetEnd,
-			Turbo:            src.Turbo,
-			EtchingBlock:     int32(src.EtchingBlock),
-			EtchingTxHash:    src.EtchingTxHash.String(),
-			EtchedAt:         etchedAt,
-		}, gen.CreateRuneEntryStatesParams{
-			BlockHeight:       int32(blockHeight),
-			RuneID:            runeId,
-			Mints:             mints,
-			BurnedAmount:      burnedAmount,
-			CompletedAt:       completedAt,
-			CompletedAtHeight: completedAtHeight,
-		}, nil
+	return gen.CreateRuneEntryParams{
+		RuneID:           runeId,
+		Rune:             rune,
+		Number:           int64(src.Number),
+		Spacers:          spacers,
+		Premine:          premine,
+		Symbol:           src.Symbol,
+		Divisibility:     int16(src.Divisibility),
+		Terms:            terms,
+		TermsAmount:      termsAmount,
+		TermsCap:         termsCap,
+		TermsHeightStart: termsHeightStart,
+		TermsHeightEnd:   termsHeightEnd,
+		TermsOffsetStart: termsOffsetStart,
+		TermsOffsetEnd:   termsOffsetEnd,
+		Turbo:            src.Turbo,
+		EtchingBlock:     int32(src.EtchingBlock),
+		EtchingTxHash:    src.EtchingTxHash.String(),
+		EtchedAt:         etchedAt,
+	}, nil
 }
 
-// mapRuneTransactionModelToType returns params for creating a new rune transaction and (optionally) a runestone.
-func mapRuneTransactionTypeToParams(src entity.RuneTransaction) (gen.CreateRuneTransactionsParams, *gen.CreateRunestonesParams, error) {
+func mapRuneEntryStatesTypeToParams(src runes.RuneEntry, blockHeight uint64) (gen.CreateRuneEntryStateParams, error) {
+	runeId := src.RuneId.String()
+	mints, err := numericFromUint128(&src.Mints)
+	if err != nil {
+		return gen.CreateRuneEntryStateParams{}, errors.Wrap(err, "failed to parse mints")
+	}
+	burnedAmount, err := numericFromUint128(&src.BurnedAmount)
+	if err != nil {
+		return gen.CreateRuneEntryStateParams{}, errors.Wrap(err, "failed to parse burned amount")
+	}
+	var completedAt pgtype.Timestamp
+	if !src.CompletedAt.IsZero() {
+		completedAt.Time = src.CompletedAt
+		completedAt.Valid = true
+	}
+	var completedAtHeight pgtype.Int4
+	if src.CompletedAtHeight != nil {
+		completedAtHeight.Int32 = int32(*src.CompletedAtHeight)
+		completedAtHeight.Valid = true
+	}
+
+	return gen.CreateRuneEntryStateParams{
+		BlockHeight:       int32(blockHeight),
+		RuneID:            runeId,
+		Mints:             mints,
+		BurnedAmount:      burnedAmount,
+		CompletedAt:       completedAt,
+		CompletedAtHeight: completedAtHeight,
+	}, nil
+}
+
+func mapRuneEntryTypeToParamsBatch(srcs []*runes.RuneEntry) (gen.BatchCreateRuneEntriesParams, error) {
+	batchParams := gen.BatchCreateRuneEntriesParams{
+		RuneIDArr:        make([]string, 0, len(srcs)),
+		RuneArr:          make([]string, 0, len(srcs)),
+		NumberArr:        make([]int64, 0, len(srcs)),
+		SpacersArr:       make([]int32, 0, len(srcs)),
+		PremineArr:       make([]pgtype.Numeric, 0, len(srcs)),
+		SymbolArr:        make([]int32, 0, len(srcs)),
+		DivisibilityArr:  make([]int16, 0, len(srcs)),
+		TermsArr:         make([]bool, 0, len(srcs)),
+		TurboArr:         make([]bool, 0, len(srcs)),
+		EtchingBlockArr:  make([]int32, 0, len(srcs)),
+		EtchingTxHashArr: make([]string, 0, len(srcs)),
+		EtchedAtArr:      make([]pgtype.Timestamp, 0, len(srcs)),
+	}
+	termsAmountArr := make([]pgtype.Numeric, 0, len(srcs))
+	termsCapArr := make([]pgtype.Numeric, 0, len(srcs))
+	termsHeightStartArr := make([]pgtype.Int4, 0, len(srcs))
+	termsHeightEndArr := make([]pgtype.Int4, 0, len(srcs))
+	termsOffsetStartArr := make([]pgtype.Int4, 0, len(srcs))
+	termsOffsetEndArr := make([]pgtype.Int4, 0, len(srcs))
+
+	for i, src := range srcs {
+		param, err := mapRuneEntryTypeToParams(*src)
+		if err != nil {
+			return gen.BatchCreateRuneEntriesParams{}, errors.Wrapf(err, "failed to map rune entry to params batch at index %d", i)
+		}
+
+		batchParams.RuneIDArr = append(batchParams.RuneIDArr, param.RuneID)
+		batchParams.RuneArr = append(batchParams.RuneArr, param.Rune)
+		batchParams.NumberArr = append(batchParams.NumberArr, param.Number)
+		batchParams.SpacersArr = append(batchParams.SpacersArr, param.Spacers)
+		batchParams.PremineArr = append(batchParams.PremineArr, param.Premine)
+		batchParams.SymbolArr = append(batchParams.SymbolArr, param.Symbol)
+		batchParams.DivisibilityArr = append(batchParams.DivisibilityArr, param.Divisibility)
+		batchParams.TermsArr = append(batchParams.TermsArr, param.Terms)
+
+		termsAmountArr = append(termsAmountArr, param.TermsAmount)
+		termsCapArr = append(termsCapArr, param.TermsCap)
+		termsHeightStartArr = append(termsHeightStartArr, param.TermsHeightStart)
+		termsHeightEndArr = append(termsHeightEndArr, param.TermsHeightEnd)
+		termsOffsetStartArr = append(termsOffsetStartArr, param.TermsOffsetStart)
+		termsOffsetEndArr = append(termsOffsetEndArr, param.TermsOffsetEnd)
+
+		batchParams.TurboArr = append(batchParams.TurboArr, param.Turbo)
+		batchParams.EtchingBlockArr = append(batchParams.EtchingBlockArr, param.EtchingBlock)
+		batchParams.EtchingTxHashArr = append(batchParams.EtchingTxHashArr, param.EtchingTxHash)
+		batchParams.EtchedAtArr = append(batchParams.EtchedAtArr, param.EtchedAt)
+	}
+
+	batchParams.TermsAmountArr = termsAmountArr
+	batchParams.TermsCapArr = termsCapArr
+	batchParams.TermsHeightStartArr = termsHeightStartArr
+	batchParams.TermsHeightEndArr = termsHeightEndArr
+	batchParams.TermsOffsetStartArr = termsOffsetStartArr
+	batchParams.TermsOffsetEndArr = termsOffsetEndArr
+
+	return batchParams, nil
+}
+
+func mapRuneEntryStatesTypeToParamsBatch(srcs []*runes.RuneEntry, blockHeight uint64) (gen.BatchCreateRuneEntryStatesParams, error) {
+	batchParams := gen.BatchCreateRuneEntryStatesParams{
+		RuneIDArr:       make([]string, 0, len(srcs)),
+		BlockHeightArr:  make([]int32, 0, len(srcs)),
+		MintsArr:        make([]pgtype.Numeric, 0, len(srcs)),
+		BurnedAmountArr: make([]pgtype.Numeric, 0, len(srcs)),
+		CompletedAtArr:  make([]pgtype.Timestamp, 0, len(srcs)),
+	}
+	completedAtHeightArr := make([]pgtype.Int4, 0, len(srcs))
+
+	for i, src := range srcs {
+		param, err := mapRuneEntryStatesTypeToParams(*src, blockHeight)
+		if err != nil {
+			return gen.BatchCreateRuneEntryStatesParams{}, errors.Wrapf(err, "failed to map rune entry states to params batch at index %d", i)
+		}
+
+		batchParams.RuneIDArr = append(batchParams.RuneIDArr, param.RuneID)
+		batchParams.BlockHeightArr = append(batchParams.BlockHeightArr, param.BlockHeight)
+		batchParams.MintsArr = append(batchParams.MintsArr, param.Mints)
+		batchParams.BurnedAmountArr = append(batchParams.BurnedAmountArr, param.BurnedAmount)
+		batchParams.CompletedAtArr = append(batchParams.CompletedAtArr, param.CompletedAt)
+		completedAtHeightArr = append(completedAtHeightArr, param.CompletedAtHeight)
+	}
+
+	batchParams.CompletedAtHeightArr = completedAtHeightArr
+
+	return batchParams, nil
+}
+
+func mapRuneTransactionTypeToParams(src entity.RuneTransaction) (gen.CreateRuneTransactionParams, error) {
 	var timestamp pgtype.Timestamp
 	if !src.Timestamp.IsZero() {
 		timestamp.Time = src.Timestamp
@@ -261,11 +355,11 @@ func mapRuneTransactionTypeToParams(src entity.RuneTransaction) (gen.CreateRuneT
 	}
 	inputsBytes, err := json.Marshal(src.Inputs)
 	if err != nil {
-		return gen.CreateRuneTransactionsParams{}, nil, errors.Wrap(err, "failed to marshal inputs")
+		return gen.CreateRuneTransactionParams{}, errors.Wrap(err, "failed to marshal inputs")
 	}
 	outputsBytes, err := json.Marshal(src.Outputs)
 	if err != nil {
-		return gen.CreateRuneTransactionsParams{}, nil, errors.Wrap(err, "failed to marshal outputs")
+		return gen.CreateRuneTransactionParams{}, errors.Wrap(err, "failed to marshal outputs")
 	}
 	mints := make(map[string]uint128.Uint128)
 	for key, value := range src.Mints {
@@ -273,7 +367,7 @@ func mapRuneTransactionTypeToParams(src entity.RuneTransaction) (gen.CreateRuneT
 	}
 	mintsBytes, err := json.Marshal(mints)
 	if err != nil {
-		return gen.CreateRuneTransactionsParams{}, nil, errors.Wrap(err, "failed to marshal mints")
+		return gen.CreateRuneTransactionParams{}, errors.Wrap(err, "failed to marshal mints")
 	}
 	burns := make(map[string]uint128.Uint128)
 	for key, value := range src.Burns {
@@ -281,19 +375,10 @@ func mapRuneTransactionTypeToParams(src entity.RuneTransaction) (gen.CreateRuneT
 	}
 	burnsBytes, err := json.Marshal(burns)
 	if err != nil {
-		return gen.CreateRuneTransactionsParams{}, nil, errors.Wrap(err, "failed to marshal burns")
+		return gen.CreateRuneTransactionParams{}, errors.Wrap(err, "failed to marshal burns")
 	}
 
-	var runestoneParams *gen.CreateRunestonesParams
-	if src.Runestone != nil {
-		params, err := mapRunestoneTypeToParams(*src.Runestone, src.Hash, src.BlockHeight)
-		if err != nil {
-			return gen.CreateRuneTransactionsParams{}, nil, errors.Wrap(err, "failed to map runestone to params")
-		}
-		runestoneParams = &params
-	}
-
-	return gen.CreateRuneTransactionsParams{
+	return gen.CreateRuneTransactionParams{
 		Hash:        src.Hash.String(),
 		BlockHeight: int32(src.BlockHeight),
 		Index:       int32(src.Index),
@@ -303,7 +388,46 @@ func mapRuneTransactionTypeToParams(src entity.RuneTransaction) (gen.CreateRuneT
 		Mints:       mintsBytes,
 		Burns:       burnsBytes,
 		RuneEtched:  src.RuneEtched,
-	}, runestoneParams, nil
+	}, nil
+}
+
+func mapRuneTransactionTypeToParamsBatch(srcs []*entity.RuneTransaction) (gen.BatchCreateRuneTransactionsParams, error) {
+	batchParams := gen.BatchCreateRuneTransactionsParams{
+		HashArr:        make([]string, 0, len(srcs)),
+		BlockHeightArr: make([]int32, 0, len(srcs)),
+		IndexArr:       make([]int32, 0, len(srcs)),
+		TimestampArr:   make([]pgtype.Timestamp, 0, len(srcs)),
+		RuneEtchedArr:  make([]bool, 0, len(srcs)),
+	}
+	inputsArr := make([][]byte, 0, len(srcs))
+	outputsArr := make([][]byte, 0, len(srcs))
+	mintsArr := make([][]byte, 0, len(srcs))
+	burnsArr := make([][]byte, 0, len(srcs))
+
+	for i, src := range srcs {
+		param, err := mapRuneTransactionTypeToParams(*src)
+		if err != nil {
+			return gen.BatchCreateRuneTransactionsParams{}, errors.Wrapf(err, "failed to map rune transaction to params batch at index %d", i)
+		}
+
+		batchParams.HashArr = append(batchParams.HashArr, param.Hash)
+		batchParams.BlockHeightArr = append(batchParams.BlockHeightArr, param.BlockHeight)
+		batchParams.IndexArr = append(batchParams.IndexArr, param.Index)
+		batchParams.TimestampArr = append(batchParams.TimestampArr, param.Timestamp)
+		batchParams.RuneEtchedArr = append(batchParams.RuneEtchedArr, param.RuneEtched)
+
+		inputsArr = append(inputsArr, param.Inputs)
+		outputsArr = append(outputsArr, param.Outputs)
+		mintsArr = append(mintsArr, param.Mints)
+		burnsArr = append(burnsArr, param.Burns)
+	}
+
+	batchParams.InputsArr = inputsArr
+	batchParams.OutputsArr = outputsArr
+	batchParams.MintsArr = mintsArr
+	batchParams.BurnsArr = burnsArr
+
+	return batchParams, nil
 }
 
 func extractModelRuneTxAndRunestone(src gen.GetRuneTransactionsRow) (gen.RunesTransaction, *gen.RunesRunestone, error) {
@@ -409,15 +533,15 @@ func mapRuneTransactionModelToType(src gen.RunesTransaction) (entity.RuneTransac
 	}, nil
 }
 
-func mapRunestoneTypeToParams(src runes.Runestone, txHash chainhash.Hash, blockHeight uint64) (gen.CreateRunestonesParams, error) {
-	var runestoneParams gen.CreateRunestonesParams
+func mapRunestoneTypeToParams(src runes.Runestone, txHash chainhash.Hash, blockHeight uint64) (gen.CreateRunestoneParams, error) {
+	var runestoneParams gen.CreateRunestoneParams
 
 	// TODO: optimize serialized edicts
 	edictsBytes, err := json.Marshal(src.Edicts)
 	if err != nil {
-		return gen.CreateRunestonesParams{}, errors.Wrap(err, "failed to marshal runestone edicts")
+		return gen.CreateRunestoneParams{}, errors.Wrap(err, "failed to marshal runestone edicts")
 	}
-	runestoneParams = gen.CreateRunestonesParams{
+	runestoneParams = gen.CreateRunestoneParams{
 		TxHash:      txHash.String(),
 		BlockHeight: int32(blockHeight),
 		Edicts:      edictsBytes,
@@ -433,7 +557,7 @@ func mapRunestoneTypeToParams(src runes.Runestone, txHash chainhash.Hash, blockH
 		if etching.Premine != nil {
 			premine, err := numericFromUint128(etching.Premine)
 			if err != nil {
-				return gen.CreateRunestonesParams{}, errors.Wrap(err, "failed to parse etching premine")
+				return gen.CreateRunestoneParams{}, errors.Wrap(err, "failed to parse etching premine")
 			}
 			runestoneParams.EtchingPremine = premine
 		}
@@ -452,14 +576,14 @@ func mapRunestoneTypeToParams(src runes.Runestone, txHash chainhash.Hash, blockH
 			if terms.Amount != nil {
 				amount, err := numericFromUint128(terms.Amount)
 				if err != nil {
-					return gen.CreateRunestonesParams{}, errors.Wrap(err, "failed to parse etching terms amount")
+					return gen.CreateRunestoneParams{}, errors.Wrap(err, "failed to parse etching terms amount")
 				}
 				runestoneParams.EtchingTermsAmount = amount
 			}
 			if terms.Cap != nil {
 				cap, err := numericFromUint128(terms.Cap)
 				if err != nil {
-					return gen.CreateRunestonesParams{}, errors.Wrap(err, "failed to parse etching terms cap")
+					return gen.CreateRunestoneParams{}, errors.Wrap(err, "failed to parse etching terms cap")
 				}
 				runestoneParams.EtchingTermsCap = cap
 			}
@@ -486,6 +610,86 @@ func mapRunestoneTypeToParams(src runes.Runestone, txHash chainhash.Hash, blockH
 	}
 
 	return runestoneParams, nil
+}
+
+func mapRunestoneTypeToParamsBatch(srcs []*entity.RuneTransaction) (gen.BatchCreateRunestonesParams, error) {
+	batchParams := gen.BatchCreateRunestonesParams{
+		TxHashArr:      make([]string, 0, len(srcs)),
+		BlockHeightArr: make([]int32, 0, len(srcs)),
+		EtchingArr:     make([]bool, 0, len(srcs)),
+		EdictsArr:      make([][]byte, 0, len(srcs)),
+		CenotaphArr:    make([]bool, 0, len(srcs)),
+		FlawsArr:       make([]int32, 0, len(srcs)),
+	}
+	etchingDivisibilityArr := make([]pgtype.Int2, 0, len(srcs))
+	etchingPremineArr := make([]pgtype.Numeric, 0, len(srcs))
+	etchingRuneArr := make([]pgtype.Text, 0, len(srcs))
+	etchingSpacersArr := make([]pgtype.Int4, 0, len(srcs))
+	etchingSymbolArr := make([]pgtype.Int4, 0, len(srcs))
+	etchingTermsArr := make([]pgtype.Bool, 0, len(srcs))
+	etchingTermsAmountArr := make([]pgtype.Numeric, 0, len(srcs))
+	etchingTermsCapArr := make([]pgtype.Numeric, 0, len(srcs))
+	etchingTermsHeightStartArr := make([]pgtype.Int4, 0, len(srcs))
+	etchingTermsHeightEndArr := make([]pgtype.Int4, 0, len(srcs))
+	etchingTermsOffsetStartArr := make([]pgtype.Int4, 0, len(srcs))
+	etchingTermsOffsetEndArr := make([]pgtype.Int4, 0, len(srcs))
+	etchingTurboArr := make([]pgtype.Bool, 0, len(srcs))
+	mintArr := make([]pgtype.Text, 0, len(srcs))
+	pointerArr := make([]pgtype.Int4, 0, len(srcs))
+
+	for i, src := range srcs {
+		if src.Runestone == nil {
+			continue
+		}
+		param, err := mapRunestoneTypeToParams(*src.Runestone, src.Hash, src.BlockHeight)
+		if err != nil {
+			return gen.BatchCreateRunestonesParams{}, errors.Wrapf(err, "failed to map runestone to params batch at index %d", i)
+		}
+
+		batchParams.TxHashArr = append(batchParams.TxHashArr, param.TxHash)
+		batchParams.BlockHeightArr = append(batchParams.BlockHeightArr, param.BlockHeight)
+		batchParams.EtchingArr = append(batchParams.EtchingArr, param.Etching)
+
+		etchingDivisibilityArr = append(etchingDivisibilityArr, param.EtchingDivisibility)
+		etchingPremineArr = append(etchingPremineArr, param.EtchingPremine)
+		etchingRuneArr = append(etchingRuneArr, param.EtchingRune)
+		etchingSpacersArr = append(etchingSpacersArr, param.EtchingSpacers)
+		etchingSymbolArr = append(etchingSymbolArr, param.EtchingSymbol)
+		etchingTermsArr = append(etchingTermsArr, param.EtchingTerms)
+		etchingTermsAmountArr = append(etchingTermsAmountArr, param.EtchingTermsAmount)
+		etchingTermsCapArr = append(etchingTermsCapArr, param.EtchingTermsCap)
+		etchingTermsHeightStartArr = append(etchingTermsHeightStartArr, param.EtchingTermsHeightStart)
+		etchingTermsHeightEndArr = append(etchingTermsHeightEndArr, param.EtchingTermsHeightEnd)
+		etchingTermsOffsetStartArr = append(etchingTermsOffsetStartArr, param.EtchingTermsOffsetStart)
+		etchingTermsOffsetEndArr = append(etchingTermsOffsetEndArr, param.EtchingTermsOffsetEnd)
+		etchingTurboArr = append(etchingTurboArr, param.EtchingTurbo)
+
+		batchParams.EdictsArr = append(batchParams.EdictsArr, param.Edicts)
+
+		mintArr = append(mintArr, param.Mint)
+		pointerArr = append(pointerArr, param.Pointer)
+
+		batchParams.CenotaphArr = append(batchParams.CenotaphArr, param.Cenotaph)
+		batchParams.FlawsArr = append(batchParams.FlawsArr, param.Flaws)
+	}
+
+	batchParams.EtchingDivisibilityArr = etchingDivisibilityArr
+	batchParams.EtchingPremineArr = etchingPremineArr
+	batchParams.EtchingRuneArr = etchingRuneArr
+	batchParams.EtchingSpacersArr = etchingSpacersArr
+	batchParams.EtchingSymbolArr = etchingSymbolArr
+	batchParams.EtchingTermsArr = etchingTermsArr
+	batchParams.EtchingTermsAmountArr = etchingTermsAmountArr
+	batchParams.EtchingTermsCapArr = etchingTermsCapArr
+	batchParams.EtchingTermsHeightStartArr = etchingTermsHeightStartArr
+	batchParams.EtchingTermsHeightEndArr = etchingTermsHeightEndArr
+	batchParams.EtchingTermsOffsetStartArr = etchingTermsOffsetStartArr
+	batchParams.EtchingTermsOffsetEndArr = etchingTermsOffsetEndArr
+	batchParams.EtchingTurboArr = etchingTurboArr
+	batchParams.MintArr = mintArr
+	batchParams.PointerArr = pointerArr
+
+	return batchParams, nil
 }
 
 func mapRunestoneModelToType(src gen.RunesRunestone) (runes.Runestone, error) {
@@ -600,6 +804,42 @@ func mapBalanceModelToType(src gen.RunesBalance) (*entity.Balance, error) {
 		Amount:      lo.FromPtr(amount),
 		BlockHeight: uint64(src.BlockHeight),
 	}, nil
+}
+
+func mapBalanceTypeToParams(src entity.Balance) (gen.CreateRuneBalanceParams, error) {
+	amount, err := numericFromUint128(&src.Amount)
+	if err != nil {
+		return gen.CreateRuneBalanceParams{}, errors.Wrap(err, "failed to parse amount")
+	}
+	return gen.CreateRuneBalanceParams{
+		RuneID:      src.RuneId.String(),
+		Amount:      amount,
+		Pkscript:    hex.EncodeToString(src.PkScript),
+		BlockHeight: int32(src.BlockHeight),
+	}, nil
+}
+
+func mapBalanceTypeToParamsBatch(srcs []*entity.Balance) (gen.BatchCreateRunesBalancesParams, error) {
+	batchParams := gen.BatchCreateRunesBalancesParams{
+		RuneIDArr:      make([]string, 0, len(srcs)),
+		AmountArr:      make([]pgtype.Numeric, 0, len(srcs)),
+		PkscriptArr:    make([]string, 0, len(srcs)),
+		BlockHeightArr: make([]int32, 0, len(srcs)),
+	}
+
+	for i, src := range srcs {
+		param, err := mapBalanceTypeToParams(*src)
+		if err != nil {
+			return gen.BatchCreateRunesBalancesParams{}, errors.Wrapf(err, "failed to map balance to params batch at index %d", i)
+		}
+
+		batchParams.RuneIDArr = append(batchParams.RuneIDArr, param.RuneID)
+		batchParams.AmountArr = append(batchParams.AmountArr, param.Amount)
+		batchParams.PkscriptArr = append(batchParams.PkscriptArr, param.Pkscript)
+		batchParams.BlockHeightArr = append(batchParams.BlockHeightArr, param.BlockHeight)
+	}
+
+	return batchParams, nil
 }
 
 func mapIndexedBlockModelToType(src gen.RunesIndexedBlock) (*entity.IndexedBlock, error) {
@@ -738,16 +978,16 @@ func mapOutPointBalanceModelToType(src gen.RunesOutpointBalance) (entity.OutPoin
 	}, nil
 }
 
-func mapOutPointBalanceTypeToParams(src entity.OutPointBalance) (gen.CreateOutPointBalancesParams, error) {
+func mapOutPointBalanceTypeToParams(src entity.OutPointBalance) (gen.CreateOutPointBalanceParams, error) {
 	amount, err := numericFromUint128(&src.Amount)
 	if err != nil {
-		return gen.CreateOutPointBalancesParams{}, errors.Wrap(err, "failed to parse amount")
+		return gen.CreateOutPointBalanceParams{}, errors.Wrap(err, "failed to parse amount")
 	}
 	var spentHeight pgtype.Int4
 	if src.SpentHeight != nil {
 		spentHeight = pgtype.Int4{Int32: int32(*src.SpentHeight), Valid: true}
 	}
-	return gen.CreateOutPointBalancesParams{
+	return gen.CreateOutPointBalanceParams{
 		TxHash:      src.OutPoint.Hash.String(),
 		TxIdx:       int32(src.OutPoint.Index),
 		Pkscript:    hex.EncodeToString(src.PkScript),
@@ -756,4 +996,35 @@ func mapOutPointBalanceTypeToParams(src entity.OutPointBalance) (gen.CreateOutPo
 		BlockHeight: int32(src.BlockHeight),
 		SpentHeight: spentHeight,
 	}, nil
+}
+
+func mapOutPointBalanceTypeToParamsBatch(srcs []*entity.OutPointBalance) (gen.BatchCreateRunesOutpointBalancesParams, error) {
+	batchParams := gen.BatchCreateRunesOutpointBalancesParams{
+		TxHashArr:      make([]string, 0, len(srcs)),
+		TxIdxArr:       make([]int32, 0, len(srcs)),
+		PkscriptArr:    make([]string, 0, len(srcs)),
+		RuneIDArr:      make([]string, 0, len(srcs)),
+		AmountArr:      make([]pgtype.Numeric, 0, len(srcs)),
+		BlockHeightArr: make([]int32, 0, len(srcs)),
+	}
+	spentHeightArr := make([]pgtype.Int4, 0, len(srcs))
+
+	for i, src := range srcs {
+		param, err := mapOutPointBalanceTypeToParams(*src)
+		if err != nil {
+			return gen.BatchCreateRunesOutpointBalancesParams{}, errors.Wrapf(err, "failed to map outpoint balance to params batch at index %d", i)
+		}
+
+		batchParams.TxHashArr = append(batchParams.TxHashArr, param.TxHash)
+		batchParams.TxIdxArr = append(batchParams.TxIdxArr, param.TxIdx)
+		batchParams.PkscriptArr = append(batchParams.PkscriptArr, param.Pkscript)
+		batchParams.RuneIDArr = append(batchParams.RuneIDArr, param.RuneID)
+		batchParams.AmountArr = append(batchParams.AmountArr, param.Amount)
+		batchParams.BlockHeightArr = append(batchParams.BlockHeightArr, param.BlockHeight)
+		spentHeightArr = append(spentHeightArr, param.SpentHeight)
+	}
+
+	batchParams.SpentHeightArr = spentHeightArr
+
+	return batchParams, nil
 }
