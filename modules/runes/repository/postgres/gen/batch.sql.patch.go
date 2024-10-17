@@ -74,33 +74,6 @@ func (q *Queries) BatchCreateRunesOutpointBalancesPatched(ctx context.Context, a
 	return errors.WithStack(err)
 }
 
-// const batchCreateRunestones = `-- name: BatchCreateRunestones :exec
-// INSERT INTO runes_runestones ("tx_hash", "block_height", "etching", "etching_divisibility", "etching_premine", "etching_rune", "etching_spacers", "etching_symbol", "etching_terms", "etching_terms_amount", "etching_terms_cap", "etching_terms_height_start", "etching_terms_height_end", "etching_terms_offset_start", "etching_terms_offset_end", "etching_turbo", "edicts", "mint", "pointer", "cenotaph", "flaws")
-// VALUES(
-//   unnest($1::TEXT[]),
-//   unnest($2::INT[]),
-//   unnest($3::BOOLEAN[]),
-//   unnest($4::SMALLINT[]), -- nullable (need patch)
-//   unnest($5::DECIMAL[]),
-//   unnest($6::TEXT[]), -- nullable (need patch)
-//   unnest($7::INT[]), -- nullable (need patch)
-//   unnest($8::INT[]), -- nullable (need patch)
-//   unnest($9::BOOLEAN[]), -- nullable (need patch)
-//   unnest($10::DECIMAL[]),
-//   unnest($11::DECIMAL[]),
-//   unnest($12::INT[]), -- nullable (need patch)
-//   unnest($13::INT[]), -- nullable (need patch)
-//   unnest($14::INT[]), -- nullable (need patch)
-//   unnest($15::INT[]), -- nullable (need patch)
-//   unnest($16::BOOLEAN[]), -- nullable (need patch)
-//   unnest($17::JSONB[]),
-//   unnest($18::TEXT[]), -- nullable (need patch)
-//   unnest($19::INT[]), -- nullable (need patch)
-//   unnest($20::BOOLEAN[]),
-//   unnest($21::INT[])
-// )
-// `
-
 type BatchCreateRunestonesPatchedParams struct {
 	BatchCreateRunestonesParams
 	EtchingDivisibilityArr     []pgtype.Int2
