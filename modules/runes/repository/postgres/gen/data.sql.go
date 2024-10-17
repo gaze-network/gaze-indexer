@@ -45,6 +45,216 @@ func (q *Queries) CreateIndexedBlock(ctx context.Context, arg CreateIndexedBlock
 	return err
 }
 
+const createOutPointBalance = `-- name: CreateOutPointBalance :exec
+INSERT INTO runes_outpoint_balances (rune_id, pkscript, tx_hash, tx_idx, amount, block_height, spent_height) VALUES ($1, $2, $3, $4, $5, $6, $7)
+`
+
+type CreateOutPointBalanceParams struct {
+	RuneID      string
+	Pkscript    string
+	TxHash      string
+	TxIdx       int32
+	Amount      pgtype.Numeric
+	BlockHeight int32
+	SpentHeight pgtype.Int4
+}
+
+func (q *Queries) CreateOutPointBalance(ctx context.Context, arg CreateOutPointBalanceParams) error {
+	_, err := q.db.Exec(ctx, createOutPointBalance,
+		arg.RuneID,
+		arg.Pkscript,
+		arg.TxHash,
+		arg.TxIdx,
+		arg.Amount,
+		arg.BlockHeight,
+		arg.SpentHeight,
+	)
+	return err
+}
+
+const createRuneBalance = `-- name: CreateRuneBalance :exec
+INSERT INTO runes_balances (pkscript, block_height, rune_id, amount) VALUES ($1, $2, $3, $4)
+`
+
+type CreateRuneBalanceParams struct {
+	Pkscript    string
+	BlockHeight int32
+	RuneID      string
+	Amount      pgtype.Numeric
+}
+
+func (q *Queries) CreateRuneBalance(ctx context.Context, arg CreateRuneBalanceParams) error {
+	_, err := q.db.Exec(ctx, createRuneBalance,
+		arg.Pkscript,
+		arg.BlockHeight,
+		arg.RuneID,
+		arg.Amount,
+	)
+	return err
+}
+
+const createRuneEntry = `-- name: CreateRuneEntry :exec
+INSERT INTO runes_entries (rune_id, rune, number, spacers, premine, symbol, divisibility, terms, terms_amount, terms_cap, terms_height_start, terms_height_end, terms_offset_start, terms_offset_end, turbo, etching_block, etching_tx_hash, etched_at)
+  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+`
+
+type CreateRuneEntryParams struct {
+	RuneID           string
+	Rune             string
+	Number           int64
+	Spacers          int32
+	Premine          pgtype.Numeric
+	Symbol           int32
+	Divisibility     int16
+	Terms            bool
+	TermsAmount      pgtype.Numeric
+	TermsCap         pgtype.Numeric
+	TermsHeightStart pgtype.Int4
+	TermsHeightEnd   pgtype.Int4
+	TermsOffsetStart pgtype.Int4
+	TermsOffsetEnd   pgtype.Int4
+	Turbo            bool
+	EtchingBlock     int32
+	EtchingTxHash    string
+	EtchedAt         pgtype.Timestamp
+}
+
+func (q *Queries) CreateRuneEntry(ctx context.Context, arg CreateRuneEntryParams) error {
+	_, err := q.db.Exec(ctx, createRuneEntry,
+		arg.RuneID,
+		arg.Rune,
+		arg.Number,
+		arg.Spacers,
+		arg.Premine,
+		arg.Symbol,
+		arg.Divisibility,
+		arg.Terms,
+		arg.TermsAmount,
+		arg.TermsCap,
+		arg.TermsHeightStart,
+		arg.TermsHeightEnd,
+		arg.TermsOffsetStart,
+		arg.TermsOffsetEnd,
+		arg.Turbo,
+		arg.EtchingBlock,
+		arg.EtchingTxHash,
+		arg.EtchedAt,
+	)
+	return err
+}
+
+const createRuneEntryState = `-- name: CreateRuneEntryState :exec
+INSERT INTO runes_entry_states (rune_id, block_height, mints, burned_amount, completed_at, completed_at_height) VALUES ($1, $2, $3, $4, $5, $6)
+`
+
+type CreateRuneEntryStateParams struct {
+	RuneID            string
+	BlockHeight       int32
+	Mints             pgtype.Numeric
+	BurnedAmount      pgtype.Numeric
+	CompletedAt       pgtype.Timestamp
+	CompletedAtHeight pgtype.Int4
+}
+
+func (q *Queries) CreateRuneEntryState(ctx context.Context, arg CreateRuneEntryStateParams) error {
+	_, err := q.db.Exec(ctx, createRuneEntryState,
+		arg.RuneID,
+		arg.BlockHeight,
+		arg.Mints,
+		arg.BurnedAmount,
+		arg.CompletedAt,
+		arg.CompletedAtHeight,
+	)
+	return err
+}
+
+const createRuneTransaction = `-- name: CreateRuneTransaction :exec
+INSERT INTO runes_transactions (hash, block_height, index, timestamp, inputs, outputs, mints, burns, rune_etched) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+`
+
+type CreateRuneTransactionParams struct {
+	Hash        string
+	BlockHeight int32
+	Index       int32
+	Timestamp   pgtype.Timestamp
+	Inputs      []byte
+	Outputs     []byte
+	Mints       []byte
+	Burns       []byte
+	RuneEtched  bool
+}
+
+func (q *Queries) CreateRuneTransaction(ctx context.Context, arg CreateRuneTransactionParams) error {
+	_, err := q.db.Exec(ctx, createRuneTransaction,
+		arg.Hash,
+		arg.BlockHeight,
+		arg.Index,
+		arg.Timestamp,
+		arg.Inputs,
+		arg.Outputs,
+		arg.Mints,
+		arg.Burns,
+		arg.RuneEtched,
+	)
+	return err
+}
+
+const createRunestone = `-- name: CreateRunestone :exec
+INSERT INTO runes_runestones (tx_hash, block_height, etching, etching_divisibility, etching_premine, etching_rune, etching_spacers, etching_symbol, etching_terms, etching_terms_amount, etching_terms_cap, etching_terms_height_start, etching_terms_height_end, etching_terms_offset_start, etching_terms_offset_end, etching_turbo, edicts, mint, pointer, cenotaph, flaws) 
+  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+`
+
+type CreateRunestoneParams struct {
+	TxHash                  string
+	BlockHeight             int32
+	Etching                 bool
+	EtchingDivisibility     pgtype.Int2
+	EtchingPremine          pgtype.Numeric
+	EtchingRune             pgtype.Text
+	EtchingSpacers          pgtype.Int4
+	EtchingSymbol           pgtype.Int4
+	EtchingTerms            pgtype.Bool
+	EtchingTermsAmount      pgtype.Numeric
+	EtchingTermsCap         pgtype.Numeric
+	EtchingTermsHeightStart pgtype.Int4
+	EtchingTermsHeightEnd   pgtype.Int4
+	EtchingTermsOffsetStart pgtype.Int4
+	EtchingTermsOffsetEnd   pgtype.Int4
+	EtchingTurbo            pgtype.Bool
+	Edicts                  []byte
+	Mint                    pgtype.Text
+	Pointer                 pgtype.Int4
+	Cenotaph                bool
+	Flaws                   int32
+}
+
+func (q *Queries) CreateRunestone(ctx context.Context, arg CreateRunestoneParams) error {
+	_, err := q.db.Exec(ctx, createRunestone,
+		arg.TxHash,
+		arg.BlockHeight,
+		arg.Etching,
+		arg.EtchingDivisibility,
+		arg.EtchingPremine,
+		arg.EtchingRune,
+		arg.EtchingSpacers,
+		arg.EtchingSymbol,
+		arg.EtchingTerms,
+		arg.EtchingTermsAmount,
+		arg.EtchingTermsCap,
+		arg.EtchingTermsHeightStart,
+		arg.EtchingTermsHeightEnd,
+		arg.EtchingTermsOffsetStart,
+		arg.EtchingTermsOffsetEnd,
+		arg.EtchingTurbo,
+		arg.Edicts,
+		arg.Mint,
+		arg.Pointer,
+		arg.Cenotaph,
+		arg.Flaws,
+	)
+	return err
+}
+
 const deleteIndexedBlockSinceHeight = `-- name: DeleteIndexedBlockSinceHeight :exec
 DELETE FROM runes_indexed_blocks WHERE height >= $1
 `
@@ -1057,6 +1267,21 @@ func (q *Queries) GetTotalHoldersByRuneIds(ctx context.Context, arg GetTotalHold
 		return nil, err
 	}
 	return items, nil
+}
+
+const spendOutPointBalance = `-- name: SpendOutPointBalance :exec
+UPDATE runes_outpoint_balances SET spent_height = $1 WHERE tx_hash = $2 AND tx_idx = $3
+`
+
+type SpendOutPointBalanceParams struct {
+	SpentHeight pgtype.Int4
+	TxHash      string
+	TxIdx       int32
+}
+
+func (q *Queries) SpendOutPointBalance(ctx context.Context, arg SpendOutPointBalanceParams) error {
+	_, err := q.db.Exec(ctx, spendOutPointBalance, arg.SpentHeight, arg.TxHash, arg.TxIdx)
+	return err
 }
 
 const unspendOutPointBalancesSinceHeight = `-- name: UnspendOutPointBalancesSinceHeight :exec

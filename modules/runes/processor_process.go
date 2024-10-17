@@ -14,7 +14,6 @@ import (
 	"github.com/gaze-network/indexer-network/common/errs"
 	"github.com/gaze-network/indexer-network/core/types"
 	"github.com/gaze-network/indexer-network/modules/runes/constants"
-	"github.com/gaze-network/indexer-network/modules/runes/datagateway"
 	"github.com/gaze-network/indexer-network/modules/runes/internal/entity"
 	"github.com/gaze-network/indexer-network/modules/runes/runes"
 	"github.com/gaze-network/indexer-network/pkg/logger"
@@ -724,7 +723,7 @@ func (p *Processor) flushBlock(ctx context.Context, blockHeader types.BlockHeade
 	}
 	// flush new rune entries
 	newRuneEntries := lo.Values(p.newRuneEntries)
-	if err := runesDgTx.CreateRuneEntries(ctx, newRuneEntries, uint64(blockHeader.Height)); err != nil {
+	if err := runesDgTx.CreateRuneEntries(ctx, newRuneEntries); err != nil {
 		return errors.Wrap(err, "failed to create rune entry")
 	}
 	p.newRuneEntries = make(map[runes.RuneId]*runes.RuneEntry)
@@ -737,11 +736,11 @@ func (p *Processor) flushBlock(ctx context.Context, blockHeader types.BlockHeade
 	p.newRuneEntryStates = make(map[runes.RuneId]*runes.RuneEntry)
 
 	// flush new outpoint balances
-	newBalances := make([]*entity.OutPointBalance, 0)
+	newOutpointBalances := make([]*entity.OutPointBalance, 0)
 	for _, balances := range p.newOutPointBalances {
-		newBalances = append(newBalances, balances...)
+		newOutpointBalances = append(newOutpointBalances, balances...)
 	}
-	if err := runesDgTx.CreateOutPointBalances(ctx, newBalances); err != nil {
+	if err := runesDgTx.CreateOutPointBalances(ctx, newOutpointBalances); err != nil {
 		return errors.Wrap(err, "failed to create outpoint balances")
 	}
 	p.newOutPointBalances = make(map[wire.OutPoint][]*entity.OutPointBalance)
@@ -753,23 +752,23 @@ func (p *Processor) flushBlock(ctx context.Context, blockHeader types.BlockHeade
 	}
 	p.newSpendOutPoints = make([]wire.OutPoint, 0)
 
-	// flush new balances
-	params := make([]datagateway.CreateRuneBalancesParams, 0)
+	// flush new newBalances
+	newBalances := make([]*entity.Balance, 0)
 	for pkScriptStr, balances := range p.newBalances {
 		pkScript, err := hex.DecodeString(pkScriptStr)
 		if err != nil {
 			return errors.Wrap(err, "failed to decode pk script")
 		}
 		for runeId, balance := range balances {
-			params = append(params, datagateway.CreateRuneBalancesParams{
+			newBalances = append(newBalances, &entity.Balance{
 				PkScript:    pkScript,
 				RuneId:      runeId,
-				Balance:     balance,
+				Amount:      balance,
 				BlockHeight: uint64(blockHeader.Height),
 			})
 		}
 	}
-	if err := runesDgTx.CreateRuneBalances(ctx, params); err != nil {
+	if err := runesDgTx.CreateRuneBalances(ctx, newBalances); err != nil {
 		return errors.Wrap(err, "failed to create balances at block")
 	}
 	p.newBalances = make(map[string]map[runes.RuneId]uint128.Uint128)
@@ -793,9 +792,9 @@ func (p *Processor) flushBlock(ctx context.Context, blockHeader types.BlockHeade
 		slog.String("cumulative_event_hash", hex.EncodeToString(cumulativeEventHash[:])),
 		slog.Int("new_rune_entries", len(newRuneEntries)),
 		slog.Int("new_rune_entry_states", len(newRuneEntryStates)),
-		slog.Int("new_outpoint_balances", len(newBalances)),
+		slog.Int("new_outpoint_balances", len(newOutpointBalances)),
 		slog.Int("new_spend_outpoints", len(newSpendOutPoints)),
-		slog.Int("new_balances", len(params)),
+		slog.Int("new_balances", len(newBalances)),
 		slog.Int("new_rune_txs", len(newRuneTxs)),
 		slogx.Duration("time_taken", timeTaken),
 	)

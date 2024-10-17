@@ -8,7 +8,6 @@ import (
 	"github.com/gaze-network/indexer-network/core/types"
 	"github.com/gaze-network/indexer-network/modules/runes/internal/entity"
 	"github.com/gaze-network/indexer-network/modules/runes/runes"
-	"github.com/gaze-network/uint128"
 )
 
 type RunesDataGateway interface {
@@ -65,11 +64,11 @@ type RunesReaderDataGateway interface {
 }
 
 type RunesWriterDataGateway interface {
-	CreateRuneEntries(ctx context.Context, entries []*runes.RuneEntry, blockHeight uint64) error
+	CreateRuneEntries(ctx context.Context, entries []*runes.RuneEntry) error
 	CreateRuneEntryStates(ctx context.Context, entries []*runes.RuneEntry, blockHeight uint64) error
 	CreateOutPointBalances(ctx context.Context, outPointBalances []*entity.OutPointBalance) error
 	SpendOutPointBalancesBatch(ctx context.Context, outPoints []wire.OutPoint, blockHeight uint64) error
-	CreateRuneBalances(ctx context.Context, params []CreateRuneBalancesParams) error
+	CreateRuneBalances(ctx context.Context, params []*entity.Balance) error
 	CreateRuneTransactions(ctx context.Context, txs []*entity.RuneTransaction) error
 	CreateIndexedBlock(ctx context.Context, block *entity.IndexedBlock) error
 
@@ -82,11 +81,4 @@ type RunesWriterDataGateway interface {
 	DeleteOutPointBalancesSinceHeight(ctx context.Context, height uint64) error
 	UnspendOutPointBalancesSinceHeight(ctx context.Context, height uint64) error
 	DeleteRuneBalancesSinceHeight(ctx context.Context, height uint64) error
-}
-
-type CreateRuneBalancesParams struct {
-	PkScript    []byte
-	RuneId      runes.RuneId
-	Balance     uint128.Uint128
-	BlockHeight uint64
 }
