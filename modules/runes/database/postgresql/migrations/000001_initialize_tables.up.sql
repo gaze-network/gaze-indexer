@@ -1,6 +1,6 @@
 BEGIN;
 
-CREATE EXTENSION pg_trgm;
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
 -- Indexer Client Information
 
 CREATE TABLE IF NOT EXISTS "runes_indexer_stats" (
