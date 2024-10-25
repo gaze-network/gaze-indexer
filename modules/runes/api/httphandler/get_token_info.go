@@ -41,13 +41,14 @@ type entryTerms struct {
 }
 
 type entry struct {
-	Divisibility uint8           `json:"divisibility"`
-	Premine      uint128.Uint128 `json:"premine"`
-	Rune         runes.Rune      `json:"rune"`
-	Spacers      uint32          `json:"spacers"`
-	Symbol       string          `json:"symbol"`
-	Terms        entryTerms      `json:"terms"`
-	Turbo        bool            `json:"turbo"`
+	Divisibility  uint8           `json:"divisibility"`
+	Premine       uint128.Uint128 `json:"premine"`
+	Rune          runes.Rune      `json:"rune"`
+	Spacers       uint32          `json:"spacers"`
+	Symbol        string          `json:"symbol"`
+	Terms         entryTerms      `json:"terms"`
+	Turbo         bool            `json:"turbo"`
+	EtchingTxHash string          `json:"etchingTxHash"`
 }
 
 type tokenInfoExtend struct {
@@ -170,7 +171,8 @@ func (h *HttpHandler) GetTokenInfo(ctx *fiber.Ctx) (err error) {
 						OffsetStart: terms.OffsetStart,
 						OffsetEnd:   terms.OffsetEnd,
 					},
-					Turbo: runeEntry.Turbo,
+					Turbo:         runeEntry.Turbo,
+					EtchingTxHash: runeEntry.EtchingTxHash.String(),
 				},
 			},
 		},
