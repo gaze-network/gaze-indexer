@@ -152,7 +152,7 @@ func (h *HttpHandler) GetTransactions(ctx *fiber.Ctx) (err error) {
 		var ok bool
 		runeId, ok = h.resolveRuneId(ctx.UserContext(), req.Id)
 		if !ok {
-			return errs.NewPublicError("unable to resolve rune id from \"id\"")
+			return errs.NewPublicError(fmt.Sprintf("unable to resolve rune id \"%s\" from \"id\"", req.Id))
 		}
 	}
 
