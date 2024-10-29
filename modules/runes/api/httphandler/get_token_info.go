@@ -1,6 +1,7 @@
 package httphandler
 
 import (
+	"fmt"
 	"net/url"
 
 	"github.com/cockroachdb/errors"
@@ -12,8 +13,16 @@ import (
 )
 
 type getTokenInfoRequest struct {
-	Id          string `params:"id"`
-	BlockHeight uint64 `query:"blockHeight"`
+	Id                  string `params:"id"`
+	BlockHeight         uint64 `query:"blockHeight"`
+	IncludeHoldersCount *bool  `query:"includeHoldersCount"`
+}
+
+func (r *getTokenInfoRequest) ParseDefault() error {
+	if r.IncludeHoldersCount == nil {
+		r.IncludeHoldersCount = lo.ToPtr(false)
+	}
+	return nil
 }
 
 func (r *getTokenInfoRequest) Validate() error {
@@ -26,6 +35,7 @@ func (r *getTokenInfoRequest) Validate() error {
 	if !isRuneIdOrRuneName(r.Id) {
 		errList = append(errList, errors.Errorf("id '%s' is not valid rune id or rune name", r.Id))
 	}
+
 	return errs.WithPublicMessage(errors.Join(errList...), "validation error")
 }
 
@@ -83,6 +93,9 @@ func (h *HttpHandler) GetTokenInfo(ctx *fiber.Ctx) (err error) {
 	if err := req.Validate(); err != nil {
 		return errors.WithStack(err)
 	}
+	if err := req.ParseDefault(); err != nil {
+		return errors.WithStack(err)
+	}
 
 	blockHeight := req.BlockHeight
 	if blockHeight == 0 {
@@ -110,14 +123,17 @@ func (h *HttpHandler) GetTokenInfo(ctx *fiber.Ctx) (err error) {
 		if errors.Is(err, errs.NotFound) {
 			return errs.NewPublicError("rune not found")
 		}
-		return errors.Wrap(err, "error during GetTokenInfoByHeight")
+		return errors.Wrap(err, "error during GetRuneEntryByRuneIdAndHeight")
 	}
-	holdersCount, err := h.usecase.GetTotalHoldersByRuneId(ctx.UserContext(), runeId, blockHeight) // get all balances
-	if err != nil {
-		if errors.Is(err, errs.NotFound) {
-			return errs.NewPublicError("rune not found")
+	var holdersCount int64
+	if *req.IncludeHoldersCount {
+		holdersCount, err = h.usecase.GetTotalHoldersByRuneId(ctx.UserContext(), runeId, blockHeight)
+		if err != nil {
+			if errors.Is(err, errs.NotFound) {
+				return errs.NewPublicError("rune not found")
+			}
+			return errors.Wrap(err, "error during GetBalancesByRuneId")
 		}
-		return errors.Wrap(err, "error during GetBalancesByRuneId")
 	}
 
 	totalSupply, err := runeEntry.Supply()

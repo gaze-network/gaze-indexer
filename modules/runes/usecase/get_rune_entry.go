@@ -40,11 +40,11 @@ func (u *Usecase) GetRuneEntryByRuneIdAndHeight(ctx context.Context, runeId rune
 }
 
 func (u *Usecase) GetRuneEntryByRuneIdAndHeightBatch(ctx context.Context, runeIds []runes.RuneId, blockHeight uint64) (map[runes.RuneId]*runes.RuneEntry, error) {
-	runeEntry, err := u.runesDg.GetRuneEntryByRuneIdAndHeightBatch(ctx, runeIds, blockHeight)
+	runeEntries, err := u.runesDg.GetRuneEntryByRuneIdAndHeightBatch(ctx, runeIds, blockHeight)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get rune entries by rune ids and height")
 	}
-	return runeEntry, nil
+	return runeEntries, nil
 }
 
 func (u *Usecase) GetRuneEntries(ctx context.Context, search string, blockHeight uint64, limit, offset int32) ([]*runes.RuneEntry, error) {
