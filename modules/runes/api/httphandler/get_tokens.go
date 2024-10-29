@@ -66,7 +66,7 @@ func (req *getTokensRequest) ParseDefault() error {
 }
 
 type getTokensResult struct {
-	List []getTokenInfoResult `json:"list"`
+	List []*getTokenInfoResult `json:"list"`
 }
 
 type getTokensResponse = HttpResponse[getTokensResult]
@@ -123,57 +123,19 @@ func (h *HttpHandler) GetTokens(ctx *fiber.Ctx) (err error) {
 		}
 	}
 
-	result := make([]getTokenInfoResult, 0, len(entries))
+	results := make([]*getTokenInfoResult, 0, len(entries))
 	for _, ent := range entries {
-		totalSupply, err := ent.Supply()
+		result, err := createTokenInfoResult(ent, totalHolders[ent.RuneId])
 		if err != nil {
-			return errors.Wrap(err, "cannot get total supply of rune")
+			return errors.Wrap(err, "error during createTokenInfoResult")
 		}
-		mintedAmount, err := ent.MintedAmount()
-		if err != nil {
-			return errors.Wrap(err, "cannot get minted amount of rune")
-		}
-		circulatingSupply := mintedAmount.Sub(ent.BurnedAmount)
 
-		terms := lo.FromPtr(ent.Terms)
-		result = append(result, getTokenInfoResult{
-			Id:                ent.RuneId,
-			Name:              ent.SpacedRune,
-			Symbol:            string(ent.Symbol),
-			TotalSupply:       totalSupply,
-			CirculatingSupply: circulatingSupply,
-			MintedAmount:      mintedAmount,
-			BurnedAmount:      ent.BurnedAmount,
-			Decimals:          ent.Divisibility,
-			DeployedAt:        ent.EtchedAt.Unix(),
-			DeployedAtHeight:  ent.EtchingBlock,
-			CompletedAt:       lo.Ternary(ent.CompletedAt.IsZero(), nil, lo.ToPtr(ent.CompletedAt.Unix())),
-			CompletedAtHeight: ent.CompletedAtHeight,
-			HoldersCount:      totalHolders[ent.RuneId],
-			Extend: tokenInfoExtend{
-				Entry: entry{
-					Divisibility: ent.Divisibility,
-					Premine:      ent.Premine,
-					Rune:         ent.SpacedRune.Rune,
-					Spacers:      ent.SpacedRune.Spacers,
-					Symbol:       string(ent.Symbol),
-					Terms: entryTerms{
-						Amount:      lo.FromPtr(terms.Amount),
-						Cap:         lo.FromPtr(terms.Cap),
-						HeightStart: terms.HeightStart,
-						HeightEnd:   terms.HeightEnd,
-						OffsetStart: terms.OffsetStart,
-						OffsetEnd:   terms.OffsetEnd,
-					},
-					Turbo: ent.Turbo,
-				},
-			},
-		})
+		results = append(results, result)
 	}
 
 	return errors.WithStack(ctx.JSON(getTokensResponse{
 		Result: &getTokensResult{
-			List: result,
+			List: results,
 		},
 	}))
 }

@@ -111,51 +111,9 @@ func (h *HttpHandler) GetTokenInfoBatch(ctx *fiber.Ctx) (err error) {
 		}
 		holdersCount := holdersCounts[runeId]
 
-		totalSupply, err := runeEntry.Supply()
+		result, err := createTokenInfoResult(runeEntry, holdersCount)
 		if err != nil {
-			return errors.Wrap(err, "cannot get total supply of rune")
-		}
-		mintedAmount, err := runeEntry.MintedAmount()
-		if err != nil {
-			return errors.Wrap(err, "cannot get minted amount of rune")
-		}
-		circulatingSupply := mintedAmount.Sub(runeEntry.BurnedAmount)
-
-		terms := lo.FromPtr(runeEntry.Terms)
-
-		result := &getTokenInfoResult{
-			Id:                runeId,
-			Name:              runeEntry.SpacedRune,
-			Symbol:            string(runeEntry.Symbol),
-			TotalSupply:       totalSupply,
-			CirculatingSupply: circulatingSupply,
-			MintedAmount:      mintedAmount,
-			BurnedAmount:      runeEntry.BurnedAmount,
-			Decimals:          runeEntry.Divisibility,
-			DeployedAt:        runeEntry.EtchedAt.Unix(),
-			DeployedAtHeight:  runeEntry.EtchingBlock,
-			CompletedAt:       lo.Ternary(runeEntry.CompletedAt.IsZero(), nil, lo.ToPtr(runeEntry.CompletedAt.Unix())),
-			CompletedAtHeight: runeEntry.CompletedAtHeight,
-			HoldersCount:      holdersCount,
-			Extend: tokenInfoExtend{
-				Entry: entry{
-					Divisibility: runeEntry.Divisibility,
-					Premine:      runeEntry.Premine,
-					Rune:         runeEntry.SpacedRune.Rune,
-					Spacers:      runeEntry.SpacedRune.Spacers,
-					Symbol:       string(runeEntry.Symbol),
-					Terms: entryTerms{
-						Amount:      lo.FromPtr(terms.Amount),
-						Cap:         lo.FromPtr(terms.Cap),
-						HeightStart: terms.HeightStart,
-						HeightEnd:   terms.HeightEnd,
-						OffsetStart: terms.OffsetStart,
-						OffsetEnd:   terms.OffsetEnd,
-					},
-					Turbo:         runeEntry.Turbo,
-					EtchingTxHash: runeEntry.EtchingTxHash.String(),
-				},
-			},
+			return errors.Wrap(err, "error during createTokenInfoResult")
 		}
 		results = append(results, result)
 	}

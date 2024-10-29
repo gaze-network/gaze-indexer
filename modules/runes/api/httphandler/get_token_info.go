@@ -136,53 +136,63 @@ func (h *HttpHandler) GetTokenInfo(ctx *fiber.Ctx) (err error) {
 		}
 	}
 
+	result, err := createTokenInfoResult(runeEntry, holdersCount)
+	if err != nil {
+		return errors.Wrap(err, "error during createTokenInfoResult")
+	}
+
+	resp := getTokenInfoResponse{
+		Result: result,
+	}
+
+	return errors.WithStack(ctx.JSON(resp))
+}
+
+func createTokenInfoResult(runeEntry *runes.RuneEntry, holdersCount int64) (*getTokenInfoResult, error) {
 	totalSupply, err := runeEntry.Supply()
 	if err != nil {
-		return errors.Wrap(err, "cannot get total supply of rune")
+		return nil, errors.Wrap(err, "cannot get total supply of rune")
 	}
 	mintedAmount, err := runeEntry.MintedAmount()
 	if err != nil {
-		return errors.Wrap(err, "cannot get minted amount of rune")
+		return nil, errors.Wrap(err, "cannot get minted amount of rune")
 	}
 	circulatingSupply := mintedAmount.Sub(runeEntry.BurnedAmount)
 
 	terms := lo.FromPtr(runeEntry.Terms)
-	resp := getTokenInfoResponse{
-		Result: &getTokenInfoResult{
-			Id:                runeId,
-			Name:              runeEntry.SpacedRune,
-			Symbol:            string(runeEntry.Symbol),
-			TotalSupply:       totalSupply,
-			CirculatingSupply: circulatingSupply,
-			MintedAmount:      mintedAmount,
-			BurnedAmount:      runeEntry.BurnedAmount,
-			Decimals:          runeEntry.Divisibility,
-			DeployedAt:        runeEntry.EtchedAt.Unix(),
-			DeployedAtHeight:  runeEntry.EtchingBlock,
-			CompletedAt:       lo.Ternary(runeEntry.CompletedAt.IsZero(), nil, lo.ToPtr(runeEntry.CompletedAt.Unix())),
-			CompletedAtHeight: runeEntry.CompletedAtHeight,
-			HoldersCount:      holdersCount,
-			Extend: tokenInfoExtend{
-				Entry: entry{
-					Divisibility: runeEntry.Divisibility,
-					Premine:      runeEntry.Premine,
-					Rune:         runeEntry.SpacedRune.Rune,
-					Spacers:      runeEntry.SpacedRune.Spacers,
-					Symbol:       string(runeEntry.Symbol),
-					Terms: entryTerms{
-						Amount:      lo.FromPtr(terms.Amount),
-						Cap:         lo.FromPtr(terms.Cap),
-						HeightStart: terms.HeightStart,
-						HeightEnd:   terms.HeightEnd,
-						OffsetStart: terms.OffsetStart,
-						OffsetEnd:   terms.OffsetEnd,
-					},
-					Turbo:         runeEntry.Turbo,
-					EtchingTxHash: runeEntry.EtchingTxHash.String(),
+
+	return &getTokenInfoResult{
+		Id:                runeEntry.RuneId,
+		Name:              runeEntry.SpacedRune,
+		Symbol:            string(runeEntry.Symbol),
+		TotalSupply:       totalSupply,
+		CirculatingSupply: circulatingSupply,
+		MintedAmount:      mintedAmount,
+		BurnedAmount:      runeEntry.BurnedAmount,
+		Decimals:          runeEntry.Divisibility,
+		DeployedAt:        runeEntry.EtchedAt.Unix(),
+		DeployedAtHeight:  runeEntry.EtchingBlock,
+		CompletedAt:       lo.Ternary(runeEntry.CompletedAt.IsZero(), nil, lo.ToPtr(runeEntry.CompletedAt.Unix())),
+		CompletedAtHeight: runeEntry.CompletedAtHeight,
+		HoldersCount:      holdersCount,
+		Extend: tokenInfoExtend{
+			Entry: entry{
+				Divisibility: runeEntry.Divisibility,
+				Premine:      runeEntry.Premine,
+				Rune:         runeEntry.SpacedRune.Rune,
+				Spacers:      runeEntry.SpacedRune.Spacers,
+				Symbol:       string(runeEntry.Symbol),
+				Terms: entryTerms{
+					Amount:      lo.FromPtr(terms.Amount),
+					Cap:         lo.FromPtr(terms.Cap),
+					HeightStart: terms.HeightStart,
+					HeightEnd:   terms.HeightEnd,
+					OffsetStart: terms.OffsetStart,
+					OffsetEnd:   terms.OffsetEnd,
 				},
+				Turbo:         runeEntry.Turbo,
+				EtchingTxHash: runeEntry.EtchingTxHash.String(),
 			},
 		},
-	}
-
-	return errors.WithStack(ctx.JSON(resp))
+	}, nil
 }
