@@ -2,11 +2,9 @@ package httphandler
 
 import (
 	"net/url"
-	"slices"
 
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/common/errs"
-	"github.com/gaze-network/indexer-network/modules/runes/internal/entity"
 	"github.com/gaze-network/indexer-network/modules/runes/runes"
 	"github.com/gaze-network/uint128"
 	"github.com/gofiber/fiber/v2"
@@ -68,7 +66,7 @@ type getTokenInfoResult struct {
 	DeployedAtHeight  uint64           `json:"deployedAtHeight"`
 	CompletedAt       *int64           `json:"completedAt"` // unix timestamp
 	CompletedAtHeight *uint64          `json:"completedAtHeight"`
-	HoldersCount      int              `json:"holdersCount"`
+	HoldersCount      int64            `json:"holdersCount"`
 	Extend            tokenInfoExtend  `json:"extend"`
 }
 
@@ -114,21 +112,13 @@ func (h *HttpHandler) GetTokenInfo(ctx *fiber.Ctx) (err error) {
 		}
 		return errors.Wrap(err, "error during GetTokenInfoByHeight")
 	}
-	holdingBalances, err := h.usecase.GetBalancesByRuneId(ctx.UserContext(), runeId, blockHeight, -1, 0) // get all balances
+	holdersCount, err := h.usecase.GetTotalHoldersByRuneId(ctx.UserContext(), runeId, blockHeight) // get all balances
 	if err != nil {
 		if errors.Is(err, errs.NotFound) {
 			return errs.NewPublicError("rune not found")
 		}
 		return errors.Wrap(err, "error during GetBalancesByRuneId")
 	}
-
-	holdingBalances = lo.Filter(holdingBalances, func(b *entity.Balance, _ int) bool {
-		return !b.Amount.IsZero()
-	})
-	// sort by amount descending
-	slices.SortFunc(holdingBalances, func(i, j *entity.Balance) int {
-		return j.Amount.Cmp(i.Amount)
-	})
 
 	totalSupply, err := runeEntry.Supply()
 	if err != nil {
@@ -155,7 +145,7 @@ func (h *HttpHandler) GetTokenInfo(ctx *fiber.Ctx) (err error) {
 			DeployedAtHeight:  runeEntry.EtchingBlock,
 			CompletedAt:       lo.Ternary(runeEntry.CompletedAt.IsZero(), nil, lo.ToPtr(runeEntry.CompletedAt.Unix())),
 			CompletedAtHeight: runeEntry.CompletedAtHeight,
-			HoldersCount:      len(holdingBalances),
+			HoldersCount:      holdersCount,
 			Extend: tokenInfoExtend{
 				Entry: entry{
 					Divisibility: runeEntry.Divisibility,

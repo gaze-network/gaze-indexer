@@ -142,7 +142,7 @@ func (h *HttpHandler) GetTokens(ctx *fiber.Ctx) (err error) {
 			DeployedAtHeight:  ent.EtchingBlock,
 			CompletedAt:       lo.Ternary(ent.CompletedAt.IsZero(), nil, lo.ToPtr(ent.CompletedAt.Unix())),
 			CompletedAtHeight: ent.CompletedAtHeight,
-			HoldersCount:      int(totalHolders[ent.RuneId]),
+			HoldersCount:      totalHolders[ent.RuneId],
 			Extend: tokenInfoExtend{
 				Entry: entry{
 					Divisibility: ent.Divisibility,
