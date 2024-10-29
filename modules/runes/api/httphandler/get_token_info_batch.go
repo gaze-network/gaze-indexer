@@ -12,16 +12,9 @@ import (
 )
 
 type getTokenInfoBatchRequest struct {
-	Ids                 []string `json:"ids"`
-	BlockHeight         uint64   `json:"blockHeight"`
-	IncludeHoldersCount *bool    `json:"includeHoldersCount"`
-}
-
-func (r *getTokenInfoBatchRequest) ParseDefault() error {
-	if r.IncludeHoldersCount == nil {
-		r.IncludeHoldersCount = lo.ToPtr(false)
-	}
-	return nil
+	Ids              []string `json:"ids"`
+	BlockHeight      uint64   `json:"blockHeight"`
+	AdditionalFields []string `query:"additionalFields"`
 }
 
 const getTokenInfoBatchMaxQueries = 100
@@ -62,9 +55,6 @@ func (h *HttpHandler) GetTokenInfoBatch(ctx *fiber.Ctx) (err error) {
 	if err := req.Validate(); err != nil {
 		return errors.WithStack(err)
 	}
-	if err := req.ParseDefault(); err != nil {
-		return errors.WithStack(err)
-	}
 
 	blockHeight := req.BlockHeight
 	if blockHeight == 0 {
@@ -92,7 +82,7 @@ func (h *HttpHandler) GetTokenInfoBatch(ctx *fiber.Ctx) (err error) {
 		return errors.Wrap(err, "error during GetRuneEntryByRuneIdAndHeightBatch")
 	}
 	holdersCounts := make(map[runes.RuneId]int64)
-	if *req.IncludeHoldersCount {
+	if lo.Contains(req.AdditionalFields, "holdersCount") {
 		holdersCounts, err = h.usecase.GetTotalHoldersByRuneIds(ctx.UserContext(), runeIds, blockHeight)
 		if err != nil {
 			if errors.Is(err, errs.NotFound) {
@@ -109,7 +99,10 @@ func (h *HttpHandler) GetTokenInfoBatch(ctx *fiber.Ctx) (err error) {
 		if !ok {
 			return errs.NewPublicError(fmt.Sprintf("rune not found: %s", runeId))
 		}
-		holdersCount := holdersCounts[runeId]
+		var holdersCount *int64
+		if lo.Contains(req.AdditionalFields, "holdersCount") {
+			holdersCount = lo.ToPtr(holdersCounts[runeId])
+		}
 
 		result, err := createTokenInfoResult(runeEntry, holdersCount)
 		if err != nil {

@@ -13,16 +13,9 @@ import (
 )
 
 type getTokenInfoRequest struct {
-	Id                  string `params:"id"`
-	BlockHeight         uint64 `query:"blockHeight"`
-	IncludeHoldersCount *bool  `query:"includeHoldersCount"`
-}
-
-func (r *getTokenInfoRequest) ParseDefault() error {
-	if r.IncludeHoldersCount == nil {
-		r.IncludeHoldersCount = lo.ToPtr(false)
-	}
-	return nil
+	Id               string   `params:"id"`
+	BlockHeight      uint64   `query:"blockHeight"`
+	AdditionalFields []string `query:"additionalFields"` // comma-separated list of additional fields
 }
 
 func (r *getTokenInfoRequest) Validate() error {
@@ -60,7 +53,8 @@ type entry struct {
 }
 
 type tokenInfoExtend struct {
-	Entry entry `json:"entry"`
+	HoldersCount *int64 `json:"holdersCount,omitempty"`
+	Entry        entry  `json:"entry"`
 }
 
 type getTokenInfoResult struct {
@@ -76,7 +70,7 @@ type getTokenInfoResult struct {
 	DeployedAtHeight  uint64           `json:"deployedAtHeight"`
 	CompletedAt       *int64           `json:"completedAt"` // unix timestamp
 	CompletedAtHeight *uint64          `json:"completedAtHeight"`
-	HoldersCount      int64            `json:"holdersCount"`
+	HoldersCount      int64            `json:"holdersCount"` // deprecated // TODO: remove later
 	Extend            tokenInfoExtend  `json:"extend"`
 }
 
@@ -91,9 +85,6 @@ func (h *HttpHandler) GetTokenInfo(ctx *fiber.Ctx) (err error) {
 		return errors.WithStack(err)
 	}
 	if err := req.Validate(); err != nil {
-		return errors.WithStack(err)
-	}
-	if err := req.ParseDefault(); err != nil {
 		return errors.WithStack(err)
 	}
 
@@ -125,18 +116,19 @@ func (h *HttpHandler) GetTokenInfo(ctx *fiber.Ctx) (err error) {
 		}
 		return errors.Wrap(err, "error during GetRuneEntryByRuneIdAndHeight")
 	}
-	var holdersCount int64
-	if *req.IncludeHoldersCount {
-		holdersCount, err = h.usecase.GetTotalHoldersByRuneId(ctx.UserContext(), runeId, blockHeight)
+	var holdersCountPtr *int64
+	if lo.Contains(req.AdditionalFields, "holdersCount") {
+		holdersCount, err := h.usecase.GetTotalHoldersByRuneId(ctx.UserContext(), runeId, blockHeight)
 		if err != nil {
 			if errors.Is(err, errs.NotFound) {
 				return errs.NewPublicError("rune not found")
 			}
 			return errors.Wrap(err, "error during GetBalancesByRuneId")
 		}
+		holdersCountPtr = &holdersCount
 	}
 
-	result, err := createTokenInfoResult(runeEntry, holdersCount)
+	result, err := createTokenInfoResult(runeEntry, holdersCountPtr)
 	if err != nil {
 		return errors.Wrap(err, "error during createTokenInfoResult")
 	}
@@ -148,7 +140,7 @@ func (h *HttpHandler) GetTokenInfo(ctx *fiber.Ctx) (err error) {
 	return errors.WithStack(ctx.JSON(resp))
 }
 
-func createTokenInfoResult(runeEntry *runes.RuneEntry, holdersCount int64) (*getTokenInfoResult, error) {
+func createTokenInfoResult(runeEntry *runes.RuneEntry, holdersCount *int64) (*getTokenInfoResult, error) {
 	totalSupply, err := runeEntry.Supply()
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot get total supply of rune")
@@ -174,8 +166,9 @@ func createTokenInfoResult(runeEntry *runes.RuneEntry, holdersCount int64) (*get
 		DeployedAtHeight:  runeEntry.EtchingBlock,
 		CompletedAt:       lo.Ternary(runeEntry.CompletedAt.IsZero(), nil, lo.ToPtr(runeEntry.CompletedAt.Unix())),
 		CompletedAtHeight: runeEntry.CompletedAtHeight,
-		HoldersCount:      holdersCount,
+		HoldersCount:      lo.FromPtr(holdersCount),
 		Extend: tokenInfoExtend{
+			HoldersCount: holdersCount,
 			Entry: entry{
 				Divisibility: runeEntry.Divisibility,
 				Premine:      runeEntry.Premine,

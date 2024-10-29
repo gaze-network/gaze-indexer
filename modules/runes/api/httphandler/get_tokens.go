@@ -32,10 +32,10 @@ func (s GetTokensScope) IsValid() bool {
 
 type getTokensRequest struct {
 	paginationRequest
-	Search              string         `query:"search"`
-	BlockHeight         uint64         `query:"blockHeight"`
-	Scope               GetTokensScope `query:"scope"`
-	IncludeHoldersCount *bool          `query:"includeHoldersCount"`
+	Search           string         `query:"search"`
+	BlockHeight      uint64         `query:"blockHeight"`
+	Scope            GetTokensScope `query:"scope"`
+	AdditionalFields []string       `query:"additionalFields"` // comma-separated list of additional fields
 }
 
 func (req getTokensRequest) Validate() error {
@@ -58,9 +58,6 @@ func (req *getTokensRequest) ParseDefault() error {
 	}
 	if req.Scope == "" {
 		req.Scope = GetTokensScopeAll
-	}
-	if req.IncludeHoldersCount == nil {
-		req.IncludeHoldersCount = lo.ToPtr(false)
 	}
 	return nil
 }
@@ -115,9 +112,9 @@ func (h *HttpHandler) GetTokens(ctx *fiber.Ctx) (err error) {
 	}
 
 	runeIds := lo.Map(entries, func(item *runes.RuneEntry, _ int) runes.RuneId { return item.RuneId })
-	totalHolders := make(map[runes.RuneId]int64)
-	if *req.IncludeHoldersCount {
-		totalHolders, err = h.usecase.GetTotalHoldersByRuneIds(ctx.UserContext(), runeIds, blockHeight)
+	holdersCounts := make(map[runes.RuneId]int64)
+	if lo.Contains(req.AdditionalFields, "holdersCount") {
+		holdersCounts, err = h.usecase.GetTotalHoldersByRuneIds(ctx.UserContext(), runeIds, blockHeight)
 		if err != nil {
 			return errors.Wrap(err, "error during GetTotalHoldersByRuneIds")
 		}
@@ -125,7 +122,11 @@ func (h *HttpHandler) GetTokens(ctx *fiber.Ctx) (err error) {
 
 	results := make([]*getTokenInfoResult, 0, len(entries))
 	for _, ent := range entries {
-		result, err := createTokenInfoResult(ent, totalHolders[ent.RuneId])
+		var holdersCount *int64
+		if lo.Contains(req.AdditionalFields, "holdersCount") {
+			holdersCount = lo.ToPtr(holdersCounts[ent.RuneId])
+		}
+		result, err := createTokenInfoResult(ent, holdersCount)
 		if err != nil {
 			return errors.Wrap(err, "error during createTokenInfoResult")
 		}
