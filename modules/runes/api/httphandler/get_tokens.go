@@ -32,23 +32,27 @@ func (s GetTokensScope) IsValid() bool {
 
 type getTokensRequest struct {
 	paginationRequest
-	Search           string         `query:"search"`
-	BlockHeight      uint64         `query:"blockHeight"`
-	Scope            GetTokensScope `query:"scope"`
-	AdditionalFields []string       `query:"additionalFields"` // comma-separated list of additional fields
+	Search              string         `query:"search"`
+	BlockHeight         uint64         `query:"blockHeight"`
+	Scope               GetTokensScope `query:"scope"`
+	AdditionalFieldsRaw string         `query:"additionalFields"` // comma-separated list of additional fields
+	AdditionalFields    []string
 }
 
-func (req getTokensRequest) Validate() error {
+func (r *getTokensRequest) Validate() error {
 	var errList []error
-	if err := req.paginationRequest.Validate(); err != nil {
+	if err := r.paginationRequest.Validate(); err != nil {
 		errList = append(errList, err)
 	}
-	if req.Limit > getTokensMaxLimit {
+	if r.Limit > getTokensMaxLimit {
 		errList = append(errList, errors.Errorf("limit must be less than or equal to 1000"))
 	}
-	if req.Scope != "" && !req.Scope.IsValid() {
-		errList = append(errList, errors.Errorf("invalid scope: %s", req.Scope))
+	if r.Scope != "" && !r.Scope.IsValid() {
+		errList = append(errList, errors.Errorf("invalid scope: %s", r.Scope))
 	}
+
+	r.AdditionalFields = strings.Split(r.AdditionalFieldsRaw, ",")
+
 	return errs.WithPublicMessage(errors.Join(errList...), "validation error")
 }
 

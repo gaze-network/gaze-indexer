@@ -3,6 +3,7 @@ package httphandler
 import (
 	"fmt"
 	"net/url"
+	"strings"
 
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/common/errs"
@@ -13,9 +14,10 @@ import (
 )
 
 type getTokenInfoRequest struct {
-	Id               string   `params:"id"`
-	BlockHeight      uint64   `query:"blockHeight"`
-	AdditionalFields []string `query:"additionalFields"` // comma-separated list of additional fields
+	Id                  string `params:"id"`
+	BlockHeight         uint64 `query:"blockHeight"`
+	AdditionalFieldsRaw string `query:"additionalFields"` // comma-separated list of additional fields
+	AdditionalFields    []string
 }
 
 func (r *getTokenInfoRequest) Validate() error {
@@ -28,6 +30,8 @@ func (r *getTokenInfoRequest) Validate() error {
 	if !isRuneIdOrRuneName(r.Id) {
 		errList = append(errList, errors.Errorf("id '%s' is not valid rune id or rune name", r.Id))
 	}
+
+	r.AdditionalFields = strings.Split(r.AdditionalFieldsRaw, ",")
 
 	return errs.WithPublicMessage(errors.Join(errList...), "validation error")
 }
