@@ -23,7 +23,7 @@ func (r *getTokenInfoBatchRequest) Validate() error {
 	var errList []error
 
 	if len(r.Ids) == 0 {
-		errList = append(errList, errors.New("at least one query is required"))
+		errList = append(errList, errors.New("ids cannot be empty"))
 	}
 	if len(r.Ids) > getTokenInfoBatchMaxQueries {
 		errList = append(errList, errors.Errorf("cannot query more than %d ids", getTokenInfoBatchMaxQueries))
