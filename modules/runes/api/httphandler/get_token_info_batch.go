@@ -85,9 +85,6 @@ func (h *HttpHandler) GetTokenInfoBatch(ctx *fiber.Ctx) (err error) {
 	if lo.Contains(req.AdditionalFields, "holdersCount") {
 		holdersCounts, err = h.usecase.GetTotalHoldersByRuneIds(ctx.UserContext(), runeIds, blockHeight)
 		if err != nil {
-			if errors.Is(err, errs.NotFound) {
-				return errs.NewPublicError("rune not found")
-			}
 			return errors.Wrap(err, "error during GetBalancesByRuneId")
 		}
 	}
