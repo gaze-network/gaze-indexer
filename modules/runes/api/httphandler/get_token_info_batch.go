@@ -14,7 +14,7 @@ import (
 type getTokenInfoBatchRequest struct {
 	Ids              []string `json:"ids"`
 	BlockHeight      uint64   `json:"blockHeight"`
-	AdditionalFields []string `query:"additionalFields"`
+	AdditionalFields []string `json:"additionalFields"`
 }
 
 const getTokenInfoBatchMaxQueries = 100
