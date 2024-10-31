@@ -32,22 +32,31 @@ func (s GetTokensScope) IsValid() bool {
 
 type getTokensRequest struct {
 	paginationRequest
-	Search      string         `query:"search"`
-	BlockHeight uint64         `query:"blockHeight"`
-	Scope       GetTokensScope `query:"scope"`
+	Search              string         `query:"search"`
+	BlockHeight         uint64         `query:"blockHeight"`
+	Scope               GetTokensScope `query:"scope"`
+	AdditionalFieldsRaw string         `query:"additionalFields"` // comma-separated list of additional fields
+	AdditionalFields    []string
 }
 
-func (req getTokensRequest) Validate() error {
+func (r *getTokensRequest) Validate() error {
 	var errList []error
-	if err := req.paginationRequest.Validate(); err != nil {
+	if err := r.paginationRequest.Validate(); err != nil {
 		errList = append(errList, err)
 	}
-	if req.Limit > getTokensMaxLimit {
+	if r.Limit > getTokensMaxLimit {
 		errList = append(errList, errors.Errorf("limit must be less than or equal to 1000"))
 	}
-	if req.Scope != "" && !req.Scope.IsValid() {
-		errList = append(errList, errors.Errorf("invalid scope: %s", req.Scope))
+	if r.Scope != "" && !r.Scope.IsValid() {
+		errList = append(errList, errors.Errorf("invalid scope: %s", r.Scope))
 	}
+
+	if r.AdditionalFieldsRaw == "" {
+		// temporarily set default value for backward compatibility
+		r.AdditionalFieldsRaw = "holdersCount" // TODO: remove this default value after all clients are updated
+	}
+	r.AdditionalFields = strings.Split(r.AdditionalFieldsRaw, ",")
+
 	return errs.WithPublicMessage(errors.Join(errList...), "validation error")
 }
 
@@ -62,7 +71,7 @@ func (req *getTokensRequest) ParseDefault() error {
 }
 
 type getTokensResult struct {
-	List []getTokenInfoResult `json:"list"`
+	List []*getTokenInfoResult `json:"list"`
 }
 
 type getTokensResponse = HttpResponse[getTokensResult]
@@ -111,62 +120,31 @@ func (h *HttpHandler) GetTokens(ctx *fiber.Ctx) (err error) {
 	}
 
 	runeIds := lo.Map(entries, func(item *runes.RuneEntry, _ int) runes.RuneId { return item.RuneId })
-	totalHolders, err := h.usecase.GetTotalHoldersByRuneIds(ctx.UserContext(), runeIds, blockHeight)
-	if err != nil {
-		return errors.Wrap(err, "error during GetTotalHoldersByRuneIds")
+	holdersCounts := make(map[runes.RuneId]int64)
+	if lo.Contains(req.AdditionalFields, "holdersCount") {
+		holdersCounts, err = h.usecase.GetTotalHoldersByRuneIds(ctx.UserContext(), runeIds, blockHeight)
+		if err != nil {
+			return errors.Wrap(err, "error during GetTotalHoldersByRuneIds")
+		}
 	}
 
-	result := make([]getTokenInfoResult, 0, len(entries))
+	results := make([]*getTokenInfoResult, 0, len(entries))
 	for _, ent := range entries {
-		totalSupply, err := ent.Supply()
-		if err != nil {
-			return errors.Wrap(err, "cannot get total supply of rune")
+		var holdersCount *int64
+		if lo.Contains(req.AdditionalFields, "holdersCount") {
+			holdersCount = lo.ToPtr(holdersCounts[ent.RuneId])
 		}
-		mintedAmount, err := ent.MintedAmount()
+		result, err := createTokenInfoResult(ent, holdersCount)
 		if err != nil {
-			return errors.Wrap(err, "cannot get minted amount of rune")
+			return errors.Wrap(err, "error during createTokenInfoResult")
 		}
-		circulatingSupply := mintedAmount.Sub(ent.BurnedAmount)
 
-		terms := lo.FromPtr(ent.Terms)
-		result = append(result, getTokenInfoResult{
-			Id:                ent.RuneId,
-			Name:              ent.SpacedRune,
-			Symbol:            string(ent.Symbol),
-			TotalSupply:       totalSupply,
-			CirculatingSupply: circulatingSupply,
-			MintedAmount:      mintedAmount,
-			BurnedAmount:      ent.BurnedAmount,
-			Decimals:          ent.Divisibility,
-			DeployedAt:        ent.EtchedAt.Unix(),
-			DeployedAtHeight:  ent.EtchingBlock,
-			CompletedAt:       lo.Ternary(ent.CompletedAt.IsZero(), nil, lo.ToPtr(ent.CompletedAt.Unix())),
-			CompletedAtHeight: ent.CompletedAtHeight,
-			HoldersCount:      int(totalHolders[ent.RuneId]),
-			Extend: tokenInfoExtend{
-				Entry: entry{
-					Divisibility: ent.Divisibility,
-					Premine:      ent.Premine,
-					Rune:         ent.SpacedRune.Rune,
-					Spacers:      ent.SpacedRune.Spacers,
-					Symbol:       string(ent.Symbol),
-					Terms: entryTerms{
-						Amount:      lo.FromPtr(terms.Amount),
-						Cap:         lo.FromPtr(terms.Cap),
-						HeightStart: terms.HeightStart,
-						HeightEnd:   terms.HeightEnd,
-						OffsetStart: terms.OffsetStart,
-						OffsetEnd:   terms.OffsetEnd,
-					},
-					Turbo: ent.Turbo,
-				},
-			},
-		})
+		results = append(results, result)
 	}
 
 	return errors.WithStack(ctx.JSON(getTokensResponse{
 		Result: &getTokensResult{
-			List: result,
+			List: results,
 		},
 	}))
 }

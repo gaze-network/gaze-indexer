@@ -1,12 +1,12 @@
 package httphandler
 
 import (
+	"fmt"
 	"net/url"
-	"slices"
+	"strings"
 
 	"github.com/cockroachdb/errors"
 	"github.com/gaze-network/indexer-network/common/errs"
-	"github.com/gaze-network/indexer-network/modules/runes/internal/entity"
 	"github.com/gaze-network/indexer-network/modules/runes/runes"
 	"github.com/gaze-network/uint128"
 	"github.com/gofiber/fiber/v2"
@@ -14,8 +14,10 @@ import (
 )
 
 type getTokenInfoRequest struct {
-	Id          string `params:"id"`
-	BlockHeight uint64 `query:"blockHeight"`
+	Id                  string `params:"id"`
+	BlockHeight         uint64 `query:"blockHeight"`
+	AdditionalFieldsRaw string `query:"additionalFields"` // comma-separated list of additional fields
+	AdditionalFields    []string
 }
 
 func (r *getTokenInfoRequest) Validate() error {
@@ -28,6 +30,13 @@ func (r *getTokenInfoRequest) Validate() error {
 	if !isRuneIdOrRuneName(r.Id) {
 		errList = append(errList, errors.Errorf("id '%s' is not valid rune id or rune name", r.Id))
 	}
+
+	if r.AdditionalFieldsRaw == "" {
+		// temporarily set default value for backward compatibility
+		r.AdditionalFieldsRaw = "holdersCount" // TODO: remove this default value after all clients are updated
+	}
+	r.AdditionalFields = strings.Split(r.AdditionalFieldsRaw, ",")
+
 	return errs.WithPublicMessage(errors.Join(errList...), "validation error")
 }
 
@@ -52,7 +61,8 @@ type entry struct {
 }
 
 type tokenInfoExtend struct {
-	Entry entry `json:"entry"`
+	HoldersCount *int64 `json:"holdersCount,omitempty"`
+	Entry        entry  `json:"entry"`
 }
 
 type getTokenInfoResult struct {
@@ -68,7 +78,7 @@ type getTokenInfoResult struct {
 	DeployedAtHeight  uint64           `json:"deployedAtHeight"`
 	CompletedAt       *int64           `json:"completedAt"` // unix timestamp
 	CompletedAtHeight *uint64          `json:"completedAtHeight"`
-	HoldersCount      int              `json:"holdersCount"`
+	HoldersCount      int64            `json:"holdersCount"` // deprecated // TODO: remove later
 	Extend            tokenInfoExtend  `json:"extend"`
 }
 
@@ -103,7 +113,7 @@ func (h *HttpHandler) GetTokenInfo(ctx *fiber.Ctx) (err error) {
 		var ok bool
 		runeId, ok = h.resolveRuneId(ctx.UserContext(), req.Id)
 		if !ok {
-			return errs.NewPublicError("unable to resolve rune id from \"id\"")
+			return errs.NewPublicError(fmt.Sprintf("unable to resolve rune id \"%s\" from \"id\"", req.Id))
 		}
 	}
 
@@ -112,71 +122,78 @@ func (h *HttpHandler) GetTokenInfo(ctx *fiber.Ctx) (err error) {
 		if errors.Is(err, errs.NotFound) {
 			return errs.NewPublicError("rune not found")
 		}
-		return errors.Wrap(err, "error during GetTokenInfoByHeight")
+		return errors.Wrap(err, "error during GetRuneEntryByRuneIdAndHeight")
 	}
-	holdingBalances, err := h.usecase.GetBalancesByRuneId(ctx.UserContext(), runeId, blockHeight, -1, 0) // get all balances
-	if err != nil {
-		if errors.Is(err, errs.NotFound) {
-			return errs.NewPublicError("rune not found")
+	var holdersCountPtr *int64
+	if lo.Contains(req.AdditionalFields, "holdersCount") {
+		holdersCount, err := h.usecase.GetTotalHoldersByRuneId(ctx.UserContext(), runeId, blockHeight)
+		if err != nil {
+			if errors.Is(err, errs.NotFound) {
+				return errs.NewPublicError("rune not found")
+			}
+			return errors.Wrap(err, "error during GetBalancesByRuneId")
 		}
-		return errors.Wrap(err, "error during GetBalancesByRuneId")
+		holdersCountPtr = &holdersCount
 	}
 
-	holdingBalances = lo.Filter(holdingBalances, func(b *entity.Balance, _ int) bool {
-		return !b.Amount.IsZero()
-	})
-	// sort by amount descending
-	slices.SortFunc(holdingBalances, func(i, j *entity.Balance) int {
-		return j.Amount.Cmp(i.Amount)
-	})
+	result, err := createTokenInfoResult(runeEntry, holdersCountPtr)
+	if err != nil {
+		return errors.Wrap(err, "error during createTokenInfoResult")
+	}
 
+	resp := getTokenInfoResponse{
+		Result: result,
+	}
+
+	return errors.WithStack(ctx.JSON(resp))
+}
+
+func createTokenInfoResult(runeEntry *runes.RuneEntry, holdersCount *int64) (*getTokenInfoResult, error) {
 	totalSupply, err := runeEntry.Supply()
 	if err != nil {
-		return errors.Wrap(err, "cannot get total supply of rune")
+		return nil, errors.Wrap(err, "cannot get total supply of rune")
 	}
 	mintedAmount, err := runeEntry.MintedAmount()
 	if err != nil {
-		return errors.Wrap(err, "cannot get minted amount of rune")
+		return nil, errors.Wrap(err, "cannot get minted amount of rune")
 	}
 	circulatingSupply := mintedAmount.Sub(runeEntry.BurnedAmount)
 
 	terms := lo.FromPtr(runeEntry.Terms)
-	resp := getTokenInfoResponse{
-		Result: &getTokenInfoResult{
-			Id:                runeId,
-			Name:              runeEntry.SpacedRune,
-			Symbol:            string(runeEntry.Symbol),
-			TotalSupply:       totalSupply,
-			CirculatingSupply: circulatingSupply,
-			MintedAmount:      mintedAmount,
-			BurnedAmount:      runeEntry.BurnedAmount,
-			Decimals:          runeEntry.Divisibility,
-			DeployedAt:        runeEntry.EtchedAt.Unix(),
-			DeployedAtHeight:  runeEntry.EtchingBlock,
-			CompletedAt:       lo.Ternary(runeEntry.CompletedAt.IsZero(), nil, lo.ToPtr(runeEntry.CompletedAt.Unix())),
-			CompletedAtHeight: runeEntry.CompletedAtHeight,
-			HoldersCount:      len(holdingBalances),
-			Extend: tokenInfoExtend{
-				Entry: entry{
-					Divisibility: runeEntry.Divisibility,
-					Premine:      runeEntry.Premine,
-					Rune:         runeEntry.SpacedRune.Rune,
-					Spacers:      runeEntry.SpacedRune.Spacers,
-					Symbol:       string(runeEntry.Symbol),
-					Terms: entryTerms{
-						Amount:      lo.FromPtr(terms.Amount),
-						Cap:         lo.FromPtr(terms.Cap),
-						HeightStart: terms.HeightStart,
-						HeightEnd:   terms.HeightEnd,
-						OffsetStart: terms.OffsetStart,
-						OffsetEnd:   terms.OffsetEnd,
-					},
-					Turbo:         runeEntry.Turbo,
-					EtchingTxHash: runeEntry.EtchingTxHash.String(),
+
+	return &getTokenInfoResult{
+		Id:                runeEntry.RuneId,
+		Name:              runeEntry.SpacedRune,
+		Symbol:            string(runeEntry.Symbol),
+		TotalSupply:       totalSupply,
+		CirculatingSupply: circulatingSupply,
+		MintedAmount:      mintedAmount,
+		BurnedAmount:      runeEntry.BurnedAmount,
+		Decimals:          runeEntry.Divisibility,
+		DeployedAt:        runeEntry.EtchedAt.Unix(),
+		DeployedAtHeight:  runeEntry.EtchingBlock,
+		CompletedAt:       lo.Ternary(runeEntry.CompletedAt.IsZero(), nil, lo.ToPtr(runeEntry.CompletedAt.Unix())),
+		CompletedAtHeight: runeEntry.CompletedAtHeight,
+		HoldersCount:      lo.FromPtr(holdersCount),
+		Extend: tokenInfoExtend{
+			HoldersCount: holdersCount,
+			Entry: entry{
+				Divisibility: runeEntry.Divisibility,
+				Premine:      runeEntry.Premine,
+				Rune:         runeEntry.SpacedRune.Rune,
+				Spacers:      runeEntry.SpacedRune.Spacers,
+				Symbol:       string(runeEntry.Symbol),
+				Terms: entryTerms{
+					Amount:      lo.FromPtr(terms.Amount),
+					Cap:         lo.FromPtr(terms.Cap),
+					HeightStart: terms.HeightStart,
+					HeightEnd:   terms.HeightEnd,
+					OffsetStart: terms.OffsetStart,
+					OffsetEnd:   terms.OffsetEnd,
 				},
+				Turbo:         runeEntry.Turbo,
+				EtchingTxHash: runeEntry.EtchingTxHash.String(),
 			},
 		},
-	}
-
-	return errors.WithStack(ctx.JSON(resp))
+	}, nil
 }
