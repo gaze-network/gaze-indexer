@@ -33,3 +33,13 @@ func (u *Usecase) GetTotalHoldersByRuneIds(ctx context.Context, runeIds []runes.
 	}
 	return holders, nil
 }
+
+func (u *Usecase) GetTotalHoldersByRuneId(ctx context.Context, runeId runes.RuneId, blockHeight uint64) (int64, error) {
+	holders, err := u.runesDg.GetTotalHoldersByRuneIds(ctx, []runes.RuneId{runeId}, blockHeight)
+	if err != nil {
+		return 0, errors.Wrap(err, "failed to get total holders by rune ids")
+	}
+
+	// defaults to zero holders if not found
+	return holders[runeId], nil
+}
