@@ -51,6 +51,10 @@ func (r *getTokensRequest) Validate() error {
 		errList = append(errList, errors.Errorf("invalid scope: %s", r.Scope))
 	}
 
+	if r.AdditionalFieldsRaw == "" {
+		// temporarily set default value for backward compatibility
+		r.AdditionalFieldsRaw = "holdersCount" // TODO: remove this default value after all clients are updated
+	}
 	r.AdditionalFields = strings.Split(r.AdditionalFieldsRaw, ",")
 
 	return errs.WithPublicMessage(errors.Join(errList...), "validation error")

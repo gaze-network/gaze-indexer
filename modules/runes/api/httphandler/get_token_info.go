@@ -31,6 +31,10 @@ func (r *getTokenInfoRequest) Validate() error {
 		errList = append(errList, errors.Errorf("id '%s' is not valid rune id or rune name", r.Id))
 	}
 
+	if r.AdditionalFieldsRaw == "" {
+		// temporarily set default value for backward compatibility
+		r.AdditionalFieldsRaw = "holdersCount" // TODO: remove this default value after all clients are updated
+	}
 	r.AdditionalFields = strings.Split(r.AdditionalFieldsRaw, ",")
 
 	return errs.WithPublicMessage(errors.Join(errList...), "validation error")
